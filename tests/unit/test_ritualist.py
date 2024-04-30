@@ -3,8 +3,7 @@ from atxm.exceptions import Fault, InsufficientFunds
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import RitualisticPower, TransactingPower
+from nucypher.crypto.powers import RitualisticPower
 from nucypher.types import PhaseId
 from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.coordinator import MockCoordinatorAgent
@@ -39,10 +38,8 @@ def cohort(ursulas):
 
 
 @pytest.fixture(scope="module")
-def transacting_power(testerchain, alice):
-    return TransactingPower(
-        account=alice.transacting_power.account, signer=Web3Signer(testerchain.client)
-    )
+def transacting_power(alice):
+    return alice.transacting_power
 
 
 def test_initiate_ritual(

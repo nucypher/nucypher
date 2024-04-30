@@ -1,17 +1,16 @@
 import pytest
 
 from nucypher.blockchain.eth.clients import EthereumClient
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.mark.skip(
     "This test need to be refactored to use some other transaction than deployment"
 )
-def test_block_confirmations(testerchain, test_registry, mocker):
-    origin = testerchain.etherbase_account
+def test_block_confirmations(testerchain, test_registry, mocker, accounts):
+    origin = accounts.etherbase_account
     transacting_power = TransactingPower(
-        account=origin, signer=Web3Signer(testerchain.client)
+        account=origin, signer=accounts.get_account_signer(origin)
     )
 
     # Mocks and test adjustments

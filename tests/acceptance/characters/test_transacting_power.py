@@ -4,7 +4,6 @@ from eth_utils import to_checksum_address
 from nucypher_core.ferveo import Keypair
 
 from nucypher.blockchain.eth.models import Ferveo
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Character
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import TransactingPower
@@ -15,9 +14,9 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_ETH_PROVIDER_URI
 TransactingPower.lock_account = LOCK_FUNCTION
 
 
-def test_character_transacting_power_signing(testerchain, test_registry):
+def test_character_transacting_power_signing(testerchain, test_registry, accounts):
     # Pretend to be a character.
-    eth_address = testerchain.etherbase_account
+    eth_address = accounts.etherbase_account
     signer = Character(
         is_me=True,
         domain=TEMPORARY_DOMAIN_NAME,
@@ -29,7 +28,7 @@ def test_character_transacting_power_signing(testerchain, test_registry):
     # Manually consume the power up
     transacting_power = TransactingPower(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        signer=Web3Signer(testerchain.client),
+        signer=accounts.get_account_signer(eth_address),
         account=eth_address,
     )
 
@@ -54,7 +53,7 @@ def test_character_transacting_power_signing(testerchain, test_registry):
         "gasPrice": testerchain.client.w3.eth.gas_price,
         "gas": 100000,
         "from": eth_address,
-        "to": testerchain.unassigned_accounts[1],
+        "to": accounts.unassigned_accounts[1],
         "value": 1,
         "data": b"",
     }
@@ -67,12 +66,12 @@ def test_character_transacting_power_signing(testerchain, test_registry):
     assert to_checksum_address(restored_dict["to"]) == transaction_dict["to"]
 
 
-def test_transacting_power_sign_message(testerchain):
+def test_transacting_power_sign_message(testerchain, accounts):
     # Manually create a TransactingPower
-    eth_address = testerchain.etherbase_account
+    eth_address = accounts.etherbase_account
     power = TransactingPower(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        signer=Web3Signer(testerchain.client),
+        signer=accounts.get_account_signer(eth_address),
         account=eth_address,
     )
 
@@ -91,18 +90,18 @@ def test_transacting_power_sign_message(testerchain):
 
     # Test invalid address/pubkey pair
     is_verified = verify_eip_191(
-        address=testerchain.client.accounts[1],
+        address=accounts.accounts_addresses[1],
         message=data_to_sign,
         signature=signature,
     )
     assert is_verified is False
 
 
-def test_transacting_power_sign_transaction(testerchain):
-    eth_address = testerchain.unassigned_accounts[2]
+def test_transacting_power_sign_transaction(testerchain, accounts):
+    eth_address = accounts.unassigned_accounts[2]
     power = TransactingPower(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        signer=Web3Signer(testerchain.client),
+        signer=accounts.get_account_signer(eth_address),
         account=eth_address,
     )
 
@@ -111,7 +110,7 @@ def test_transacting_power_sign_transaction(testerchain):
         "gasPrice": testerchain.client.w3.eth.gas_price,
         "gas": 100000,
         "from": eth_address,
-        "to": testerchain.unassigned_accounts[1],
+        "to": accounts.unassigned_accounts[1],
         "value": 1,
         "data": b"",
     }
@@ -134,7 +133,9 @@ def test_transacting_power_sign_transaction(testerchain):
         power.sign_transaction(transaction_dict=transaction_dict)
 
 
-def test_transacting_power_sign_agent_transaction(testerchain, coordinator_agent):
+def test_transacting_power_sign_agent_transaction(
+    testerchain, coordinator_agent, accounts
+):
     public_key = Keypair.random().public_key()
     g2_point = Ferveo.G2Point.from_public_key(public_key)
     contract_function = coordinator_agent.contract.functions.setProviderPublicKey(
@@ -144,9 +145,9 @@ def test_transacting_power_sign_agent_transaction(testerchain, coordinator_agent
     payload = {
         "chainId": int(testerchain.client.chain_id),
         "nonce": testerchain.client.w3.eth.get_transaction_count(
-            testerchain.etherbase_account
+            accounts.etherbase_account
         ),
-        "from": testerchain.etherbase_account,
+        "from": accounts.etherbase_account,
         "gasPrice": testerchain.client.gas_price,
         "gas": 500_000,
     }
@@ -156,8 +157,8 @@ def test_transacting_power_sign_agent_transaction(testerchain, coordinator_agent
     # Sign with Transacting Power
     transacting_power = TransactingPower(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        signer=Web3Signer(testerchain.client),
-        account=testerchain.etherbase_account,
+        signer=accounts.get_account_signer(accounts.etherbase_account),
+        account=accounts.etherbase_account,
     )
     signed_raw_transaction = transacting_power.sign_transaction(unsigned_transaction)
 

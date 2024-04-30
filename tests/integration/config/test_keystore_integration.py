@@ -10,7 +10,7 @@ from nucypher_core import (
 )
 from nucypher_core.umbral import SecretKey, Signer
 
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo.dkg import FerveoVariant
@@ -66,7 +66,7 @@ def test_generate_alice_keystore(temp_dir_path):
 
 
 @pytest.mark.usefixtures("mock_registry_sources")
-def test_characters_use_keystore(temp_dir_path, testerchain):
+def test_characters_use_keystore(temp_dir_path, testerchain, accounts):
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=temp_dir_path
@@ -83,7 +83,7 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-        checksum_address=testerchain.alice_account,
+        checksum_address=accounts.alice_account,
         pre_payment_method=pre_payment_method,
     )
     Bob(
@@ -92,6 +92,7 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         keystore=keystore,
         domain=TEMPORARY_DOMAIN_NAME,
     )
+    ursula_account = accounts.ursulas_accounts[0]
     Ursula(
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
@@ -101,8 +102,8 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         rest_port=12345,
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
-        operator_address=testerchain.ursulas_accounts[0],
-        signer=Web3Signer(testerchain.client),
+        operator_address=ursula_account,
+        signer=accounts.get_account_signer(ursula_account),
         condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI},
     )
     alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
@@ -153,8 +154,7 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
     recreated_ursula.disenchant()
 
 
-@pytest.mark.usefixtures("mock_sign_message")
-def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
+def test_ritualist(temp_dir_path, testerchain, accounts, dkg_public_key):
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
@@ -164,6 +164,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME
     )
 
+    ursula_account = accounts.ursulas_accounts[0]
     ursula = Ursula(
         start_learning_now=False,
         keystore=keystore,
@@ -171,8 +172,8 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         rest_port=12345,
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
-        operator_address=testerchain.ursulas_accounts[0],
-        signer=Web3Signer(testerchain.client),
+        operator_address=ursula_account,
+        signer=accounts.get_account_signer(ursula_account),
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI},
@@ -192,8 +193,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     }
 
     # create enrico
-    signer = Web3Signer(client=testerchain.client)
-    enrico = Enrico(encrypting_key=dkg_public_key, signer=signer)
+    enrico = Enrico(encrypting_key=dkg_public_key, signer=InMemorySigner())
 
     # encrypt
     threshold_message_kit = enrico.encrypt_for_dkg(

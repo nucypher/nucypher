@@ -8,7 +8,7 @@ from cytoolz.dicttoolz import dissoc
 from eth_account.account import Account
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
-from eth_utils.address import is_address, to_canonical_address, to_checksum_address
+from eth_utils.address import is_address, to_checksum_address
 from hexbytes.main import BytesLike, HexBytes
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -20,12 +20,11 @@ class Web3Signer(Signer):
         super().__init__()
         self.__client = client
 
-    def _get_signer(self, account: str) -> LocalAccount:
-        """Test helper to get a signer from the client's backend"""
-        account = to_canonical_address(account)
-        _eth_tester = self.__client.w3.provider.ethereum_tester
-        signer = Account.from_key(_eth_tester.backend._key_lookup[account]._raw_key)
-        return signer
+    @validate_checksum_address
+    def _get_signer(self, account: str):
+        raise NotImplementedError(
+            "Can't sign via external blockchain clients; provide an explicit Signer"
+        )
 
     @classmethod
     def uri_scheme(cls) -> str:
@@ -56,53 +55,30 @@ class Web3Signer(Signer):
 
     @validate_checksum_address
     def is_device(self, account: str):
-        try:
-            # TODO: Temporary fix for #1128 and #1385. It's ugly af, but it works. Move somewhere else?
-            wallets = self.__client.wallets
-        except AttributeError:
-            return False
-        else:
-            HW_WALLET_URL_PREFIXES = ("trezor", "ledger")
-            hw_accounts = [
-                w["accounts"]
-                for w in wallets
-                if w["url"].startswith(HW_WALLET_URL_PREFIXES)
-            ]
-            hw_addresses = [
-                to_checksum_address(account["address"])
-                for sublist in hw_accounts
-                for account in sublist
-            ]
-            return account in hw_addresses
+        return False
 
     @validate_checksum_address
     def unlock_account(self, account: str, password: str, duration: int = None):
-        if self.is_device(account=account):
-            unlocked = True
-        else:
-            unlocked = self.__client.unlock_account(
-                account=account, password=password, duration=duration
-            )
-        return unlocked
+        raise NotImplementedError(
+            "Can't manage accounts via external blockchain clients; provide an explicit Signer"
+        )
 
     @validate_checksum_address
     def lock_account(self, account: str):
-        if self.is_device(account=account):
-            result = None  # TODO: Force Disconnect Devices?
-        else:
-            result = self.__client.lock_account(account=account)
-        return result
+        raise NotImplementedError(
+            "Can't manage accounts via external blockchain clients; provide an explicit Signer"
+        )
 
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
-        signature = self.__client.sign_message(account=account, message=message)
-        return HexBytes(signature)
+        raise NotImplementedError(
+            "Can't sign via external blockchain clients; provide an explicit Signer"
+        )
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:
-        raw_transaction = self.__client.sign_transaction(
-            transaction_dict=transaction_dict
+        raise NotImplementedError(
+            "Can't sign via external blockchain clients; provide an explicit Signer"
         )
-        return raw_transaction
 
 
 class KeystoreSigner(Signer):
@@ -343,7 +319,7 @@ class InMemorySigner(Signer):
         return True
 
     @validate_checksum_address
-    def __get_signer(self, account: str) -> LocalAccount:
+    def _get_signer(self, account: str) -> LocalAccount:
         """Lookup a known keystore account by its checksum address or raise an error"""
         try:
             return self.__signers[account]
@@ -356,7 +332,7 @@ class InMemorySigner(Signer):
     @validate_checksum_address
     def sign_transaction(self, transaction_dict: dict) -> bytes:
         sender = transaction_dict["from"]
-        signer = self.__get_signer(account=sender)
+        signer = self._get_signer(account=sender)
         if not transaction_dict["to"]:
             transaction_dict = dissoc(transaction_dict, "to")
         raw_transaction = signer.sign_transaction(
@@ -366,7 +342,7 @@ class InMemorySigner(Signer):
 
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
-        signer = self.__get_signer(account=account)
+        signer = self._get_signer(account=account)
         signature = signer.sign_message(
             signable_message=encode_defunct(primitive=message)
         ).signature

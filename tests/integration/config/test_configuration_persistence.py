@@ -10,7 +10,7 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware
 
 
-def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
+def test_alices_powers_are_persistent(ursulas, temp_dir_path, accounts):
     # Create a non-learning AliceConfiguration
     config_root = temp_dir_path / 'nucypher-custom-alice-config'
     alice_config = AliceConfiguration(
@@ -18,7 +18,7 @@ def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
         config_root=config_root,
         network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
         domain=TEMPORARY_DOMAIN_NAME,
-        checksum_address=testerchain.alice_account,
+        checksum_address=accounts.alice_account,
         start_learning_now=False,
         save_metadata=False,
         reload_metadata=False,

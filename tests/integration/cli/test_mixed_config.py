@@ -42,7 +42,7 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
 
 
 def test_corrupted_configuration(
-    click_runner, custom_filepath, testerchain, test_registry, mocker
+    click_runner, custom_filepath, accounts, test_registry, mocker
 ):
     #
     # Setup
@@ -53,7 +53,13 @@ def test_corrupted_configuration(
         shutil.rmtree(custom_filepath, ignore_errors=True)
     assert not custom_filepath.exists()
 
-    alice, ursula, another_ursula, staking_provider, *all_yall = testerchain.unassigned_accounts
+    (
+        alice,
+        ursula,
+        another_ursula,
+        staking_provider,
+        *all_yall,
+    ) = accounts.unassigned_accounts
 
     #
     # Chaos

@@ -1,18 +1,19 @@
 import contextlib
+import os
 import socket
 from threading import Lock
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 from cryptography.x509 import Certificate
+from eth_utils import to_checksum_address
 from web3 import HTTPProvider
 
+from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
-from tests.constants import (
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
-    TESTERCHAIN_CHAIN_ID,
-)
+from tests.constants import TESTERCHAIN_CHAIN_ID
+from tests.utils.blockchain import ReservedTestAccountManager
 
 
 class __ActivePortCache:
@@ -64,23 +65,64 @@ def select_test_port() -> int:
         return port
 
 
+def make_reserved_ursulas(
+    accounts: ReservedTestAccountManager,
+    ursula_config: UrsulaConfiguration,
+    know_each_other: bool = True,
+    quantity: Optional[int] = None,
+    **ursula_overrides
+):
+    num_values = quantity or accounts.NUMBER_OF_URSULAS_IN_TESTS
+
+    staking_providers = accounts.staking_providers_accounts[:num_values]
+    operator_signers = [
+        accounts.get_account_signer(operator_address)
+        for operator_address in accounts.ursulas_accounts[:num_values]
+    ]
+    return make_ursulas(
+        ursula_config,
+        staking_providers,
+        operator_signers,
+        know_each_other,
+        **ursula_overrides
+    )
+
+
+def make_random_ursulas(
+    ursula_config: UrsulaConfiguration,
+    quantity: int,
+    know_each_other: bool = True,
+    **ursula_overrides
+):
+    staking_providers = [
+        to_checksum_address("0x" + os.urandom(20).hex()) for _ in range(quantity)
+    ]
+    operator_signers = [InMemorySigner() for _ in range(quantity)]
+    return make_ursulas(
+        ursula_config,
+        staking_providers,
+        operator_signers,
+        know_each_other,
+        **ursula_overrides
+    )
+
+
 def make_ursulas(
     ursula_config: UrsulaConfiguration,
     staking_provider_addresses: Iterable[str],
-    operator_addresses: Iterable[str],
-    quantity: int = NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
+    operator_signers: Iterable[Signer],
     know_each_other: bool = True,
     **ursula_overrides
-) -> List[Ursula]:
-
-    providers_and_operators = list(zip(staking_provider_addresses, operator_addresses))[:quantity]
+):
+    providers_and_operators = list(zip(staking_provider_addresses, operator_signers))
     ursulas = list()
 
-    for staking_provider_address, operator_address in providers_and_operators:
+    for staking_provider_address, operator_signer in providers_and_operators:
         ursula = ursula_config.produce(
             checksum_address=staking_provider_address,
-            operator_address=operator_address,
+            operator_address=operator_signer.accounts[0],
             rest_port=select_test_port(),
+            signer=operator_signer,
             **ursula_overrides
         )
 
@@ -101,7 +143,6 @@ def make_ursulas(
                 ursula_to_teach.remember_node(ursula_to_learn_about)
 
     return ursulas
-
 
 def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
     """

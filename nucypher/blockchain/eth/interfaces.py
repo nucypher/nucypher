@@ -1,6 +1,5 @@
 import math
 import pprint
-from pathlib import Path
 from typing import Callable, Dict, NamedTuple, Optional, Union
 from urllib.parse import urlparse
 
@@ -22,15 +21,12 @@ from web3.middleware import geth_poa_middleware, simple_cache_middleware
 from web3.providers import BaseProvider
 from web3.types import TxParams, TxReceipt
 
-from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient, InfuraClient
+from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
-    _get_auto_provider,
-    _get_HTTP_provider,
-    _get_IPC_provider,
+    _get_http_provider,
     _get_mock_test_provider,
     _get_pyevm_test_provider,
-    _get_websocket_provider,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.utils import (
@@ -42,7 +38,6 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.gas_strategies import (
     WEB3_GAS_STRATEGIES,
-    construct_datafeed_median_strategy,
     max_price_gas_strategy_wrapper,
 )
 from nucypher.utilities.logging import Logger
@@ -318,11 +313,6 @@ class BlockchainInterface:
     def configure_gas_strategy(self, gas_strategy: Optional[Callable] = None) -> None:
         if gas_strategy:
             reported_gas_strategy = f"fixed/{gas_strategy.name}"
-
-        elif isinstance(self.client, InfuraClient):
-            gas_strategy = construct_datafeed_median_strategy(speed=self.gas_strategy)
-            reported_gas_strategy = f"datafeed/{self.gas_strategy}"
-
         else:
             reported_gas_strategy = f"web3/{self.gas_strategy}"
             gas_strategy = self.get_gas_strategy(self.gas_strategy)
@@ -362,7 +352,7 @@ class BlockchainInterface:
         try:
             self.w3 = self.Web3(provider=self._provider)
             self.tx_machine.w3 = self.w3  # share this web3 instance with the tracker
-            self.client = EthereumClient.from_w3(w3=self.w3)
+            self.client = EthereumClient(w3=self.w3)
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(
                 f"Connection Failed - {str(self.endpoint)} - is RPC enabled?"
@@ -394,43 +384,22 @@ class BlockchainInterface:
 
         if endpoint and not provider:
             uri_breakdown = urlparse(endpoint)
-
-            if uri_breakdown.scheme == "tester":
-                providers = {
-                    "pyevm": _get_pyevm_test_provider,
-                    "mock": _get_mock_test_provider,
-                }
-                provider_scheme = uri_breakdown.netloc
-
+            provider_scheme = (
+                uri_breakdown.netloc
+                if uri_breakdown.scheme == "tester"
+                else uri_breakdown.scheme
+            )
+            if provider_scheme == "pyevm":
+                self._provider = _get_pyevm_test_provider(endpoint)
+            elif provider_scheme == "mock":
+                self._provider = _get_mock_test_provider(endpoint)
+            elif provider_scheme == "http" or provider_scheme == "https":
+                self._provider = _get_http_provider(endpoint)
             else:
-                providers = {
-                    "auto": _get_auto_provider,
-                    "ipc": _get_IPC_provider,
-                    "file": _get_IPC_provider,
-                    "ws": _get_websocket_provider,
-                    "wss": _get_websocket_provider,
-                    "http": _get_HTTP_provider,
-                    "https": _get_HTTP_provider,
-                }
-                provider_scheme = uri_breakdown.scheme
-
-            # auto-detect for file based ipc
-            if not provider_scheme:
-                if Path(endpoint).is_file():
-                    # file is available - assume ipc/file scheme
-                    provider_scheme = "file"
-                    self.log.info(
-                        f"Auto-detected provider scheme as 'file://' for provider {endpoint}"
-                    )
-
-            try:
-                self._provider = providers[provider_scheme](endpoint)
-            except KeyError:
                 raise self.UnsupportedProvider(
                     f"{endpoint} is an invalid or unsupported blockchain provider URI"
                 )
-            else:
-                self.endpoint = endpoint or NO_BLOCKCHAIN_CONNECTION
+            self.endpoint = endpoint or NO_BLOCKCHAIN_CONNECTION
         else:
             self._provider = provider
 

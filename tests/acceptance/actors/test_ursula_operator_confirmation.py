@@ -1,5 +1,4 @@
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
 from tests.utils.ursula import select_test_port
@@ -19,9 +18,10 @@ def test_ursula_operator_confirmation(
     taco_application_agent,
     taco_child_application_agent,
     deployer_account,
+    accounts,
 ):
-    staking_provider = testerchain.stake_provider_account(0)
-    operator_address = testerchain.ursula_account(0)
+    staking_provider = accounts.staking_provider_account(0)
+    operator_address = accounts.ursula_account(0)
     min_authorization = taco_application_agent.get_min_authorization()
 
     # make an staking_providers and some stakes
@@ -47,7 +47,7 @@ def test_ursula_operator_confirmation(
 
     # bond this operator
     tpower = TransactingPower(
-        account=staking_provider, signer=Web3Signer(testerchain.client)
+        account=staking_provider, signer=accounts.get_account_signer(staking_provider)
     )
     taco_application_agent.bond_operator(
         staking_provider=staking_provider,
@@ -57,7 +57,9 @@ def test_ursula_operator_confirmation(
 
     # make an ursula.
     ursula = ursula_test_config.produce(
-        operator_address=operator_address, rest_port=select_test_port()
+        operator_address=operator_address,
+        rest_port=select_test_port(),
+        signer=accounts.get_account_signer(operator_address),
     )
 
     # now the worker has a staking provider

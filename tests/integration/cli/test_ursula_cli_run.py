@@ -11,7 +11,7 @@ from tests.constants import FAKE_PASSWORD_CONFIRMED, MOCK_IP_ADDRESS
 
 
 @pytest.fixture
-def v4_config_file(tempfile_path, ursula_test_config):
+def v4_config_file(tempfile_path, ursula_test_config, accounts):
     config_dictionary = {
         "federated_only": None,
         "checksum_address": None,
@@ -29,7 +29,7 @@ def v4_config_file(tempfile_path, ursula_test_config):
         "signer_uri": ursula_test_config.signer_uri,
         "gas_strategy": "fast",
         "max_gas_price": None,
-        "operator_address": ursula_test_config.operator_address,
+        "operator_address": accounts.ursulas_accounts[0],
         "rest_host": MOCK_IP_ADDRESS,
         "rest_port": ursula_test_config.rest_port,
         "db_filepath": "/root/.local/share/nucypher/ursula.db",
@@ -69,10 +69,10 @@ def test_ursula_run_specified_config_file(
     mocker.patch("nucypher.cli.utils.unlock_nucypher_keystore", return_value=True)
 
     # Mock worker qualification
-    staking_provider = ursulas[1]
+    worker = ursulas[1]
 
     def set_staking_provider_address(operator, *args, **kwargs):
-        operator.checksum_address = staking_provider.checksum_address
+        operator.checksum_address = worker.checksum_address
         return True
 
     monkeypatch.setattr(Operator, "block_until_ready", set_staking_provider_address)

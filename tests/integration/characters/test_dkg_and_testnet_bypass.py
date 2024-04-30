@@ -1,7 +1,7 @@
 import pytest
 
 from nucypher.blockchain.eth import domains
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.chaotic import (
     NiceGuyEddie,
     ThisBobAlwaysDecrypts,
@@ -19,8 +19,7 @@ from tests.constants import (
 def _attempt_decryption(BobClass, plaintext, testerchain):
     trinket = 80  # Doens't matter.
 
-    signer = Web3Signer(client=testerchain.client)
-    enrico = NiceGuyEddie(encrypting_key=trinket, signer=signer)
+    enrico = NiceGuyEddie(encrypting_key=trinket, signer=InMemorySigner())
     bob = BobClass(
         registry=MOCK_REGISTRY_FILEPATH,
         domain=domains.LYNX,
@@ -50,14 +49,12 @@ def _attempt_decryption(BobClass, plaintext, testerchain):
     return decrypted_cleartext
 
 
-@pytest.mark.usefixtures("mock_sign_message")
 def test_user_controls_success(testerchain):
     plaintext = b"ever thus to deadbeats"
     result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext, testerchain)
     assert bytes(result) == bytes(plaintext)
 
 
-@pytest.mark.usefixtures("mock_sign_message")
 def test_user_controls_failure(testerchain):
     plaintext = b"ever thus to deadbeats"
     with pytest.raises(Ursula.NotEnoughUrsulas):
