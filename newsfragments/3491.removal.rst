@@ -1,1 +1,1 @@
-Remove specialized blockchain clients since RPC endpoints should no longer handle accounts/signing.
+Wallet management and transaction signing via blockchain clients is deprecated for production use.
