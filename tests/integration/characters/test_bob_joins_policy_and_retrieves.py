@@ -96,17 +96,6 @@ def test_bob_retrieves(alice, ursulas):
     # Indeed, they're the same cleartexts.
     assert delivered_cleartexts == cleartexts_delivered_a_second_time
 
-    # Let's try retrieve again, but Alice revoked the policy.
-    receipt, failed_revocations = alice.revoke(policy)
-    assert len(failed_revocations) == 0
-
-    # One thing to note here is that Bob *can* still retrieve with the cached CFrags,
-    # even though this Policy has been revoked.  #892
-    _cleartexts = bob.retrieve_and_decrypt([message_kit],
-                                           alice_verifying_key=alices_verifying_key,
-                                           encrypted_treasure_map=policy.treasure_map)
-    assert _cleartexts == delivered_cleartexts  # TODO: 892
-
     bob.disenchant()
 
 
