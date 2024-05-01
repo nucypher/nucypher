@@ -86,6 +86,21 @@ def test_invalid_compound_condition(time_condition, rpc_condition):
             operands=[rpc_condition],
         )
 
+    # exceeds max operands
+    operands = list()
+    for i in range(CompoundAccessControlCondition.MAX_OPERANDS + 1):
+        operands.append(rpc_condition)
+    with pytest.raises(InvalidCondition):
+        _ = CompoundAccessControlCondition(
+            operator=CompoundAccessControlCondition.OR_OPERATOR,
+            operands=operands,
+        )
+    with pytest.raises(InvalidCondition):
+        _ = CompoundAccessControlCondition(
+            operator=CompoundAccessControlCondition.AND_OPERATOR,
+            operands=operands,
+        )
+
 
 @pytest.mark.parametrize("operator", CompoundAccessControlCondition.OPERATORS)
 def test_compound_condition_schema_validation(operator, time_condition, rpc_condition):
