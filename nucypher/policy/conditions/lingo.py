@@ -88,6 +88,8 @@ class CompoundAccessControlCondition(AccessControlCondition):
     OPERATORS = (AND_OPERATOR, OR_OPERATOR, NOT_OPERATOR)
     CONDITION_TYPE = ConditionType.COMPOUND.value
 
+    MAX_OPERANDS = 5
+
     @classmethod
     def _validate_operator_and_operands(
         cls,
@@ -98,15 +100,22 @@ class CompoundAccessControlCondition(AccessControlCondition):
         if operator not in cls.OPERATORS:
             raise exception_class(f"{operator} is not a valid operator")
 
+        num_operands = len(operands)
         if operator == cls.NOT_OPERATOR:
-            if len(operands) != 1:
+            if num_operands != 1:
                 raise exception_class(
                     f"Only 1 operand permitted for '{operator}' compound condition"
                 )
-        elif len(operands) < 2:
+        elif num_operands < 2:
             raise exception_class(
                 f"Minimum of 2 operand needed for '{operator}' compound condition"
             )
+        elif num_operands > cls.MAX_OPERANDS:
+            raise exception_class(
+                f"Maximum of {cls.MAX_OPERANDS} operands allowed for '{operator}' compound condition"
+            )
+
+        # TODO nested operands
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
