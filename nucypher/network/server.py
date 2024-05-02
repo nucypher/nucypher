@@ -214,11 +214,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         bob = Bob.from_public_keys(verifying_key=reenc_request.bob_verifying_key)
         log.info(f"Reencryption request from {bob} for policy {hrac}")
 
-        # TODO: Can this be integrated into reencryption conditions?
-        # Stateful revocation by HRAC storage below
-        if hrac in this_node.revoked_policies:
-            return Response(response=f"Policy with {hrac} has been revoked.", status=HTTPStatus.UNAUTHORIZED)
-
         # Alice or Publisher
         publisher_verifying_key = reenc_request.publisher_verifying_key
 
