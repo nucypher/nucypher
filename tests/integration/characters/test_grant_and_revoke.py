@@ -74,36 +74,3 @@ def test_alice_can_decrypt(alice, bob):
     )
 
     assert [plaintext] == decrypted_data
-
-
-@pytest.mark.skip("Needs rework post-TMcKF")  # TODO: Implement offchain revocation.
-@pytest.mark.usefixtures("bursulas")
-def test_revocation(alice, bob):
-    threshold, shares = 2, 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
-    label = b"revocation test"
-
-    policy = alice.grant(
-        bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime
-    )
-
-    for node_id, encrypted_kfrag in policy.treasure_map:
-        assert policy.revocation_kit[node_id]
-
-    # Test revocation kit's signatures
-    for revocation in policy.revocation_kit:
-        assert revocation.verify_signature(alice.stamp.as_umbral_pubkey())
-
-    # Test Revocation deserialization
-    revocation = policy.revocation_kit[node_id]
-    revocation_bytes = bytes(revocation)
-    deserialized_revocation = RevocationOrder.from_bytes(revocation_bytes)
-    assert deserialized_revocation == revocation
-
-    # Attempt to revoke the new policy
-    receipt, failed_revocations = alice.revoke(policy)
-    assert len(failed_revocations) == 0
-
-    # Try to revoke the already revoked policy
-    receipt, already_revoked = alice.revoke(policy)
-    assert len(already_revoked) == 3
