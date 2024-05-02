@@ -10,8 +10,6 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
-    Set,
-    Tuple,
     Union,
 )
 
@@ -65,7 +63,6 @@ from nucypher_core.umbral import (
     reencrypt,
 )
 from twisted.internet import reactor
-from web3.types import TxReceipt
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
@@ -372,58 +369,6 @@ class Alice(Character, actors.PolicyAuthor):
         alice_delegating_power = self._crypto_power.power_ups(DelegatingPower)
         policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
         return policy_pubkey
-
-    def revoke(
-        self, policy: Policy, onchain: bool = True, offchain: bool = True
-    ) -> Tuple[TxReceipt, Dict[ChecksumAddress, Tuple["actors.Revocation", Exception]]]:
-        if not (offchain or onchain):
-            raise ValueError("offchain or onchain must be True to issue revocation")
-
-        receipt, failed = dict(), dict()
-
-        if onchain:
-            pass
-            # TODO: Decouple onchain revocation from SubscriptionManager or deprecate.
-            # receipt = self.policy_agent.revoke_policy(policy_id=bytes(policy.hrac),
-            #                                           transacting_power=self._crypto_power.power_ups(TransactingPower))
-
-        if offchain:
-            """
-            Parses the treasure map and revokes onchain arrangements in it.
-            If any nodes cannot be revoked, then the node_id is added to a
-            dict as a key, and the revocation and Ursula's response is added as
-            a value.
-            """
-            try:
-                # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
-                revocation_threshold = (policy.shares - policy.threshold) + 1
-                self.block_until_specific_nodes_are_known(
-                    policy.revocation_kit.revokable_addresses,
-                    allow_missing=(policy.shares - revocation_threshold),
-                )
-            except self.NotEnoughTeachers:
-                raise  # TODO  NRN
-
-            for node_id in policy.revocation_kit.revokable_addresses:
-                ursula = self.known_nodes[node_id]
-                revocation = policy.revocation_kit[node_id]
-                try:
-                    response = self.network_middleware.request_revocation(
-                        ursula, revocation
-                    )
-                except self.network_middleware.NotFound:
-                    failed[node_id] = (revocation, self.network_middleware.NotFound)
-                except self.network_middleware.UnexpectedResponse:
-                    failed[node_id] = (
-                        revocation,
-                        self.network_middleware.UnexpectedResponse,
-                    )
-                else:
-                    if response.status_code != 200:
-                        message = f"Failed to revocation for node {node_id} with status code {response.status_code}"
-                        raise self.ActorError(message)
-
-        return receipt, failed
 
     def decrypt_message_kit(self, label: bytes, message_kit: MessageKit) -> List[bytes]:
         """
@@ -856,9 +801,6 @@ class Ursula(Teacher, Character, Operator):
             certificate = self._crypto_power.power_ups(
                 TLSHostingPower
             ).keypair.certificate
-
-            # Only *YOU* can prevent forest fires
-            self.revoked_policies: Set[bytes] = set()
 
             self.log.info(self.banner.format(self.nickname))
 

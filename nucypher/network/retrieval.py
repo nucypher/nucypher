@@ -213,11 +213,10 @@ class PRERetrievalClient(ThresholdAccessControlClient):
             self.log.info(message)
             raise RuntimeError(message) from e
         except middleware.NotFound as e:
-            # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
+            # This Ursula claims not to have a matching KFrag.
             # TODO: What's the thing to do here?
             # Do we want to track these Ursulas in some way in case they're lying?  #567
-            message = (f"Ursula ({ursula}) claims not to not know of the policy {reencryption_request.hrac}. "
-                       f"Has access been revoked?")
+            message = f"Ursula ({ursula}) claims not to not know of the policy {reencryption_request.hrac}."
             self.log.warn(message)
             raise RuntimeError(message) from e
         except middleware.UnexpectedResponse:
