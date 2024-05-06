@@ -2,7 +2,7 @@ import pytest
 
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
-from nucypher.policy.conditions.time import TimeCondition
+from nucypher.policy.conditions.time import TimeCondition, TimeRPCCall
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
@@ -13,7 +13,7 @@ def test_invalid_time_condition():
             condition_type=ConditionType.COMPOUND.value,
             return_value_test=ReturnValueTest(">", 0),
             chain=TESTERCHAIN_CHAIN_ID,
-            method=TimeCondition.METHOD,
+            method=TimeRPCCall.METHOD,
         )
 
     # invalid method
@@ -29,7 +29,7 @@ def test_invalid_time_condition():
         _ = TimeCondition(
             return_value_test=ReturnValueTest(">", 0),
             chain=90210,  # Beverly Hills Chain :)
-            method=TimeCondition.METHOD,
+            method=TimeRPCCall.METHOD,
         )
 
 

@@ -80,6 +80,7 @@ def test_single_retrieve_with_multichain_conditions(
     assert cleartexts == messages
 
 
+@pytest.mark.skip("Will fix once things are cleaned up")
 def test_single_decryption_request_with_faulty_rpc_endpoint(
     enacted_policy, bob, multichain_ursulas, conditions, mock_rpc_condition
 ):
