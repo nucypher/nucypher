@@ -35,6 +35,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
+from nucypher.policy.conditions.address import AddressMatchCondition
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.lingo import (
@@ -641,6 +642,19 @@ def rpc_condition():
         method="eth_getBalance",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", Web3.to_wei(1_000_000, "ether")),
+        parameters=[USER_ADDRESS_CONTEXT],
+    )
+    return condition
+
+
+@pytest.fixture
+def address_condition():
+    condition = AddressMatchCondition(
+        method="address_match",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(
+            "==", "0xaDD9D957170dF6F33982001E4c22eCCdd5539118"
+        ),
         parameters=[USER_ADDRESS_CONTEXT],
     )
     return condition
