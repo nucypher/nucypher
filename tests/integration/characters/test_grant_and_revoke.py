@@ -1,8 +1,8 @@
 import datetime
 
 import maya
-import pytest
-from nucypher_core import EncryptedKeyFrag, RevocationOrder
+import pytest  # noqa: F401
+from nucypher_core import EncryptedKeyFrag, RevocationOrder  # noqa: F401
 
 from nucypher.characters.lawful import Enrico
 
