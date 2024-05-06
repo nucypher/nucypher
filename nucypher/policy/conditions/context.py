@@ -1,6 +1,6 @@
 import re
 from functools import partial
-from typing import Any, List, Union
+from typing import Any, List, Optional, Union
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -125,9 +125,11 @@ def _resolve_context_variable(param: Union[Any, List[Any]], **context):
         return param
 
 
-def resolve_any_context_variables(parameters: List[Any], return_value_test, **context):
-    processed_parameters = [
-        _resolve_context_variable(param, **context) for param in parameters
-    ]
-    processed_return_value_test = return_value_test.with_resolved_context(**context)
-    return processed_parameters, processed_return_value_test
+def resolve_parameter_context_variables(parameters: Optional[List[Any]], **context):
+    if not parameters:
+        processed_parameters = []  # produce empty list
+    else:
+        processed_parameters = [
+            _resolve_context_variable(param, **context) for param in parameters
+        ]
+    return processed_parameters

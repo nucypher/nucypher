@@ -22,11 +22,12 @@ from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABI
 from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.context import (
     is_context_variable,
-    resolve_any_context_variables,
+    resolve_parameter_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     NoConnectionToChain,
+    RequiredContextVariable,
     RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
@@ -34,7 +35,7 @@ from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snak
 from nucypher.policy.conditions.validation import (
     _align_comparator_value_with_abi,
     _get_abi_types,
-    _validate_condition_abi,
+    _validate_contract_call_abi,
     _validate_multiple_output_types,
     _validate_single_output_type,
 )
@@ -102,26 +103,79 @@ def _validate_chain(chain: int) -> None:
         )
 
 
-class RPCCondition(AccessControlCondition):
-    ETH_PREFIX = "eth_"
+class RPCCall:
     ALLOWED_METHODS = {
         # RPC
         "eth_getBalance": int,
     }  # TODO other allowed methods (tDEC #64)
-    LOG = logging.Logger(__name__)
-    CONDITION_TYPE = ConditionType.RPC.value
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
         name = fields.Str(required=False)
-        condition_type = fields.Str(
-            validate=validate.Equal(ConditionType.RPC.value), required=True
-        )
         chain = fields.Int(
             required=True, strict=True, validate=OneOf(_CONDITION_CHAINS)
         )
         method = fields.Str(required=True)
         parameters = fields.List(fields.Field, attribute="parameters", required=False)
+
+        @post_load
+        def make(self, data, **kwargs):
+            return RPCCall(**data)
+
+    def __init__(
+        self,
+        chain: int,
+        method: str,
+        parameters: Optional[List[Any]] = None,
+        name: Optional[str] = None,
+    ):
+        # Validate input
+        # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
+        _validate_chain(chain=chain)
+
+        self.name = name
+        self.chain = chain
+        self.provider: Optional[BaseProvider] = None  # set in _configure_provider
+        self.method = self._validate_method(method=method)
+
+        self.parameters = parameters or None
+
+    def _validate_method(self, method):
+        if not method:
+            raise ValueError("Undefined method name")
+
+        if method not in self.ALLOWED_METHODS:
+            raise ValueError(
+                f"'{method}' is not a permitted RPC endpoint for condition evaluation."
+            )
+        return method
+
+    def _get_web3_py_function(self, w3: Web3, rpc_method: str):
+        web3_py_method = camel_case_to_snake(rpc_method)
+        rpc_function = getattr(
+            w3.eth, web3_py_method
+        )  # bind contract function (only exposes the eth API)
+        return rpc_function
+
+    def execute(self, w3: Web3, **context) -> Any:
+        """Execute onchain read and return result."""
+        resolved_parameters = resolve_parameter_context_variables(
+            self.parameters, **context
+        )
+        rpc_endpoint_, rpc_method = self.method.split("_", 1)
+        rpc_function = self._get_web3_py_function(w3, rpc_method)
+        rpc_result = rpc_function(*resolved_parameters)  # RPC read
+        return rpc_result
+
+
+class RPCCondition(AccessControlCondition):
+    LOG = logging.Logger(__name__)
+    CONDITION_TYPE = ConditionType.RPC.value
+
+    class Schema(RPCCall.Schema):
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.RPC.value), required=True
+        )
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
         )
@@ -136,50 +190,49 @@ class RPCCondition(AccessControlCondition):
 
     def __init__(
         self,
-        chain: int,
-        method: str,
         return_value_test: ReturnValueTest,
         condition_type: str = CONDITION_TYPE,
-        name: Optional[str] = None,
-        parameters: Optional[List[Any]] = None,
+        *args,
+        **kwargs,
     ):
-        # Validate input
-        # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
-        _validate_chain(chain=chain)
-
         # internal
         if condition_type != self.CONDITION_TYPE:
             raise InvalidCondition(
                 f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
             )
 
+        try:
+            self.rpc_call = self._create_rpc_call(*args, **kwargs)
+        except ValueError as e:
+            raise InvalidCondition(str(e))
+
         self.condition_type = condition_type
-        self.name = name
-        self.chain = chain
         self.provider: Optional[BaseProvider] = None  # set in _configure_provider
-        self.method = self._validate_method(method=method)
 
-        # test
-        # should not be set to None - we do list unpacking so cannot be None; use empty list
-        self.parameters = parameters or []
         self.return_value_test = return_value_test  # output
-
         self._validate_expected_return_type()
 
-        super().__init__()
+    def _create_rpc_call(self, *args, **kwargs):
+        return RPCCall(*args, **kwargs)
 
-    def _validate_method(self, method):
-        if not method:
-            raise InvalidCondition("Undefined method name")
+    @property
+    def name(self):
+        return self.rpc_call.name
 
-        if method not in self.ALLOWED_METHODS:
-            raise InvalidCondition(
-                f"'{method}' is not a permitted RPC endpoint for condition evaluation."
-            )
-        return method
+    @property
+    def method(self):
+        return self.rpc_call.method
+
+    @property
+    def chain(self):
+        return self.rpc_call.chain
+
+    @property
+    def parameters(self):
+        return self.rpc_call.parameters
 
     def _validate_expected_return_type(self):
-        expected_return_type = self.ALLOWED_METHODS[self.method]
+        expected_return_type = RPCCall.ALLOWED_METHODS[self.method]
         comparator_value = self.return_value_test.value
         if is_context_variable(comparator_value):
             return
@@ -235,20 +288,6 @@ class RPCCondition(AccessControlCondition):
         self._check_chain_id()
         return provider
 
-    def _get_web3_py_function(self, rpc_method: str):
-        web3_py_method = camel_case_to_snake(rpc_method)
-        rpc_function = getattr(
-            self.w3.eth, web3_py_method
-        )  # bind contract function (only exposes the eth API)
-        return rpc_function
-
-    def _execute_call(self, parameters: List[Any]) -> Any:
-        """Execute onchain read and return result."""
-        rpc_endpoint_, rpc_method = self.method.split("_", 1)
-        rpc_function = self._get_web3_py_function(rpc_method)
-        rpc_result = rpc_function(*parameters)  # RPC read
-        return rpc_result
-
     def _align_comparator_value_with_abi(
         self, return_value_test: ReturnValueTest
     ) -> ReturnValueTest:
@@ -261,52 +300,53 @@ class RPCCondition(AccessControlCondition):
         Verifies the onchain condition is met by performing a
         read operation and evaluating the return value test.
         """
-        parameters, return_value_test = resolve_any_context_variables(
-            self.parameters, self.return_value_test, **context
+        resolved_return_value_test = self.return_value_test.with_resolved_context(
+            **context
         )
-        return_value_test = self._align_comparator_value_with_abi(return_value_test)
+        return_value_test = self._align_comparator_value_with_abi(
+            resolved_return_value_test
+        )
 
         endpoints = self._next_endpoint(providers=providers)
+        latest_error = ""
         for provider in endpoints:
             self._configure_provider(provider=provider)
             try:
-                result = self._execute_call(parameters=parameters)
+                result = self.rpc_call.execute(self.w3, **context)
                 break
+            except RequiredContextVariable:
+                raise
             except Exception as e:
-                self.LOG.warn(
-                    f"RPC call '{self.method}' failed: {e}, attempting to try next endpoint."
-                )
+                latest_error = f"RPC call '{self.method}' failed: {e}"
+                self.LOG.warn(f"{latest_error}, attempting to try next endpoint.")
                 # Something went wrong. Try the next endpoint.
                 continue
         else:
             # Fuck.
-            raise RPCExecutionFailed(f"Contract call '{self.method}' failed.")
+            raise RPCExecutionFailed(
+                f"Contract call '{self.method}' failed; latest error - {latest_error}"
+            )
 
         eval_result = return_value_test.eval(result)  # test
         return eval_result, result
 
 
-class ContractCondition(RPCCondition):
-    CONDITION_TYPE = ConditionType.CONTRACT.value
-
-    class Schema(RPCCondition.Schema):
-        condition_type = fields.Str(
-            validate=validate.Equal(ConditionType.CONTRACT.value), required=True
-        )
-        standard_contract_type = fields.Str(required=False)
+class ContractCall(RPCCall):
+    class Schema(RPCCall.Schema):
         contract_address = fields.Str(required=True)
+        standard_contract_type = fields.Str(required=False)
         function_abi = fields.Dict(required=False)
 
         @post_load
         def make(self, data, **kwargs):
-            return ContractCondition(**data)
+            return ContractCall(**data)
 
         @validates_schema
         def check_standard_contract_type_or_function_abi(self, data, **kwargs):
             standard_contract_type = data.get("standard_contract_type")
             function_abi = data.get("function_abi")
             try:
-                _validate_condition_abi(
+                _validate_contract_call_abi(
                     standard_contract_type, function_abi, method_name=data.get("method")
                 )
             except ValueError as e:
@@ -316,41 +356,101 @@ class ContractCondition(RPCCondition):
         self,
         method: str,
         contract_address: ChecksumAddress,
-        condition_type: str = CONDITION_TYPE,
         standard_contract_type: Optional[str] = None,
         function_abi: Optional[ABIFunction] = None,
         *args,
         **kwargs,
     ):
         if not method:
-            raise InvalidCondition("Undefined method name")
-        try:
-            _validate_condition_abi(
-                standard_contract_type, function_abi, method_name=method
-            )
-        except ValueError as e:
-            raise InvalidCondition(str(e))
+            raise ValueError("Undefined method name")
 
-        self.method = method
-        self.w3 = Web3()  # used to instantiate contract function without a provider
+        _validate_contract_call_abi(
+            standard_contract_type, function_abi, method_name=method
+        )
 
         # preprocessing
         contract_address = to_checksum_address(contract_address)
-
-        # spec
         self.contract_address = contract_address
-        self.condition_type = condition_type
         self.standard_contract_type = standard_contract_type
         self.function_abi = function_abi
 
+        super().__init__(method=method, *args, **kwargs)
         self.contract_function = self._get_unbound_contract_function()
 
-        # call to super must be at the end for proper validation
-        super().__init__(condition_type=condition_type, method=method, *args, **kwargs)
-
     def _validate_method(self, method):
-        # overrides validate method used by rpc superclass
         return method
+
+    def _get_unbound_contract_function(self) -> ContractFunction:
+        """Gets an unbound contract function to evaluate for this condition"""
+        w3 = Web3()
+        function_abi = _resolve_abi(
+            w3=w3,
+            standard_contract_type=self.standard_contract_type,
+            method=self.method,
+            function_abi=self.function_abi,
+        )
+        try:
+            contract = w3.eth.contract(
+                address=self.contract_address, abi=[function_abi]
+            )
+            contract_function = getattr(contract.functions, self.method)
+            return contract_function
+        except Exception as e:
+            raise ValueError(
+                f"Unable to find contract function, '{self.method}', for condition: {e}"
+            )
+
+    def execute(self, w3: Web3, **context) -> Any:
+        """Execute onchain read and return result."""
+        resolved_parameters = resolve_parameter_context_variables(
+            self.parameters, **context
+        )
+        bound_contract_function = self.contract_function(
+            *resolved_parameters
+        )  # bind contract function
+        contract_result = bound_contract_function.call()  # onchain read
+        return contract_result
+
+
+class ContractCondition(RPCCondition):
+    CONDITION_TYPE = ConditionType.CONTRACT.value
+
+    class Schema(RPCCondition.Schema, ContractCall.Schema):
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.CONTRACT.value), required=True
+        )
+
+        @post_load
+        def make(self, data, **kwargs):
+            return ContractCondition(**data)
+
+    def __init__(
+        self,
+        condition_type: str = CONDITION_TYPE,
+        *args,
+        **kwargs,
+    ):
+        # call to super must be at the end for proper validation
+        super().__init__(condition_type=condition_type, *args, **kwargs)
+
+    def _create_rpc_call(self, *args, **kwargs) -> ContractCall:
+        return ContractCall(*args, **kwargs)
+
+    @property
+    def function_abi(self):
+        return self.rpc_call.function_abi
+
+    @property
+    def standard_contract_type(self):
+        return self.rpc_call.standard_contract_type
+
+    @property
+    def contract_function(self):
+        return self.rpc_call.contract_function
+
+    @property
+    def contract_address(self):
+        return self.rpc_call.contract_address
 
     def _validate_expected_return_type(self) -> None:
         output_abi_types = _get_abi_types(self.contract_function.contract_abi[0])
@@ -384,33 +484,6 @@ class ContractCondition(RPCCondition):
     def _configure_provider(self, *args, **kwargs):
         super()._configure_provider(*args, **kwargs)
         self.contract_function.w3 = self.w3
-
-    def _get_unbound_contract_function(self) -> ContractFunction:
-        """Gets an unbound contract function to evaluate for this condition"""
-        function_abi = _resolve_abi(
-            w3=self.w3,
-            standard_contract_type=self.standard_contract_type,
-            method=self.method,
-            function_abi=self.function_abi,
-        )
-        try:
-            contract = self.w3.eth.contract(
-                address=self.contract_address, abi=[function_abi]
-            )
-            contract_function = getattr(contract.functions, self.method)
-            return contract_function
-        except Exception as e:
-            raise InvalidCondition(
-                f"Unable to find contract function, '{self.method}', for condition: {e}"
-            )
-
-    def _execute_call(self, parameters: List[Any]) -> Any:
-        """Execute onchain read and return result."""
-        bound_contract_function = self.contract_function(
-            *parameters
-        )  # bind contract function
-        contract_result = bound_contract_function.call()  # onchain read
-        return contract_result
 
     def _align_comparator_value_with_abi(
         self, return_value_test: ReturnValueTest

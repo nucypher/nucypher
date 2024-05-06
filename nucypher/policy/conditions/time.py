@@ -1,29 +1,54 @@
 from typing import Any, List, Optional
 
 from marshmallow import fields, post_load, validate
-from marshmallow.validate import Equal, OneOf
+from marshmallow.validate import Equal
+from web3 import Web3
 
-from nucypher.policy.conditions.evm import _CONDITION_CHAINS, RPCCondition
+from nucypher.policy.conditions.evm import RPCCall, RPCCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
-from nucypher.policy.conditions.utils import CamelCaseSchema
+
+
+class TimeRPCCall(RPCCall):
+    METHOD = "blocktime"
+
+    class Schema(RPCCall.Schema):
+        method = fields.Str(
+            dump_default="blocktime", required=True, validate=Equal("blocktime")
+        )
+
+    def __init__(
+        self,
+        chain: int,
+        method: str = METHOD,
+        name: Optional[str] = None,
+        parameters: Optional[List[Any]] = None,
+    ):
+        if method != self.METHOD:
+            raise ValueError(
+                f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
+            )
+        if parameters:
+            raise ValueError(f"{self.METHOD} does not take any parameters")
+
+        super().__init__(chain=chain, method=method, name=name)
+
+    def _validate_method(self, method):
+        return method
+
+    def execute(self, w3: Web3, **context) -> Any:
+        """Execute onchain read and return result."""
+        # TODO may need to rethink as part of #3051 (multicall work).
+        latest_block = w3.eth.get_block("latest")
+        return latest_block.timestamp
 
 
 class TimeCondition(RPCCondition):
-    METHOD = "blocktime"
     CONDITION_TYPE = ConditionType.TIME.value
 
-    class Schema(CamelCaseSchema):
-        SKIP_VALUES = (None,)
+    class Schema(TimeRPCCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.TIME.value), required=True
-        )
-        name = fields.Str(required=False)
-        chain = fields.Int(
-            required=True, strict=True, validate=OneOf(_CONDITION_CHAINS)
-        )
-        method = fields.Str(
-            dump_default="blocktime", required=True, validate=Equal("blocktime")
         )
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
@@ -40,27 +65,22 @@ class TimeCondition(RPCCondition):
     def __init__(
         self,
         return_value_test: ReturnValueTest,
-        chain: int,
-        method: str = METHOD,
+        method: str = TimeRPCCall.METHOD,
         condition_type: str = CONDITION_TYPE,
-        name: Optional[str] = None,
+        *args,
+        **kwargs,
     ):
-        if method != self.METHOD:
-            raise InvalidCondition(
-                f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
-            )
-
         # call to super must be at the end for proper validation
         super().__init__(
-            chain=chain,
+            condition_type=condition_type,
             method=method,
             return_value_test=return_value_test,
-            name=name,
-            condition_type=condition_type,
+            *args,
+            **kwargs,
         )
 
-    def _validate_method(self, method):
-        return method
+    def _create_rpc_call(self, *args, **kwargs):
+        return TimeRPCCall(*args, **kwargs)
 
     def _validate_expected_return_type(self):
         comparator_value = self.return_value_test.value
@@ -72,9 +92,3 @@ class TimeCondition(RPCCondition):
     @property
     def timestamp(self):
         return self.return_value_test.value
-
-    def _execute_call(self, parameters: List[Any]) -> Any:
-        """Execute onchain read and return result."""
-        # TODO may need to rethink as part of #3051 (multicall work).
-        latest_block = self.w3.eth.get_block("latest")
-        return latest_block.timestamp

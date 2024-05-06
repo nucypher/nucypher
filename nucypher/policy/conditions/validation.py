@@ -155,7 +155,7 @@ def _align_comparator_value_with_abi(
         )
 
 
-def _validate_condition_function_abi(function_abi: Dict, method_name: str) -> None:
+def _validate_function_abi(function_abi: Dict, method_name: str) -> None:
     """validates a dictionary as valid for use as a condition function ABI"""
     abi = ABIFunction(function_abi)
 
@@ -171,7 +171,7 @@ def _validate_condition_function_abi(function_abi: Dict, method_name: str) -> No
         raise ValueError(f"Invalid ABI stateMutability {abi}")
 
 
-def _validate_condition_abi(
+def _validate_contract_call_abi(
     standard_contract_type: str,
     function_abi: Dict,
     method_name: str,
@@ -181,4 +181,4 @@ def _validate_condition_abi(
             f"Provide 'standardContractType' or 'functionAbi'; got ({standard_contract_type}, {function_abi})."
         )
     if function_abi:
-        _validate_condition_function_abi(function_abi, method_name=method_name)
+        _validate_function_abi(function_abi, method_name=method_name)
