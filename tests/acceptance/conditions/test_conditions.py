@@ -22,7 +22,9 @@ from nucypher.policy.conditions.evm import (
     RPCCondition,
 )
 from nucypher.policy.conditions.exceptions import (
+    ContextVariableVerificationFailed,
     InvalidCondition,
+    InvalidContextVariableData,
     NoConnectionToChain,
     RequiredContextVariable,
     RPCExecutionFailed,
@@ -87,7 +89,7 @@ def test_rpc_condition_evaluation_invalid_provider_for_chain(
     rpc_condition.rpc_call.chain = new_chain
     condition_providers = {new_chain: {testerchain.provider}}
     with pytest.raises(
-        InvalidCondition, match=f"can only be evaluated on chain ID {new_chain}"
+        NoConnectionToChain, match=f"can only be evaluated on chain ID {new_chain}"
     ):
         _ = rpc_condition.verify(providers=condition_providers, **context)
 
@@ -155,11 +157,7 @@ def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
         }
     }
 
-    mocker.patch.object(
-        rpc_condition, "_check_chain_id", return_value=None
-    )  # skip chain check
-    mocker.patch.object(rpc_condition, "_configure_w3", my_configure_w3)
-
+    mocker.patch.object(rpc_condition.rpc_call, "_configure_provider", my_configure_w3)
     with pytest.raises(RPCExecutionFailed):
         _ = rpc_condition.verify(providers=condition_providers, **context)
 
@@ -185,10 +183,7 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
         }
     }
 
-    mocker.patch.object(
-        rpc_condition, "_check_chain_id", return_value=None
-    )  # skip chain check
-    mocker.patch.object(rpc_condition, "_configure_w3", my_configure_w3)
+    mocker.patch.object(rpc_condition.rpc_call, "_configure_provider", my_configure_w3)
 
     condition_result, call_result = rpc_condition.verify(
         providers=condition_providers, **context

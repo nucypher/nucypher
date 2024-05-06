@@ -36,7 +36,7 @@ class TimeRPCCall(RPCCall):
     def _validate_method(self, method):
         return method
 
-    def execute(self, w3: Web3, **context) -> Any:
+    def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
         """Execute onchain read and return result."""
         # TODO may need to rethink as part of #3051 (multicall work).
         latest_block = w3.eth.get_block("latest")
