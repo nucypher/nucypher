@@ -84,7 +84,7 @@ def test_rpc_condition_evaluation_invalid_provider_for_chain(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
     new_chain = 23
-    rpc_condition.chain = new_chain
+    rpc_condition.rpc_call.chain = new_chain
     condition_providers = {new_chain: {testerchain.provider}}
     with pytest.raises(
         InvalidCondition, match=f"can only be evaluated on chain ID {new_chain}"

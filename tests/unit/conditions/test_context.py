@@ -11,7 +11,7 @@ from nucypher.policy.conditions.context import (
     _resolve_user_address,
     get_context_value,
     is_context_variable,
-    resolve_any_context_variables,
+    resolve_parameter_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
     ContextVariableVerificationFailed,
@@ -86,9 +86,8 @@ def test_resolve_any_context_variables():
         params, resolved_params = params_with_resolution
         value, resolved_value = value_with_resolution
         return_value_test = ReturnValueTest(comparator="==", value=value)
-        resolved_parameters, resolved_return_value = resolve_any_context_variables(
-            [params], return_value_test, **CONTEXT
-        )
+        resolved_parameters = resolve_parameter_context_variables([params], **CONTEXT)
+        resolved_return_value = return_value_test.with_resolved_context(**CONTEXT)
         assert resolved_parameters == [resolved_params]
         assert resolved_return_value.comparator == return_value_test.comparator
         assert resolved_return_value.index == return_value_test.index
