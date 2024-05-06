@@ -75,6 +75,7 @@ class ConditionType(Enum):
     RPC = "rpc"
     JSONAPI = "json-api"
     COMPOUND = "compound"
+    SEQUENTIAL_CONTRACTS = "sequentialContracts"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -425,7 +426,7 @@ class ConditionLingo(_Serializable):
         Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
         conditions expression framework.
         """
-        from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
+        from nucypher.policy.conditions.evm import ContractCondition, RPCCondition, SequentialContractCondition
         from nucypher.policy.conditions.offchain import JsonApiCondition
         from nucypher.policy.conditions.time import TimeCondition
 
@@ -438,6 +439,7 @@ class ConditionLingo(_Serializable):
             RPCCondition,
             CompoundAccessControlCondition,
             JsonApiCondition,
+            SequentialContractCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition
