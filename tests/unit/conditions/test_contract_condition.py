@@ -9,7 +9,6 @@ from unittest.mock import Mock
 import pytest
 from hexbytes import HexBytes
 from marshmallow import post_load
-from web3 import Web3
 from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.evm import ContractCall, ContractCondition
@@ -53,7 +52,7 @@ class FakeExecutionContractCondition(ContractCondition):
         def set_execution_return_value(self, value: Any):
             self.execution_return_value = value
 
-        def execute(self, w3: Web3, **context) -> Any:
+        def execute(self, providers: Dict, **context) -> Any:
             return self.execution_return_value
 
     class Schema(ContractCondition.Schema):
@@ -69,9 +68,6 @@ class FakeExecutionContractCondition(ContractCondition):
 
     def set_execution_return_value(self, value: Any):
         self.rpc_call.set_execution_return_value(value)
-
-    def _configure_provider(self, provider: BaseProvider):
-        self.w3 = dict()  # doesn't matter what it is
 
 
 @pytest.fixture(scope="function")
