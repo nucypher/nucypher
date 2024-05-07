@@ -48,7 +48,10 @@ DEAUTHORIZATION_DURATION = 60 * 60 * 24 * 60  # 60 days in seconds
 COMMITMENT_DURATION_1 = 182 * 60 * 24 * 60  # 182 days in seconds
 COMMITMENT_DURATION_2 = 2 * COMMITMENT_DURATION_1  # 365 days in seconds
 
-COMMITMENT_DEADLINE = 60 * 60 * 24 * 100  # 100 days after deploymwent
+COMMITMENT_DEADLINE = 60 * 60 * 24 * 100  # 100 days after deployment
+
+PENALTY_DEFAULT = 1000  # 10% penalty
+PENALTY_DURATION = 60 * 60 * 24  # 1 day in seconds
 
 # Coordinator
 TIMEOUT = 3600
@@ -167,6 +170,8 @@ def taco_application(
         DEAUTHORIZATION_DURATION,
         [COMMITMENT_DURATION_1, COMMITMENT_DURATION_2],
         maya.now().epoch + COMMITMENT_DEADLINE,
+        PENALTY_DEFAULT,
+        PENALTY_DURATION,
     )
 
     proxy = deployer_account.deploy(
@@ -211,12 +216,23 @@ def taco_child_application(
 
 
 @pytest.fixture(scope="module")
+def adjudicator(nucypher_dependency, deployer_account, taco_application):
+    _adjudicator = deployer_account.deploy(
+        nucypher_dependency.Adjudicator,
+        taco_application.address,
+        1, PENALTY_DEFAULT, 1, 1
+    )
+    return _adjudicator
+
+
+@pytest.fixture(scope="module")
 def coordinator(
     oz_dependency,
     nucypher_dependency,
     deployer_account,
     taco_child_application,
     ritual_token,
+    adjudicator,
 ):
     _coordinator = deployer_account.deploy(
         nucypher_dependency.Coordinator,
@@ -237,7 +253,11 @@ def coordinator(
 
     proxy_contract = nucypher_dependency.Coordinator.at(proxy.address)
     proxy_contract.makeInitiationPublic(sender=deployer_account)
-    taco_child_application.initialize(proxy_contract.address, sender=deployer_account)
+    taco_child_application.initialize(
+        proxy_contract.address,
+        adjudicator.address,
+        sender=deployer_account
+    )
     return proxy_contract
 
 
@@ -257,7 +277,6 @@ def subscription_manager(nucypher_dependency, deployer_account):
         nucypher_dependency.SubscriptionManager,
     )
     return _subscription_manager
-
 
 #
 # Deployment/Blockchains
