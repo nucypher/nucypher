@@ -1,1 +1,0 @@
-Prevent ritual tx starvation when broadcast failures occur by proactively removing problematic tx from the ATxM queue, and resubmitting a fresh tx.

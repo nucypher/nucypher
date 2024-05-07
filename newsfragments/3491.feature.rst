@@ -1,1 +1,0 @@
-RPC connectivity is now agnostic to the EVM client fingerprint and implementation technology.

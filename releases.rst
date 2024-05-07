@@ -4,6 +4,50 @@ Releases
 
 .. towncrier release notes start
 
+v7.3.0 (2024-05-07)
+-------------------
+
+Features
+~~~~~~~~
+
+- Automated transaction speedups and retries (`#3437 <https://github.com/nucypher/nucypher/issues/3437>`__)
+- Allow staking providers to be filtered/sampled based on an expectation for staking duration. (`#3467 <https://github.com/nucypher/nucypher/issues/3467>`__)
+- Improve DKG transaction fault tolerance by incorporating async transactions and callbacks. (`#3476 <https://github.com/nucypher/nucypher/issues/3476>`__)
+- Add ``--json-logs/--no-json-logs`` CLI option to enabled/disable logging to a json log file; json logging is now disabled be default. (`#3483 <https://github.com/nucypher/nucypher/issues/3483>`__)
+- RPC connectivity is now agnostic to the EVM client fingerprint and implementation technology. (`#3491 <https://github.com/nucypher/nucypher/issues/3491>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Migrate configuration files when path explicitly specified as a CLI parameter. (`#3465 <https://github.com/nucypher/nucypher/issues/3465>`__)
+- Add --metrics-listen-address CLI Prometheus option (`#3478 <https://github.com/nucypher/nucypher/issues/3478>`__)
+- Console logging was not using the correct log format, log levels were not adhered to for limiting log messages, and global log observers not correctly managed.
+  Improved the StdoutEmitter to better utilize the logger so that information is not lost. (`#3483 <https://github.com/nucypher/nucypher/issues/3483>`__)
+- Fix inconsistent API for ``sign_transaction`` return values; all now return bytes. (`#3486 <https://github.com/nucypher/nucypher/issues/3486>`__)
+
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Wallet management and transaction signing via blockchain clients is deprecated for production use. (`#3491 <https://github.com/nucypher/nucypher/issues/3491>`__)
+
+
+Misc
+~~~~
+
+- Migrate ``Lynx`` and ``Tapir`` testnets from Polygon Mumbai to Polygon Amoy. (`#3468 <https://github.com/nucypher/nucypher/issues/3468>`__)
+- Nodes will better handle the effects of compatible contract changes such as additions to structs and overloaded functions. (`#3479 <https://github.com/nucypher/nucypher/issues/3479>`__)
+- Ensure that log observers filter log messages by log level. (`#3487 <https://github.com/nucypher/nucypher/issues/3487>`__)
+- Prevent ritual tx starvation when broadcast failures occur by proactively removing problematic tx from the ATxM queue, and resubmitting a fresh tx. (`#3489 <https://github.com/nucypher/nucypher/issues/3489>`__)
+
+
+Internal Development Tasks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+-  (`#3409 <https://github.com/nucypher/nucypher/issues/3409>`__, `#3438 <https://github.com/nucypher/nucypher/issues/3438>`__, `#3439 <https://github.com/nucypher/nucypher/issues/3439>`__, `#3457 <https://github.com/nucypher/nucypher/issues/3457>`__, `#3462 <https://github.com/nucypher/nucypher/issues/3462>`__, `#3464 <https://github.com/nucypher/nucypher/issues/3464>`__, `#3473 <https://github.com/nucypher/nucypher/issues/3473>`__, `#3477 <https://github.com/nucypher/nucypher/issues/3477>`__, `#3484 <https://github.com/nucypher/nucypher/issues/3484>`__)
+
+
 v7.2.0 (2024-02-13)
 -------------------
 

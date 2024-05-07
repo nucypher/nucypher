@@ -1,1 +1,0 @@
-Wallet management and transaction signing via blockchain clients is deprecated for production use.

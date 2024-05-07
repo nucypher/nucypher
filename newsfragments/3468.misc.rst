@@ -1,1 +1,0 @@
-Migrate ``Lynx`` and ``Tapir`` testnets from Polygon Mumbai to Polygon Amoy.

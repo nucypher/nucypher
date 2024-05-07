@@ -1,1 +1,0 @@
-Fix inconsistent API for ``sign_transaction`` return values; all now return bytes.

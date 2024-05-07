@@ -1,1 +1,0 @@
-Migrate configuration files when path explicitly specified as a CLI parameter.

@@ -1,1 +1,0 @@
-Add ``--json-logs/--no-json-logs`` CLI option to enabled/disable logging to a json log file; json logging is now disabled be default.

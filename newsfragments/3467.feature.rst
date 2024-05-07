@@ -1,1 +1,0 @@
-Allow staking providers to be filtered/sampled based on an expectation for staking duration.
