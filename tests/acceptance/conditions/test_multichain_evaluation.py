@@ -1,15 +1,16 @@
 from collections import defaultdict
 
 import pytest
+from web3 import Web3
 
-from nucypher.policy.conditions.evm import RPCCondition
+from nucypher.policy.conditions.evm import RPCCall, RPCCondition
 from nucypher.policy.conditions.lingo import (
     CompoundAccessControlCondition,
     ConditionLingo,
     ConditionType,
     ReturnValueTest,
 )
-from nucypher.policy.conditions.time import TimeCondition
+from nucypher.policy.conditions.time import TimeCondition, TimeRPCCall
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.utils.policy import make_message_kits
 
@@ -80,9 +81,8 @@ def test_single_retrieve_with_multichain_conditions(
     assert cleartexts == messages
 
 
-@pytest.mark.skip("Will fix once things are cleaned up")
 def test_single_decryption_request_with_faulty_rpc_endpoint(
-    enacted_policy, bob, multichain_ursulas, conditions, mock_rpc_condition
+    monkeymodule, testerchain, enacted_policy, bob, multichain_ursulas, conditions
 ):
     bob.remember_node(multichain_ursulas[0])
     bob.start_learning_loop()
@@ -93,30 +93,43 @@ def test_single_decryption_request_with_faulty_rpc_endpoint(
         alice_verifying_key=enacted_policy.publisher_verifying_key,
     )
 
+    def _mock_configure_provider(*args, **kwargs):
+        rpc_call_type = args[0]
+        if isinstance(rpc_call_type, TimeRPCCall):
+            # time condition call - only RPCCall is made faulty
+            return testerchain.w3
+
+        # rpc condition call
+        provider = args[1]
+        w3 = Web3(provider)
+        return w3
+
+    monkeymodule.setattr(RPCCall, "_configure_provider", _mock_configure_provider)
+
     calls = defaultdict(int)
-    original_execute_call = RPCCondition._execute_call
+    original_execute_call = RPCCall._execute
 
     def faulty_execute_call(*args, **kwargs):
         """Intercept the call to the RPC endpoint and raise an exception on the second call."""
         nonlocal calls
-        rpc_call = args[0]
-        calls[rpc_call.chain] += 1
-        if (
-            calls[rpc_call.chain] == 2
-            and "tester://multichain.0" in rpc_call.provider.endpoint_uri
-        ):
+        rpc_call_object = args[0]
+        resolved_parameters = args[2]
+        calls[rpc_call_object.chain] += 1
+        if calls[rpc_call_object.chain] % 2 == 0:
             # simulate a network error
             raise ConnectionError("Something went wrong with the network")
-        elif calls[rpc_call.chain] == 3:
-            # check the provider is the fallback
-            this_uri = rpc_call.provider.endpoint_uri
-            assert "fallback" in this_uri
-        return original_execute_call(*args, **kwargs)
 
-    RPCCondition._execute_call = faulty_execute_call
+        # replace w3 object with fake provider, with proper w3 object for actual execution
+        return original_execute_call(
+            rpc_call_object, testerchain.w3, resolved_parameters
+        )
+
+    RPCCall._execute = faulty_execute_call
+
     cleartexts = bob.retrieve_and_decrypt(
         message_kits=message_kits,
         **policy_info_kwargs,
     )
     assert cleartexts == messages
-    RPCCondition._execute_call = original_execute_call
+
+    RPCCall._execute = original_execute_call
