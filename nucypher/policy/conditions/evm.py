@@ -138,7 +138,6 @@ class RPCCall:
 
         self.name = name
         self.chain = chain
-        self.provider: Optional[BaseProvider] = None  # set in _configure_provider
         self.method = self._validate_method(method=method)
 
         self.parameters = parameters or None
