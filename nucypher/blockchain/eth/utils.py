@@ -6,6 +6,8 @@ from web3 import Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
 from web3.types import TxParams
 
+from nucypher.blockchain.eth.constants import DEFAULT_RPC_ENDPOINTS
+
 
 def prettify_eth_amount(amount, original_denomination: str = 'wei') -> str:
     """

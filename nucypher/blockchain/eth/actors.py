@@ -37,8 +37,7 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
-from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
-from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.constants import NULL_ADDRESS, DEFAULT_RPC_ENDPOINTS, PUBLIC_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import (

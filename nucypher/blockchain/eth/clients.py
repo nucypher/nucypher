@@ -33,28 +33,6 @@ class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
 
 
-PUBLIC_CHAINS = {
-    1: "Mainnet",
-    137: "Polygon/Mainnet",
-    11155111: "Sepolia",
-    80002: "Polygon/Amoy",
-}
-
-# This list is not exhaustive,
-# but is sufficient for the current needs of the project.
-POA_CHAINS = {
-    4,  # Rinkeby
-    5,  # Goerli
-    42,  # Kovan
-    77,  # Sokol
-    100,  # xDAI
-    10200,  # gnosis/chiado,
-    137,  # Polygon/Mainnet
-    80001,  # "Polygon/Mumbai"
-    80002,  # "Polygon/Amoy"
-}
-
-
 class EthereumClient:
     BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
     TRANSACTION_POLLING_TIME = 0.5  # seconds
