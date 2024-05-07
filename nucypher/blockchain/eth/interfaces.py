@@ -1,53 +1,50 @@
 import math
 import pprint
-from pathlib import Path
 from typing import Callable, Dict, NamedTuple, Optional, Union
 from urllib.parse import urlparse
 
 import requests
+from atxm import AutomaticTxMachine
+from atxm.exceptions import InsufficientFunds
+from atxm.strategies import ExponentialSpeedupStrategy
+from atxm.tx import AsyncTx, FaultedTx, FinalizedTx, FutureTx, PendingTx
 from constant_sorrow.constants import (
-    INSUFFICIENT_FUNDS,
-    NO_BLOCKCHAIN_CONNECTION,
-    UNKNOWN_TX_STATUS,
-)
-from eth_tester import EthereumTester
-from eth_tester.exceptions import (
-    TransactionFailed as TestTransactionFailed,
-)
-from eth_tester.exceptions import (
-    ValidationError,
+    INSUFFICIENT_FUNDS,  # noqa
+    NO_BLOCKCHAIN_CONNECTION,  # noqa
+    UNKNOWN_TX_STATUS,  # noqa
 )
 from eth_utils import to_checksum_address
-from hexbytes.main import HexBytes
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider
 from web3.contract.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted
 from web3.middleware import geth_poa_middleware, simple_cache_middleware
 from web3.providers import BaseProvider
-from web3.types import TxReceipt
+from web3.types import TxParams, TxReceipt
 
-from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient, InfuraClient
+from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
-    _get_auto_provider,
-    _get_HTTP_provider,
-    _get_IPC_provider,
+    _get_http_provider,
     _get_mock_test_provider,
     _get_pyevm_test_provider,
-    _get_websocket_provider,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
+from nucypher.blockchain.eth.utils import (
+    get_transaction_name,
+    get_tx_cost_data,
+    prettify_eth_amount,
+)
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.gas_strategies import (
     WEB3_GAS_STRATEGIES,
-    construct_datafeed_median_strategy,
     max_price_gas_strategy_wrapper,
 )
 from nucypher.utilities.logging import Logger
 
-Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]  # TODO: Move to types.py
+Web3Providers = Union[
+    IPCProvider, WebsocketProvider, HTTPProvider
+]  # TODO: Move to types.py
 
 
 class BlockchainInterface:
@@ -58,7 +55,7 @@ class BlockchainInterface:
 
     TIMEOUT = 600  # seconds  # TODO: Correlate with the gas strategy - #2070
 
-    DEFAULT_GAS_STRATEGY = 'fast'
+    DEFAULT_GAS_STRATEGY = "fast"
     GAS_STRATEGIES = WEB3_GAS_STRATEGIES
 
     Web3 = Web3  # TODO: This is name-shadowing the actual Web3. Is this intentional?
@@ -85,15 +82,15 @@ class BlockchainInterface:
     }
 
     class TransactionFailed(InterfaceError):
-
         IPC_CODE = -32000
 
-        def __init__(self,
-                     message: str,
-                     transaction_dict: dict,
-                     contract_function: Union[ContractFunction, ContractConstructor],
-                     *args):
-
+        def __init__(
+            self,
+            message: str,
+            transaction_dict: dict,
+            contract_function: Union[ContractFunction, ContractConstructor],
+            *args,
+        ):
             self.base_message = message
             self.name = get_transaction_name(contract_function=contract_function)
             self.payload = transaction_dict
@@ -107,29 +104,61 @@ class BlockchainInterface:
         @property
         def default(self) -> str:
             sender = self.payload["from"]
-            message = f'{self.name} from {sender[:6]}... \n' \
-                      f'Sender balance: {prettify_eth_amount(self.get_balance())} \n' \
-                      f'Reason: {self.base_message} \n' \
-                      f'Transaction: {self.payload}'
+            message = (
+                f"{self.name} from {sender[:6]}... \n"
+                f"Sender balance: {prettify_eth_amount(self.get_balance())} \n"
+                f"Reason: {self.base_message} \n"
+                f"Transaction: {self.payload}"
+            )
             return message
 
         def get_balance(self):
             blockchain = BlockchainInterfaceFactory.get_interface()
-            balance = blockchain.client.get_balance(account=self.payload['from'])
+            balance = blockchain.client.get_balance(account=self.payload["from"])
             return balance
 
         @property
         def insufficient_funds(self) -> str:
             try:
-                transaction_fee = self.payload['gas'] * self.payload['gasPrice']
+                transaction_fee = self.payload["gas"] * self.payload["gasPrice"]
             except KeyError:
                 return self.default
             else:
-                cost = transaction_fee + self.payload.get('value', 0)
-                message = f'{self.name} from {self.payload["from"][:8]} - {self.base_message}.' \
-                          f'Calculated cost is {prettify_eth_amount(cost)},' \
-                          f'but sender only has {prettify_eth_amount(self.get_balance())}.'
+                cost = transaction_fee + self.payload.get("value", 0)
+                message = (
+                    f'{self.name} from {self.payload["from"][:8]} - {self.base_message}. '
+                    f"Calculated cost is {prettify_eth_amount(cost)}, "
+                    f"but sender only has {prettify_eth_amount(self.get_balance())}."
+                )
             return message
+
+    class AsyncTxHooks:
+        def __init__(
+            self,
+            on_broadcast_failure: Callable[[FutureTx, Exception], None],
+            on_fault: Callable[[FaultedTx], None],
+            on_finalized: Callable[[FinalizedTx], None],
+            on_insufficient_funds: Callable[
+                [Union[FutureTx, PendingTx], InsufficientFunds], None
+            ],
+            on_broadcast: Optional[Callable[[PendingTx], None]] = None,
+        ):
+            self.on_broadcast_failure = on_broadcast_failure
+            self.on_fault = on_fault
+            self.on_finalized = on_finalized
+            self.on_insufficient_funds = on_insufficient_funds
+            self.on_broadcast = (
+                on_broadcast if on_broadcast else self.__default_on_broadcast
+            )
+
+        @staticmethod
+        def __default_on_broadcast(tx: PendingTx):
+            emitter = StdoutEmitter()
+            max_cost, max_price_gwei, tx_type = get_tx_cost_data(tx.params)
+            emitter.message(
+                f"Broadcasted {tx_type} async tx {tx.id} with TXHASH {tx.txhash.hex()} ({max_cost} @ {max_price_gwei} gwei)",
+                color="yellow",
+            )
 
     def __init__(
         self,
@@ -204,7 +233,7 @@ class BlockchainInterface:
 
         """
 
-        self.log = Logger('Blockchain')
+        self.log = Logger("Blockchain")
         self.poa = poa
         self.endpoint = endpoint
         self._provider = provider
@@ -212,8 +241,22 @@ class BlockchainInterface:
         self.client: EthereumClient = NO_BLOCKCHAIN_CONNECTION
         self.is_light = light
 
+        speedup_strategy = ExponentialSpeedupStrategy(
+            w3=self.w3,
+            min_time_between_speedups=120,
+        )  # speedup txs if not mined after 2 mins.
+        self.tx_machine = AutomaticTxMachine(
+            w3=self.w3, tx_exec_timeout=self.TIMEOUT, strategies=[speedup_strategy]
+        )
+
         # TODO: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
-        if gas_strategy not in ('slow', 'medium', 'fast', 'free', None):  # FIXME: What is 'None' doing here?
+        if gas_strategy not in (
+            "slow",
+            "medium",
+            "fast",
+            "free",
+            None,
+        ):  # FIXME: What is 'None' doing here?
             raise ValueError(f"'{gas_strategy}' is an invalid gas strategy")
         self.gas_strategy = gas_strategy or self.DEFAULT_GAS_STRATEGY
         self.max_gas_price = max_gas_price
@@ -241,7 +284,9 @@ class BlockchainInterface:
         except KeyError:
             if gas_strategy:
                 if not callable(gas_strategy):
-                    raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
+                    raise ValueError(
+                        f"{gas_strategy} must be callable to be a valid gas strategy."
+                    )
             else:
                 gas_strategy = cls.GAS_STRATEGIES[cls.DEFAULT_GAS_STRATEGY]
         return gas_strategy
@@ -256,7 +301,7 @@ class BlockchainInterface:
 
         # For use with Proof-Of-Authority test-blockchains
         if self.poa is True:
-            self.log.debug('Injecting POA middleware at layer 0')
+            self.log.debug("Injecting POA middleware at layer 0")
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
         self.log.debug("Adding simple_cache_middleware")
@@ -266,14 +311,8 @@ class BlockchainInterface:
         # self.configure_gas_strategy()
 
     def configure_gas_strategy(self, gas_strategy: Optional[Callable] = None) -> None:
-
         if gas_strategy:
             reported_gas_strategy = f"fixed/{gas_strategy.name}"
-
-        elif isinstance(self.client, InfuraClient):
-            gas_strategy = construct_datafeed_median_strategy(speed=self.gas_strategy)
-            reported_gas_strategy = f"datafeed/{self.gas_strategy}"
-
         else:
             reported_gas_strategy = f"web3/{self.gas_strategy}"
             gas_strategy = self.get_gas_strategy(self.gas_strategy)
@@ -281,8 +320,10 @@ class BlockchainInterface:
         configuration_message = f"Using gas strategy '{reported_gas_strategy}'"
 
         if self.max_gas_price:
-            __price = Web3.to_wei(self.max_gas_price, 'gwei')  # from gwei to wei
-            gas_strategy = max_price_gas_strategy_wrapper(gas_strategy=gas_strategy, max_gas_price_wei=__price)
+            __price = Web3.to_wei(self.max_gas_price, "gwei")  # from gwei to wei
+            gas_strategy = max_price_gas_strategy_wrapper(
+                gas_strategy=gas_strategy, max_gas_price_wei=__price
+            )
             configuration_message += f", with a max price of {self.max_gas_price} gwei."
 
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
@@ -295,7 +336,6 @@ class BlockchainInterface:
         # self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
 
     def connect(self):
-
         endpoint = self.endpoint
         self.log.info(f"Using external Web3 Provider '{self.endpoint}'")
 
@@ -311,7 +351,8 @@ class BlockchainInterface:
         # Connect if not connected
         try:
             self.w3 = self.Web3(provider=self._provider)
-            self.client = EthereumClient.from_w3(w3=self.w3)
+            self.tx_machine.w3 = self.w3  # share this web3 instance with the tracker
+            self.client = EthereumClient(w3=self.w3)
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(
                 f"Connection Failed - {str(self.endpoint)} - is RPC enabled?"
@@ -343,53 +384,33 @@ class BlockchainInterface:
 
         if endpoint and not provider:
             uri_breakdown = urlparse(endpoint)
-
-            if uri_breakdown.scheme == 'tester':
-                providers = {
-                    'pyevm': _get_pyevm_test_provider,
-                    'mock': _get_mock_test_provider
-                }
-                provider_scheme = uri_breakdown.netloc
-
+            provider_scheme = (
+                uri_breakdown.netloc
+                if uri_breakdown.scheme == "tester"
+                else uri_breakdown.scheme
+            )
+            if provider_scheme == "pyevm":
+                self._provider = _get_pyevm_test_provider(endpoint)
+            elif provider_scheme == "mock":
+                self._provider = _get_mock_test_provider(endpoint)
+            elif provider_scheme == "http" or provider_scheme == "https":
+                self._provider = _get_http_provider(endpoint)
             else:
-                providers = {
-                    'auto': _get_auto_provider,
-                    'ipc': _get_IPC_provider,
-                    'file': _get_IPC_provider,
-                    'ws': _get_websocket_provider,
-                    'wss': _get_websocket_provider,
-                    'http': _get_HTTP_provider,
-                    'https': _get_HTTP_provider,
-                }
-                provider_scheme = uri_breakdown.scheme
-
-            # auto-detect for file based ipc
-            if not provider_scheme:
-                if Path(endpoint).is_file():
-                    # file is available - assume ipc/file scheme
-                    provider_scheme = "file"
-                    self.log.info(
-                        f"Auto-detected provider scheme as 'file://' for provider {endpoint}"
-                    )
-
-            try:
-                self._provider = providers[provider_scheme](endpoint)
-            except KeyError:
                 raise self.UnsupportedProvider(
                     f"{endpoint} is an invalid or unsupported blockchain provider URI"
                 )
-            else:
-                self.endpoint = endpoint or NO_BLOCKCHAIN_CONNECTION
+            self.endpoint = endpoint or NO_BLOCKCHAIN_CONNECTION
         else:
             self._provider = provider
 
     @classmethod
-    def _handle_failed_transaction(cls,
-                                   exception: Exception,
-                                   transaction_dict: dict,
-                                   contract_function: Union[ContractFunction, ContractConstructor],
-                                   logger: Logger = None
-                                   ) -> None:
+    def _handle_failed_transaction(
+        cls,
+        exception: Exception,
+        transaction_dict: dict,
+        contract_function: Union[ContractFunction, ContractConstructor],
+        logger: Logger = None,
+    ) -> None:
         """
         Re-raising error handler and context manager for transaction broadcast or
         build failure events at the interface layer. This method is a last line of defense
@@ -401,8 +422,8 @@ class BlockchainInterface:
 
         # Assume this error is formatted as an RPC response
         try:
-            code = int(response['code'])
-            message = response['message']
+            code = int(response["code"])
+            message = response["message"]
         except Exception:
             # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
             #               This may be best handled at the agent or actor layer for registry and token interactions.
@@ -417,12 +438,16 @@ class BlockchainInterface:
         if logger:
             logger.critical(message)  # simple context
 
-        transaction_failed = cls.TransactionFailed(message=message,  # rich error (best case)
-                                                   contract_function=contract_function,
-                                                   transaction_dict=transaction_dict)
+        transaction_failed = cls.TransactionFailed(
+            message=message,  # rich error (best case)
+            contract_function=contract_function,
+            transaction_dict=transaction_dict,
+        )
         raise transaction_failed from exception
 
-    def __log_transaction(self, transaction_dict: dict, contract_function: ContractFunction):
+    def __log_transaction(
+        self, transaction_dict: dict, contract_function: ContractFunction
+    ):
         """
         Format and log a transaction dict and return the transaction name string.
         This method *must not* mutate the original transaction dict.
@@ -431,30 +456,38 @@ class BlockchainInterface:
         tx = dict(transaction_dict).copy()
 
         # Format
-        if tx.get('to'):
-            tx['to'] = to_checksum_address(contract_function.address)
+        if tx.get("to"):
+            tx["to"] = to_checksum_address(contract_function.address)
         try:
-            tx['selector'] = contract_function.selector
+            tx["selector"] = contract_function.selector
         except AttributeError:
             pass
-        tx['from'] = to_checksum_address(tx['from'])
-        tx.update({f: prettify_eth_amount(v) for f, v in tx.items() if f in ('gasPrice', 'value')})
-        payload_pprint = ', '.join("{}: {}".format(k, v) for k, v in tx.items())
+        tx["from"] = to_checksum_address(tx["from"])
+        tx.update(
+            {
+                f: prettify_eth_amount(v)
+                for f, v in tx.items()
+                if f in ("gasPrice", "value")
+            }
+        )
+        payload_pprint = ", ".join("{}: {}".format(k, v) for k, v in tx.items())
 
         # Log
         transaction_name = get_transaction_name(contract_function=contract_function)
         self.log.debug(f"[TX-{transaction_name}] | {payload_pprint}")
 
     @validate_checksum_address
-    def build_payload(self,
-                      sender_address: str,
-                      payload: dict = None,
-                      transaction_gas_limit: int = None,
-                      use_pending_nonce: bool = True,
-                      ) -> dict:
-
-        nonce = self.client.get_transaction_count(account=sender_address, pending=use_pending_nonce)
-        base_payload = {'nonce': nonce, 'from': sender_address}
+    def build_payload(
+        self,
+        sender_address: str,
+        payload: dict = None,
+        transaction_gas_limit: int = None,
+        use_pending_nonce: bool = True,
+    ) -> dict:
+        nonce = self.client.get_transaction_count(
+            account=sender_address, pending=use_pending_nonce
+        )
+        base_payload = {"nonce": nonce, "from": sender_address}
 
         # Aggregate
         if not payload:
@@ -462,55 +495,72 @@ class BlockchainInterface:
         payload.update(base_payload)
         # Explicit gas override - will skip gas estimation in next operation.
         if transaction_gas_limit:
-            payload['gas'] = int(transaction_gas_limit)
+            payload["gas"] = int(transaction_gas_limit)
         return payload
 
     @validate_checksum_address
-    def build_contract_transaction(self,
-                                   contract_function: ContractFunction,
-                                   sender_address: str,
-                                   payload: dict = None,
-                                   transaction_gas_limit: Optional[int] = None,
-                                   gas_estimation_multiplier: Optional[float] = None,
-                                   use_pending_nonce: Optional[bool] = None,
-                                   ) -> dict:
-
+    def build_contract_transaction(
+        self,
+        contract_function: ContractFunction,
+        sender_address: str,
+        payload: dict = None,
+        transaction_gas_limit: Optional[int] = None,
+        gas_estimation_multiplier: Optional[float] = None,
+        use_pending_nonce: Optional[bool] = None,
+        log_now: bool = True,
+    ) -> TxParams:
         if transaction_gas_limit is not None:
-            self.log.warn("The transaction gas limit of {transaction_gas_limit} will override gas estimation attempts")
+            self.log.warn(
+                f"The transaction gas limit of {transaction_gas_limit} will override gas estimation attempts"
+            )
 
         # Sanity checks for the gas estimation multiplier
         if gas_estimation_multiplier is not None:
             if not 1 <= gas_estimation_multiplier <= 3:  # Arbitrary upper bound.
-                raise ValueError(f"The gas estimation multiplier should be a float between 1 and 3, "
-                                 f"but we received {gas_estimation_multiplier}.")
+                raise ValueError(
+                    f"The gas estimation multiplier must be a float between 1 and 3, "
+                    f"but we received {gas_estimation_multiplier}."
+                )
 
-        payload = self.build_payload(sender_address=sender_address,
-                                     payload=payload,
-                                     transaction_gas_limit=transaction_gas_limit,
-                                     use_pending_nonce=use_pending_nonce)
-        self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
+        payload = self.build_payload(
+            sender_address=sender_address,
+            payload=payload,
+            transaction_gas_limit=transaction_gas_limit,
+            use_pending_nonce=use_pending_nonce,
+        )
+
+        if log_now:
+            self.__log_transaction(
+                transaction_dict=payload, contract_function=contract_function
+            )
         try:
-            if 'gas' not in payload:  # i.e., transaction_gas_limit is not None
+            if "gas" not in payload:  # i.e., transaction_gas_limit is not None
                 # As web3 build_transaction() will estimate gas with block identifier "pending" by default,
                 # explicitly estimate gas here with block identifier 'latest' if not otherwise specified
                 # as a pending transaction can cause gas estimation to fail, notably in case of worklock refunds.
-                payload['gas'] = contract_function.estimate_gas(payload, block_identifier='latest')
+                payload["gas"] = contract_function.estimate_gas(
+                    payload, block_identifier="latest"
+                )
             transaction_dict = contract_function.build_transaction(payload)
-        except (TestTransactionFailed, ValidationError, ValueError) as error:
+        except ValueError as error:
             # Note: Geth (1.9.15) raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed" during gas estimation.
-            raise self._handle_failed_transaction(exception=error,
-                                                  transaction_dict=payload,
-                                                  contract_function=contract_function,
-                                                  logger=self.log)
+            raise self._handle_failed_transaction(
+                exception=error,
+                transaction_dict=payload,
+                contract_function=contract_function,
+                logger=self.log,
+            )
 
         # Increase the estimated gas limit according to the gas estimation multiplier, if any.
         if gas_estimation_multiplier and not transaction_gas_limit:
-            gas_estimation = transaction_dict['gas']
+            gas_estimation = transaction_dict["gas"]
             overestimation = int(math.ceil(gas_estimation * gas_estimation_multiplier))
-            self.log.debug(f"Gas limit for this TX was increased from {gas_estimation} to {overestimation}, "
-                           f"using a multiplier of {gas_estimation_multiplier}.")
-            transaction_dict['gas'] = overestimation
+            self.log.debug(
+                f"Gas limit for this TX was increased from {gas_estimation} to {overestimation}, "
+                f"using a multiplier of {gas_estimation_multiplier}."
+            )
+            transaction_dict["gas"] = overestimation
             # TODO: What if we're going over the block limit? Not likely, but perhaps worth checking (NRN)
 
         return transaction_dict
@@ -521,141 +571,159 @@ class BlockchainInterface:
         transaction_dict: Dict,
         transaction_name: str = "",
         confirmations: int = 0,
-        fire_and_forget: bool = False,
-    ) -> Union[TxReceipt, HexBytes]:
+    ) -> TxReceipt:
         """
-        Takes a transaction dictionary, signs it with the configured signer, then broadcasts the signed
-        transaction using the ethereum provider's eth_sendRawTransaction RPC endpoint.
-        Optionally blocks for receipt and confirmation with 'confirmations', and 'fire_and_forget' flags.
-
-        If 'fire and forget' is True this method returns the transaction hash only, without waiting for a receipt -
-        otherwise return the transaction receipt.
-
+        Takes a transaction dictionary, signs it with the configured signer,
+        then broadcasts the signed transaction using the RPC provider's
+        eth_sendRawTransaction endpoint.
         """
-        #
-        # Setup
-        #
-
-        # TODO # 1754 - Move this to singleton - I do not approve... nor does Bogdan?
         emitter = StdoutEmitter()
-
-        #
-        # Sign
-        #
-
-        # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
-        
-        try:
-            # post-london fork transactions (Type 2)
-            max_unit_price = transaction_dict['maxFeePerGas']
-            tx_type = 'EIP-1559'
-        except KeyError:
-            # pre-london fork "legacy" transactions (Type 0)
-            max_unit_price = transaction_dict['gasPrice']
-            tx_type = 'Legacy'
-
-        max_price_gwei = Web3.from_wei(max_unit_price, 'gwei')
-        max_cost_wei = max_unit_price * transaction_dict['gas']
-        max_cost = Web3.from_wei(max_cost_wei, 'ether')
+        max_cost, max_price_gwei, tx_type = get_tx_cost_data(transaction_dict)
 
         if transacting_power.is_device:
-            emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... '
-                            f'({max_cost} ETH @ {max_price_gwei} gwei)',
-                            color='yellow')
-        signed_raw_transaction = transacting_power.sign_transaction(transaction_dict)
+            emitter.message(
+                f"Confirm transaction {transaction_name} on hardware wallet... "
+                f"({max_cost} @ {max_price_gwei} gwei)",
+                color="yellow",
+            )
+        raw_transaction = transacting_power.sign_transaction(transaction_dict)
 
         #
         # Broadcast
         #
-        emitter.message(f'Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} ETH @ {max_price_gwei} gwei)',
-                        color='yellow')
+        emitter.message(
+            f"Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} @ {max_price_gwei} gwei)",
+            color="yellow",
+        )
         try:
-            txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
-            emitter.message(f'TXHASH {txhash.hex()}', color='yellow')
-        except (TestTransactionFailed, ValueError):
+            txhash = self.client.send_raw_transaction(raw_transaction)  # <--- BROADCAST
+            emitter.message(f"TXHASH {txhash.hex()}", color="yellow")
+        except ValueError:
             raise  # TODO: Unify with Transaction failed handling -- Entry point for _handle_failed_transaction
-        else:
-            if fire_and_forget:
-                return txhash
 
         #
         # Receipt
         #
 
-        try:  # TODO: Handle block confirmation exceptions
-            waiting_for = 'receipt'
+        try:
+            waiting_for = "receipt"
             if confirmations:
-                waiting_for = f'{confirmations} confirmations'
-            emitter.message(f'Waiting {self.TIMEOUT} seconds for {waiting_for}', color='yellow')
-            receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT, confirmations=confirmations)
+                waiting_for = f"{confirmations} confirmations"
+            emitter.message(
+                f"Waiting {self.TIMEOUT} seconds for {waiting_for}", color="yellow"
+            )
+            receipt = self.client.wait_for_receipt(
+                txhash, timeout=self.TIMEOUT, confirmations=confirmations
+            )
         except TimeExhausted:
-            # TODO: #1504 - Handle transaction timeout
             raise
         else:
-            self.log.debug(f"[RECEIPT-{transaction_name}] | txhash: {receipt['transactionHash'].hex()}")
+            self.log.debug(
+                f"[RECEIPT-{transaction_name}] | txhash: {receipt['transactionHash'].hex()}"
+            )
 
         #
         # Confirmations
         #
 
         # Primary check
-        transaction_status = receipt.get('status', UNKNOWN_TX_STATUS)
+        transaction_status = receipt.get("status", UNKNOWN_TX_STATUS)
         if transaction_status == 0:
-            failure = f"Transaction transmitted, but receipt returned status code 0. " \
-                      f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
+            failure = (
+                f"Transaction transmitted, but receipt returned status code 0. "
+                f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
+            )
             raise self.InterfaceError(failure)
 
         if transaction_status is UNKNOWN_TX_STATUS:
-            self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
+            self.log.info(
+                f"Unknown transaction status for {txhash} (receipt did not contain a status field)"
+            )
 
             # Secondary check
             tx = self.client.get_transaction(txhash)
             if tx["gas"] == receipt["gasUsed"]:
-                raise self.InterfaceError(f"Transaction consumed 100% of transaction gas."
-                                          f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
+                raise self.InterfaceError(
+                    f"Transaction consumed 100% of transaction gas. "
+                    f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
+                )
 
         return receipt
 
+    def send_async_transaction(
+        self,
+        contract_function: ContractFunction,
+        transacting_power: TransactingPower,
+        async_tx_hooks: AsyncTxHooks,
+        transaction_gas_limit: Optional[int] = None,
+        gas_estimation_multiplier: float = 1.15,
+        info: Optional[Dict[str, str]] = None,
+        payload: dict = None,
+    ) -> AsyncTx:
+        transaction = self.build_contract_transaction(
+            contract_function=contract_function,
+            sender_address=transacting_power.account,
+            payload=payload,
+            transaction_gas_limit=transaction_gas_limit,
+            gas_estimation_multiplier=gas_estimation_multiplier,
+            log_now=False,
+        )
+
+        basic_info = {
+            "name": contract_function.fn_name,
+            "contract": contract_function.address,
+        }
+        if info:
+            basic_info.update(info)
+
+        # TODO: This is a bit of a hack. temporary solution until incoming PR #3382 is merged.
+        signer = transacting_power._signer._get_signer(transacting_power.account)
+
+        async_tx = self.tx_machine.queue_transaction(
+            info=info,
+            params=transaction,
+            signer=signer,
+            on_broadcast=async_tx_hooks.on_broadcast,
+            on_broadcast_failure=async_tx_hooks.on_broadcast_failure,
+            on_fault=async_tx_hooks.on_fault,
+            on_finalized=async_tx_hooks.on_finalized,
+            on_insufficient_funds=async_tx_hooks.on_insufficient_funds,
+        )
+        return async_tx
+
     @validate_checksum_address
-    def send_transaction(self,
-                         contract_function: Union[ContractFunction, ContractConstructor],
-                         transacting_power: TransactingPower,
-                         payload: dict = None,
-                         transaction_gas_limit: Optional[int] = None,
-                         gas_estimation_multiplier: Optional[float] = 1.15,  # TODO: Workaround for #2635, #2337
-                         confirmations: int = 0,
-                         fire_and_forget: bool = False,  # do not wait for receipt.  See #2385
-                         replace: bool = False,
-                         ) -> Union[TxReceipt, HexBytes]:
-
-        if fire_and_forget:
-            if confirmations > 0:
-                raise ValueError("Transaction Prevented: "
-                                 "Cannot use 'confirmations' and 'fire_and_forget' options together.")
-
-            use_pending_nonce = False  # TODO: #2385
-        else:
-            use_pending_nonce = replace  # TODO: #2385
-
-        transaction = self.build_contract_transaction(contract_function=contract_function,
-                                                      sender_address=transacting_power.account,
-                                                      payload=payload,
-                                                      transaction_gas_limit=transaction_gas_limit,
-                                                      gas_estimation_multiplier=gas_estimation_multiplier,
-                                                      use_pending_nonce=use_pending_nonce)
-
-        # Get transaction name
+    def send_transaction(
+        self,
+        contract_function: Union[ContractFunction, ContractConstructor],
+        transacting_power: TransactingPower,
+        payload: dict = None,
+        transaction_gas_limit: Optional[int] = None,
+        gas_estimation_multiplier: Optional[
+            float
+        ] = 1.15,  # TODO: Workaround for #2635, #2337
+    ) -> TxReceipt:
+        transaction = self.build_contract_transaction(
+            contract_function=contract_function,
+            sender_address=transacting_power.account,
+            payload=payload,
+            transaction_gas_limit=transaction_gas_limit,
+            gas_estimation_multiplier=gas_estimation_multiplier,
+            log_now=True,
+        )
         try:
             transaction_name = contract_function.fn_name.upper()
         except AttributeError:
-            transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
-
-        txhash_or_receipt = self.sign_and_broadcast_transaction(transacting_power=transacting_power,
-                                                                transaction_dict=transaction,
-                                                                transaction_name=transaction_name,
-                                                                confirmations=confirmations,
-                                                                fire_and_forget=fire_and_forget)
-        return txhash_or_receipt
+            transaction_name = (
+                "DEPLOY"
+                if isinstance(contract_function, ContractConstructor)
+                else "UNKNOWN"
+            )
+        receipt = self.sign_and_broadcast_transaction(
+            transacting_power=transacting_power,
+            transaction_dict=transaction,
+            transaction_name=transaction_name,
+        )
+        return receipt
 
     def get_contract_by_name(
         self,
@@ -714,12 +782,9 @@ class BlockchainInterfaceFactory:
         return bool(cls._interfaces.get(endpoint, False))
 
     @classmethod
-    def register_interface(cls,
-                           interface: BlockchainInterface,
-                           emitter=None,
-                           force: bool = False
-                           ) -> None:
-
+    def register_interface(
+        cls, interface: BlockchainInterface, emitter=None, force: bool = False
+    ) -> None:
         endpoint = interface.endpoint
         if (endpoint in cls._interfaces) and not force:
             raise cls.InterfaceAlreadyInitialized(
@@ -763,7 +828,6 @@ class BlockchainInterfaceFactory:
 
     @classmethod
     def get_interface(cls, endpoint: str = None) -> Interfaces:
-
         # Try to get an existing cached interface.
         if endpoint:
             try:

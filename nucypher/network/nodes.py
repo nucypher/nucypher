@@ -1133,7 +1133,7 @@ class Teacher:
             if self._staking_provider_is_really_staking(
                 registry=registry, eth_endpoint=eth_endpoint
             ):  # <-- Blockchain CALL
-                self.log.info(f"Verified operator {self}")
+                self.log.debug(f"Verified operator {self}")
                 self.verified_operator = True
             else:
                 raise self.NotStaking(f"{self.checksum_address} is not staking")

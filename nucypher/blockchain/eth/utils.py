@@ -4,6 +4,7 @@ from typing import Union
 from eth_typing import ChecksumAddress
 from web3 import Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
+from web3.types import TxParams
 
 
 def prettify_eth_amount(amount, original_denomination: str = 'wei') -> str:
@@ -46,3 +47,18 @@ def get_transaction_name(contract_function: Union[ContractFunction, ContractCons
 
 def truncate_checksum_address(checksum_address: ChecksumAddress) -> str:
     return f"{checksum_address[:8]}...{checksum_address[-8:]}"
+
+
+def get_tx_cost_data(transaction_dict: TxParams):
+    try:
+        # post-london fork transactions (Type 2)
+        max_unit_price = transaction_dict["maxFeePerGas"]
+        tx_type = "EIP-1559"
+    except KeyError:
+        # pre-london fork "legacy" transactions (Type 0)
+        max_unit_price = transaction_dict["gasPrice"]
+        tx_type = "Legacy"
+    max_price_gwei = Web3.from_wei(max_unit_price, "gwei")
+    max_cost_wei = max_unit_price * transaction_dict["gas"]
+    max_cost = Web3.from_wei(max_cost_wei, "ether")
+    return max_cost, max_price_gwei, tx_type

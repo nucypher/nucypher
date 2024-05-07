@@ -13,10 +13,10 @@ from typing import (
     Optional,
     Tuple,
     Type,
-    Union,
     cast,
 )
 
+from atxm.tx import AsyncTx
 from constant_sorrow.constants import (
     # type: ignore
     CONTRACT_CALL,
@@ -24,7 +24,6 @@ from constant_sorrow.constants import (
 )
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address, to_int
-from hexbytes import HexBytes
 from nucypher_core import SessionStaticKey
 from nucypher_core.ferveo import (
     AggregatedTranscript,
@@ -45,8 +44,11 @@ from nucypher.blockchain.eth.constants import (
     TACO_CHILD_APPLICATION_CONTRACT_NAME,
 )
 from nucypher.blockchain.eth.decorators import contract_api
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.models import Coordinator, Ferveo
+from nucypher.blockchain.eth.interfaces import (
+    BlockchainInterface,
+    BlockchainInterfaceFactory,
+)
+from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator, Ferveo
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
@@ -68,7 +70,7 @@ class EthereumContractAgent:
 
     # TODO - #842: Gas Management
     DEFAULT_TRANSACTION_GAS_LIMITS: Dict[str, Optional[Wei]]
-    DEFAULT_TRANSACTION_GAS_LIMITS = {'default': None}
+    DEFAULT_TRANSACTION_GAS_LIMITS = {"default": None}
 
     class ContractNotDeployed(Exception):
         """Raised when attempting to access a contract that is not deployed on the current network."""
@@ -86,7 +88,6 @@ class EthereumContractAgent:
         contract: Optional[Contract] = None,
         transaction_gas: Optional[Wei] = None,
     ):
-
         self.log = Logger(self.__class__.__name__)
         self.registry = registry
 
@@ -103,7 +104,9 @@ class EthereumContractAgent:
         self.__contract = contract
         self.events = events.ContractEvents(contract)
         if not transaction_gas:
-            transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS['default']
+            transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS[
+                "default"
+            ]
         self.transaction_gas = transaction_gas
 
         self.log.info(
@@ -133,7 +136,6 @@ class EthereumContractAgent:
 
 
 class NucypherTokenAgent(EthereumContractAgent):
-
     contract_name: str = NUCYPHER_TOKEN_CONTRACT_NAME
 
     @contract_api(CONTRACT_CALL)
@@ -141,57 +143,6 @@ class NucypherTokenAgent(EthereumContractAgent):
         """Get the NU balance (in NuNits) of a token holder address, or of this contract address"""
         balance: int = self.contract.functions.balanceOf(address).call()
         return types.NuNits(balance)
-
-    @contract_api(CONTRACT_CALL)
-    def get_allowance(
-        self, owner: ChecksumAddress, spender: ChecksumAddress
-    ) -> types.NuNits:
-        """Check the amount of tokens that an owner allowed to a spender"""
-        allowance: int = self.contract.functions.allowance(owner, spender).call()
-        return types.NuNits(allowance)
-
-    @contract_api(TRANSACTION)
-    def increase_allowance(
-        self,
-        transacting_power: TransactingPower,
-        spender_address: ChecksumAddress,
-        increase: types.NuNits,
-    ) -> TxReceipt:
-        """Increase the allowance of a spender address funded by a sender address"""
-        contract_function: ContractFunction = self.contract.functions.increaseAllowance(spender_address, increase)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def decrease_allowance(
-        self,
-        transacting_power: TransactingPower,
-        spender_address: ChecksumAddress,
-        decrease: types.NuNits,
-    ) -> TxReceipt:
-        """Decrease the allowance of a spender address funded by a sender address"""
-        contract_function: ContractFunction = self.contract.functions.decreaseAllowance(spender_address, decrease)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def approve_transfer(
-        self,
-        amount: types.NuNits,
-        spender_address: ChecksumAddress,
-        transacting_power: TransactingPower,
-    ) -> TxReceipt:
-        """Approve the spender address to transfer an amount of tokens on behalf of the sender address"""
-        self._validate_zero_allowance(amount, spender_address, transacting_power)
-
-        payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth! <<<< Is this still open?
-        contract_function: ContractFunction = self.contract.functions.approve(spender_address, amount)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              payload=payload,
-                                                              transacting_power=transacting_power)
-        return receipt
 
     @contract_api(TRANSACTION)
     def transfer(
@@ -201,41 +152,16 @@ class NucypherTokenAgent(EthereumContractAgent):
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         """Transfer an amount of tokens from the sender address to the target address."""
-        contract_function: ContractFunction = self.contract.functions.transfer(target_address, amount)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
+        contract_function: ContractFunction = self.contract.functions.transfer(
+            target_address, amount
+        )
+        receipt: TxReceipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
         return receipt
-
-    @contract_api(TRANSACTION)
-    def approve_and_call(
-        self,
-        amount: types.NuNits,
-        target_address: ChecksumAddress,
-        transacting_power: TransactingPower,
-        call_data: bytes = b"",
-        gas_limit: Optional[Wei] = None,
-    ) -> TxReceipt:
-        self._validate_zero_allowance(amount, target_address, transacting_power)
-
-        payload = None
-        if gas_limit:  # TODO: Gas management - #842
-            payload = {'gas': gas_limit}
-        approve_and_call: ContractFunction = self.contract.functions.approveAndCall(target_address, amount, call_data)
-        approve_and_call_receipt: TxReceipt = self.blockchain.send_transaction(contract_function=approve_and_call,
-                                                                               transacting_power=transacting_power,
-                                                                               payload=payload)
-        return approve_and_call_receipt
-
-    def _validate_zero_allowance(self, amount, target_address, transacting_power):
-        if amount == 0:
-            return
-        current_allowance = self.get_allowance(owner=transacting_power.account, spender=target_address)
-        if current_allowance != 0:
-            raise self.RequirementError(f"Token allowance for spender {target_address} must be 0")
 
 
 class SubscriptionManagerAgent(EthereumContractAgent):
-
     contract_name: str = SUBSCRIPTION_MANAGER_CONTRACT_NAME
 
     class PolicyInfo(NamedTuple):
@@ -267,7 +193,7 @@ class SubscriptionManagerAgent(EthereumContractAgent):
             end_timestamp=record[2],
             size=record[3],
             # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
-            owner=record[0] if record[4] == NULL_ADDRESS else record[4]
+            owner=record[0] if record[4] == NULL_ADDRESS else record[4],
         )
         return policy_info
 
@@ -276,27 +202,25 @@ class SubscriptionManagerAgent(EthereumContractAgent):
     #
 
     @contract_api(TRANSACTION)
-    def create_policy(self,
-                      policy_id: bytes,
-                      transacting_power: TransactingPower,
-                      size: int,
-                      start_timestamp: Timestamp,
-                      end_timestamp: Timestamp,
-                      value: Wei,
-                      owner_address: Optional[ChecksumAddress] = None) -> TxReceipt:
+    def create_policy(
+        self,
+        policy_id: bytes,
+        transacting_power: TransactingPower,
+        size: int,
+        start_timestamp: Timestamp,
+        end_timestamp: Timestamp,
+        value: Wei,
+        owner_address: Optional[ChecksumAddress] = None,
+    ) -> TxReceipt:
         owner_address = owner_address or transacting_power.account
-        payload: TxParams = {'value': value}
+        payload: TxParams = {"value": value}
         contract_function: ContractFunction = self.contract.functions.createPolicy(
-            policy_id,
-            owner_address,
-            size,
-            start_timestamp,
-            end_timestamp
+            policy_id, owner_address, size, start_timestamp, end_timestamp
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
             payload=payload,
-            transacting_power=transacting_power
+            transacting_power=transacting_power,
         )
         return receipt
 
@@ -316,7 +240,7 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
 
     @abstractmethod
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int
+        self, start_index: int, max_results: int, duration: int
     ) -> Tuple[int, List[bytes]]:
         raise NotImplementedError
 
@@ -325,21 +249,21 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         raise NotImplementedError
 
     def get_all_active_staking_providers(
-        self, pagination_size: Optional[int] = None
+        self, pagination_size: Optional[int] = None, duration: int = 0
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         n_tokens, staking_providers = self._get_active_stakers(
-            pagination_size=pagination_size
+            pagination_size=pagination_size, duration=duration
         )
         return n_tokens, staking_providers
 
     @contract_api(CONTRACT_CALL)
     def get_active_staking_providers(
-        self, start_index: int, max_results: int
+        self, start_index: int, max_results: int, duration: int = 0
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         (
             total_authorized_tokens,
             staking_providers_info,
-        ) = self._get_active_staking_providers_raw(start_index, max_results)
+        ) = self._get_active_staking_providers_raw(start_index, max_results, duration)
 
         staking_providers = self._process_active_staker_info(staking_providers_info)
         return types.TuNits(total_authorized_tokens), staking_providers
@@ -348,10 +272,11 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         self,
         without: Iterable[ChecksumAddress] = None,
         pagination_size: Optional[int] = None,
+        duration: int = 0,
     ) -> "StakingProvidersReservoir":
         # pagination_size = pagination_size or self.get_staking_providers_population()
         n_tokens, stake_provider_map = self.get_all_active_staking_providers(
-            pagination_size=pagination_size
+            pagination_size=pagination_size, duration=duration
         )
 
         if n_tokens == 0:
@@ -385,7 +310,9 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
 
         return staking_providers
 
-    def _get_active_stakers(self, pagination_size: Optional[int] = None):
+    def _get_active_stakers(
+        self, pagination_size: Optional[int] = None, duration: int = 0
+    ):
         if pagination_size is None:
             pagination_size = (
                 self.DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE
@@ -408,7 +335,9 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
                     (
                         batch_authorized_tokens,
                         batch_staking_providers,
-                    ) = self.get_active_staking_providers(start_index, pagination_size)
+                    ) = self.get_active_staking_providers(
+                        start_index, pagination_size, duration
+                    )
                 except Exception as e:
                     if "timeout" not in str(e):
                         # exception unrelated to pagination size and timeout
@@ -447,6 +376,8 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
         authorized: int
         operator_confirmed: bool
         index: int
+        deauthorizing: int
+        end_deauthorization: int
 
     @contract_api(CONTRACT_CALL)
     def get_min_authorization(self) -> int:
@@ -472,7 +403,9 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
         self, staking_provider: ChecksumAddress
     ) -> StakingProviderInfo:
         result = self.contract.functions.stakingProviderInfo(staking_provider).call()
-        return TACoChildApplicationAgent.StakingProviderInfo(*result)
+        return TACoChildApplicationAgent.StakingProviderInfo(
+            *result[0 : len(TACoChildApplicationAgent.StakingProviderInfo._fields)]
+        )
 
     @contract_api(CONTRACT_CALL)
     def is_operator_confirmed(self, operator_address: ChecksumAddress) -> bool:
@@ -500,13 +433,16 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int
+        self, start_index: int, max_results: int, duration: int
     ) -> Tuple[int, List[bytes]]:
-        active_staking_providers_info = (
-            self.contract.functions.getActiveStakingProviders(
-                start_index, max_results
-            ).call()
+        get_active_providers_overloaded_function = (
+            self.contract.get_function_by_signature(
+                "getActiveStakingProviders(uint256,uint256,uint32)"
+            )
         )
+        active_staking_providers_info = get_active_providers_overloaded_function(
+            start_index, max_results, duration
+        ).call()
         return active_staking_providers_info
 
 
@@ -517,11 +453,6 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
         operator: ChecksumAddress
         operator_confirmed: bool
         operator_start_timestamp: int
-
-    class OperatorInfo(NamedTuple):
-        address: ChecksumAddress
-        confirmed: bool
-        start_timestamp: Timestamp
 
     @contract_api(CONTRACT_CALL)
     def get_min_authorization(self) -> int:
@@ -566,8 +497,12 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
         self, staking_provider: ChecksumAddress
     ) -> StakingProviderInfo:
         # remove reserved fields
-        info: list = self.contract.functions.stakingProviderInfo(staking_provider).call()
-        return TACoApplicationAgent.StakingProviderInfo(*info[0:3])
+        info: list = self.contract.functions.stakingProviderInfo(
+            staking_provider
+        ).call()
+        return TACoApplicationAgent.StakingProviderInfo(
+            *info[0 : len(TACoApplicationAgent.StakingProviderInfo._fields)]
+        )
 
     @contract_api(CONTRACT_CALL)
     def get_authorized_stake(self, staking_provider: ChecksumAddress) -> int:
@@ -596,11 +531,11 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int
+        self, start_index: int, max_results: int, duration: int
     ) -> Tuple[int, List[bytes]]:
         active_staking_providers_info = (
             self.contract.functions.getActiveStakingProviders(
-                start_index, max_results
+                start_index, max_results, duration
             ).call()
         )
         return active_staking_providers_info
@@ -610,11 +545,19 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
     #
 
     @contract_api(TRANSACTION)
-    def bond_operator(self, staking_provider: ChecksumAddress, operator: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+    def bond_operator(
+        self,
+        staking_provider: ChecksumAddress,
+        operator: ChecksumAddress,
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
         """For use by threshold operator accounts only."""
-        contract_function: ContractFunction = self.contract.functions.bondOperator(staking_provider, operator)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
+        contract_function: ContractFunction = self.contract.functions.bondOperator(
+            staking_provider, operator
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
         return receipt
 
 
@@ -703,7 +646,10 @@ class CoordinatorAgent(EthereumContractAgent):
     ) -> Iterable[Coordinator.Participant]:
         if max_results < 0:
             raise ValueError("Max results must be greater than or equal to zero.")
-        data = self.contract.functions.getParticipants(
+        get_participants_overloaded_function = self.contract.get_function_by_signature(
+            "getParticipants(uint32,uint256,uint256,bool)"
+        )
+        data = get_participants_overloaded_function(
             ritual_id, start_index, max_results, transcripts
         ).call()
         participants = Coordinator.Ritual.make_participants(data=data)
@@ -796,17 +742,18 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         transcript: Transcript,
         transacting_power: TransactingPower,
-        fire_and_forget: bool = True,
-    ) -> Union[TxReceipt, HexBytes]:
+        async_tx_hooks: BlockchainInterface.AsyncTxHooks,
+    ) -> AsyncTx:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
         )
-        receipt = self.blockchain.send_transaction(
+        async_tx = self.blockchain.send_async_transaction(
             contract_function=contract_function,
             transacting_power=transacting_power,
-            fire_and_forget=fire_and_forget,
+            async_tx_hooks=async_tx_hooks,
+            info={"ritual_id": ritual_id, "phase": PHASE1},
         )
-        return receipt
+        return async_tx
 
     @contract_api(TRANSACTION)
     def post_aggregation(
@@ -816,23 +763,24 @@ class CoordinatorAgent(EthereumContractAgent):
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
-        fire_and_forget: bool = True,
-    ) -> Union[TxReceipt, HexBytes]:
+        async_tx_hooks: BlockchainInterface.AsyncTxHooks,
+    ) -> AsyncTx:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             aggregatedTranscript=bytes(aggregated_transcript),
             dkgPublicKey=Ferveo.G1Point.from_dkg_public_key(public_key),
             decryptionRequestStaticKey=bytes(participant_public_key),
         )
-        receipt = self.blockchain.send_transaction(
+        async_tx = self.blockchain.send_async_transaction(
             contract_function=contract_function,
             gas_estimation_multiplier=1.4,
             transacting_power=transacting_power,
-            fire_and_forget=fire_and_forget,
+            async_tx_hooks=async_tx_hooks,
+            info={"ritual_id": ritual_id, "phase": PHASE2},
         )
-        return receipt
+        return async_tx
 
-    @contract_api(TRANSACTION)
+    @contract_api(CONTRACT_CALL)
     def get_ritual_initiation_cost(
         self, providers: List[ChecksumAddress], duration: int
     ) -> Wei:
@@ -841,7 +789,7 @@ class CoordinatorAgent(EthereumContractAgent):
         ).call()
         return Wei(result)
 
-    @contract_api(TRANSACTION)
+    @contract_api(CONTRACT_CALL)
     def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
         g1_point = Ferveo.G1Point.from_dkg_public_key(public_key)
         result = self.contract.functions.getRitualIdFromPublicKey(g1_point).call()
@@ -865,7 +813,9 @@ class ContractAgency:
     """Where agents live and die."""
 
     # TODO: Enforce singleton - #1506 - Okay, actually, make this into a module
-    __agents: Dict[str, Dict[Type[EthereumContractAgent], EthereumContractAgent]] = dict()
+    __agents: Dict[str, Dict[Type[EthereumContractAgent], EthereumContractAgent]] = (
+        dict()
+    )
 
     @classmethod
     def get_agent(
@@ -926,7 +876,7 @@ class ContractAgency:
             agent_class=agent_class,
             registry=registry,
             blockchain_endpoint=blockchain_endpoint,
-            contract_version=contract_version
+            contract_version=contract_version,
         )
         return agent
 
@@ -959,7 +909,9 @@ class WeightedSampler:
             return []
 
         if quantity > len(self):
-            raise ValueError("Cannot sample more than the total amount of elements without replacement")
+            raise ValueError(
+                "Cannot sample more than the total amount of elements without replacement"
+            )
 
         samples = []
 
@@ -984,7 +936,6 @@ class WeightedSampler:
 
 
 class StakingProvidersReservoir:
-
     def __init__(self, staking_provider_map: Dict[ChecksumAddress, int]):
         self._sampler = WeightedSampler(staking_provider_map)
         self._rng = random.SystemRandom()

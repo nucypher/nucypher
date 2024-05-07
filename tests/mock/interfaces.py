@@ -1,8 +1,10 @@
-from typing import Union
+from typing import Optional, Union
 
+from atxm.tx import FutureTx
 from hexbytes import HexBytes
 
-from nucypher.blockchain.eth.clients import EthereumTesterClient
+from nucypher.blockchain.eth.clients import EthereumClient
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from tests.constants import MOCK_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 from tests.utils.blockchain import TesterBlockchain
 
@@ -19,6 +21,18 @@ class MockBlockchain(TesterBlockchain):
         "blockNumber": 1,
         "blockHash": HexBytes(b"FAKE43434343FAKE43443434"),
         "contractAddress": HexBytes(b"0xdeadbeef"),
+        "status": 1,
+    }
+
+    FAKE_TX_PARAMS = {
+        "type": 0,  # legacy
+        "to": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
+        "from": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
+        "gas": 1,
+        "gasPrice": 1,
+        "value": 1,
+        "data": b"",
+        "nonce": 1,
     }
 
     def __init__(self, *args, **kwargs):
@@ -31,11 +45,28 @@ class MockBlockchain(TesterBlockchain):
     ) -> dict:
         return self.FAKE_RECEIPT
 
+    @classmethod
+    def mock_async_tx(
+        cls, async_tx_hooks: Optional[BlockchainInterface.AsyncTxHooks] = None
+    ) -> FutureTx:
+        future_tx = FutureTx(
+            id=1,
+            params=cls.FAKE_TX_PARAMS,
+        )
+        if async_tx_hooks:
+            future_tx.on_broadcast = async_tx_hooks.on_broadcast
+            future_tx.on_broadcast_failure = async_tx_hooks.on_broadcast_failure
+            future_tx.on_fault = async_tx_hooks.on_fault
+            future_tx.on_finalized = async_tx_hooks.on_finalized
+            future_tx.on_insufficient_funds = async_tx_hooks.on_insufficient_funds
 
-class MockEthereumClient(EthereumTesterClient):
+        return future_tx
+
+
+class MockEthereumClient(EthereumClient):
 
     def __init__(self, w3):
-        super().__init__(w3=w3, node_technology=None, version=None, platform=None, backend=None)
+        super().__init__(w3=w3)
 
     def add_middleware(self, middleware):
         pass

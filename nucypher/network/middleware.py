@@ -223,15 +223,6 @@ class RestMiddleware:
     def __init__(self, eth_endpoint: str, registry=None):
         self.client = self._client_class(registry=registry, eth_endpoint=eth_endpoint)
 
-    def request_revocation(self, ursula, revocation):
-        # TODO: Implement offchain revocation #2787
-        response = self.client.post(
-            node_or_sprout=ursula,
-            path="revoke",
-            data=bytes(revocation),
-        )
-        return response
-
     def reencrypt(
         self,
         ursula: "characters.lawful.Ursula",

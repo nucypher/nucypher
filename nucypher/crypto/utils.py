@@ -39,7 +39,7 @@ def secure_random(num_bytes: int) -> bytes:
 
 def secure_random_range(min: int, max: int) -> int:
     """
-    Returns a number from a secure random source betwee the range of
+    Returns a number from a secure random source between the range of
     `min` and `max` - 1.
 
     :param min: Minimum number in the range

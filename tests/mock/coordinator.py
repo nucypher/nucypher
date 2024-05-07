@@ -14,6 +14,7 @@ from nucypher_core.ferveo import (
 )
 from web3.types import TxReceipt
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.models import Coordinator, Ferveo
 from nucypher.crypto.powers import TransactingPower
 from tests.mock.agents import MockContractAgent
@@ -121,6 +122,7 @@ class MockCoordinatorAgent(MockContractAgent):
         ritual_id: int,
         transcript: Transcript,
         transacting_power: TransactingPower,
+        async_tx_hooks: BlockchainInterface.AsyncTxHooks,
     ) -> TxReceipt:
         ritual = self._rituals[ritual_id]
         operator_address = transacting_power.account
@@ -141,7 +143,7 @@ class MockCoordinatorAgent(MockContractAgent):
                     p.provider for p in ritual.participants
                 ],  # TODO This should not be
             )
-        return self.blockchain.FAKE_TX_HASH
+        return self.blockchain.mock_async_tx(async_tx_hooks)
 
     def post_aggregation(
         self,
@@ -150,6 +152,7 @@ class MockCoordinatorAgent(MockContractAgent):
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
+        async_tx_hooks: BlockchainInterface.AsyncTxHooks,
     ) -> TxReceipt:
         ritual = self._rituals[ritual_id]
         operator_address = transacting_power.account
@@ -172,10 +175,10 @@ class MockCoordinatorAgent(MockContractAgent):
             ritual.aggregation_mismatch = True
             # don't increment aggregations
             # TODO Emit EndRitual here?
-            return self.blockchain.FAKE_TX_HASH
+            return self.blockchain.mock_async_tx(async_tx_hooks)
 
         ritual.total_aggregations += 1
-        return self.blockchain.FAKE_TX_HASH
+        return self.blockchain.mock_async_tx(async_tx_hooks)
 
     def set_provider_public_key(
         self, public_key: FerveoPublicKey, transacting_power: TransactingPower

@@ -5,11 +5,13 @@ from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import TEST_ETH_PROVIDER_URI
-from tests.utils.ursula import make_ursulas, start_pytest_ursula_services
+from tests.utils.ursula import (
+    make_ursulas,
+    start_pytest_ursula_services,
+)
 
 
 def test_ursula_stamp_verification_tolerance(ursulas, mocker):
@@ -79,6 +81,7 @@ def test_ursula_stamp_verification_tolerance(ursulas, mocker):
 
 def test_invalid_operators_tolerance(
     testerchain,
+    accounts,
     test_registry,
     ursulas,
     threshold_staking,
@@ -90,15 +93,12 @@ def test_invalid_operators_tolerance(
     #
     # Setup
     #
-    (
-        creator,
-        _staking_provider,
-        operator_address,
-        *everyone_else,
-    ) = testerchain.client.accounts
-
     existing_ursula, other_ursula, *the_others = list(ursulas)
 
+    _staking_provider, operator_address = (
+        accounts.unassigned_accounts[0],
+        accounts.unassigned_accounts[1],
+    )
     # We start with an ursula with no tokens staked
     owner, _, _ = threshold_staking.rolesOf(_staking_provider, sender=deployer_account)
     assert owner == NULL_ADDRESS
@@ -112,7 +112,7 @@ def test_invalid_operators_tolerance(
 
     # now lets bond this worker
     tpower = TransactingPower(
-        account=_staking_provider, signer=Web3Signer(testerchain.client)
+        account=_staking_provider, signer=accounts.get_account_signer(_staking_provider)
     )
     taco_application_agent.bond_operator(
         staking_provider=_staking_provider,
@@ -121,7 +121,11 @@ def test_invalid_operators_tolerance(
     )
 
     # Make the Operator
-    ursulas = make_ursulas(ursula_test_config, [_staking_provider], [operator_address])
+    ursulas = make_ursulas(
+        ursula_test_config,
+        [_staking_provider],
+        [accounts.get_account_signer(operator_address)],
+    )
     ursula = ursulas[0]
     ursula.run(
         preflight=False,

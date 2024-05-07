@@ -10,8 +10,6 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
-    Set,
-    Tuple,
     Union,
 )
 
@@ -65,7 +63,6 @@ from nucypher_core.umbral import (
     reencrypt,
 )
 from twisted.internet import reactor
-from web3.types import TxReceipt
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
@@ -373,58 +370,6 @@ class Alice(Character, actors.PolicyAuthor):
         policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
         return policy_pubkey
 
-    def revoke(
-        self, policy: Policy, onchain: bool = True, offchain: bool = True
-    ) -> Tuple[TxReceipt, Dict[ChecksumAddress, Tuple["actors.Revocation", Exception]]]:
-        if not (offchain or onchain):
-            raise ValueError("offchain or onchain must be True to issue revocation")
-
-        receipt, failed = dict(), dict()
-
-        if onchain:
-            pass
-            # TODO: Decouple onchain revocation from SubscriptionManager or deprecate.
-            # receipt = self.policy_agent.revoke_policy(policy_id=bytes(policy.hrac),
-            #                                           transacting_power=self._crypto_power.power_ups(TransactingPower))
-
-        if offchain:
-            """
-            Parses the treasure map and revokes onchain arrangements in it.
-            If any nodes cannot be revoked, then the node_id is added to a
-            dict as a key, and the revocation and Ursula's response is added as
-            a value.
-            """
-            try:
-                # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
-                revocation_threshold = (policy.shares - policy.threshold) + 1
-                self.block_until_specific_nodes_are_known(
-                    policy.revocation_kit.revokable_addresses,
-                    allow_missing=(policy.shares - revocation_threshold),
-                )
-            except self.NotEnoughTeachers:
-                raise  # TODO  NRN
-
-            for node_id in policy.revocation_kit.revokable_addresses:
-                ursula = self.known_nodes[node_id]
-                revocation = policy.revocation_kit[node_id]
-                try:
-                    response = self.network_middleware.request_revocation(
-                        ursula, revocation
-                    )
-                except self.network_middleware.NotFound:
-                    failed[node_id] = (revocation, self.network_middleware.NotFound)
-                except self.network_middleware.UnexpectedResponse:
-                    failed[node_id] = (
-                        revocation,
-                        self.network_middleware.UnexpectedResponse,
-                    )
-                else:
-                    if response.status_code != 200:
-                        message = f"Failed to revocation for node {node_id} with status code {response.status_code}"
-                        raise self.ActorError(message)
-
-        return receipt, failed
-
     def decrypt_message_kit(self, label: bytes, message_kit: MessageKit) -> List[bytes]:
         """
         Decrypt this Alice's own encrypted data.
@@ -645,9 +590,9 @@ class Bob(Character):
                 requester_public_key=requester_public_key,
             )
             shared_secrets[ursula_checksum_address] = shared_secret
-            decryption_request_mapping[
-                ursula_checksum_address
-            ] = encrypted_decryption_request
+            decryption_request_mapping[ursula_checksum_address] = (
+                encrypted_decryption_request
+            )
 
         decryption_client = self._threshold_decryption_client_class(learner=self)
         successes, failures = decryption_client.gather_encrypted_decryption_shares(
@@ -857,9 +802,6 @@ class Ursula(Teacher, Character, Operator):
                 TLSHostingPower
             ).keypair.certificate
 
-            # Only *YOU* can prevent forest fires
-            self.revoked_policies: Set[bytes] = set()
-
             self.log.info(self.banner.format(self.nickname))
 
         else:
@@ -953,11 +895,10 @@ class Ursula(Teacher, Character, Operator):
     ) -> None:
         """Schedule and start select ursula services, then optionally start the reactor."""
 
-        # Connect to Provider
-        if not BlockchainInterfaceFactory.is_interface_initialized(
-            endpoint=self.eth_endpoint
-        ):
-            BlockchainInterfaceFactory.initialize_interface(endpoint=self.eth_endpoint)
+        BlockchainInterfaceFactory.get_or_create_interface(endpoint=self.eth_endpoint)
+        BlockchainInterfaceFactory.get_or_create_interface(
+            endpoint=self.polygon_endpoint
+        )
 
         if preflight:
             self.__preflight()
@@ -967,12 +908,12 @@ class Ursula(Teacher, Character, Operator):
         #
 
         if emitter:
-            emitter.message("Starting services", color="yellow")
+            emitter.message("Starting services...", color="yellow")
 
         if discovery and not self.lonely:
             self.start_learning_loop(now=eager)
             if emitter:
-                emitter.message(f"✓ Node Discovery ({self.domain})", color="green")
+                emitter.message(f"✓ P2P Networking ({self.domain})", color="green")
 
         if ritual_tracking:
             self.ritual_tracker.start()
@@ -997,8 +938,11 @@ class Ursula(Teacher, Character, Operator):
                 ursula=self, prometheus_config=prometheus_config
             )
             if emitter:
+                prometheus_addr = (
+                    prometheus_config.listen_address or self.rest_interface.host
+                )
                 emitter.message(
-                    f"✓ Prometheus Exporter http://{self.rest_interface.host}:"
+                    f"✓ Prometheus Exporter http://{prometheus_addr}:"
                     f"{prometheus_config.port}/metrics",
                     color="green",
                 )
@@ -1146,7 +1090,6 @@ class Ursula(Teacher, Character, Operator):
         """
         seed_uri = f"{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}"
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
-
 
     @classmethod
     def from_teacher_uri(

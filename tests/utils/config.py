@@ -1,7 +1,5 @@
 from typing import List
 
-from eth_typing import ChecksumAddress
-
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import (
@@ -45,7 +43,6 @@ def assemble(
 
 
 def make_ursula_test_configuration(
-    operator_address: ChecksumAddress,
     rest_port: int = select_test_port(),
     polygon_endpoint: str = None,
     **assemble_kwargs
@@ -55,7 +52,6 @@ def make_ursula_test_configuration(
         **test_params,
         rest_port=rest_port,
         polygon_endpoint=polygon_endpoint,
-        operator_address=operator_address,
     )
     return ursula_config
 

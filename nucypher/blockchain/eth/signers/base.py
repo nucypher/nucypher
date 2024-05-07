@@ -1,5 +1,3 @@
-
-
 from abc import ABC, abstractmethod
 from typing import List
 from urllib.parse import urlparse
@@ -79,7 +77,7 @@ class Signer(ABC):
         return NotImplemented
 
     @abstractmethod
-    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+    def sign_transaction(self, transaction_dict: dict) -> bytes:
         return NotImplemented
 
     @abstractmethod

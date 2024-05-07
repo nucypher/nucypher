@@ -2,9 +2,7 @@ import random
 
 import pytest
 
-from nucypher.blockchain.eth.agents import TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
@@ -30,13 +28,14 @@ def test_authorized_tokens(
 
 def test_staking_providers_and_operators_relationships(
     testerchain,
+    accounts,
     taco_application_agent,
     threshold_staking,
     taco_application,
     deployer_account,
     get_random_checksum_address,
 ):
-    staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
+    staking_provider_account, operator_account, *other = accounts.unassigned_accounts
     threshold_staking.setRoles(staking_provider_account, sender=deployer_account)
     threshold_staking.authorizationIncreased(
         staking_provider_account,
@@ -51,7 +50,8 @@ def test_staking_providers_and_operators_relationships(
     )
 
     tpower = TransactingPower(
-        account=staking_provider_account, signer=Web3Signer(testerchain.client)
+        account=staking_provider_account,
+        signer=accounts.get_account_signer(staking_provider_account),
     )
     _txhash = taco_application_agent.bond_operator(
         transacting_power=tpower,
@@ -88,7 +88,10 @@ def test_get_staker_population(taco_application_agent, staking_providers):
 
 
 @pytest.mark.usefixtures("staking_providers", "ursulas")
-def test_sample_staking_providers(taco_application_agent):
+@pytest.mark.parametrize(
+    "duration", [0, 60 * 60 * 24, 60 * 60 * 24 * 182, 60 * 60 * 24 * 365]
+)
+def test_sample_staking_providers(taco_application_agent, duration):
     all_staking_providers = list(taco_application_agent.get_staking_providers())
     providers_population = taco_application_agent.get_staking_providers_population()
 
@@ -99,13 +102,15 @@ def test_sample_staking_providers(taco_application_agent):
             providers_population + 1
         )  # One more than we have deployed
 
-    providers = taco_application_agent.get_staking_provider_reservoir().draw(3)
+    providers = taco_application_agent.get_staking_provider_reservoir(
+        duration=duration
+    ).draw(3)
     assert len(providers) == 3  # Three...
     assert len(set(providers)) == 3  # ...unique addresses
 
     # Same but with pagination
     providers = taco_application_agent.get_staking_provider_reservoir(
-        pagination_size=1
+        pagination_size=1, duration=duration
     ).draw(3)
     assert len(providers) == 3
     assert len(set(providers)) == 3
@@ -114,7 +119,9 @@ def test_sample_staking_providers(taco_application_agent):
     # repeat for opposite blockchain light setting
     light = taco_application_agent.blockchain.is_light
     taco_application_agent.blockchain.is_light = not light
-    providers = taco_application_agent.get_staking_provider_reservoir().draw(3)
+    providers = taco_application_agent.get_staking_provider_reservoir(
+        duration=duration
+    ).draw(3)
     assert len(providers) == 3
     assert len(set(providers)) == 3
     assert len(set(providers).intersection(all_staking_providers)) == 3
@@ -132,17 +139,19 @@ def test_sample_staking_providers(taco_application_agent):
 
 
 def test_get_staking_provider_info(
-    testerchain, taco_application_agent, get_random_checksum_address
+    taco_application_agent, ursulas, get_random_checksum_address
 ):
-    staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
-    info: TACoApplicationAgent.StakingProviderInfo = (
-        taco_application_agent.get_staking_provider_info(
-            staking_provider=staking_provider_account
-        )
+    # existing staker
+    staking_provider, operator_address = (
+        ursulas[0].checksum_address,
+        ursulas[0].operator_address,
+    )
+    info = taco_application_agent.get_staking_provider_info(
+        staking_provider=staking_provider
     )
     assert info.operator_start_timestamp > 0
-    assert info.operator == operator_account
-    assert info.operator_confirmed is False
+    assert info.operator == operator_address
+    assert info.operator_confirmed is True
 
     # non-existent staker
     info = taco_application_agent.get_staking_provider_info(

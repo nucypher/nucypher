@@ -87,7 +87,6 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
 
 def test_ursula_run_ip_checkup(
     testerchain,
-    custom_filepath,
     click_runner,
     mocker,
     ursulas,
@@ -110,21 +109,21 @@ def test_ursula_run_ip_checkup(
     mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
 
     # Mock worker qualification
-    staking_provider = ursulas[1]
+    worker = ursulas[1]
 
     def set_staking_provider_address(operator, *args, **kwargs):
-        operator.checksum_address = staking_provider.checksum_address
+        operator.checksum_address = worker.checksum_address
         return True
 
     monkeypatch.setattr(Operator, "block_until_ready", set_staking_provider_address)
 
+    mocker.patch("nucypher.cli.commands.ursula.migrate", return_value=None)
+
     ursula_test_config.rest_host = MOCK_IP_ADDRESS
+    ursula_test_config.operator_address = worker.operator_address
     mocker.patch.object(
         UrsulaConfiguration, "from_configuration_file", return_value=ursula_test_config
     )
-
-    # Setup
-    teacher = ursulas[2]
 
     # manual teacher
     run_args = (

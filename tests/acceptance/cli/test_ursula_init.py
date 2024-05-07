@@ -8,7 +8,6 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
@@ -34,6 +33,7 @@ def mock_funded_account_password_keystore(
     taco_application_agent,
     test_registry,
     deployer_account,
+    accounts,
 ):
     """
     Generate a random keypair & password and create a local keystore. Then prepare a staking provider
@@ -49,14 +49,14 @@ def mock_funded_account_password_keystore(
         testerchain.client.w3.eth.send_transaction(
             {
                 "to": account.address,
-                "from": testerchain.etherbase_account,
+                "from": accounts.etherbase_account,
                 "value": Web3.to_wei("100", "ether"),
             }
         )
     )
 
     # initialize threshold stake
-    provider_address = testerchain.unassigned_accounts[0]
+    provider_address = accounts.unassigned_accounts[0]
     threshold_staking.setRoles(provider_address, sender=deployer_account)
     threshold_staking.setStakes(
         provider_address,
@@ -66,7 +66,7 @@ def mock_funded_account_password_keystore(
     )
 
     provider_power = TransactingPower(
-        account=provider_address, signer=Web3Signer(testerchain.client)
+        account=provider_address, signer=accounts.get_account_signer(provider_address)
     )
     provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
@@ -92,6 +92,7 @@ def test_ursula_and_local_keystore_signer_integration(
     mocker,
     mock_funded_account_password_keystore,
     testerchain,
+    accounts,
 ):
     config_root_path = tmp_path
     ursula_config_path = config_root_path / UrsulaConfiguration.generate_filename()
@@ -101,7 +102,7 @@ def test_ursula_and_local_keystore_signer_integration(
         testerchain.client.w3.eth.send_transaction(
             {
                 "to": worker_account,
-                "from": testerchain.etherbase_account,
+                "from": accounts.etherbase_account,
                 "value": Web3.to_wei("100", "ether"),
             }
         )

@@ -14,19 +14,16 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.utilities.logging import Logger
 from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
-    INSECURE_DEVELOPMENT_PASSWORD,
     MIN_OPERATOR_SECONDS,
     TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
-from tests.utils.blockchain import TesterBlockchain
+from tests.utils.blockchain import ReservedTestAccountManager, TesterBlockchain
 from tests.utils.registry import ApeRegistrySource
 from tests.utils.ursula import (
     mock_permitted_multichain_connections,
@@ -76,6 +73,11 @@ def monkeymodule():
 #
 # Accounts
 #
+
+
+@pytest.fixture(scope="session")
+def accounts():
+    return ReservedTestAccountManager()
 
 
 @pytest.fixture(scope="module")
@@ -167,11 +169,11 @@ def taco_application(
         maya.now().epoch + COMMITMENT_DEADLINE,
     )
 
-    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+    proxy = deployer_account.deploy(
+        oz_dependency.TransparentUpgradeableProxy,
         taco_application_implementation.address,
         deployer_account.address,
         b"",
-        sender=deployer_account,
     )
     proxy_contract = nucypher_dependency.TACoApplication.at(proxy.address)
 
@@ -194,11 +196,11 @@ def taco_child_application(
         MIN_AUTHORIZATION,
     )
 
-    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+    proxy = deployer_account.deploy(
+        oz_dependency.TransparentUpgradeableProxy,
         taco_child_application_implementation.address,
         deployer_account.address,
         b"",
-        sender=deployer_account,
     )
     proxy_contract = nucypher_dependency.TACoChildApplication.at(proxy.address)
     taco_application.setChildApplication(
@@ -226,11 +228,11 @@ def coordinator(
     encoded_initializer_function = _coordinator.initialize.encode_input(
         TIMEOUT, MAX_DKG_SIZE, deployer_account.address
     )
-    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+    proxy = deployer_account.deploy(
+        oz_dependency.TransparentUpgradeableProxy,
         _coordinator.address,
         deployer_account.address,
         encoded_initializer_function,
-        sender=deployer_account,
     )
 
     proxy_contract = nucypher_dependency.Coordinator.at(proxy.address)
@@ -301,10 +303,11 @@ def test_registry(deployed_contracts, module_mocker):
 
 @pytest.mark.usefixtures("test_registry")
 @pytest.fixture(scope="module")
-def testerchain(project) -> TesterBlockchain:
+def testerchain(project, clock, accounts) -> TesterBlockchain:
     # Extract the web3 provider containing EthereumTester from the ape project's chain manager
     provider = project.chain_manager.provider.web3.provider
     testerchain = TesterBlockchain(provider=provider)
+    testerchain.tx_machine._task.clock = clock
     BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
     yield testerchain
 
@@ -326,13 +329,8 @@ def staking_providers(
 
     staking_providers = list()
     for provider_address, operator_address in zip(
-        testerchain.stake_providers_accounts, testerchain.ursulas_accounts
+        accounts.staking_providers_accounts, accounts.ursulas_accounts
     ):
-        provider_power = TransactingPower(
-            account=provider_address, signer=Web3Signer(testerchain.client)
-        )
-        provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-
         # for a random amount
         amount = minimum_stake + random.randrange(BONUS_TOKENS_FOR_TESTS)
 
@@ -344,7 +342,9 @@ def staking_providers(
         )
 
         taco_application.bondOperator(
-            provider_address, operator_address, sender=accounts[provider_address]
+            provider_address,
+            operator_address,
+            sender=accounts[provider_address],
         )
 
         # track

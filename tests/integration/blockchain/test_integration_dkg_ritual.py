@@ -11,7 +11,7 @@ from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.crypto.powers import RitualisticPower
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
@@ -123,7 +123,6 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
         )
 
 
-@pytest.mark.usefixtures("mock_sign_message")
 @pytest.mark.parametrize("dkg_size, ritual_id, variant", PARAMS)
 @pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist(
@@ -212,8 +211,7 @@ def test_ursula_ritualist(
             plaintext = PLAINTEXT.encode()
 
             # create Enrico
-            signer = Web3Signer(client=testerchain.client)
-            enrico = Enrico(encrypting_key=encrypting_key, signer=signer)
+            enrico = Enrico(encrypting_key=encrypting_key, signer=InMemorySigner())
 
             # encrypt
             print(f"encrypting for DKG with key {bytes(encrypting_key).hex()}")
@@ -318,19 +316,21 @@ def test_ursula_ritualist(
 
             ritual = mock_coordinator_agent.get_ritual(ritual_id)
             num_used_ursulas = 0
-            for ursula_index, ursula in enumerate(cohort):
+            for ursula in cohort:
                 stored_ritual = ursula.dkg_storage.get_active_ritual(ritual_id)
                 if not stored_ritual:
                     # this ursula was not used for threshold decryption; skip
                     continue
 
                 assert stored_ritual == ritual
-
                 stored_validators = ursula.dkg_storage.get_validators(ritual_id)
-                num_used_ursulas += 1
-                for v_index, v in enumerate(stored_validators):
-                    assert v.address == original_validators[v_index].address
-                    assert v.public_key == original_validators[v_index].public_key
+                if stored_validators:
+                    for v_index, v in enumerate(stored_validators):
+                        assert v.address == original_validators[v_index].address
+                        assert v.public_key == original_validators[v_index].public_key
+
+                    # increment here - timing issue since multiple ursulas contacted at the same time
+                    num_used_ursulas += 1
 
             assert num_used_ursulas >= ritual.threshold
             print("===================== DECRYPTION SUCCESSFUL =====================")

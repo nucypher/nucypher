@@ -6,7 +6,6 @@ from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
-from tests.unit.test_web3_signers import TRANSACTION_DICT
 
 
 @pytest.fixture(scope="function")
@@ -49,8 +48,8 @@ def test_memory_signer_message(signer, account):
     assert len(signature) == LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 
 
-def test_memory_signer_transaction(signer, account):
-    transaction_dict = assoc(TRANSACTION_DICT, "from", value=account)
+def test_memory_signer_transaction(signer, account, tx_dict):
+    transaction_dict = assoc(tx_dict, "from", value=account)
     signed_transaction = signer.sign_transaction(transaction_dict=transaction_dict)
     assert isinstance(signed_transaction, HexBytes)
     transaction = Transaction.from_bytes(signed_transaction)

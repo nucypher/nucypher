@@ -3,7 +3,6 @@ from typing import List, Optional, Tuple, Union
 
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
-from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
@@ -201,7 +200,7 @@ class TransactingPower(CryptoPowerUp):
         # from the recovery byte, bringing it to the standard choice of {0, 1}.
         return to_standard_signature_bytes(signature)
 
-    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+    def sign_transaction(self, transaction_dict: dict) -> bytes:
         """Signs the transaction with the private key of the TransactingPower."""
         return self._signer.sign_transaction(transaction_dict=transaction_dict)
 

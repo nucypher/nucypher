@@ -20,9 +20,11 @@ from web3 import Web3
 
 import tests
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import (
+    BlockchainInterface,
+    BlockchainInterfaceFactory,
+)
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
-from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.characters import (
     AliceConfiguration,
@@ -45,6 +47,7 @@ from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
+from nucypher.utilities.task import SimpleTask
 from tests.constants import (
     MIN_OPERATOR_SECONDS,
     MOCK_CUSTOM_INSTALLATION_PATH,
@@ -65,6 +68,7 @@ from tests.mock.performance_mocks import (
     mock_rest_app_creation,
     mock_verify_node,
 )
+from tests.utils.blockchain import ReservedTestAccountManager
 from tests.utils.config import (
     make_alice_test_configuration,
     make_bob_test_configuration,
@@ -75,7 +79,12 @@ from tests.utils.middleware import (
     MockRestMiddlewareForLargeFleetTests,
 )
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, make_ursulas, select_test_port
+from tests.utils.ursula import (
+    MOCK_KNOWN_URSULAS_CACHE,
+    make_random_ursulas,
+    make_reserved_ursulas,
+    select_test_port,
+)
 
 test_logger = Logger("test-logger")
 
@@ -98,13 +107,20 @@ def tempfile_path():
 
 @pytest.fixture(scope="module")
 def temp_dir_path():
-    temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-')
+    temp_dir = tempfile.TemporaryDirectory(prefix="nucypher-test-")
     yield Path(temp_dir.name)
     temp_dir.cleanup()
+
 
 #
 # Accounts
 #
+
+
+@pytest.fixture(scope="session", autouse=True)
+def accounts():
+    """a la ape"""
+    return ReservedTestAccountManager()
 
 
 @pytest.fixture(scope="module")
@@ -118,19 +134,19 @@ def random_account():
 def random_address(random_account):
     return random_account.address
 
+
 #
 # Character Configurations
 #
 
 
 @pytest.fixture(scope="module")
-def ursula_test_config(test_registry, temp_dir_path, testerchain):
+def ursula_test_config(test_registry, temp_dir_path):
     config = make_ursula_test_configuration(
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         polygon_endpoint=TEST_ETH_PROVIDER_URI,
         test_registry=test_registry,
         rest_port=select_test_port(),
-        operator_address=testerchain.ursulas_accounts.pop(),
     )
     yield config
     config.cleanup()
@@ -139,12 +155,12 @@ def ursula_test_config(test_registry, temp_dir_path, testerchain):
 
 
 @pytest.fixture(scope="module")
-def alice_test_config(ursulas, testerchain, test_registry):
+def alice_test_config(ursulas, accounts, test_registry):
     config = make_alice_test_configuration(
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         polygon_endpoint=TEST_ETH_PROVIDER_URI,
         known_nodes=ursulas,
-        checksum_address=testerchain.alice_account,
+        checksum_address=accounts.alice_account,
         test_registry=test_registry,
     )
     yield config
@@ -152,11 +168,11 @@ def alice_test_config(ursulas, testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def bob_test_config(testerchain, test_registry):
+def bob_test_config(accounts, test_registry):
     config = make_bob_test_configuration(
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         test_registry=test_registry,
-        checksum_address=testerchain.bob_account,
+        checksum_address=accounts.bob_account,
     )
     yield config
     config.cleanup()
@@ -224,7 +240,9 @@ def capsule_side_channel(enacted_policy):
             self.plaintext_passthrough = False
 
         def __call__(self):
-            message = "Welcome to flippering number {}.".format(len(self.messages)).encode()
+            message = "Welcome to flippering number {}.".format(
+                len(self.messages)
+            ).encode()
             message_kit = self.enrico.encrypt_for_pre(message)
             self.messages.append((message_kit, self.enrico))
             if self.plaintext_passthrough:
@@ -250,31 +268,34 @@ def random_policy_label():
 # Alice, Bob, and Ursula
 #
 
+
 @pytest.fixture(scope="module")
-def alice(alice_test_config, ursulas, testerchain):
-    alice = alice_test_config.produce()
+def alice(alice_test_config, accounts):
+    alice = alice_test_config.produce(
+        signer=accounts.get_account_signer(accounts.alice_account)
+    )
     yield alice
     alice.disenchant()
 
 
 @pytest.fixture(scope="module")
-def bob(bob_test_config, testerchain):
+def bob(bob_test_config, accounts):
     bob = bob_test_config.produce(
         polygon_endpoint=TEST_ETH_PROVIDER_URI,
+        signer=accounts.get_account_signer(accounts.bob_account),
     )
     yield bob
     bob.disenchant()
 
 
 @pytest.fixture(scope="function")
-def lonely_ursula_maker(ursula_test_config, testerchain):
+def lonely_ursula_maker(ursula_test_config, accounts):
     class _PartialUrsulaMaker:
         _partial = partial(
-            make_ursulas,
+            make_reserved_ursulas,
+            accounts=accounts,
             ursula_config=ursula_test_config,
             know_each_other=False,
-            staking_provider_addresses=testerchain.stake_providers_accounts,
-            operator_addresses=testerchain.ursulas_accounts,
         )
         _made = []
 
@@ -290,6 +311,7 @@ def lonely_ursula_maker(ursula_test_config, testerchain):
                 del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
             for ursula in self._made:
                 ursula._finalize()
+
     _maker = _PartialUrsulaMaker()
     yield _maker
     _maker.clean()
@@ -304,7 +326,7 @@ def mock_registry_sources(module_mocker):
         yield
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def mock_testerchain() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
     testerchain = MockBlockchain()
@@ -314,9 +336,7 @@ def mock_testerchain() -> MockBlockchain:
 
 @pytest.fixture()
 def light_ursula(temp_dir_path, random_account, mocker):
-    mocker.patch.object(
-        KeystoreSigner, "_KeystoreSigner__get_signer", return_value=random_account
-    )
+    mocker.patch.object(KeystoreSigner, "_get_signer", return_value=random_account)
     pre_payment_method = SubscriptionManagerPayment(
         blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME
     )
@@ -340,13 +360,13 @@ def light_ursula(temp_dir_path, random_account, mocker):
     return ursula
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def policy_rate():
-    rate = Web3.to_wei(21, 'gwei')
+    rate = Web3.to_wei(21, "gwei")
     return rate
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def policy_value(policy_rate):
     value = policy_rate * MIN_OPERATOR_SECONDS
     return value
@@ -357,7 +377,7 @@ def policy_value(policy_rate):
 #
 
 
-@pytest.fixture(autouse=True, scope='function')
+@pytest.fixture(autouse=True, scope="function")
 def log_in_and_out_of_test(request):
     test_name = request.node.name
     module_name = request.module.__name__
@@ -385,28 +405,22 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
         mock_cert_generation,
         mock_remember_node,
         mock_message_verification,
-        )
+    )
 
     try:
         quantity = request.param
     except AttributeError:
         quantity = 5000  # Bigass fleet by default; that's kinda the point.
 
-    staking_addresses = (to_checksum_address('0x' + os.urandom(20).hex()) for _ in range(5000))
-    operator_addresses = (to_checksum_address('0x' + os.urandom(20).hex()) for _ in range(5000))
-
     with GlobalLoggerSettings.pause_all_logging_while():
         with contextlib.ExitStack() as stack:
-
             for mock in mocks:
                 stack.enter_context(mock)
 
-            _ursulas = make_ursulas(
+            _ursulas = make_random_ursulas(
                 ursula_config=ursula_test_config,
                 quantity=quantity,
                 know_each_other=False,
-                staking_provider_addresses=staking_addresses,
-                operator_addresses=operator_addresses,
             )
             all_ursulas = {u.checksum_address: u for u in _ursulas}
 
@@ -415,7 +429,9 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
                 # It only needs to see whatever public info we can normally get via REST.
                 # Also sharing mutable Ursulas like that can lead to unpredictable results.
                 ursula.known_nodes.current_state._nodes = all_ursulas
-                ursula.known_nodes.current_state.checksum = b"This is a fleet state checksum..".hex()
+                ursula.known_nodes.current_state.checksum = (
+                    b"This is a fleet state checksum..".hex()
+                )
 
     yield _ursulas
 
@@ -427,13 +443,13 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
 def highperf_mocked_alice(
     fleet_of_highperf_mocked_ursulas,
     monkeymodule,
-    testerchain,
+    accounts,
 ):
     config = AliceConfiguration(
         dev_mode=True,
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
-        checksum_address=testerchain.alice_account,
+        checksum_address=accounts.alice_account,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
             eth_endpoint=TEST_ETH_PROVIDER_URI
         ),
@@ -474,7 +490,8 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
 # CLI
 #
 
-@pytest.fixture(scope='function')
+
+@pytest.fixture(scope="function")
 def test_emitter(mocker):
     # Note that this fixture does not capture console output.
     # Whether the output is captured or not is controlled by
@@ -482,13 +499,13 @@ def test_emitter(mocker):
     return StdoutEmitter()
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def click_runner():
     runner = CliRunner()
     yield runner
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def nominal_configuration_fields():
     config = UrsulaConfiguration(
         dev_mode=True,
@@ -500,7 +517,7 @@ def nominal_configuration_fields():
     del config
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def custom_filepath():
     _custom_filepath = MOCK_CUSTOM_INSTALLATION_PATH
     with contextlib.suppress(FileNotFoundError):
@@ -510,7 +527,7 @@ def custom_filepath():
         shutil.rmtree(_custom_filepath, ignore_errors=True)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def custom_filepath_2():
     _custom_filepath = MOCK_CUSTOM_INSTALLATION_PATH_2
     with contextlib.suppress(FileNotFoundError):
@@ -522,9 +539,11 @@ def custom_filepath_2():
             shutil.rmtree(_custom_filepath, ignore_errors=True)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def worker_configuration_file_location(custom_filepath) -> Path:
-    _configuration_file_location = MOCK_CUSTOM_INSTALLATION_PATH / UrsulaConfiguration.generate_filename()
+    _configuration_file_location = (
+        MOCK_CUSTOM_INSTALLATION_PATH / UrsulaConfiguration.generate_filename()
+    )
     return _configuration_file_location
 
 
@@ -537,15 +556,15 @@ def mock_teacher_nodes(mocker):
 @pytest.fixture(autouse=True)
 def disable_interactive_keystore_generation(mocker):
     # Do not notify or confirm mnemonic seed words during tests normally
-    mocker.patch.object(Keystore, '_confirm_generate')
+    mocker.patch.object(Keystore, "_confirm_generate")
 
 
 #
 # Web Auth
 #
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def basic_auth_file(temp_dir_path):
-    basic_auth = Path(temp_dir_path) / 'htpasswd'
+    basic_auth = Path(temp_dir_path) / "htpasswd"
     with basic_auth.open("w") as f:
         # username: "admin", password: "admin"
         f.write("admin:$apr1$hlEpWVoI$0qjykXrvdZ0yO2TnBggQO0\n")
@@ -553,7 +572,7 @@ def basic_auth_file(temp_dir_path):
     basic_auth.unlink()
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def mock_rest_middleware():
     return MockRestMiddleware(eth_endpoint=TEST_ETH_PROVIDER_URI)
 
@@ -563,14 +582,14 @@ def mock_rest_middleware():
 #
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def conditions_test_data():
     test_conditions = Path(tests.__file__).parent / "data" / "test_conditions.json"
-    with open(test_conditions, 'r') as file:
+    with open(test_conditions, "r") as file:
         data = json.loads(file.read())
     for name, condition in data.items():
-        if condition.get('chain'):
-            condition['chain'] = TESTERCHAIN_CHAIN_ID
+        if condition.get("chain"):
+            condition["chain"] = TESTERCHAIN_CHAIN_ID
     return data
 
 
@@ -627,7 +646,7 @@ def rpc_condition():
     return condition
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def valid_user_address_context():
     return {
         USER_ADDRESS_CONTEXT: {
@@ -666,30 +685,29 @@ def valid_user_address_context():
     }
 
 
-@pytest.fixture(scope='module', autouse=True)
-def control_time():
+@pytest.fixture(scope="session", autouse=True)
+def clock():
+    """Distorts the space-time continuum.  Use with caution."""
     clock = Clock()
-    EventScannerTask.CLOCK = clock
-    EventScannerTask.INTERVAL = .1
-    clock.llamas = 0
+    SimpleTask.CLOCK = clock
+    SimpleTask.INTERVAL = 1
     return clock
 
 
 @pytest.fixture(scope="module")
-def ursulas(testerchain, ursula_test_config, staking_providers):
+def ursulas(accounts, ursula_test_config, staking_providers):
     if MOCK_KNOWN_URSULAS_CACHE:
         # TODO: Is this a safe assumption / test behaviour?
         # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
         MOCK_KNOWN_URSULAS_CACHE.clear()
 
-    _ursulas = make_ursulas(
+    _ursulas = make_reserved_ursulas(
+        accounts=accounts,
         ursula_config=ursula_test_config,
-        staking_provider_addresses=testerchain.stake_providers_accounts,
-        operator_addresses=testerchain.ursulas_accounts,
         know_each_other=True,
     )
     for u in _ursulas:
-        u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
+        u.synchronous_query_timeout = 0.01  # We expect to never have to wait for content that is actually on-chain during tests.
 
     _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
     yield _ursulas
@@ -767,3 +785,16 @@ def mock_operator_aggregation_delay(module_mocker):
         "nucypher.blockchain.eth.actors.Operator.AGGREGATION_SUBMISSION_MAX_DELAY",
         PropertyMock(return_value=1),
     )
+
+
+@pytest.fixture
+def mock_async_hooks(mocker):
+    hooks = BlockchainInterface.AsyncTxHooks(
+        on_broadcast=mocker.Mock(),
+        on_broadcast_failure=mocker.Mock(),
+        on_fault=mocker.Mock(),
+        on_finalized=mocker.Mock(),
+        on_insufficient_funds=mocker.Mock(),
+    )
+
+    return hooks

@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 import pytest_twisted as pt
+from eth_account import Account
 from twisted.internet import threads
 
 from nucypher.characters.base import Learner
@@ -16,7 +17,6 @@ from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     TEST_ETH_PROVIDER_URI,
-    TEST_POLYGON_PROVIDER_URI,
 )
 from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
@@ -32,8 +32,9 @@ def test_missing_configuration_file(_default_filepath_mock, click_runner):
 
 
 @pt.inlineCallbacks
-def test_run_lone_default_development_ursula(click_runner, ursulas, testerchain):
+def test_run_lone_default_development_ursula(click_runner, mocker, ursulas, accounts):
     deploy_port = select_test_port()
+    operator_address = ursulas[0].operator_address
     args = (
         "ursula",
         "run",  # Stat Ursula Command
@@ -44,12 +45,17 @@ def test_run_lone_default_development_ursula(click_runner, ursulas, testerchain)
         "--dry-run",  # Disable twisted reactor in subprocess
         "--lonely",  # Do not load seednodes,
         "--operator-address",
-        ursulas[0].operator_address,
+        operator_address,
         "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
         "--polygon-endpoint",
         TEST_ETH_PROVIDER_URI,
+        "--signer",
+        "memory://",
     )
+
+    account = Account.from_key(private_key=accounts[operator_address].private_key)
+    mocker.patch.object(Account, "create", return_value=account)
 
     result = yield threads.deferToThread(
         click_runner.invoke,

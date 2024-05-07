@@ -1,14 +1,14 @@
 import os
 
 import pytest
+import pytest_twisted
 from eth_utils import keccak
 from nucypher_core import SessionStaticSecret
+from twisted.internet import reactor
+from twisted.internet.task import deferLater
 
-from nucypher.blockchain.eth.agents import (
-    CoordinatorAgent,
-)
+from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
@@ -43,9 +43,9 @@ def cohort_ursulas(cohort, taco_application_agent):
 
 
 @pytest.fixture(scope='module')
-def transacting_powers(testerchain, cohort_ursulas):
+def transacting_powers(accounts, cohort_ursulas):
     return [
-        TransactingPower(account=ursula, signer=Web3Signer(testerchain.client))
+        TransactingPower(account=ursula, signer=accounts.get_account_signer(ursula))
         for ursula in cohort_ursulas
     ]
 
@@ -112,23 +112,47 @@ def test_initiate_ritual(
     assert ritual_dkg_key is None  # no dkg key available until ritual is completed
 
 
-def test_post_transcript(agent, transcripts, transacting_powers, testerchain):
+@pytest_twisted.inlineCallbacks
+def test_post_transcript(
+    agent, transcripts, transacting_powers, testerchain, clock, mock_async_hooks
+):
     ritual_id = agent.number_of_rituals() - 1
+
+    txs = []
     for i, transacting_power in enumerate(transacting_powers):
-        txhash = agent.post_transcript(
+        async_tx = agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcripts[i],
             transacting_power=transacting_power,
+            async_tx_hooks=mock_async_hooks,
         )
+        txs.append(async_tx)
 
-        receipt = testerchain.wait_for_receipt(txhash)
+    testerchain.tx_machine.start()
+    while not all([tx.final for tx in txs]):
+        yield clock.advance(testerchain.tx_machine._task.interval)
+    testerchain.tx_machine.stop()
+
+    for i, async_tx in enumerate(txs):
         post_transcript_events = (
-            agent.contract.events.TranscriptPosted().process_receipt(receipt)
+            agent.contract.events.TranscriptPosted().process_receipt(async_tx.receipt)
         )
         # assert len(post_transcript_events) == 1
         event = post_transcript_events[0]
         assert event["args"]["ritualId"] == ritual_id
         assert event["args"]["transcriptDigest"] == keccak(transcripts[i])
+
+    # ensure relevant hooks are called (once for each tx) OR not called (failure ones)
+    yield deferLater(reactor, 0.2, lambda: None)
+    assert mock_async_hooks.on_broadcast.call_count == len(txs)
+    assert mock_async_hooks.on_finalized.call_count == len(txs)
+    for async_tx in txs:
+        assert async_tx.successful is True
+
+    # failure hooks not called
+    assert mock_async_hooks.on_broadcast_failure.call_count == 0
+    assert mock_async_hooks.on_fault.call_count == 0
+    assert mock_async_hooks.on_insufficient_funds.call_count == 0
 
     ritual = agent.get_ritual(ritual_id, transcripts=True)
     assert [p.transcript for p in ritual.participants] == transcripts
@@ -142,6 +166,7 @@ def test_post_transcript(agent, transcripts, transacting_powers, testerchain):
     assert ritual_dkg_key is None  # no dkg key available until ritual is completed
 
 
+@pytest_twisted.inlineCallbacks
 def test_post_aggregation(
     agent,
     aggregated_transcript,
@@ -149,24 +174,37 @@ def test_post_aggregation(
     transacting_powers,
     cohort,
     testerchain,
+    clock,
+    mock_async_hooks,
 ):
+    testerchain.tx_machine.start()
     ritual_id = agent.number_of_rituals() - 1
     participant_public_keys = {}
+    txs = []
+    participant_public_key = SessionStaticSecret.random().public_key()
+
     for i, transacting_power in enumerate(transacting_powers):
-        participant_public_key = SessionStaticSecret.random().public_key()
-        txhash = agent.post_aggregation(
+        async_tx = agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
             participant_public_key=participant_public_key,
             transacting_power=transacting_power,
+            async_tx_hooks=mock_async_hooks,
         )
+        txs.append(async_tx)
+
+    testerchain.tx_machine.start()
+    while not all([tx.final for tx in txs]):
+        yield clock.advance(testerchain.tx_machine._task.interval)
+    testerchain.tx_machine.stop()
+
+    for i, async_tx in enumerate(txs):
         participant_public_keys[cohort[i]] = participant_public_key
-        receipt = testerchain.wait_for_receipt(txhash)
         post_aggregation_events = (
-            agent.contract.events.AggregationPosted().process_receipt(receipt)
+            agent.contract.events.AggregationPosted().process_receipt(async_tx.receipt)
         )
-        # assert len(post_aggregation_events) == 1
+        assert len(post_aggregation_events) == 1
         event = post_aggregation_events[0]
         assert event["args"]["ritualId"] == ritual_id
         assert event["args"]["aggregatedTranscriptDigest"] == keccak(
@@ -179,6 +217,18 @@ def test_post_aggregation(
         assert p.decryption_request_static_key == bytes(
             participant_public_keys[p.provider]
         )
+
+    # ensure relevant hooks are called (once for each tx) OR not called (failure ones)
+    yield deferLater(reactor, 0.2, lambda: None)
+    assert mock_async_hooks.on_broadcast.call_count == len(txs)
+    assert mock_async_hooks.on_finalized.call_count == len(txs)
+    for async_tx in txs:
+        assert async_tx.successful is True
+
+    # failure hooks not called
+    assert mock_async_hooks.on_broadcast_failure.call_count == 0
+    assert mock_async_hooks.on_fault.call_count == 0
+    assert mock_async_hooks.on_insufficient_funds.call_count == 0
 
     ritual = agent.get_ritual(ritual_id)
     assert ritual.participant_public_keys == participant_public_keys

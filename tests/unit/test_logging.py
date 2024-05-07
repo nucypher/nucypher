@@ -1,13 +1,23 @@
-
-
+from functools import partial
 from io import StringIO
 from json.encoder import py_encode_basestring_ascii
+from unittest import mock
 
 import pytest
 from twisted.logger import Logger as TwistedLogger
-from twisted.logger import formatEvent, jsonFileLogObserver
+from twisted.logger import (
+    LogLevel,
+    formatEvent,
+    globalLogPublisher,
+    jsonFileLogObserver,
+)
 
-from nucypher.utilities.logging import Logger
+from nucypher.utilities.emitters import StdoutEmitter
+from nucypher.utilities.logging import (
+    GlobalLoggerSettings,
+    Logger,
+    observer_log_level_wrapper,
+)
 
 
 def naive_print_observer(event):
@@ -146,3 +156,212 @@ def test_even_nucypher_json_logger_is_cool():
         logged_event = file.getvalue()
         assert '"log_level": {"name": "info"' in logged_event
         assert f'"log_format": "{expected_processing(string)}"' in logged_event
+
+
+def test_pause_all_logging_while():
+    # get state beforehand
+    former_global_observers = dict(GlobalLoggerSettings._observers)
+    former_registered_observers = list(globalLogPublisher._observers)
+    with GlobalLoggerSettings.pause_all_logging_while():
+        # within context manager
+        assert len(GlobalLoggerSettings._observers) == 0
+        assert len(globalLogPublisher._observers) == 0
+
+    # exited context manager
+    assert former_global_observers == GlobalLoggerSettings._observers
+    assert former_registered_observers == globalLogPublisher._observers
+
+
+@pytest.mark.parametrize("global_log_level", LogLevel._enumerants.values())
+def test_log_level_adhered_to(global_log_level, mocker):
+    old_log_level = GlobalLoggerSettings.log_level.name
+    try:
+        GlobalLoggerSettings.set_log_level(global_log_level.name)
+
+        logger_observer = mocker.Mock()
+
+        logger = Logger("test-logger")
+        logger.observer = logger_observer
+
+        message = "People without self-doubt should never put themselves in a position of complete power"  # - Chuck Rhoades (Billions)
+        num_logged_events = 0
+
+        for level in LogLevel._enumerants.values():
+            # call logger.<level>(message)
+            getattr(logger, level.name)(message)
+
+            if level >= global_log_level:
+                num_logged_events += 1
+            # else not logged
+
+            assert logger_observer.call_count == num_logged_events
+    finally:
+        GlobalLoggerSettings.set_log_level(old_log_level)
+
+
+@pytest.mark.parametrize("global_log_level", LogLevel._enumerants.values())
+def test_observer_log_level_wrapper_for_adhering_to_log_levels(
+    global_log_level, mocker
+):
+    old_log_level = GlobalLoggerSettings.log_level.name
+    try:
+        GlobalLoggerSettings.set_log_level(global_log_level.name)
+
+        logger_observer = mocker.Mock()
+
+        logger = TwistedLogger("test-logger")
+        logger.observer = observer_log_level_wrapper(logger_observer)
+
+        message = "People without self-doubt should never put themselves in a position of complete power"  # - Chuck Rhoades (Billions)
+        num_logged_events = 0
+
+        for level in LogLevel._enumerants.values():
+            # call logger.<level>(message)
+            getattr(logger, level.name)(message)
+
+            if level >= global_log_level:
+                num_logged_events += 1
+            # else not logged
+
+            assert logger_observer.call_count == num_logged_events
+    finally:
+        GlobalLoggerSettings.set_log_level(old_log_level)
+
+
+@pytest.mark.parametrize("global_log_level", LogLevel._enumerants.values())
+def test_global_observer_uses_wrapper_for_adhering_to_log_levels(
+    global_log_level, mocker
+):
+    original_method = observer_log_level_wrapper
+
+    logger_observer = mocker.Mock()
+
+    def adjusted_call(observer):
+        # replace observer used with our Mock
+        return original_method(logger_observer)
+
+    old_log_level = GlobalLoggerSettings.log_level.name
+    try:
+        GlobalLoggerSettings.set_log_level(global_log_level.name)
+
+        with GlobalLoggerSettings.pause_all_logging_while():
+            # patch call to wrapper, to replace global observer with our own
+            mocker.patch(
+                "nucypher.utilities.logging.observer_log_level_wrapper",
+                side_effect=adjusted_call,
+            )
+
+            GlobalLoggerSettings.start_console_logging()
+            assert len(GlobalLoggerSettings._observers) == 1
+
+            logger = TwistedLogger("test-logger")
+            message = "People without self-doubt should never put themselves in a position of complete power"  # - Chuck Rhoades (Billions)
+
+            num_logged_events = 0
+
+            for level in LogLevel._enumerants.values():
+                # call logger.<level>(message)
+                getattr(logger, level.name)(message)
+
+                if level >= global_log_level:
+                    num_logged_events += 1
+                # else not logged
+
+                assert logger_observer.call_count == num_logged_events
+    finally:
+        GlobalLoggerSettings.set_log_level(old_log_level)
+
+
+@pytest.mark.parametrize(
+    "start_logging_fn, stop_logging_fn, logging_type",
+    (
+        (
+            GlobalLoggerSettings.start_console_logging,
+            GlobalLoggerSettings.stop_console_logging,
+            GlobalLoggerSettings.LoggingType.CONSOLE,
+        ),
+        (
+            GlobalLoggerSettings.start_text_file_logging,
+            GlobalLoggerSettings.stop_text_file_logging,
+            GlobalLoggerSettings.LoggingType.TEXT,
+        ),
+        (
+            GlobalLoggerSettings.start_json_file_logging,
+            GlobalLoggerSettings.stop_json_file_logging,
+            GlobalLoggerSettings.LoggingType.JSON,
+        ),
+        (
+            partial(GlobalLoggerSettings.start_sentry_logging, dsn="mock_dsn"),
+            GlobalLoggerSettings.stop_sentry_logging,
+            GlobalLoggerSettings.LoggingType.SENTRY,
+        ),
+    ),
+)
+@mock.patch("nucypher.utilities.logging.initialize_sentry", return_value=None)
+def test_addition_removal_global_observers(
+    sentry_mock_init, start_logging_fn, stop_logging_fn, logging_type
+):
+    with GlobalLoggerSettings.pause_all_logging_while():
+        # start logging
+        start_logging_fn()
+        assert len(globalLogPublisher._observers) == 1
+        assert len(GlobalLoggerSettings._observers) == 1
+        original_global_observer = GlobalLoggerSettings._observers[logging_type]
+        assert original_global_observer is not None
+        assert original_global_observer in globalLogPublisher._observers
+
+        # try starting again - noop
+        start_logging_fn()
+        assert len(globalLogPublisher._observers) == 1
+        assert original_global_observer in globalLogPublisher._observers
+        assert len(GlobalLoggerSettings._observers) == 1
+        assert GlobalLoggerSettings._observers[logging_type] == original_global_observer
+
+        # stop logging
+        stop_logging_fn()
+        assert len(globalLogPublisher._observers) == 0
+        assert len(GlobalLoggerSettings._observers) == 0
+
+        # try stopping again, when already stopped/removed - noop
+        stop_logging_fn()
+
+
+def test_stdout_emitter_link_to_logging(mocker):
+    message = "Learn from the mistakes of others. You can’t live long enough to make them all yourself."  # - Eleanor Roosevelt
+    emit_fn = mocker.Mock()
+    with mocker.patch("nucypher.utilities.logging.Logger.emit", side_effect=emit_fn):
+        call_count = 0
+        assert emit_fn.call_count == call_count
+
+        emitter = StdoutEmitter()
+
+        # message(...)
+        for verbosity in [0, 1, 2]:
+            emitter.message(message=message, verbosity=verbosity)
+            call_count += 1
+            assert emit_fn.call_count == call_count
+
+            if verbosity < 2:
+                emit_fn.assert_called_with(LogLevel.info, message)
+            else:
+                emit_fn.assert_called_with(LogLevel.debug, message)
+
+        # echo(...)
+        for verbosity in [0, 1, 2]:
+            emitter.echo(message=message, verbosity=verbosity)
+            assert (
+                emit_fn.call_count == call_count
+            ), "user interactions so no change in call count"
+
+        # error(...)
+        exception = ValueError(message)
+        emitter.error(exception)
+        call_count += 1
+        assert emit_fn.call_count == call_count
+        emit_fn.assert_called_with(LogLevel.error, str(exception))
+
+        # banner(...)
+        emitter.banner(banner=message)
+        assert (
+            emit_fn.call_count == call_count
+        ), "just a banner so no change in call count"

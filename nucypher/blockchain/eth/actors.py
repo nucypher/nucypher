@@ -1,13 +1,15 @@
 import json
 import random
 import time
+import traceback
 from collections import defaultdict
 from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Union
 
 import maya
+from atxm.exceptions import InsufficientFunds
+from atxm.tx import AsyncTx, FaultedTx, FinalizedTx, FutureTx, PendingTx
 from eth_typing import ChecksumAddress
-from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
@@ -26,7 +28,6 @@ from nucypher_core.ferveo import (
     Validator,
 )
 from web3 import HTTPProvider, Web3
-from web3.exceptions import TransactionNotFound
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
@@ -40,7 +41,10 @@ from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.domains import TACoDomain
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import (
+    BlockchainInterface,
+    BlockchainInterfaceFactory,
+)
 from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
@@ -57,6 +61,7 @@ from nucypher.datastore.dkg import DKGStorage
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.policy.payment import ContractPayment
+from nucypher.types import PhaseId
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 
@@ -78,15 +83,17 @@ class BaseActor:
         checksum_address: Optional[ChecksumAddress] = None,
     ):
         if not (bool(checksum_address) ^ bool(transacting_power)):
-            error = f'Pass transacting power or checksum address, got {checksum_address} and {transacting_power}.'
+            error = f"Pass transacting power or checksum address, got {checksum_address} and {transacting_power}."
             raise ValueError(error)
 
         try:
             parent_address = self.checksum_address
             if checksum_address is not None:
                 if parent_address != checksum_address:
-                    raise ValueError(f"Can't have two different ethereum addresses. "
-                                     f"Got {parent_address} and {checksum_address}.")
+                    raise ValueError(
+                        f"Can't have two different ethereum addresses. "
+                        f"Got {parent_address} and {checksum_address}."
+                    )
         except AttributeError:
             if transacting_power:
                 self.checksum_address = transacting_power.account
@@ -114,9 +121,11 @@ class BaseActor:
     @property
     def eth_balance(self) -> Decimal:
         """Return this actor's current ETH balance"""
-        blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?  #1509
+        blockchain = (
+            BlockchainInterfaceFactory.get_interface()
+        )  # TODO: EthAgent?  #1509
         balance = blockchain.client.get_balance(self.wallet_address)
-        return Web3.from_wei(balance, 'ether')
+        return Web3.from_wei(balance, "ether")
 
     @property
     def wallet_address(self):
@@ -223,8 +232,7 @@ class Operator(BaseActor):
         self.publish_finalization = (
             publish_finalization  # publish the DKG final key if True
         )
-        # TODO: #3052 stores locally generated public DKG artifacts
-        self.dkg_storage = DKGStorage()
+
         self.ritual_power = crypto_power.power_ups(
             RitualisticPower
         )  # ferveo material contained within
@@ -235,6 +243,8 @@ class Operator(BaseActor):
         self.condition_providers = self.connect_condition_providers(
             condition_blockchain_endpoints
         )
+
+        self.dkg_storage = DKGStorage()
 
     def set_provider_public_key(self) -> Union[TxReceipt, None]:
         # TODO: Here we're assuming there is one global key per node. See nucypher/#3167
@@ -319,7 +329,7 @@ class Operator(BaseActor):
                 # Local
                 external_validator = Validator(
                     address=self.checksum_address,
-                    public_key=self.ritual_power.public_key()
+                    public_key=self.ritual_power.public_key(),
                 )
             else:
                 # Remote
@@ -341,78 +351,136 @@ class Operator(BaseActor):
 
         return result
 
-    def publish_transcript(self, ritual_id: int, transcript: Transcript) -> HexBytes:
-        tx_hash = self.coordinator_agent.post_transcript(
+    def _setup_async_hooks(
+        self, phase_id: PhaseId, *args
+    ) -> BlockchainInterface.AsyncTxHooks:
+        tx_type = "POST_TRANSCRIPT" if phase_id.phase == PHASE1 else "POST_AGGREGATE"
+
+        def resubmit_tx():
+            if phase_id.phase == PHASE1:
+                # check status of ritual before resubmitting; prevent infinite loops
+                if not self._is_phase_1_action_required(ritual_id=phase_id.ritual_id):
+                    self.log.info(
+                        f"No need to resubmit tx: additional action not required for ritual# {phase_id.ritual_id} (status={self.coordinator_agent.get_ritual_status(phase_id.ritual_id)})"
+                    )
+                    return
+                async_tx = self.publish_transcript(*args)
+            else:
+                # check status of ritual before resubmitting; prevent infinite loops
+                if not self._is_phase_2_action_required(ritual_id=phase_id.ritual_id):
+                    self.log.info(
+                        f"No need to resubmit tx: additional action not required for ritual# {phase_id.ritual_id} (status={self.coordinator_agent.get_ritual_status(phase_id.ritual_id)})"
+                    )
+                    return
+                async_tx = self.publish_aggregated_transcript(*args)
+
+            self.log.info(
+                f"{self.transacting_power.account[:8]} resubmitted a new async tx {async_tx.id} "
+                f"for DKG ritual #{phase_id.ritual_id}"
+            )
+
+        def on_broadcast_failure(tx: FutureTx, e: Exception):
+            # although error, tx was not removed from atxm
+            self.log.warn(
+                f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
+                f"failed to broadcast {e}; the same tx will be retried"
+            )
+            # either multiple retries already completed for recoverable error,
+            # or simply a non-recoverable error - remove and resubmit
+            # (analogous action to a node restart of old)
+            self.coordinator_agent.blockchain.tx_machine.remove_queued_transaction(tx)
+
+            # submit a new one
+            resubmit_tx()
+
+        def on_fault(tx: FaultedTx):
+            # fault means that tx was removed from atxm
+            error = f"({tx.error})" if tx.error else ""
+            self.log.warn(
+                f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
+                f"failed with fault {tx.fault.name}{error}; resubmitting a new one"
+            )
+
+            # submit a new one.
+            resubmit_tx()
+
+        def on_finalized(tx: FinalizedTx):
+            # finalized means that tx was removed from atxm
+            if not tx.successful:
+                self.log.warn(
+                    f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
+                    f"was reverted; resubmitting a new one"
+                )
+
+                # submit a new one.
+                resubmit_tx()
+            else:
+                # success and blockchain updated - no need to store tx anymore
+                self.dkg_storage.clear_ritual_phase_async_tx(
+                    phase_id=phase_id, async_tx=tx
+                )
+
+        def on_insufficient_funds(tx: Union[FutureTx, PendingTx], e: InsufficientFunds):
+            # although error, tx was not removed from atxm
+            self.log.error(
+                f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
+                f"cannot be executed because {self.transacting_power.account[:8]} "
+                f"has insufficient funds {e}"
+            )
+
+        async_tx_hooks = BlockchainInterface.AsyncTxHooks(
+            on_broadcast_failure=on_broadcast_failure,
+            on_fault=on_fault,
+            on_finalized=on_finalized,
+            on_insufficient_funds=on_insufficient_funds,
+        )
+
+        return async_tx_hooks
+
+    def publish_transcript(self, ritual_id: int, transcript: Transcript) -> AsyncTx:
+        identifier = PhaseId(ritual_id, PHASE1)
+        async_tx_hooks = self._setup_async_hooks(identifier, ritual_id, transcript)
+        async_tx = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
             transacting_power=self.transacting_power,
+            async_tx_hooks=async_tx_hooks,
         )
-        return tx_hash
+        self.dkg_storage.store_ritual_phase_async_tx(
+            phase_id=identifier, async_tx=async_tx
+        )
+        return async_tx
 
     def publish_aggregated_transcript(
         self,
         ritual_id: int,
         aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
-    ) -> HexBytes:
+    ) -> AsyncTx:
         """Publish an aggregated transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
         participant_public_key = self.threshold_request_power.get_pubkey_from_ritual_id(
             ritual_id
         )
-        tx_hash = self.coordinator_agent.post_aggregation(
+        identifier = PhaseId(ritual_id=ritual_id, phase=PHASE2)
+        async_tx_hooks = self._setup_async_hooks(
+            identifier, ritual_id, aggregated_transcript, public_key
+        )
+        async_tx = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=public_key,
             participant_public_key=participant_public_key,
             transacting_power=self.transacting_power,
+            async_tx_hooks=async_tx_hooks,
         )
-        return tx_hash
-
-    def get_phase_receipt(
-        self, ritual_id: int, phase: int
-    ) -> Tuple[Optional[HexBytes], Optional[TxReceipt]]:
-        if phase == 1:
-            txhash = self.dkg_storage.get_transcript_txhash(ritual_id=ritual_id)
-        elif phase == 2:
-            txhash = self.dkg_storage.get_aggregation_txhash(ritual_id=ritual_id)
-        else:
-            raise ValueError(f"Invalid phase: '{phase}'.")
-        if not txhash:
-            return None, None
-        try:
-            blockchain = self.coordinator_agent.blockchain.client
-            receipt = blockchain.get_transaction_receipt(txhash)
-        except TransactionNotFound:
-            return txhash, None
-
-        # at least for now (pre dkg tracker) - clear since receipt obtained
-        if phase == 1:
-            self.dkg_storage.clear_transcript_txhash(ritual_id, txhash)
-        else:
-            self.dkg_storage.clear_aggregated_txhash(ritual_id, txhash)
-
-        status = receipt.get("status")
-        if status == 1:
-            return txhash, receipt
-        else:
-            return None, None
-
-    def _phase_has_pending_tx(self, ritual_id: int, phase: int) -> bool:
-        tx_hash, _ = self.get_phase_receipt(ritual_id=ritual_id, phase=phase)
-        if not tx_hash:
-            return False
-        self.log.info(
-            f"Node {self.transacting_power.account} has pending tx {bytes(tx_hash).hex()} "
-            f"for ritual #{ritual_id}, phase #{phase}; skipping execution"
+        self.dkg_storage.store_ritual_phase_async_tx(
+            phase_id=identifier, async_tx=async_tx
         )
-        return True
+        return async_tx
 
     def _is_phase_1_action_required(self, ritual_id: int) -> bool:
         """Check whether node needs to perform a DKG round 1 action."""
-        # handle pending transactions
-        if self._phase_has_pending_tx(ritual_id=ritual_id, phase=PHASE1):
-            return False
 
         # check ritual status from the blockchain
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
@@ -446,20 +514,57 @@ class Operator(BaseActor):
         authority: ChecksumAddress,
         participants: List[ChecksumAddress],
         timestamp: int,
-    ) -> Optional[HexBytes]:
-        """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
+    ) -> Optional[AsyncTx]:
+        """
+        Perform phase 1 of the DKG protocol for a given ritual ID on this node.
+
+        This method is idempotent and will not submit a transcript if one has
+        already been submitted. It is dispatched by the EventActuator when it
+        receives a StartRitual event from the blockchain.  Since the EventActuator
+        scans overlapping blocks, it is possible that this method will be called
+        multiple times for the same ritual.  This method will check the state of
+        the ritual and participant on the blockchain before submitting a transcript.
+
+        If there is a tracked AsyncTx for the given ritual and round
+        combination, this method will return the tracked transaction.  If there is
+        no tracked transaction, this method will submit a transcript and return the
+        resulting FutureTx.
+
+        Returning None indicates that no action was required or taken.
+
+        Errors raised by this method are not explicitly caught and are expected
+        to be handled by the EventActuator.
+        """
         if self.checksum_address not in participants:
-            # should never get here
-            self.log.error(
-                f"Not part of ritual {ritual_id}; no need to submit transcripts"
+            message = (
+                f"{self.checksum_address}|{self.wallet_address} "
+                f"is not a member of ritual {ritual_id}"
             )
-            raise RuntimeError(
-                f"Not participating in ritual {ritual_id}; should not have been notified"
-            )
+            stack_trace = traceback.format_stack()
+            self.log.critical(f"{message}\n{stack_trace}")
+            return
 
         # check phase 1 contract state
         if not self._is_phase_1_action_required(ritual_id=ritual_id):
+            self.log.debug(
+                "No action required for phase 1 of DKG protocol for some reason or another."
+            )
             return
+
+        # check if there is already pending tx for this ritual + round combination
+        async_tx = self.dkg_storage.get_ritual_phase_async_tx(
+            phase_id=PhaseId(ritual_id, PHASE1)
+        )
+        if async_tx:
+            self.log.info(
+                f"Active ritual in progress: {self.transacting_power.account} has submitted tx "
+                f"for ritual #{ritual_id}, phase #{PHASE1} (final: {async_tx.final})"
+            )
+            return async_tx
+
+        #
+        # Perform phase 1 of the DKG protocol
+        #
 
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
@@ -490,9 +595,8 @@ class Operator(BaseActor):
             raise e
 
         # publish the transcript and store the receipt
-        tx_hash = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)
-        self.dkg_storage.store_transcript_txhash(ritual_id=ritual.id, txhash=tx_hash)
         self.dkg_storage.store_validators(ritual_id=ritual.id, validators=validators)
+        async_tx = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)
 
         # logging
         arrival = ritual.total_transcripts + 1
@@ -500,13 +604,10 @@ class Operator(BaseActor):
             f"{self.transacting_power.account[:8]} submitted a transcript for "
             f"DKG ritual #{ritual.id} ({arrival}/{ritual.dkg_size}) with authority {authority}."
         )
-        return tx_hash
+        return async_tx
 
     def _is_phase_2_action_required(self, ritual_id: int) -> bool:
         """Check whether node needs to perform a DKG round 2 action."""
-        # check if there is a pending tx for this ritual + round combination
-        if self._phase_has_pending_tx(ritual_id=ritual_id, phase=PHASE2):
-            return False
 
         # check ritual status from the blockchain
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
@@ -535,11 +636,22 @@ class Operator(BaseActor):
 
         return True
 
-    def perform_round_2(self, ritual_id: int, timestamp: int) -> Optional[HexBytes]:
+    def perform_round_2(self, ritual_id: int, timestamp: int) -> Optional[AsyncTx]:
         """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
         # check phase 2 state
         if not self._is_phase_2_action_required(ritual_id=ritual_id):
             return
+
+        # check if there is a pending tx for this ritual + round combination
+        async_tx = self.dkg_storage.get_ritual_phase_async_tx(
+            phase_id=PhaseId(ritual_id, PHASE2)
+        )
+        if async_tx:
+            self.log.info(
+                f"Active ritual in progress: {self.transacting_power.account} has submitted tx"
+                f"for ritual #{ritual_id}, phase #{PHASE2} (final: {async_tx.final})."
+            )
+            return async_tx
 
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
@@ -556,14 +668,15 @@ class Operator(BaseActor):
         transcripts = (Transcript.from_bytes(bytes(t)) for t in ritual.transcripts)
         messages = list(zip(validators, transcripts))
         try:
-            aggregated_transcript, dkg_public_key = (
-                self.ritual_power.aggregate_transcripts(
-                    threshold=ritual.threshold,
-                    shares=ritual.shares,
-                    checksum_address=self.checksum_address,
-                    ritual_id=ritual.id,
-                    transcripts=messages,
-                )
+            (
+                aggregated_transcript,
+                dkg_public_key,
+            ) = self.ritual_power.aggregate_transcripts(
+                threshold=ritual.threshold,
+                shares=ritual.shares,
+                checksum_address=self.checksum_address,
+                ritual_id=ritual.id,
+                transcripts=messages,
             )
         except Exception as e:
             self.log.debug(
@@ -573,14 +686,11 @@ class Operator(BaseActor):
 
         # publish the transcript with network-wide jitter to avoid tx congestion
         time.sleep(random.randint(0, self.AGGREGATION_SUBMISSION_MAX_DELAY))
-        tx_hash = self.publish_aggregated_transcript(
+        async_tx = self.publish_aggregated_transcript(
             ritual_id=ritual.id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
         )
-
-        # store the txhash
-        self.dkg_storage.store_aggregation_txhash(ritual_id=ritual.id, txhash=tx_hash)
 
         # logging
         total = ritual.total_aggregations + 1
@@ -590,7 +700,8 @@ class Operator(BaseActor):
         )
         if total >= ritual.dkg_size:
             self.log.debug(f"DKG ritual #{ritual.id} should now be finalized")
-        return tx_hash
+
+        return async_tx
 
     def derive_decryption_share(
         self,
@@ -600,13 +711,10 @@ class Operator(BaseActor):
         variant: FerveoVariant,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
         ritual = self._resolve_ritual(ritual_id)
-
         validators = self._resolve_validators(ritual)
-
         aggregated_transcript = AggregatedTranscript.from_bytes(
             bytes(ritual.aggregated_transcript)
         )
-
         decryption_share = self.ritual_power.derive_decryption_share(
             nodes=validators,
             threshold=ritual.threshold,
@@ -616,7 +724,7 @@ class Operator(BaseActor):
             aggregated_transcript=aggregated_transcript,
             ciphertext_header=ciphertext_header,
             aad=aad,
-            variant=variant
+            variant=variant,
         )
         return decryption_share
 
@@ -860,13 +968,6 @@ class Operator(BaseActor):
                 f"{self.staking_provider_address} on {taco_child_pretty_chain_name} at Coordinator {coordinator_address}",
                 color="green",
             )
-
-    def get_work_is_needed_check(self):
-        def func(self):
-            # we have not confirmed yet
-            return not self.is_confirmed
-
-        return func
 
 
 class PolicyAuthor(NucypherTokenActor):

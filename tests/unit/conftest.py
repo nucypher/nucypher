@@ -8,7 +8,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
-from tests.constants import TEMPORARY_DOMAIN
+from tests.constants import MOCK_ETH_PROVIDER_URI, TEMPORARY_DOMAIN
 from tests.mock.interfaces import MockBlockchain, MockEthereumClient
 from tests.utils.registry import MockRegistrySource, mock_registry_sources
 
@@ -28,6 +28,8 @@ def test_registry(module_mocker):
 @pytest.fixture(scope='function')
 def mock_ethereum_client(mocker):
     web3_mock = mocker.Mock()
+    web3_mock.provider = mocker.Mock()
+    web3_mock.provider.endpoint_uri = MOCK_ETH_PROVIDER_URI
     mock_client = MockEthereumClient(w3=web3_mock)
     return mock_client
 
@@ -61,25 +63,27 @@ def mock_operator_bonding(session_mocker):
 
 
 @pytest.fixture(scope="module")
-def testerchain(mock_testerchain, module_mocker) -> MockBlockchain:
+def testerchain(mock_testerchain, module_mocker, clock) -> MockBlockchain:
     def always_use_mock(*a, **k):
         return mock_testerchain
 
     module_mocker.patch.object(
         BlockchainInterfaceFactory, "get_interface", always_use_mock
     )
+
+    mock_testerchain.tx_machine._task.clock = clock
     return mock_testerchain
 
 
 @pytest.fixture(scope="module", autouse=True)
-def staking_providers(testerchain, test_registry, monkeymodule):
+def staking_providers(accounts, test_registry, monkeymodule):
     def faked(self, *args, **kwargs):
-        return testerchain.stake_providers_accounts[
-            testerchain.ursulas_accounts.index(self.transacting_power.account)
+        return accounts.staking_providers_accounts[
+            accounts.ursulas_accounts.index(self.transacting_power.account)
         ]
 
     Operator.get_staking_provider_address = faked
-    return testerchain.stake_providers_accounts
+    return accounts.staking_providers_accounts
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -117,3 +121,17 @@ def random_transcript(get_random_checksum_address):
     )
 
     return transcript
+
+
+@pytest.fixture(scope="module")
+def tx_dict():
+    _tx_dict = {
+        "chainId": 1,
+        "nonce": 2,
+        "gasPrice": 2000000000000,
+        "gas": 314159,
+        "to": "0xd3CdA913deB6f67967B99D67aCDFa1712C293601",
+        "value": 12345,
+        "data": b"in that metric, kman is above reproach",  # thank you friends
+    }
+    yield _tx_dict
