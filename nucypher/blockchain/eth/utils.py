@@ -1,6 +1,5 @@
-from collections import defaultdict
 from decimal import Decimal
-from typing import Union, Dict, List
+from typing import List, Union
 
 import requests
 from eth_typing import ChecksumAddress

@@ -37,7 +37,10 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
-from nucypher.blockchain.eth.constants import NULL_ADDRESS, DEFAULT_RPC_ENDPOINTS, PUBLIC_CHAINS
+from nucypher.blockchain.eth.constants import (
+    NULL_ADDRESS,
+    PUBLIC_CHAINS,
+)
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import (
@@ -49,7 +52,10 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
-from nucypher.blockchain.eth.utils import truncate_checksum_address, get_healthy_default_rpc_endpoints
+from nucypher.blockchain.eth.utils import (
+    get_healthy_default_rpc_endpoints,
+    truncate_checksum_address,
+)
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
