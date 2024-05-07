@@ -1,6 +1,8 @@
+from collections import defaultdict
 from decimal import Decimal
-from typing import Union
+from typing import Union, Dict, List
 
+import requests
 from eth_typing import ChecksumAddress
 from web3 import Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
@@ -64,3 +66,36 @@ def get_tx_cost_data(transaction_dict: TxParams):
     max_cost_wei = max_unit_price * transaction_dict["gas"]
     max_cost = Web3.from_wei(max_cost_wei, "ether")
     return max_cost, max_price_gwei, tx_type
+
+
+def rpc_endpoint_health_check(endpoint: str) -> bool:
+    query = {
+        "jsonrpc": "2.0",
+        "method": "eth_getBlockByNumber",
+        "params": ["latest", False],
+        "id": 1
+    }
+    try:
+        response = requests.post(
+            endpoint,
+            json=query,
+            headers={"Content-Type": "application/json"},
+            timeout=5
+        )
+        if response.status_code == 200:
+            data = response.json()
+            if "result" in data and data["result"] is not None:
+                return True
+    except requests.exceptions.RequestException:
+        return False
+
+
+def get_healthy_default_rpc_endpoints(chain_id: int) -> List[str]:
+    healthy = []
+    endpoints = DEFAULT_RPC_ENDPOINTS.get(chain_id)
+    if not endpoints:
+        return healthy
+    for endpoint in endpoints:
+        if rpc_endpoint_health_check(endpoint=endpoint):
+            healthy.append(endpoint)
+    return healthy

@@ -10,7 +10,7 @@ from web3.contract.contract import Contract
 from web3.exceptions import TimeExhausted, TransactionNotFound
 from web3.types import TxReceipt, Wei
 
-from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
+from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS, PUBLIC_CHAINS
 from nucypher.blockchain.middleware.retry import (
     AlchemyRetryRequestMiddleware,
     InfuraRetryRequestMiddleware,

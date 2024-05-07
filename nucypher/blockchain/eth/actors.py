@@ -49,7 +49,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
-from nucypher.blockchain.eth.utils import truncate_checksum_address
+from nucypher.blockchain.eth.utils import truncate_checksum_address, get_healthy_default_rpc_endpoints
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
@@ -265,6 +265,7 @@ class Operator(BaseActor):
         provider = HTTPProvider(endpoint_uri=uri)
         return provider
 
+
     def connect_condition_providers(
         self, endpoints: Dict[int, List[str]]
     ) -> DefaultDict[int, Set[HTTPProvider]]:
@@ -292,6 +293,13 @@ class Operator(BaseActor):
                         f"Condition blockchain endpoint {uri} is not on chain {chain_id}"
                     )
                 providers[int(chain_id)].add(provider)
+
+        # Ingest default RPC providers for each chain
+        for chain_id in self.domain.condition_chain_ids:
+            default_endpoints = get_healthy_default_rpc_endpoints(chain_id)
+            for uri in default_endpoints:
+                provider = self._make_condition_provider(uri)
+                providers[chain_id].add(provider)
 
         humanized_chain_ids = ", ".join(
             _CONDITION_CHAINS[chain_id] for chain_id in providers
