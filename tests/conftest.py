@@ -150,3 +150,15 @@ def mock_multichain_configuration(module_mocker, testerchain):
     module_mocker.patch.object(
         Operator, "_make_condition_provider", return_value=testerchain.provider
     )
+
+
+@pytest.fixture(scope='module', autouse=True)
+def mock_default_rpc_endpoint_healthcheck(module_mocker):
+    module_mocker.patch(
+        'nucypher.blockchain.eth.utils.DEFAULT_RPC_ENDPOINTS',
+        {TESTERCHAIN_CHAIN_ID: ['tester://pyevm']}
+    )
+    module_mocker.patch(
+        'nucypher.blockchain.eth.utils.rpc_endpoint_health_check',
+        return_value=True
+    )
