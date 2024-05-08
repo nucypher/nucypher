@@ -276,7 +276,6 @@ class RPCCondition(AccessControlCondition):
             raise InvalidCondition(str(e))
 
         self.condition_type = condition_type
-        self.provider: Optional[BaseProvider] = None  # set in _configure_provider
 
         self.return_value_test = return_value_test  # output
         self._validate_expected_return_type()
