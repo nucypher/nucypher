@@ -24,16 +24,16 @@ class TimeRPCCall(RPCCall):
         name: Optional[str] = None,
         parameters: Optional[List[Any]] = None,
     ):
-        if method != self.METHOD:
-            raise ValueError(
-                f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
-            )
         if parameters:
             raise ValueError(f"{self.METHOD} does not take any parameters")
 
         super().__init__(chain=chain, method=method, name=name)
 
     def _validate_method(self, method):
+        if method != self.METHOD:
+            raise ValueError(
+                f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
+            )
         return method
 
     def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
