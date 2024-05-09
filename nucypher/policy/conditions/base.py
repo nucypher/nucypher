@@ -99,3 +99,13 @@ class ExecutionCall(_Serializable, ABC):
     @abstractmethod
     def execute(self, *args, **kwargs) -> Any:
         raise NotImplementedError
+
+
+class ExecutionVariable(_Serializable, ABC):
+    class Schema(CamelCaseSchema):
+        var_name = fields.Str(required=True)
+        call = NotImplemented
+
+    def __init__(self, var_name: str, call: ExecutionCall):
+        self.var_name = var_name
+        self.call = call
