@@ -1,3 +1,4 @@
+import time
 from decimal import Decimal
 from typing import List, Union, Dict
 
@@ -67,7 +68,11 @@ def get_tx_cost_data(transaction_dict: TxParams):
     return max_cost, max_price_gwei, tx_type
 
 
-def rpc_endpoint_health_check(endpoint: str) -> bool:
+def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> bool:
+    """
+    Checks the health of an Ethereum RPC endpoint by comparing the timestamp of the latest block
+    with the system time. The maximum drift allowed is `max_drift_seconds`.
+    """
     query = {
         "jsonrpc": "2.0",
         "method": "eth_getBlockByNumber",
@@ -84,27 +89,40 @@ def rpc_endpoint_health_check(endpoint: str) -> bool:
         if response.status_code == 200:
             data = response.json()
             if "result" in data and data["result"] is not None:
-                return True
+                block_data = data["result"]
+                timestamp = int(block_data.get("timestamp"), 16)
+                system_time = time.time()
+                drift = abs(system_time - timestamp)
+                if drift < max_drift_seconds:
+                    return True
+                return False
     except requests.exceptions.RequestException:
         return False
 
 
 def get_default_rpc_endpoints() -> Dict[int, List[str]]:
+    """
+    Fetches the default RPC endpoints for various chains from the nucypher/chainlist repository.
+    """
     # TODO: Memoize?  When to refresh?
     response = requests.get(CHAINLIST_URL)
     if response.status_code == 200:
-        return response.json()
+        return {int(chain_id): endpoints for chain_id, endpoints in response.json().items()}
     else:
         # TODO: use an embedded fallback here?
         return {}
 
 
 def get_healthy_default_rpc_endpoints(chain_id: int) -> List[str]:
+    """
+    Returns a list of healthy RPC endpoints for a given chain ID.
+    """
     healthy = []
-    endpoints = get_default_rpc_endpoints().get(chain_id)
-    if not endpoints:
+    endpoints = get_default_rpc_endpoints()
+    chain_endpoints = endpoints.get(chain_id)
+    if not chain_endpoints:
         return healthy
-    for endpoint in endpoints:
+    for endpoint in chain_endpoints:
         if rpc_endpoint_health_check(endpoint=endpoint):
             healthy.append(endpoint)
     return healthy
