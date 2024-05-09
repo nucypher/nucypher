@@ -6,7 +6,7 @@ from web3 import Web3
 
 from nucypher.policy.conditions.evm import RPCCall, RPCCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
-from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
+from nucypher.policy.conditions.lingo import ConditionType
 
 
 class TimeRPCCall(RPCCall):
@@ -21,13 +21,19 @@ class TimeRPCCall(RPCCall):
         self,
         chain: int,
         method: str = METHOD,
-        name: Optional[str] = None,
+        call_type: str = "time",
         parameters: Optional[List[Any]] = None,
     ):
         if parameters:
             raise ValueError(f"{self.METHOD} does not take any parameters")
 
-        super().__init__(chain=chain, method=method, name=name)
+        super().__init__(
+            chain=chain, method=method, parameters=parameters, call_type=call_type
+        )
+
+    def _validate_call_type(self, call_type):
+        if call_type != "time":
+            raise ValueError(f"Invalid execution call type: {call_type}")
 
     def _validate_method(self, method):
         if method != self.METHOD:
@@ -46,12 +52,9 @@ class TimeRPCCall(RPCCall):
 class TimeCondition(RPCCondition):
     CONDITION_TYPE = ConditionType.TIME.value
 
-    class Schema(TimeRPCCall.Schema):
+    class Schema(RPCCondition.Schema, TimeRPCCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.TIME.value), required=True
-        )
-        return_value_test = fields.Nested(
-            ReturnValueTest.ReturnValueTestSchema(), required=True
         )
 
         class Meta:
@@ -67,7 +70,6 @@ class TimeCondition(RPCCondition):
 
     def __init__(
         self,
-        return_value_test: ReturnValueTest,
         method: str = TimeRPCCall.METHOD,
         condition_type: str = CONDITION_TYPE,
         *args,
@@ -77,7 +79,6 @@ class TimeCondition(RPCCondition):
         super().__init__(
             condition_type=condition_type,
             method=method,
-            return_value_test=return_value_test,
             *args,
             **kwargs,
         )
