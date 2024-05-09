@@ -115,7 +115,6 @@ class RPCCall(ExecutionCall):
 
     class Schema(ExecutionCall.Schema):
         SKIP_VALUES = (None,)
-        name = fields.Str(required=False)
         chain = fields.Int(
             required=True, strict=True, validate=validate.OneOf(_CONDITION_CHAINS)
         )
@@ -132,20 +131,21 @@ class RPCCall(ExecutionCall):
         method: str,
         call_type: str = "rpc",
         parameters: Optional[List[Any]] = None,
-        name: Optional[str] = None,
     ):
-        if call_type != "rpc":
-            raise ValueError(f"Invalid execution call type: {call_type}")
         # Validate input
+        self._validate_call_type(call_type)
         # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
         _validate_chain(chain=chain)
 
         self.call_type = call_type
 
-        self.name = name
         self.chain = chain
         self.method = self._validate_method(method=method)
         self.parameters = parameters or None
+
+    def _validate_call_type(self, call_type):
+        if call_type != "rpc":
+            raise ValueError(f"Invalid execution call type: {call_type}")
 
     def _validate_method(self, method):
         if not method:
@@ -248,6 +248,7 @@ class RPCCondition(AccessControlCondition):
     CONDITION_TYPE = ConditionType.RPC.value
 
     class Schema(RPCCall.Schema):
+        name = fields.Str(required=False)
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.RPC.value), required=True
         )
@@ -270,6 +271,7 @@ class RPCCondition(AccessControlCondition):
         self,
         return_value_test: ReturnValueTest,
         condition_type: str = CONDITION_TYPE,
+        name: Optional[str] = None,
         *args,
         **kwargs,
     ):
@@ -284,6 +286,7 @@ class RPCCondition(AccessControlCondition):
         except ValueError as e:
             raise InvalidCondition(str(e))
 
+        self.name = name
         self.condition_type = condition_type
 
         self.return_value_test = return_value_test  # output
@@ -291,10 +294,6 @@ class RPCCondition(AccessControlCondition):
 
     def _create_rpc_call(self, *args, **kwargs):
         return RPCCall(*args, **kwargs)
-
-    @property
-    def name(self):
-        return self.rpc_call.name
 
     @property
     def method(self):
@@ -369,6 +368,7 @@ class ContractCall(RPCCall):
         self,
         method: str,
         contract_address: ChecksumAddress,
+        call_type: str = "contract",
         standard_contract_type: Optional[str] = None,
         function_abi: Optional[ABIFunction] = None,
         *args,
@@ -387,8 +387,12 @@ class ContractCall(RPCCall):
         self.standard_contract_type = standard_contract_type
         self.function_abi = function_abi
 
-        super().__init__(method=method, *args, **kwargs)
+        super().__init__(method=method, call_type=call_type, *args, **kwargs)
         self.contract_function = self._get_unbound_contract_function()
+
+    def _validate_call_type(self, call_type):
+        if call_type != "contract":
+            raise ValueError(f"Invalid execution call type: {call_type}")
 
     def _validate_method(self, method):
         return method
