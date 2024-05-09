@@ -54,6 +54,9 @@ class TimeCondition(RPCCondition):
             ReturnValueTest.ReturnValueTestSchema(), required=True
         )
 
+        class Meta:
+            exclude = ("call_type",)  # don't serialize call_type
+
         @post_load
         def make(self, data, **kwargs):
             return TimeCondition(**data)
