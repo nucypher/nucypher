@@ -20,7 +20,7 @@ from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
-from nucypher.policy.conditions.base import AccessControlCondition
+from nucypher.policy.conditions.base import AccessControlCondition, ExecutionCall
 from nucypher.policy.conditions.context import (
     is_context_variable,
     resolve_parameter_context_variables,
@@ -104,7 +104,7 @@ def _validate_chain(chain: int) -> None:
         )
 
 
-class RPCCall:
+class RPCCall(ExecutionCall):
     LOG = logging.Logger(__name__)
 
     ALLOWED_METHODS = {
@@ -112,7 +112,7 @@ class RPCCall:
         "eth_getBalance": int,
     }  # TODO other allowed methods (tDEC #64)
 
-    class Schema(CamelCaseSchema):
+    class Schema(ExecutionCall.Schema):
         SKIP_VALUES = (None,)
         name = fields.Str(required=False)
         chain = fields.Int(
@@ -129,17 +129,21 @@ class RPCCall:
         self,
         chain: int,
         method: str,
+        call_type: str = "rpc",
         parameters: Optional[List[Any]] = None,
         name: Optional[str] = None,
     ):
+        if call_type != "rpc":
+            raise ValueError(f"Invalid execution call type: {call_type}")
         # Validate input
         # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
         _validate_chain(chain=chain)
 
+        self.call_type = call_type
+
         self.name = name
         self.chain = chain
         self.method = self._validate_method(method=method)
-
         self.parameters = parameters or None
 
     def _validate_method(self, method):
@@ -248,6 +252,9 @@ class RPCCondition(AccessControlCondition):
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
         )
+
+        class Meta:
+            exclude = ("call_type",)  # don't serialize call_type
 
         @post_load
         def make(self, data, **kwargs):
@@ -421,6 +428,9 @@ class ContractCondition(RPCCondition):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.CONTRACT.value), required=True
         )
+
+        class Meta:
+            exclude = ("call_type",)  # don't serialize call_type
 
         @post_load
         def make(self, data, **kwargs):

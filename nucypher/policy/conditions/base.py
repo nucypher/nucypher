@@ -3,12 +3,13 @@ from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
 from typing import Any, Dict, Tuple
 
-from marshmallow import Schema, ValidationError
+from marshmallow import Schema, ValidationError, fields
 
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
 )
+from nucypher.policy.conditions.utils import CamelCaseSchema
 
 
 class _Serializable:
@@ -52,7 +53,7 @@ class _Serializable:
 
 class AccessControlCondition(_Serializable, ABC):
 
-    class Schema(Schema):
+    class Schema(CamelCaseSchema):
         name = NotImplemented
 
     def __init__(self):
@@ -89,3 +90,12 @@ class AccessControlCondition(_Serializable, ABC):
             return super().from_json(data)
         except ValidationError as e:
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
+
+
+class ExecutionCall(_Serializable, ABC):
+    class Schema(CamelCaseSchema):
+        call_type = fields.Str(required=True)
+
+    @abstractmethod
+    def execute(self, *args, **kwargs) -> Any:
+        raise NotImplementedError
