@@ -41,6 +41,7 @@ PUBLIC_CHAINS = {
     11155111: "Sepolia",
     80002: "Polygon/Amoy",
 }
+
 POA_CHAINS = {
     4,  # Rinkeby
     5,  # Goerli
@@ -53,32 +54,4 @@ POA_CHAINS = {
     80002,  # "Polygon/Amoy"
 }
 
-# TODO: This may be dynamic in the future, perhaps using a 3rd party API
-DEFAULT_RPC_ENDPOINTS = {
-    1: [
-        "https://cloudflare-eth.com",
-        "https://ethereum-rpc.publicnode.com",
-        "https://mainnet.gateway.tenderly.co",
-        "https://rpc.flashbots.net",
-        "https://rpc.mevblocker.io"
-    ],
-    11155111: [
-	    "https://rpc.sepolia.org",
-        "https://rpc2.sepolia.org",
-        "https://rpc-sepolia.rockx.com",
-        "https://rpc.sepolia.ethpandaops.io",
-        "https://sepolia.gateway.tenderly.co",
-        "https://ethereum-sepolia-rpc.publicnode.com",
-        "https://sepolia.drpc.org"
-    ],
-    137: [
-        "https://polygon-rpc.com",
-        "https://polygon-bor-rpc.publicnode.com",
-        "https://polygon.gateway.tenderly.co",
-        "https://polygon.drpc.org"
-    ],
-    80002: [
-        "https://rpc-amoy.polygon.technology",
-        "https://polygon-amoy-bor-rpc.publicnode.com",
-    ]
-}
+CHAINLIST_URL = "https://raw.githubusercontent.com/nucypher/chainlist/main/rpc.json"

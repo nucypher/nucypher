@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import List, Union
+from typing import List, Union, Dict
 
 import requests
 from eth_typing import ChecksumAddress
@@ -7,7 +7,7 @@ from web3 import Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
 from web3.types import TxParams
 
-from nucypher.blockchain.eth.constants import DEFAULT_RPC_ENDPOINTS
+from nucypher.blockchain.eth.constants import CHAINLIST_URL
 
 
 def prettify_eth_amount(amount, original_denomination: str = 'wei') -> str:
@@ -89,9 +89,19 @@ def rpc_endpoint_health_check(endpoint: str) -> bool:
         return False
 
 
+def get_default_rpc_endpoints() -> Dict[int, List[str]]:
+    # TODO: Memoize?  When to refresh?
+    response = requests.get(CHAINLIST_URL)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        # TODO: use an embedded fallback here?
+        return {}
+
+
 def get_healthy_default_rpc_endpoints(chain_id: int) -> List[str]:
     healthy = []
-    endpoints = DEFAULT_RPC_ENDPOINTS.get(chain_id)
+    endpoints = get_default_rpc_endpoints().get(chain_id)
     if not endpoints:
         return healthy
     for endpoint in endpoints:
