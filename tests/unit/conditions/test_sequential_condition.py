@@ -3,11 +3,11 @@ import pytest
 from nucypher.policy.conditions.base import (
     AccessControlCondition,
     ExecutionCall,
-    ExecutionVariable,
 )
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import (
     ConditionType,
+    ExecutionVariable,
     SequentialAccessControlCondition,
 )
 
