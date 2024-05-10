@@ -34,6 +34,37 @@ class ReturnValueTestDict(TypedDict):
     key: NotRequired[Union[str, int]]
 
 
+# Calls
+class BaseExecutionCallDict(TypedDict):
+    callType: str
+
+
+class RPCCallDict(BaseExecutionCallDict):
+    chain: int
+    method: str
+    parameters: NotRequired[List[Any]]
+
+
+class TimeRPCCallDict(RPCCallDict):
+    pass
+
+
+class ContractCallDict(RPCCallDict):
+    contractAddress: str
+    standardContractType: NotRequired[str]
+    functionAbi: NotRequired[ABIFunction]
+
+
+ExecutionCallDict = Union[RPCCallDict, TimeRPCCallDict, ContractCallDict]
+
+
+# Variable
+class ExecutionVariableDict(TypedDict):
+    varName: str
+    call: ExecutionCallDict
+
+
+# Conditions
 class _AccessControlCondition(TypedDict):
     name: NotRequired[str]
 
@@ -63,10 +94,15 @@ class ContractConditionDict(RPCConditionDict):
 #     "operands": List[AccessControlCondition | CompoundCondition]
 #
 #
-class CompoundConditionDict(TypedDict):
+class CompoundConditionDict(_AccessControlCondition):
     conditionType: str
     operator: Literal["and", "or"]
     operands: List["Lingo"]
+
+
+class SequentialConditionDict(_AccessControlCondition):
+    variables = List[ExecutionVariableDict]
+    condition: "Lingo"
 
 
 #
@@ -75,8 +111,13 @@ class CompoundConditionDict(TypedDict):
 # - RPCCondition
 # - ContractCondition
 # - CompoundConditionDict
+# - SequentialConditionDict
 ConditionDict = Union[
-    TimeConditionDict, RPCConditionDict, ContractConditionDict, CompoundConditionDict
+    TimeConditionDict,
+    RPCConditionDict,
+    ContractConditionDict,
+    CompoundConditionDict,
+    SequentialConditionDict,
 ]
 
 

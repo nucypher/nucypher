@@ -10,18 +10,24 @@ from nucypher.policy.conditions.lingo import ConditionType
 
 
 class TimeRPCCall(RPCCall):
+    CALL_TYPE = "time"
     METHOD = "blocktime"
 
     class Schema(RPCCall.Schema):
+        call_type = fields.Str(validate=validate.Equal("time"), required=True)
         method = fields.Str(
             dump_default="blocktime", required=True, validate=Equal("blocktime")
         )
+
+        @post_load
+        def make(self, data, **kwargs):
+            return TimeRPCCall(**data)
 
     def __init__(
         self,
         chain: int,
         method: str = METHOD,
-        call_type: str = "time",
+        call_type: str = CALL_TYPE,
         parameters: Optional[List[Any]] = None,
     ):
         if parameters:
@@ -30,10 +36,6 @@ class TimeRPCCall(RPCCall):
         super().__init__(
             chain=chain, method=method, parameters=parameters, call_type=call_type
         )
-
-    def _validate_call_type(self, call_type):
-        if call_type != "time":
-            raise ValueError(f"Invalid execution call type: {call_type}")
 
     def _validate_method(self, method):
         if method != self.METHOD:

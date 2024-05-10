@@ -93,19 +93,11 @@ class AccessControlCondition(_Serializable, ABC):
 
 
 class ExecutionCall(_Serializable, ABC):
+    CALL_TYPE = NotImplemented
+
     class Schema(CamelCaseSchema):
         call_type = fields.Str(required=True)
 
     @abstractmethod
     def execute(self, *args, **kwargs) -> Any:
         raise NotImplementedError
-
-
-class ExecutionVariable(_Serializable, ABC):
-    class Schema(CamelCaseSchema):
-        var_name = fields.Str(required=True)
-        call = NotImplemented
-
-    def __init__(self, var_name: str, call: ExecutionCall):
-        self.var_name = var_name
-        self.call = call

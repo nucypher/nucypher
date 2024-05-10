@@ -23,7 +23,7 @@ from web3 import HTTPProvider
 
 from nucypher.policy.conditions.base import (
     AccessControlCondition,
-    ExecutionVariable,
+    ExecutionCall,
     _Serializable,
 )
 from nucypher.policy.conditions.context import (
@@ -35,7 +35,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
     ReturnValueEvaluationError,
 )
-from nucypher.policy.conditions.types import ConditionDict, Lingo
+from nucypher.policy.conditions.types import ConditionDict, ExecutionCallDict, Lingo
 from nucypher.policy.conditions.utils import CamelCaseSchema
 
 
@@ -56,6 +56,7 @@ class _ConditionField(fields.Dict):
         )
         instance = condition_class.from_dict(condition_data)
         return instance
+
 
 #
 # CONDITION = BASE_CONDITION | COMPOUND_CONDITION
@@ -248,6 +249,56 @@ _COMPARATOR_FUNCTIONS = {
 # }
 
 
+class _ExecutionCallField(fields.Dict):
+    """Serializes/Deserializes Conditions to/from dictionaries"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        return value.to_dict()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        execution_call_dict = value
+        execution_call_class = self.resolve_execution_call_class(
+            execution_call_dict=execution_call_dict
+        )
+        instance = execution_call_class.from_dict(execution_call_dict)
+        return instance
+
+    @classmethod
+    def resolve_execution_call_class(cls, execution_call_dict: ExecutionCallDict):
+        from nucypher.policy.conditions.evm import (
+            ContractCall,
+            RPCCall,
+        )
+        from nucypher.policy.conditions.time import TimeRPCCall
+
+        call_type = execution_call_dict.get("callType")
+
+        for execution_call_type in (
+            RPCCall,
+            TimeRPCCall,
+            ContractCall,
+        ):
+            if execution_call_type.CALL_TYPE == call_type:
+                return execution_call_type
+
+        raise InvalidConditionLingo(
+            f"Cannot resolve condition lingo with call type {call_type}"
+        )
+
+
+class ExecutionVariable(_Serializable):
+    class Schema(CamelCaseSchema):
+        var_name = fields.Str(required=True)
+        call = _ExecutionCallField(required=True)
+
+    def __init__(self, var_name: str, call: ExecutionCall):
+        self.var_name = var_name
+        self.call = call
+
+
 class SequentialAccessControlCondition(AccessControlCondition):
     CONDITION_TYPE = ConditionType.SEQUENTIAL.value
     MAX_NUM_VARIABLES = 5
@@ -272,7 +323,9 @@ class SequentialAccessControlCondition(AccessControlCondition):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.SEQUENTIAL.value), required=True
         )
-        variables = fields.List(fields.Str)  # TODO placeholder; fixme
+        variables = fields.List(
+            fields.Nested(ExecutionVariable.Schema(), required=True)
+        )
         name = fields.Str(required=False)
         condition = _ConditionField(required=True)
 
@@ -532,7 +585,6 @@ class ConditionLingo(_Serializable):
         cls, condition: ConditionDict, version: int = None
     ) -> Type[AccessControlCondition]:
         """
-        TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
         Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
         conditions expression framework.
         """
