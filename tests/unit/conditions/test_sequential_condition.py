@@ -90,3 +90,61 @@ def test_sequential_condition(mocker, mock_execution_variables):
     assert value == (1 * 2 * 3 * 4 * 5)
     # only a copy of the context is modified internally
     assert len(original_context) == 0, "original context remains unchanged"
+
+
+def test_sequential_condition_all_prior_vars_passed_to_subsequent_calls(
+    mocker, mock_execution_variables
+):
+    var_1, var_2, var_3, var_4 = mock_execution_variables
+
+    var_1.call.execute.return_value = 1
+
+    var_2.call.execute = lambda providers, **context: context[f":{var_1.var_name}"] + 1
+
+    var_3.call.execute = (
+        lambda providers, **context: context[f":{var_1.var_name}"]
+        + context[f":{var_2.var_name}"]
+        + 1
+    )
+
+    var_4.call.execute = (
+        lambda providers, **context: context[f":{var_1.var_name}"]
+        + context[f":{var_2.var_name}"]
+        + context[f":{var_3.var_name}"]
+        + 1
+    )
+
+    condition = mocker.Mock(spec=AccessControlCondition)
+    condition.verify = lambda providers, **context: (
+        True,
+        context[f":{var_1.var_name}"]
+        + context[f":{var_2.var_name}"]
+        + context[f":{var_3.var_name}"]
+        + context[f":{var_4.var_name}"]
+        + 1,
+    )
+
+    sequential_condition = SequentialAccessControlCondition(
+        variables=[var_1, var_2, var_3, var_4],
+        condition=condition,
+    )
+
+    expected_var_1_value = 1
+    expected_var_2_value = expected_var_1_value + 1
+    expected_var_3_value = expected_var_1_value + expected_var_2_value + 1
+    expected_var_4_value = (
+        expected_var_1_value + expected_var_2_value + expected_var_3_value + 1
+    )
+
+    original_context = dict()
+    result, value = sequential_condition.verify(providers={}, **original_context)
+    assert result is True
+    assert value == (
+        expected_var_1_value
+        + expected_var_2_value
+        + expected_var_3_value
+        + expected_var_4_value
+        + 1
+    )
+    # only a copy of the context is modified internally
+    assert len(original_context) == 0, "original context remains unchanged"
