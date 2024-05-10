@@ -107,6 +107,8 @@ def _validate_chain(chain: int) -> None:
 
 
 class RPCCall(ExecutionCall):
+    CALL_TYPE = "rpc"
+
     LOG = logging.Logger(__name__)
 
     ALLOWED_METHODS = {
@@ -116,6 +118,7 @@ class RPCCall(ExecutionCall):
 
     class Schema(ExecutionCall.Schema):
         SKIP_VALUES = (None,)
+        call_type = fields.Str(validate=validate.Equal("rpc"), required=True)
         chain = fields.Int(
             required=True, strict=True, validate=validate.OneOf(_CONDITION_CHAINS)
         )
@@ -130,12 +133,15 @@ class RPCCall(ExecutionCall):
         self,
         chain: int,
         method: str,
-        call_type: str = "rpc",
+        call_type: str = CALL_TYPE,
         parameters: Optional[List[Any]] = None,
     ):
         # Validate input
-        self._validate_call_type(call_type)
-        # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
+        if call_type != self.CALL_TYPE:
+            raise ValueError(
+                f"{self.__class__.__name__} must be instantiated with the '{self.CALL_TYPE}' type; '{call_type}' is invalid"
+            )
+
         _validate_chain(chain=chain)
 
         self.call_type = call_type
@@ -143,10 +149,6 @@ class RPCCall(ExecutionCall):
         self.chain = chain
         self.method = self._validate_method(method=method)
         self.parameters = parameters or None
-
-    def _validate_call_type(self, call_type):
-        if call_type != "rpc":
-            raise ValueError(f"Invalid execution call type: {call_type}")
 
     def _validate_method(self, method):
         if not method:
@@ -345,7 +347,10 @@ class RPCCondition(AccessControlCondition):
 
 
 class ContractCall(RPCCall):
+    CALL_TYPE = "contract"
+
     class Schema(RPCCall.Schema):
+        call_type = fields.Str(validate=validate.Equal("contract"), required=True)
         contract_address = fields.Str(required=True)
         standard_contract_type = fields.Str(required=False)
         function_abi = fields.Dict(required=False)
@@ -369,7 +374,7 @@ class ContractCall(RPCCall):
         self,
         method: str,
         contract_address: ChecksumAddress,
-        call_type: str = "contract",
+        call_type: str = CALL_TYPE,
         standard_contract_type: Optional[str] = None,
         function_abi: Optional[ABIFunction] = None,
         *args,
@@ -390,10 +395,6 @@ class ContractCall(RPCCall):
 
         super().__init__(method=method, call_type=call_type, *args, **kwargs)
         self.contract_function = self._get_unbound_contract_function()
-
-    def _validate_call_type(self, call_type):
-        if call_type != "contract":
-            raise ValueError(f"Invalid execution call type: {call_type}")
 
     def _validate_method(self, method):
         return method
