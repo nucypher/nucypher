@@ -1,4 +1,5 @@
 import pytest
+from web3.exceptions import Web3Exception
 
 from nucypher.policy.conditions.base import (
     AccessControlCondition,
@@ -148,3 +149,23 @@ def test_sequential_condition_all_prior_vars_passed_to_subsequent_calls(
     )
     # only a copy of the context is modified internally
     assert len(original_context) == 0, "original context remains unchanged"
+
+
+def test_sequential_condition_a_call_fails(mocker, mock_execution_variables):
+    var_1, var_2, var_3, var_4 = mock_execution_variables
+
+    var_4.call.execute.side_effect = Web3Exception
+
+    condition = mocker.Mock(spec=AccessControlCondition)
+    condition.verify = lambda providers, **context: (
+        True,
+        5,
+    )
+
+    sequential_condition = SequentialAccessControlCondition(
+        variables=[var_1, var_2, var_3, var_4],
+        condition=condition,
+    )
+
+    with pytest.raises(Web3Exception):
+        _ = sequential_condition.verify(providers={})
