@@ -272,7 +272,7 @@ class SequentialAccessControlCondition(AccessControlCondition):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.SEQUENTIAL.value), required=True
         )
-        variables = fields.List(fields.Str)
+        variables = fields.List(fields.Str)  # TODO placeholder; fixme
         name = fields.Str(required=False)
         condition = _ConditionField(required=True)
 
