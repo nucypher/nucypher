@@ -51,7 +51,9 @@ COMMITMENT_DURATION_2 = 2 * COMMITMENT_DURATION_1  # 365 days in seconds
 COMMITMENT_DEADLINE = 60 * 60 * 24 * 100  # 100 days after deployment
 
 PENALTY_DEFAULT = 1000  # 10% penalty
+PENALTY_INCREMENT = 2500  # 25% penalty increment
 PENALTY_DURATION = 60 * 60 * 24  # 1 day in seconds
+
 
 # Coordinator
 TIMEOUT = 3600
@@ -172,6 +174,7 @@ def taco_application(
         maya.now().epoch + COMMITMENT_DEADLINE,
         PENALTY_DEFAULT,
         PENALTY_DURATION,
+        PENALTY_INCREMENT,
     )
 
     proxy = deployer_account.deploy(
