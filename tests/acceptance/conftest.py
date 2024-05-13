@@ -223,7 +223,10 @@ def adjudicator(nucypher_dependency, deployer_account, taco_application):
     _adjudicator = deployer_account.deploy(
         nucypher_dependency.Adjudicator,
         taco_application.address,
-        1, PENALTY_DEFAULT, 1, 1
+        1,
+        PENALTY_DEFAULT,
+        1,
+        1,
     )
     return _adjudicator
 
@@ -257,9 +260,7 @@ def coordinator(
     proxy_contract = nucypher_dependency.Coordinator.at(proxy.address)
     proxy_contract.makeInitiationPublic(sender=deployer_account)
     taco_child_application.initialize(
-        proxy_contract.address,
-        adjudicator.address,
-        sender=deployer_account
+        proxy_contract.address, adjudicator.address, sender=deployer_account
     )
     return proxy_contract
 
