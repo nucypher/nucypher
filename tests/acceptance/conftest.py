@@ -219,15 +219,9 @@ def taco_child_application(
 
 
 @pytest.fixture(scope="module")
-def adjudicator(nucypher_dependency, deployer_account, taco_application):
-    _adjudicator = deployer_account.deploy(
-        nucypher_dependency.Adjudicator,
-        taco_application.address,
-        1,
-        PENALTY_DEFAULT,
-        1,
-        1,
-    )
+def adjudicator(module_mocker, get_random_checksum_address):
+    _adjudicator = module_mocker.Mock()
+    _adjudicator.address = get_random_checksum_address()
     return _adjudicator
 
 
