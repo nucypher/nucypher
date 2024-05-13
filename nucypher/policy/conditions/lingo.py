@@ -4,7 +4,7 @@ import json
 import operator as pyoperator
 from enum import Enum
 from hashlib import md5
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
 from hexbytes import HexBytes
 from marshmallow import (
@@ -19,8 +19,13 @@ from marshmallow import (
 )
 from marshmallow.validate import OneOf, Range
 from packaging.version import parse as parse_version
+from web3 import HTTPProvider
 
-from nucypher.policy.conditions.base import AccessControlCondition, _Serializable
+from nucypher.policy.conditions.base import (
+    AccessControlCondition,
+    ExecutionCall,
+    _Serializable,
+)
 from nucypher.policy.conditions.context import (
     _resolve_context_variable,
     is_context_variable,
@@ -30,7 +35,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
     ReturnValueEvaluationError,
 )
-from nucypher.policy.conditions.types import ConditionDict, Lingo
+from nucypher.policy.conditions.types import ConditionDict, ExecutionCallDict, Lingo
 from nucypher.policy.conditions.utils import CamelCaseSchema
 
 
@@ -52,6 +57,7 @@ class _ConditionField(fields.Dict):
         instance = condition_class.from_dict(condition_data)
         return instance
 
+
 #
 # CONDITION = BASE_CONDITION | COMPOUND_CONDITION
 #
@@ -60,6 +66,8 @@ class _ConditionField(fields.Dict):
 # }
 #
 # COMPOUND_CONDITION = {
+#     "name": ...  (Optional)
+#     "conditionType": "compound",
 #     "operator": OPERATOR,
 #     "operands": [CONDITION*]
 # }
@@ -74,6 +82,7 @@ class ConditionType(Enum):
     CONTRACT = "contract"
     RPC = "rpc"
     COMPOUND = "compound"
+    SEQUENTIAL = "sequential"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -88,6 +97,8 @@ class CompoundAccessControlCondition(AccessControlCondition):
     OPERATORS = (AND_OPERATOR, OR_OPERATOR, NOT_OPERATOR)
     CONDITION_TYPE = ConditionType.COMPOUND.value
 
+    MAX_OPERANDS = 5
+
     @classmethod
     def _validate_operator_and_operands(
         cls,
@@ -98,15 +109,22 @@ class CompoundAccessControlCondition(AccessControlCondition):
         if operator not in cls.OPERATORS:
             raise exception_class(f"{operator} is not a valid operator")
 
+        num_operands = len(operands)
         if operator == cls.NOT_OPERATOR:
-            if len(operands) != 1:
+            if num_operands != 1:
                 raise exception_class(
                     f"Only 1 operand permitted for '{operator}' compound condition"
                 )
-        elif len(operands) < 2:
+        elif num_operands < 2:
             raise exception_class(
                 f"Minimum of 2 operand needed for '{operator}' compound condition"
             )
+        elif num_operands > cls.MAX_OPERANDS:
+            raise exception_class(
+                f"Maximum of {cls.MAX_OPERANDS} operands allowed for '{operator}' compound condition"
+            )
+
+        # TODO nested operands
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
@@ -153,7 +171,6 @@ class CompoundAccessControlCondition(AccessControlCondition):
 
         self._validate_operator_and_operands(operator, operands, InvalidCondition)
 
-        self.condition_type = condition_type
         self.operator = operator
         self.operands = operands
         self.condition_type = condition_type
@@ -209,6 +226,162 @@ _COMPARATOR_FUNCTIONS = {
     "<=": pyoperator.le,
     ">=": pyoperator.ge,
 }
+
+
+#
+# CONDITION = BASE_CONDITION | COMPOUND_CONDITION
+#
+# CALL = RPC_CALL | TIME_CALL | CONTRACT_CALL | ...
+#
+# VARIABLE = {
+#     "varName": STR,
+#     "calls": [
+#         CALL
+#     ]
+# }
+#
+# SEQUENTIAL_CONDITION = {
+#     "name": ...  (Optional)
+#     "conditionType": "sequential",
+#     "vars": [VARIABLE*]
+#     "condition": CONDITION
+# }
+
+
+class _ExecutionCallField(fields.Dict):
+    """Serializes/Deserializes Conditions to/from dictionaries"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        return value.to_dict()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        execution_call_dict = value
+        execution_call_class = self.resolve_execution_call_class(
+            execution_call_dict=execution_call_dict
+        )
+        instance = execution_call_class.from_dict(execution_call_dict)
+        return instance
+
+    @classmethod
+    def resolve_execution_call_class(cls, execution_call_dict: ExecutionCallDict):
+        from nucypher.policy.conditions.evm import (
+            ContractCall,
+            RPCCall,
+        )
+        from nucypher.policy.conditions.time import TimeRPCCall
+
+        call_type = execution_call_dict.get("callType")
+
+        for execution_call_type in (
+            RPCCall,
+            TimeRPCCall,
+            ContractCall,
+        ):
+            if execution_call_type.CALL_TYPE == call_type:
+                return execution_call_type
+
+        raise InvalidConditionLingo(
+            f"Cannot resolve condition lingo with call type {call_type}"
+        )
+
+
+class ExecutionVariable(_Serializable):
+    class Schema(CamelCaseSchema):
+        var_name = fields.Str(required=True)
+        call = _ExecutionCallField(required=True)
+
+    def __init__(self, var_name: str, call: ExecutionCall):
+        self.var_name = var_name
+        self.call = call
+
+
+class SequentialAccessControlCondition(AccessControlCondition):
+    CONDITION_TYPE = ConditionType.SEQUENTIAL.value
+    MAX_NUM_VARIABLES = 5
+
+    @classmethod
+    def _validate_variables(
+        cls,
+        variables: List[ExecutionVariable],
+        exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
+    ):
+        num_variables = len(variables)
+        if num_variables == 0:
+            raise exception_class("Must be at least one variable")
+
+        if num_variables > cls.MAX_NUM_VARIABLES:
+            raise exception_class(
+                f"Maximum of {cls.MAX_NUM_VARIABLES} variables are allowed"
+            )
+
+    class Schema(CamelCaseSchema):
+        SKIP_VALUES = (None,)
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.SEQUENTIAL.value), required=True
+        )
+        variables = fields.List(
+            fields.Nested(ExecutionVariable.Schema(), required=True)
+        )
+        name = fields.Str(required=False)
+        condition = _ConditionField(required=True)
+
+        # maintain field declaration ordering
+        class Meta:
+            ordered = True
+
+        @validates_schema
+        def validate_calls(self, data, **kwargs):
+            variables = data["variables"]
+            SequentialAccessControlCondition._validate_variables(
+                variables, ValidationError
+            )
+
+        @post_load
+        def make(self, data, **kwargs):
+            return SequentialAccessControlCondition(**data)
+
+    def __init__(
+        self,
+        variables: List[ExecutionVariable],
+        condition: AccessControlCondition,
+        condition_type: str = CONDITION_TYPE,
+        name: Optional[str] = None,
+    ):
+        if condition_type != self.CONDITION_TYPE:
+            raise InvalidCondition(
+                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
+            )
+        self._validate_variables(variables=variables, exception_class=InvalidCondition)
+
+        self.name = name
+        self.variables = variables
+        self.condition_type = condition_type
+        self.condition = condition
+
+    def __repr__(self):
+        r = f"{self.__class__.__name__}(num_vars={len(self.variables)},  condition={self.condition})"
+        return r
+
+    # TODO - think about not dereferencing context but using a dict;
+    #  may allows more freedom for params
+    def verify(
+        self, providers: Dict[int, Set[HTTPProvider]], **context
+    ) -> Tuple[bool, Any]:
+        inner_context = dict(context)  # don't modify passed in context - use a copy
+        # resolve variables
+        for var in self.variables:
+            result = var.call.execute(providers=providers, **inner_context)
+            inner_context[f":{var.var_name}"] = result
+
+        # check condition
+        condition_check, condition_result = self.condition.verify(
+            providers=providers, **inner_context
+        )
+        # TODO should the variable results be included in the overall result?
+        return condition_check, condition_result
 
 
 class ReturnValueTest:
@@ -411,11 +584,13 @@ class ConditionLingo(_Serializable):
         cls, condition: ConditionDict, version: int = None
     ) -> Type[AccessControlCondition]:
         """
-        TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
         Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
         conditions expression framework.
         """
-        from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
+        from nucypher.policy.conditions.evm import (
+            ContractCondition,
+            RPCCondition,
+        )
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
@@ -426,6 +601,7 @@ class ConditionLingo(_Serializable):
             ContractCondition,
             RPCCondition,
             CompoundAccessControlCondition,
+            SequentialAccessControlCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition

@@ -6,10 +6,12 @@ from packaging.version import parse as parse_version
 import nucypher
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
+from nucypher.policy.conditions.evm import ContractCall, RPCCall
 from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
+from nucypher.policy.conditions.time import TimeRPCCall
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
@@ -64,11 +66,66 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                     "conditionType": ConditionType.COMPOUND.value,
                     "operator": "or",
                     "operands": [
+                        # sequential condition
                         {
-                            "conditionType": ConditionType.TIME.value,
-                            "returnValueTest": {"value": 0, "comparator": ">"},
-                            "method": "blocktime",
-                            "chain": TESTERCHAIN_CHAIN_ID,
+                            "conditionType": ConditionType.SEQUENTIAL.value,
+                            "variables": [
+                                {
+                                    "varName": "timeValue",
+                                    "call": {
+                                        "callType": TimeRPCCall.CALL_TYPE,
+                                        "method": "blocktime",
+                                        "chain": TESTERCHAIN_CHAIN_ID,
+                                    },
+                                },
+                                {
+                                    "varName": "rpcValue",
+                                    "call": {
+                                        "callType": RPCCall.CALL_TYPE,
+                                        "chain": TESTERCHAIN_CHAIN_ID,
+                                        "method": "eth_getBalance",
+                                        "parameters": [
+                                            get_random_checksum_address(),
+                                            "latest",
+                                        ],
+                                    },
+                                },
+                                {
+                                    "varName": "contractValue",
+                                    "call": {
+                                        "callType": ContractCall.CALL_TYPE,
+                                        "chain": TESTERCHAIN_CHAIN_ID,
+                                        "method": "isPolicyActive",
+                                        "parameters": [":hrac"],
+                                        "contractAddress": get_random_checksum_address(),
+                                        "functionAbi": {
+                                            "type": "function",
+                                            "name": "isPolicyActive",
+                                            "stateMutability": "view",
+                                            "inputs": [
+                                                {
+                                                    "name": "_policyID",
+                                                    "type": "bytes16",
+                                                    "internalType": "bytes16",
+                                                }
+                                            ],
+                                            "outputs": [
+                                                {
+                                                    "name": "",
+                                                    "type": "bool",
+                                                    "internalType": "bool",
+                                                }
+                                            ],
+                                        },
+                                    },
+                                },
+                            ],
+                            "condition": {
+                                "conditionType": ConditionType.TIME.value,
+                                "chain": TESTERCHAIN_CHAIN_ID,
+                                "method": "blocktime",
+                                "returnValueTest": {"value": 0, "comparator": ">"},
+                            },
                         },
                         {
                             "conditionType": ConditionType.RPC.value,
@@ -98,7 +155,6 @@ def lingo_with_compound_conditions(get_random_checksum_address):
         },
     }
 
-
 def test_invalid_condition():
     # no version or condition
     data = dict()
@@ -126,6 +182,9 @@ def test_invalid_condition():
 
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_json(json.dumps(data))
+
+
+def test_invalid_compound_condition():
 
     # invalid operator
     invalid_operator = {
@@ -275,7 +334,7 @@ def test_condition_lingo_to_from_json(lingo_with_compound_conditions):
     assert clingo_from_json.to_dict() == lingo_with_compound_conditions
 
 
-def test_condition_lingo_repr(lingo_with_compound_conditions):
+def test_compound_condition_lingo_repr(lingo_with_compound_conditions):
     clingo = ConditionLingo.from_dict(lingo_with_compound_conditions)
     clingo_string = f"{clingo}"
     assert f"{clingo.__class__.__name__}" in clingo_string
