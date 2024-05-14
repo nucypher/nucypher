@@ -112,7 +112,7 @@ def test_user_address_context_variable_verification(
     invalid_signature_context[USER_ADDRESS_CONTEXT][
         "signature"
     ] = "0xdeadbeef"  # invalid signature
-    with pytest.raises(ContextVariableVerificationFailed):
+    with pytest.raises(InvalidContextVariableData):
         get_context_value(USER_ADDRESS_CONTEXT, **invalid_signature_context)
 
 
