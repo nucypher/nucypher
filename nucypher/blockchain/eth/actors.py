@@ -738,7 +738,7 @@ class Operator(BaseActor):
 
         return async_tx
 
-    def derive_decryption_share(
+    def produce_decryption_share(
         self,
         ritual_id: int,
         ciphertext_header: CiphertextHeader,
@@ -750,7 +750,7 @@ class Operator(BaseActor):
         aggregated_transcript = AggregatedTranscript.from_bytes(
             bytes(ritual.aggregated_transcript)
         )
-        decryption_share = self.ritual_power.derive_decryption_share(
+        decryption_share = self.ritual_power.produce_decryption_share(
             nodes=validators,
             threshold=ritual.threshold,
             shares=ritual.shares,
@@ -798,10 +798,10 @@ class Operator(BaseActor):
                 f"Node not part of ritual {decryption_request.ritual_id}",
             )
 
-    def _verify_ciphertext_authorization(
+    def _verify_encryption_authorization(
         self, decryption_request: ThresholdDecryptionRequest
     ) -> None:
-        """check that the ciphertext is authorized for this ritual"""
+        """Check that the encryption is authorized for this ritual"""
         ciphertext_header = decryption_request.ciphertext_header
         authorization = decryption_request.acp.authorization
         if not self.coordinator_agent.is_encryption_authorized(
@@ -844,10 +844,10 @@ class Operator(BaseActor):
     ) -> None:
         """check that the decryption request is authorized for this ritual"""
         self._verify_active_ritual(decryption_request)
-        self._verify_ciphertext_authorization(decryption_request)
+        self._verify_encryption_authorization(decryption_request)
         self._evaluate_conditions(decryption_request)
 
-    def _derive_decryption_share_for_request(
+    def _produce_decryption_share_for_request(
         self,
         decryption_request: ThresholdDecryptionRequest,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
@@ -856,7 +856,7 @@ class Operator(BaseActor):
             decryption_request=decryption_request
         )
         try:
-            decryption_share = self.derive_decryption_share(
+            decryption_share = self.produce_decryption_share(
                 ritual_id=decryption_request.ritual_id,
                 ciphertext_header=decryption_request.ciphertext_header,
                 aad=decryption_request.acp.aad(),
