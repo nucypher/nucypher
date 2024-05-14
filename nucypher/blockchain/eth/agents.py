@@ -689,6 +689,7 @@ class CoordinatorAgent(EthereumContractAgent):
         result = self.contract.functions.numberOfRituals().call()
         return result
 
+    # TODO: Deprecate this method. Use IEncryptionAuthorizer contract directly - #3349
     @contract_api(CONTRACT_CALL)
     def is_encryption_authorized(
         self, ritual_id: int, evidence: bytes, ciphertext_header: bytes
