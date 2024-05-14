@@ -25,6 +25,7 @@ marshmallow = '*'
 appdirs = '*'
 constant-sorrow = '^0.1.0a9'
 prometheus-client = '*'
+siwe = "*"
 time-machine = "^2.13.0"
 twisted = "^24.2.0rc1"
 
