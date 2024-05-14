@@ -1,6 +1,6 @@
 import time
 from decimal import Decimal
-from typing import List, Union, Dict
+from typing import Dict, List, Union
 
 import requests
 from eth_typing import ChecksumAddress
@@ -86,18 +86,34 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
             headers={"Content-Type": "application/json"},
             timeout=5
         )
-        if response.status_code == 200:
-            data = response.json()
-            if "result" in data and data["result"] is not None:
-                block_data = data["result"]
-                timestamp = int(block_data.get("timestamp"), 16)
-                system_time = time.time()
-                drift = abs(system_time - timestamp)
-                if drift < max_drift_seconds:
-                    return True
-                return False
     except requests.exceptions.RequestException:
         return False
+
+    if response.status_code != 200:
+        return False
+
+    try:
+        data = response.json()
+        if "result" not in data:
+            return False
+    except requests.exceptions.RequestException:
+        return False
+
+    if data["result"] is None:
+        return False
+    block_data = data["result"]
+
+    try:
+        timestamp = int(block_data.get("timestamp"), 16)
+    except TypeError:
+        return False
+
+    system_time = time.time()
+    drift = abs(system_time - timestamp)
+    if drift > max_drift_seconds:
+        return False
+
+    return True  # finally!
 
 
 def get_default_rpc_endpoints() -> Dict[int, List[str]]:
