@@ -49,12 +49,12 @@ def _recover_user_address(**context) -> ChecksumAddress:
         )
     except Auth.AuthenticationFailed:
         raise ContextVariableVerificationFailed(
-            f"Invalid signature for '{USER_ADDRESS_CONTEXT}'; does not match expected address, {expected_address}"
+            f"Authentication failed for '{USER_ADDRESS_CONTEXT}'"
         )
     except Exception as e:
         # data could not be processed
         raise InvalidContextVariableData(
-            f'Invalid data provided for "{USER_ADDRESS_CONTEXT}"; {e.__class__.__name__} - {e}'
+            f"Invalid context variable data for '{USER_ADDRESS_CONTEXT}'; {e.__class__.__name__} - {e}"
         )
 
     return expected_address
