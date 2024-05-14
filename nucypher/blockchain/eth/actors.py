@@ -815,11 +815,47 @@ class Operator(BaseActor):
         """Check that the encryption is authorized for this ritual"""
         ciphertext_header = decryption_request.ciphertext_header
         authorization = decryption_request.acp.authorization
-        if not self.coordinator_agent.is_encryption_authorized(
-            ritual_id=decryption_request.ritual_id,
-            evidence=authorization,
-            ciphertext_header=bytes(ciphertext_header),
-        ):
+        ritual = self._resolve_ritual(decryption_request.ritual_id)
+        abi = """[
+                {
+                    "type": "function",
+                    "name": "isAuthorized",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "ritualId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "evidence",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        },
+                        {
+                            "name": "ciphertextHeader",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                }
+            ]"""
+        encryption_authorizer = self.coordinator_agent.blockchain.w3.eth.contract(
+            address=ritual.access_controller, abi=abi
+        )
+        is_authorized = encryption_authorizer.functions.isAuthorized(
+            decryption_request.ritual_id,
+            authorization,
+            bytes(ciphertext_header),
+        ).call()
+        if not is_authorized:
             raise self.UnauthorizedRequest(
                 f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",
             )
