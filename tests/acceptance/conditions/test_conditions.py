@@ -25,6 +25,7 @@ from nucypher.policy.conditions.evm import (
 from nucypher.policy.conditions.exceptions import (
     ContextVariableVerificationFailed,
     InvalidCondition,
+    InvalidConditionContext,
     InvalidContextVariableData,
     NoConnectionToChain,
     RequiredContextVariable,
@@ -112,7 +113,7 @@ def test_user_address_context_variable_verification(
     invalid_signature_context[USER_ADDRESS_CONTEXT][
         "signature"
     ] = "0xdeadbeef"  # invalid signature
-    with pytest.raises(InvalidContextVariableData):
+    with pytest.raises(InvalidConditionContext):
         get_context_value(USER_ADDRESS_CONTEXT, **invalid_signature_context)
 
 

@@ -646,10 +646,10 @@ def rpc_condition():
     return condition
 
 
-@pytest.fixture(scope="module")
-def valid_user_address_context():
-    return {
-        USER_ADDRESS_CONTEXT: {
+@pytest.fixture(scope="module", params=["EIP712", "SIWE"])
+def valid_user_address_context(request):
+    if request.param == "EIP712":
+        auth_message = {
             "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
             "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
             "typedData": {
@@ -682,7 +682,14 @@ def valid_user_address_context():
                 },
             },
         }
-    }
+    else:
+        auth_message = {
+            "signature": "0x85583ed06e09efd25f0f5b9f948e092f70753182ccd36cfcaa5aa6f7dde6916d7a8fbc367180573f32a6f75410ee99ef202300d991cecac53a6a86baa1c2f1251b",
+            "address": "0x638105AA1B69406560f6428aEFACe3DB9da83c64",
+            "scheme": "SIWE",
+            "typedData": "localhost:8080 wants you to sign in with your Ethereum account:\n0x638105AA1B69406560f6428aEFACe3DB9da83c64\n\nSign in with Ethereum to the app.\n\nURI: http://localhost:8080\nVersion: 1\nChain ID: 1\nNonce: BIiotOrXWUldCD6Z5\nIssued At: 2023-05-09T22:09:03.350Z",
+        }
+    return {USER_ADDRESS_CONTEXT: auth_message}
 
 
 @pytest.fixture(scope="session", autouse=True)
