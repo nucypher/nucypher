@@ -73,3 +73,9 @@ class SIWEAuth(Auth):
             raise cls.AuthenticationFailed(
                 f"Invalid SIWE signature - {e.__class__.__name__} - {e}"
             )
+
+        if siwe_message.address != expected_address:
+            # verification failed - addresses don't match
+            raise cls.AuthenticationFailed(
+                f"Invalid SIWE signature; does not match expected address, {expected_address}"
+            )
