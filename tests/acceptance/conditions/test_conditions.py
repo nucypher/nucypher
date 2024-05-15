@@ -16,6 +16,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
+    _recover_user_address,
     get_context_value,
 )
 from nucypher.policy.conditions.evm import (
@@ -88,10 +89,17 @@ def test_user_address_context_invalid_typed_data(valid_user_address_context):
         get_context_value(USER_ADDRESS_CONTEXT, **context)
 
 
+@pytest.mark.parametrize(
+    "valid_user_address_context", ["EIP712", "SIWE"], indirect=True
+)
 def test_user_address_context_variable_verification(
     valid_user_address_context, accounts
 ):
-    # valid user address context - signature matches address
+    # call underlying directive directly (appease codecov)
+    address = _recover_user_address(**valid_user_address_context)
+    assert address == valid_user_address_context[USER_ADDRESS_CONTEXT]["address"]
+
+    # valid user address context
     address = get_context_value(USER_ADDRESS_CONTEXT, **valid_user_address_context)
     assert address == valid_user_address_context[USER_ADDRESS_CONTEXT]["address"]
 
