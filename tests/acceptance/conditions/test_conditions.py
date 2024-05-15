@@ -14,6 +14,7 @@ from nucypher.blockchain.eth.agents import (
     SubscriptionManagerAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.policy.conditions.auth import Auth
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
     _recover_user_address,
@@ -65,7 +66,7 @@ def test_required_context_variable(
 
 @pytest.mark.parametrize("expected_entry", ["address", "signature", "typedData"])
 @pytest.mark.parametrize(
-    "valid_user_address_context", ["EIP712", "SIWE"], indirect=True
+    "valid_user_address_context", Auth.AuthScheme.values(), indirect=True
 )
 def test_user_address_context_missing_required_entries(
     expected_entry, valid_user_address_context
@@ -77,7 +78,7 @@ def test_user_address_context_missing_required_entries(
 
 
 @pytest.mark.parametrize(
-    "valid_user_address_context", ["EIP712", "SIWE"], indirect=True
+    "valid_user_address_context", Auth.AuthScheme.values(), indirect=True
 )
 def test_user_address_context_invalid_typed_data(valid_user_address_context):
     # invalid typed data
@@ -90,7 +91,7 @@ def test_user_address_context_invalid_typed_data(valid_user_address_context):
 
 
 @pytest.mark.parametrize(
-    "valid_user_address_context", ["EIP712", "SIWE"], indirect=True
+    "valid_user_address_context", Auth.AuthScheme.values(), indirect=True
 )
 def test_user_address_context_variable_verification(
     valid_user_address_context, accounts

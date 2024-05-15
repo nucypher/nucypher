@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import List
 
 from eth_account.account import Account
 from eth_account.messages import HexBytes, encode_typed_data
@@ -9,6 +10,10 @@ class Auth:
     class AuthScheme(Enum):
         EIP712 = "EIP712"
         SIWE = "SIWE"
+
+        @classmethod
+        def values(cls) -> List[str]:
+            return [scheme.value for scheme in cls]
 
     class InvalidData(Exception):
         pass

@@ -14,7 +14,9 @@ def test_auth_scheme():
         _ = Auth.from_scheme(scheme="rando")
 
 
-@pytest.mark.parametrize("valid_user_address_context", ["EIP712"], indirect=True)
+@pytest.mark.parametrize(
+    "valid_user_address_context", [Auth.AuthScheme.EIP712.value], indirect=True
+)
 def test_authenticate_eip712_problematic_values(
     valid_user_address_context, get_random_checksum_address
 ):
@@ -66,7 +68,9 @@ def test_authenticate_eip712_problematic_values(
     EIP712Auth.authenticate(data, signature, address)
 
 
-@pytest.mark.parametrize("valid_user_address_context", ["SIWE"], indirect=True)
+@pytest.mark.parametrize(
+    "valid_user_address_context", [Auth.AuthScheme.SIWE.value], indirect=True
+)
 def test_authenticate_siwe(valid_user_address_context, get_random_checksum_address):
     data = valid_user_address_context[USER_ADDRESS_CONTEXT]["typedData"]
     signature = valid_user_address_context[USER_ADDRESS_CONTEXT]["signature"]
