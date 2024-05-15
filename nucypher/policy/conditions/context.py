@@ -38,7 +38,7 @@ def _recover_user_address(**context) -> ChecksumAddress:
         expected_address = to_checksum_address(user_address_info["address"])
         type_data = user_address_info["typedData"]
 
-        scheme = user_address_info.get("scheme", Auth.AuthScheme.EIP712)
+        scheme = user_address_info.get("scheme", Auth.AuthScheme.EIP712.value)
         auth = Auth.from_scheme(scheme)
         auth.authenticate(
             data=type_data, signature=signature, expected_address=expected_address

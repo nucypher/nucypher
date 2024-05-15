@@ -21,10 +21,10 @@ class Auth:
         raise NotImplementedError
 
     @classmethod
-    def from_scheme(cls, scheme: AuthScheme):
-        if scheme == cls.AuthScheme.EIP712:
+    def from_scheme(cls, scheme: str):
+        if scheme == cls.AuthScheme.EIP712.value:
             return EIP712Auth
-        elif scheme == cls.AuthScheme.SIWE:
+        elif scheme == cls.AuthScheme.SIWE.value:
             return SIWEAuth
 
         raise ValueError(f"Invalid authentication scheme: {scheme}")
