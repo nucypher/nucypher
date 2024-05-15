@@ -63,14 +63,22 @@ def test_required_context_variable(
 
 
 @pytest.mark.parametrize("expected_entry", ["address", "signature", "typedData"])
-def test_user_address_context_missing_required_entries(expected_entry, valid_user_address_context):
+@pytest.mark.parametrize(
+    "valid_user_address_context", ["EIP712", "SIWE"], indirect=True
+)
+def test_user_address_context_missing_required_entries(
+    expected_entry, valid_user_address_context
+):
     context = copy.deepcopy(valid_user_address_context)
     del context[USER_ADDRESS_CONTEXT][expected_entry]
     with pytest.raises(InvalidContextVariableData):
         get_context_value(USER_ADDRESS_CONTEXT, **context)
 
 
-def test_user_address_context_invalid_eip712_typed_data(valid_user_address_context):
+@pytest.mark.parametrize(
+    "valid_user_address_context", ["EIP712", "SIWE"], indirect=True
+)
+def test_user_address_context_invalid_typed_data(valid_user_address_context):
     # invalid typed data
     context = copy.deepcopy(valid_user_address_context)
     context[USER_ADDRESS_CONTEXT]["typedData"] = dict(

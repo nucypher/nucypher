@@ -646,7 +646,7 @@ def rpc_condition():
     return condition
 
 
-@pytest.fixture(scope="module", params=["EIP712", "SIWE"])
+@pytest.fixture(scope="module")
 def valid_user_address_context(request):
     if request.param == "EIP712":
         auth_message = {
