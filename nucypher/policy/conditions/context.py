@@ -45,11 +45,11 @@ def _recover_user_address(**context) -> ChecksumAddress:
         )
     except Auth.InvalidData as e:
         raise InvalidContextVariableData(
-            f"Invalid context variable data for '{USER_ADDRESS_CONTEXT}': {e}"
+            f"Invalid context variable data for '{USER_ADDRESS_CONTEXT}'; {e}"
         )
-    except Auth.AuthenticationFailed:
+    except Auth.AuthenticationFailed as e:
         raise ContextVariableVerificationFailed(
-            f"Authentication failed for '{USER_ADDRESS_CONTEXT}'"
+            f"Authentication failed for '{USER_ADDRESS_CONTEXT}'; {e}"
         )
     except Exception as e:
         # data could not be processed
