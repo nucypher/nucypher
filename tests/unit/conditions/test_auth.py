@@ -17,9 +17,7 @@ def test_auth_scheme():
 @pytest.mark.parametrize(
     "valid_user_address_context", [Auth.AuthScheme.EIP712.value], indirect=True
 )
-def test_authenticate_eip712_problematic_values(
-    valid_user_address_context, get_random_checksum_address
-):
+def test_authenticate_eip712(valid_user_address_context, get_random_checksum_address):
     data = valid_user_address_context[USER_ADDRESS_CONTEXT]["typedData"]
     signature = valid_user_address_context[USER_ADDRESS_CONTEXT]["signature"]
     address = valid_user_address_context[USER_ADDRESS_CONTEXT]["address"]

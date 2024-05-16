@@ -15,6 +15,7 @@ from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
+from siwe import SiweMessage
 from twisted.internet.task import Clock
 from web3 import Web3
 
@@ -24,7 +25,7 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
 )
-from nucypher.blockchain.eth.signers.software import KeystoreSigner
+from nucypher.blockchain.eth.signers.software import InMemorySigner, KeystoreSigner
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.characters import (
     AliceConfiguration,
@@ -685,11 +686,26 @@ def valid_user_address_context(request):
             },
         }
     elif request.param == Auth.AuthScheme.SIWE.value:
+        signer = InMemorySigner()
+        siwe_message_data = {
+            "domain": "login.xyz",
+            "address": f"{signer.accounts[0]}",
+            "statement": "Sign-In With Ethereum Example Statement",
+            "uri": "https://login.xyz",
+            "version": "1",
+            "nonce": "bTyXgcQxn2htgkjJn",
+            "chain_id": 1,
+            "issued_at": f"{maya.now().iso8601()}",
+        }
+        siwe_message = SiweMessage(siwe_message_data).prepare_message()
+        signature = signer.sign_message(
+            account=signer.accounts[0], message=siwe_message.encode()
+        )
         auth_message = {
-            "signature": "0x85583ed06e09efd25f0f5b9f948e092f70753182ccd36cfcaa5aa6f7dde6916d7a8fbc367180573f32a6f75410ee99ef202300d991cecac53a6a86baa1c2f1251b",
-            "address": "0x638105AA1B69406560f6428aEFACe3DB9da83c64",
+            "signature": f"{signature.hex()}",
+            "address": f"{signer.accounts[0]}",
             "scheme": f"{Auth.AuthScheme.SIWE.value}",
-            "typedData": "localhost:8080 wants you to sign in with your Ethereum account:\n0x638105AA1B69406560f6428aEFACe3DB9da83c64\n\nSign in with Ethereum to the app.\n\nURI: http://localhost:8080\nVersion: 1\nChain ID: 1\nNonce: BIiotOrXWUldCD6Z5\nIssued At: 2023-05-09T22:09:03.350Z",
+            "typedData": f"{siwe_message}",
         }
     else:
         raise ValueError(f"No context for provided scheme, {request.param}")
