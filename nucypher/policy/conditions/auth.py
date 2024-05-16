@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import List
 
+import maya
 from eth_account.account import Account
 from eth_account.messages import HexBytes, encode_typed_data
 from siwe import SiweMessage, VerificationError
@@ -53,30 +54,42 @@ class EIP712Auth(Auth):
             )
         except Exception as e:
             # data could not be processed
-            raise cls.InvalidData(f"Invalid auth data: {e.__class__.__name__} - {e}")
+            raise cls.InvalidData(
+                f"Invalid EIP712 message: {str(e) or e.__class__.__name__}"
+            )
 
         if address_for_signature != expected_address:
             # verification failed - addresses don't match
             raise cls.AuthenticationFailed(
-                f"Invalid EIP712 signature; does not match expected address, {expected_address}"
+                f"EIP712 verification failed; signature does not match expected address, {expected_address}"
             )
 
 
 class SIWEAuth(Auth):
+    # TODO; this is a safety precaution - is this what we want and is this the correct value?
+    FRESHNESS_IN_HOURS = 2
+
     @classmethod
     def authenticate(cls, data, signature, expected_address):
         try:
             siwe_message = SiweMessage(message=data)
         except Exception as e:
             raise cls.InvalidData(
-                f"Invalid SIWE message - {e.__class__.__name__} - {e}"
+                f"Invalid SIWE message - {str(e) or e.__class__.__name__}"
+            )
+
+        # enforce a freshness check
+        issued_at = maya.MayaDT.from_iso8601(siwe_message.issued_at)
+        if maya.now() > issued_at.add(hours=cls.FRESHNESS_IN_HOURS):
+            raise cls.AuthenticationFailed(
+                f"SIWE message is stale; more than {cls.FRESHNESS_IN_HOURS} hours old (issued at {issued_at.iso8601()})"
             )
 
         try:
             siwe_message.verify(signature=signature)
         except VerificationError as e:
             raise cls.AuthenticationFailed(
-                f"Invalid SIWE signature - {e.__class__.__name__} - {e}"
+                f"SIWE verification failed - {str(e) or e.__class__.__name__}"
             )
 
         if siwe_message.address != expected_address:
