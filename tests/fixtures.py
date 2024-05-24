@@ -15,6 +15,7 @@ from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
+from siwe import SiweMessage
 from twisted.internet.task import Clock
 from web3 import Web3
 
@@ -24,7 +25,7 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
 )
-from nucypher.blockchain.eth.signers.software import KeystoreSigner
+from nucypher.blockchain.eth.signers.software import InMemorySigner, KeystoreSigner
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.characters import (
     AliceConfiguration,
@@ -35,6 +36,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
+from nucypher.policy.conditions.auth import Auth
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.lingo import (
@@ -647,11 +649,12 @@ def rpc_condition():
 
 
 @pytest.fixture(scope="module")
-def valid_user_address_context():
-    return {
-        USER_ADDRESS_CONTEXT: {
+def valid_user_address_context(request):
+    if request.param == Auth.AuthScheme.EIP712.value:
+        auth_message = {
             "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
             "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
+            "scheme": f"{Auth.AuthScheme.EIP712.value}",
             "typedData": {
                 "primaryType": "Wallet",
                 "types": {
@@ -682,7 +685,32 @@ def valid_user_address_context():
                 },
             },
         }
-    }
+    elif request.param == Auth.AuthScheme.SIWE.value:
+        signer = InMemorySigner()
+        siwe_message_data = {
+            "domain": "login.xyz",
+            "address": f"{signer.accounts[0]}",
+            "statement": "Sign-In With Ethereum Example Statement",
+            "uri": "https://login.xyz",
+            "version": "1",
+            "nonce": "bTyXgcQxn2htgkjJn",
+            "chain_id": 1,
+            "issued_at": f"{maya.now().iso8601()}",
+        }
+        siwe_message = SiweMessage(siwe_message_data).prepare_message()
+        signature = signer.sign_message(
+            account=signer.accounts[0], message=siwe_message.encode()
+        )
+        auth_message = {
+            "signature": f"{signature.hex()}",
+            "address": f"{signer.accounts[0]}",
+            "scheme": f"{Auth.AuthScheme.SIWE.value}",
+            "typedData": f"{siwe_message}",
+        }
+    else:
+        raise ValueError(f"No context for provided scheme, {request.param}")
+
+    return {USER_ADDRESS_CONTEXT: auth_message}
 
 
 @pytest.fixture(scope="session", autouse=True)
