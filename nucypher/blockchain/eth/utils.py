@@ -9,6 +9,9 @@ from web3.contract.contract import ContractConstructor, ContractFunction
 from web3.types import TxParams
 
 from nucypher.blockchain.eth.constants import CHAINLIST_URL
+from nucypher.utilities.logging import Logger
+
+LOGGER = Logger("utility")
 
 
 def prettify_eth_amount(amount, original_denomination: str = 'wei') -> str:
@@ -79,6 +82,7 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
         "params": ["latest", False],
         "id": 1
     }
+    LOGGER.debug(f"Checking health of RPC endpoint {endpoint}")
     try:
         response = requests.post(
             endpoint,
@@ -87,32 +91,44 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
             timeout=5
         )
     except requests.exceptions.RequestException:
+        LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: network error")
         return False
 
     if response.status_code != 200:
+        LOGGER.debug(
+            f"RPC endpoint {endpoint} is unhealthy: {response.status_code} | {response.text}"
+        )
         return False
 
     try:
         data = response.json()
         if "result" not in data:
+            LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: no response data")
             return False
     except requests.exceptions.RequestException:
+        LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: {response.text}")
         return False
 
     if data["result"] is None:
+        LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: no block data")
         return False
     block_data = data["result"]
 
     try:
         timestamp = int(block_data.get("timestamp"), 16)
     except TypeError:
+        LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: invalid block data")
         return False
 
     system_time = time.time()
     drift = abs(system_time - timestamp)
     if drift > max_drift_seconds:
+        LOGGER.debug(
+            f"RPC endpoint {endpoint} is unhealthy: drift too large ({drift} seconds)"
+        )
         return False
 
+    LOGGER.debug(f"RPC endpoint {endpoint} is healthy")
     return True  # finally!
 
 
@@ -120,12 +136,14 @@ def get_default_rpc_endpoints() -> Dict[int, List[str]]:
     """
     Fetches the default RPC endpoints for various chains from the nucypher/chainlist repository.
     """
-    # TODO: Memoize?  When to refresh?
+    LOGGER.debug("Fetching default RPC endpoints from remote chainlist")
     response = requests.get(CHAINLIST_URL)
     if response.status_code == 200:
         return {int(chain_id): endpoints for chain_id, endpoints in response.json().items()}
     else:
-        # TODO: use an embedded fallback here?
+        LOGGER.error(
+            f"Failed to fetch default RPC endpoints: {response.status_code} | {response.text}"
+        )
         return {}
 
 
@@ -137,8 +155,11 @@ def get_healthy_default_rpc_endpoints(chain_id: int) -> List[str]:
     endpoints = get_default_rpc_endpoints()
     chain_endpoints = endpoints.get(chain_id)
     if not chain_endpoints:
+        LOGGER.error(f"No default RPC endpoints found for chain ID {chain_id}")
         return healthy
     for endpoint in chain_endpoints:
         if rpc_endpoint_health_check(endpoint=endpoint):
             healthy.append(endpoint)
+
+    LOGGER.info(f"Healthy RPC endpoints for chain ID {chain_id}: {healthy}")
     return healthy
