@@ -187,3 +187,42 @@ def test_authenticate_siwe(get_random_checksum_address):
             not_stale_but_past_expiry_signature.hex(),
             valid_address_for_signature,
         )
+
+    # not before specified
+    not_before_message_data = dict(siwe_message_data)
+    not_before_message_data["not_before"] = f"{maya.now().add(hours=1).iso8601()}"
+    not_before_message = SiweMessage(not_before_message_data).prepare_message()
+    not_before_message_signature = signer.sign_message(
+        account=valid_address_for_signature, message=not_before_message.encode()
+    )
+    with pytest.raises(
+        Auth.AuthenticationFailed, match="SIWE verification failed - NotYetValidMessage"
+    ):
+        SIWEAuth.authenticate(
+            not_before_message,
+            not_before_message_signature.hex(),
+            valid_address_for_signature,
+        )
+
+    # not before specified, so stale message check not performed
+    not_before_no_stale_check_message_data = dict(siwe_message_data)
+    not_before_no_stale_check_message_data["not_before"] = (
+        f"{maya.now().subtract(hours=SIWEAuth.FRESHNESS_IN_HOURS - 1).iso8601()}"
+    )
+    # issued more than freshness check hours ago
+    old_but_not_stale_message_data["issued_at"] = (
+        f"{maya.now().subtract(hours=SIWEAuth.FRESHNESS_IN_HOURS - 2).iso8601()}"
+    )
+    not_before_no_stale_check_message = SiweMessage(
+        not_before_no_stale_check_message_data
+    ).prepare_message()
+    not_before_no_stale_check_message_signature = signer.sign_message(
+        account=valid_address_for_signature,
+        message=not_before_no_stale_check_message.encode(),
+    )
+    # even though stale, "not-before" causes check to be skipped
+    SIWEAuth.authenticate(
+        not_before_no_stale_check_message,
+        not_before_no_stale_check_message_signature.hex(),
+        valid_address_for_signature,
+    )
