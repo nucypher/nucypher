@@ -10,7 +10,7 @@ from siwe import SiweMessage, VerificationError
 class Auth:
     class AuthScheme(Enum):
         EIP712 = "EIP712"
-        SIWE = "SIWE"
+        EIP4361 = "EIP4361"
 
         @classmethod
         def values(cls) -> List[str]:
@@ -30,8 +30,8 @@ class Auth:
     def from_scheme(cls, scheme: str):
         if scheme == cls.AuthScheme.EIP712.value:
             return EIP712Auth
-        elif scheme == cls.AuthScheme.SIWE.value:
-            return SIWEAuth
+        elif scheme == cls.AuthScheme.EIP4361.value:
+            return EIP4361Auth
 
         raise ValueError(f"Invalid authentication scheme: {scheme}")
 
@@ -65,7 +65,7 @@ class EIP712Auth(Auth):
             )
 
 
-class SIWEAuth(Auth):
+class EIP4361Auth(Auth):
     FRESHNESS_IN_HOURS = 2
 
     @classmethod
@@ -74,14 +74,14 @@ class SIWEAuth(Auth):
             siwe_message = SiweMessage(message=data)
         except Exception as e:
             raise cls.InvalidData(
-                f"Invalid SIWE message - {str(e) or e.__class__.__name__}"
+                f"Invalid EIP4361 message - {str(e) or e.__class__.__name__}"
             )
 
         try:
             siwe_message.verify(signature=signature)
         except VerificationError as e:
             raise cls.AuthenticationFailed(
-                f"SIWE verification failed - {str(e) or e.__class__.__name__}"
+                f"EIP4361 verification failed - {str(e) or e.__class__.__name__}"
             )
 
         # enforce a freshness check
@@ -90,11 +90,11 @@ class SIWEAuth(Auth):
             issued_at = maya.MayaDT.from_iso8601(siwe_message.issued_at)
             if maya.now() > issued_at.add(hours=cls.FRESHNESS_IN_HOURS):
                 raise cls.AuthenticationFailed(
-                    f"SIWE message is stale; more than {cls.FRESHNESS_IN_HOURS} hours old (issued at {issued_at.iso8601()})"
+                    f"EIP4361 message is stale; more than {cls.FRESHNESS_IN_HOURS} hours old (issued at {issued_at.iso8601()})"
                 )
 
         if siwe_message.address != expected_address:
             # verification failed - addresses don't match
             raise cls.AuthenticationFailed(
-                f"Invalid SIWE signature; does not match expected address, {expected_address}"
+                f"Invalid EIP4361 signature; does not match expected address, {expected_address}"
             )
