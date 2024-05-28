@@ -27,4 +27,4 @@ jobs:
           pip install .
 
       - name: Lint with Ruff
-        run: ruff --output-format=github nucypher
+        run: ruff check --output-format=github nucypher
