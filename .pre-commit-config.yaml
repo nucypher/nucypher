@@ -12,7 +12,7 @@ repos:
         stages: [push]  # required additional setup: pre-commit install && pre-commit install -t pre-push
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.3.0
+    rev: v4.5.0
     hooks:
 
       # Git
@@ -36,7 +36,7 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/akaihola/darker
-    rev: 1.7.2
+    rev: v2.1.1
     hooks:
     -   id: darker
         args: ["--check"]
@@ -45,6 +45,6 @@ repos:
         stages: [commit]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.1.4'
+    rev: v0.4.5
     hooks:
     - id: ruff
