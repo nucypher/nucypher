@@ -4,7 +4,7 @@ import time
 import traceback
 from collections import defaultdict
 from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Set, Union
+from typing import DefaultDict, Dict, List, Optional, Union
 
 import maya
 from atxm.exceptions import InsufficientFunds
@@ -271,14 +271,13 @@ class Operator(BaseActor):
         provider = HTTPProvider(endpoint_uri=uri)
         return provider
 
-
     def connect_condition_providers(
         self, endpoints: Dict[int, List[str]]
-    ) -> DefaultDict[int, Set[HTTPProvider]]:
-        providers = defaultdict(set)
+    ) -> DefaultDict[int, List[HTTPProvider]]:
+        providers = defaultdict(list)
 
         # check that we have endpoints for all condition chains
-        if self.domain.condition_chain_ids != set(endpoints):
+        if set(self.domain.condition_chain_ids) != set(endpoints):
             raise self.ActorError(
                 f"Missing blockchain endpoints for chains: "
                 f"{self.domain.condition_chain_ids - set(endpoints)}"
@@ -298,20 +297,22 @@ class Operator(BaseActor):
                     raise self.ActorError(
                         f"Condition blockchain endpoint {uri} is not on chain {chain_id}"
                     )
-                providers[int(chain_id)].add(provider)
+                providers[int(chain_id)].append(provider)
 
         # Ingest default RPC providers for each chain
         for chain_id in self.domain.condition_chain_ids:
             default_endpoints = get_healthy_default_rpc_endpoints(chain_id)
             for uri in default_endpoints:
                 provider = self._make_condition_provider(uri)
-                providers[chain_id].add(provider)
+                providers[chain_id].append(provider)
+
+        self.log.info(f"Connected to {len(providers)} default RPC endpoints")
 
         humanized_chain_ids = ", ".join(
             _CONDITION_CHAINS[chain_id] for chain_id in providers
         )
         self.log.info(
-            f"Connected to {len(providers)} blockchains for condition checking: {humanized_chain_ids}"
+            f"Connected to {len(providers)} total endpoints for condition checking: {humanized_chain_ids}"
         )
 
         return providers
