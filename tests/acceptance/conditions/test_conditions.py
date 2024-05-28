@@ -1,4 +1,3 @@
-import copy
 import json
 import os
 from unittest import mock
@@ -14,10 +13,8 @@ from nucypher.blockchain.eth.agents import (
     SubscriptionManagerAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.policy.conditions.auth import Auth
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
-    _recover_user_address,
     get_context_value,
 )
 from nucypher.policy.conditions.evm import (
@@ -25,10 +22,7 @@ from nucypher.policy.conditions.evm import (
     RPCCondition,
 )
 from nucypher.policy.conditions.exceptions import (
-    ContextVariableVerificationFailed,
     InvalidCondition,
-    InvalidConditionContext,
-    InvalidContextVariableData,
     NoConnectionToChain,
     RequiredContextVariable,
     RPCExecutionFailed,
@@ -62,76 +56,6 @@ def test_required_context_variable(
         custom_context_variable_erc20_condition.verify(
             providers=condition_providers
         )  # no context
-
-
-@pytest.mark.parametrize("expected_entry", ["address", "signature", "typedData"])
-@pytest.mark.parametrize(
-    "valid_user_address_context", Auth.AuthScheme.values(), indirect=True
-)
-def test_user_address_context_missing_required_entries(
-    expected_entry, valid_user_address_context
-):
-    context = copy.deepcopy(valid_user_address_context)
-    del context[USER_ADDRESS_CONTEXT][expected_entry]
-    with pytest.raises(InvalidContextVariableData):
-        get_context_value(USER_ADDRESS_CONTEXT, **context)
-
-
-@pytest.mark.parametrize(
-    "valid_user_address_context", Auth.AuthScheme.values(), indirect=True
-)
-def test_user_address_context_invalid_typed_data(valid_user_address_context):
-    # invalid typed data
-    context = copy.deepcopy(valid_user_address_context)
-    context[USER_ADDRESS_CONTEXT]["typedData"] = dict(
-        randomSaying="Comparison is the thief of joy."  # -– Theodore Roosevelt
-    )
-    with pytest.raises(InvalidContextVariableData):
-        get_context_value(USER_ADDRESS_CONTEXT, **context)
-
-
-@pytest.mark.parametrize(
-    "valid_user_address_context", Auth.AuthScheme.values(), indirect=True
-)
-def test_user_address_context_variable_verification(
-    valid_user_address_context, accounts
-):
-    # call underlying directive directly (appease codecov)
-    address = _recover_user_address(**valid_user_address_context)
-    assert address == valid_user_address_context[USER_ADDRESS_CONTEXT]["address"]
-
-    # valid user address context
-    address = get_context_value(USER_ADDRESS_CONTEXT, **valid_user_address_context)
-    assert address == valid_user_address_context[USER_ADDRESS_CONTEXT]["address"]
-
-    # invalid user address context - signature does not match address
-    # internals are mutable - deepcopy
-    mismatch_with_address_context = copy.deepcopy(valid_user_address_context)
-    mismatch_with_address_context[USER_ADDRESS_CONTEXT][
-        "address"
-    ] = accounts.etherbase_account
-    with pytest.raises(ContextVariableVerificationFailed):
-        get_context_value(USER_ADDRESS_CONTEXT, **mismatch_with_address_context)
-
-    # invalid user address context - signature does not match address
-    # internals are mutable - deepcopy
-    mismatch_with_address_context = copy.deepcopy(valid_user_address_context)
-    signature = (
-        "0x93252ddff5f90584b27b5eef1915b23a8b01a703be56c8bf0660647c15cb75e9"
-        "1983bde9877eaad11da5a3ebc9b64957f1c182536931f9844d0c600f0c41293d1b"
-    )
-    mismatch_with_address_context[USER_ADDRESS_CONTEXT]["signature"] = signature
-    with pytest.raises(ContextVariableVerificationFailed):
-        get_context_value(USER_ADDRESS_CONTEXT, **mismatch_with_address_context)
-
-    # invalid signature
-    # internals are mutable - deepcopy
-    invalid_signature_context = copy.deepcopy(valid_user_address_context)
-    invalid_signature_context[USER_ADDRESS_CONTEXT][
-        "signature"
-    ] = "0xdeadbeef"  # invalid signature
-    with pytest.raises(InvalidConditionContext):
-        get_context_value(USER_ADDRESS_CONTEXT, **invalid_signature_context)
 
 
 @mock.patch(
