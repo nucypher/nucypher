@@ -648,8 +648,8 @@ def rpc_condition():
     return condition
 
 
-@pytest.fixture(scope="module")
-def valid_user_address_context(request):
+@pytest.fixture(scope="function")
+def valid_user_address_auth_message(request):
     if request.param == Auth.AuthScheme.EIP712.value:
         auth_message = {
             "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
@@ -685,7 +685,7 @@ def valid_user_address_context(request):
                 },
             },
         }
-    elif request.param == Auth.AuthScheme.SIWE.value:
+    elif request.param == Auth.AuthScheme.EIP4361.value:
         signer = InMemorySigner()
         siwe_message_data = {
             "domain": "login.xyz",
@@ -704,13 +704,13 @@ def valid_user_address_context(request):
         auth_message = {
             "signature": f"{signature.hex()}",
             "address": f"{signer.accounts[0]}",
-            "scheme": f"{Auth.AuthScheme.SIWE.value}",
+            "scheme": f"{Auth.AuthScheme.EIP4361.value}",
             "typedData": f"{siwe_message}",
         }
     else:
         raise ValueError(f"No context for provided scheme, {request.param}")
 
-    return {USER_ADDRESS_CONTEXT: auth_message}
+    return auth_message
 
 
 @pytest.fixture(scope="session", autouse=True)
