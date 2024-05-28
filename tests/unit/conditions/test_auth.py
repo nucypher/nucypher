@@ -3,13 +3,14 @@ import pytest
 from siwe import SiweMessage
 
 from nucypher.blockchain.eth.signers import InMemorySigner
-from nucypher.policy.conditions.auth import Auth, EIP712Auth, SIWEAuth
-from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
+from nucypher.policy.conditions.auth import Auth, EIP712Auth, EIP4361Auth
 
 
 def test_auth_scheme():
     for scheme in Auth.AuthScheme:
-        expected_scheme = EIP712Auth if scheme == Auth.AuthScheme.EIP712 else SIWEAuth
+        expected_scheme = (
+            EIP712Auth if scheme == Auth.AuthScheme.EIP712 else EIP4361Auth
+        )
         assert Auth.from_scheme(scheme=scheme.value) == expected_scheme
 
     # non-existent scheme
@@ -18,12 +19,14 @@ def test_auth_scheme():
 
 
 @pytest.mark.parametrize(
-    "valid_user_address_context", [Auth.AuthScheme.EIP712.value], indirect=True
+    "valid_user_address_auth_message", [Auth.AuthScheme.EIP712.value], indirect=True
 )
-def test_authenticate_eip712(valid_user_address_context, get_random_checksum_address):
-    data = valid_user_address_context[USER_ADDRESS_CONTEXT]["typedData"]
-    signature = valid_user_address_context[USER_ADDRESS_CONTEXT]["signature"]
-    address = valid_user_address_context[USER_ADDRESS_CONTEXT]["address"]
+def test_authenticate_eip712(
+    valid_user_address_auth_message, get_random_checksum_address
+):
+    data = valid_user_address_auth_message["typedData"]
+    signature = valid_user_address_auth_message["signature"]
+    address = valid_user_address_auth_message["address"]
 
     # invalid data
     invalid_data = dict(data)  # make a copy
@@ -69,7 +72,7 @@ def test_authenticate_eip712(valid_user_address_context, get_random_checksum_add
     EIP712Auth.authenticate(data, signature, address)
 
 
-def test_authenticate_siwe(get_random_checksum_address):
+def test_authenticate_eip4361(get_random_checksum_address):
     signer = InMemorySigner()
     siwe_message_data = {
         "domain": "login.xyz",
@@ -88,14 +91,14 @@ def test_authenticate_siwe(get_random_checksum_address):
     valid_address_for_signature = signer.accounts[0]
 
     # everything valid
-    SIWEAuth.authenticate(
+    EIP4361Auth.authenticate(
         valid_message, valid_message_signature, valid_address_for_signature
     )
 
     # invalid data
     invalid_data = "just a regular old string"
     with pytest.raises(Auth.InvalidData):
-        SIWEAuth.authenticate(
+        EIP4361Auth.authenticate(
             data=invalid_data,
             signature=valid_message_signature,
             expected_address=valid_address_for_signature,
@@ -107,9 +110,10 @@ def test_authenticate_siwe(get_random_checksum_address):
         "1983bde9877eaad11da5a3ebc9b64957f1c182536931f9844d0c600f0c41293d1b"
     )
     with pytest.raises(
-        Auth.AuthenticationFailed, match="SIWE verification failed - InvalidSignature"
+        Auth.AuthenticationFailed,
+        match="EIP4361 verification failed - InvalidSignature",
     ):
-        SIWEAuth.authenticate(
+        EIP4361Auth.authenticate(
             data=valid_message,
             signature=incorrect_signature,
             expected_address=valid_address_for_signature,
@@ -118,9 +122,10 @@ def test_authenticate_siwe(get_random_checksum_address):
     # invalid signature
     invalid_signature = "0xdeadbeef"
     with pytest.raises(
-        Auth.AuthenticationFailed, match="SIWE verification failed - InvalidSignature"
+        Auth.AuthenticationFailed,
+        match="EIP4361 verification failed - InvalidSignature",
     ):
-        SIWEAuth.authenticate(
+        EIP4361Auth.authenticate(
             data=valid_message,
             signature=invalid_signature,
             expected_address=valid_address_for_signature,
@@ -130,7 +135,7 @@ def test_authenticate_siwe(get_random_checksum_address):
     with pytest.raises(
         Auth.AuthenticationFailed, match="does not match expected address"
     ):
-        SIWEAuth.authenticate(
+        EIP4361Auth.authenticate(
             data=valid_message,
             signature=valid_message_signature,
             expected_address=get_random_checksum_address(),
@@ -139,21 +144,21 @@ def test_authenticate_siwe(get_random_checksum_address):
     # stale message
     stale_message_data = dict(siwe_message_data)
     stale_message_data["issued_at"] = (
-        f"{maya.now().subtract(hours=SIWEAuth.FRESHNESS_IN_HOURS + 1).iso8601()}"
+        f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS + 1).iso8601()}"
     )
     stale_message = SiweMessage(stale_message_data).prepare_message()
     stale_message_signature = signer.sign_message(
         account=valid_address_for_signature, message=stale_message.encode()
     )
-    with pytest.raises(Auth.AuthenticationFailed, match="SIWE message is stale"):
-        SIWEAuth.authenticate(
+    with pytest.raises(Auth.AuthenticationFailed, match="EIP4361 message is stale"):
+        EIP4361Auth.authenticate(
             stale_message, stale_message_signature.hex(), valid_address_for_signature
         )
 
     # old, but not stale and still valid
     old_but_not_stale_message_data = dict(siwe_message_data)
     old_but_not_stale_message_data["issued_at"] = (
-        f"{maya.now().subtract(hours=SIWEAuth.FRESHNESS_IN_HOURS - 1).iso8601()}"
+        f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS - 1).iso8601()}"
     )
     old_but_not_stale_message = SiweMessage(
         old_but_not_stale_message_data
@@ -161,7 +166,7 @@ def test_authenticate_siwe(get_random_checksum_address):
     old_not_stale_message_signature = signer.sign_message(
         account=valid_address_for_signature, message=old_but_not_stale_message.encode()
     )
-    SIWEAuth.authenticate(
+    EIP4361Auth.authenticate(
         old_but_not_stale_message,
         old_not_stale_message_signature.hex(),
         valid_address_for_signature,
@@ -180,9 +185,9 @@ def test_authenticate_siwe(get_random_checksum_address):
         message=not_stale_but_past_expiry_message.encode(),
     )
     with pytest.raises(
-        Auth.AuthenticationFailed, match="SIWE verification failed - ExpiredMessage"
+        Auth.AuthenticationFailed, match="EIP4361 verification failed - ExpiredMessage"
     ):
-        SIWEAuth.authenticate(
+        EIP4361Auth.authenticate(
             not_stale_but_past_expiry_message,
             not_stale_but_past_expiry_signature.hex(),
             valid_address_for_signature,
@@ -196,9 +201,10 @@ def test_authenticate_siwe(get_random_checksum_address):
         account=valid_address_for_signature, message=not_before_message.encode()
     )
     with pytest.raises(
-        Auth.AuthenticationFailed, match="SIWE verification failed - NotYetValidMessage"
+        Auth.AuthenticationFailed,
+        match="EIP4361 verification failed - NotYetValidMessage",
     ):
-        SIWEAuth.authenticate(
+        EIP4361Auth.authenticate(
             not_before_message,
             not_before_message_signature.hex(),
             valid_address_for_signature,
@@ -207,11 +213,11 @@ def test_authenticate_siwe(get_random_checksum_address):
     # not before specified, so stale message check not performed
     not_before_no_stale_check_message_data = dict(siwe_message_data)
     not_before_no_stale_check_message_data["not_before"] = (
-        f"{maya.now().subtract(hours=SIWEAuth.FRESHNESS_IN_HOURS - 1).iso8601()}"
+        f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS - 1).iso8601()}"
     )
     # issued more than freshness check hours ago
     old_but_not_stale_message_data["issued_at"] = (
-        f"{maya.now().subtract(hours=SIWEAuth.FRESHNESS_IN_HOURS - 2).iso8601()}"
+        f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS - 2).iso8601()}"
     )
     not_before_no_stale_check_message = SiweMessage(
         not_before_no_stale_check_message_data
@@ -221,7 +227,7 @@ def test_authenticate_siwe(get_random_checksum_address):
         message=not_before_no_stale_check_message.encode(),
     )
     # even though stale, "not-before" causes check to be skipped
-    SIWEAuth.authenticate(
+    EIP4361Auth.authenticate(
         not_before_no_stale_check_message,
         not_before_no_stale_check_message_signature.hex(),
         valid_address_for_signature,
