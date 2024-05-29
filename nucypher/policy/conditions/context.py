@@ -20,7 +20,7 @@ CONTEXT_PREFIX = ":"
 CONTEXT_REGEX = re.compile(":[a-zA-Z_][a-zA-Z0-9_]*")
 
 USER_ADDRESS_SCHEMES = {
-    USER_ADDRESS_CONTEXT: Auth.AuthScheme.EIP712.value,  # default to EIP712
+    USER_ADDRESS_CONTEXT: None,  # any of the available auth types
     USER_ADDRESS_EIP712_CONTEXT: Auth.AuthScheme.EIP712.value,
     USER_ADDRESS_EIP4361_CONTEXT: Auth.AuthScheme.EIP4361.value,
 }
@@ -53,7 +53,7 @@ def _resolve_user_address(user_address_context_variable, **context) -> ChecksumA
 
         scheme = user_address_info.get("scheme", Auth.AuthScheme.EIP712.value)
         expected_scheme = USER_ADDRESS_SCHEMES[user_address_context_variable]
-        if scheme != expected_scheme:
+        if expected_scheme and scheme != expected_scheme:
             raise UnexpectedScheme(
                 f"Expected {expected_scheme} authentication scheme, but received {scheme}"
             )

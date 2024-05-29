@@ -6,7 +6,6 @@ import pytest
 
 from nucypher.policy.conditions.auth import Auth
 from nucypher.policy.conditions.context import (
-    USER_ADDRESS_CONTEXT,
     USER_ADDRESS_EIP712_CONTEXT,
     USER_ADDRESS_EIP4361_CONTEXT,
     USER_ADDRESS_SCHEMES,
@@ -135,12 +134,10 @@ def test_user_address_context_invalid_typed_data(
     list(
         zip(
             [
-                USER_ADDRESS_CONTEXT,
                 USER_ADDRESS_EIP712_CONTEXT,
                 USER_ADDRESS_EIP4361_CONTEXT,
             ],
             [
-                Auth.AuthScheme.EIP4361.value,
                 Auth.AuthScheme.EIP4361.value,
                 Auth.AuthScheme.EIP712.value,
             ],
