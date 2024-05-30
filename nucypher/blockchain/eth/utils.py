@@ -80,7 +80,7 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
         "jsonrpc": "2.0",
         "method": "eth_getBlockByNumber",
         "params": ["latest", False],
-        "id": 1
+        "id": 1,
     }
     LOGGER.debug(f"Checking health of RPC endpoint {endpoint}")
     try:
@@ -88,7 +88,7 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
             endpoint,
             json=query,
             headers={"Content-Type": "application/json"},
-            timeout=5
+            timeout=5,
         )
     except requests.exceptions.RequestException:
         LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: network error")
@@ -140,7 +140,9 @@ def get_default_rpc_endpoints() -> Dict[int, List[str]]:
     LOGGER.debug("Fetching default RPC endpoints from remote chainlist")
     response = requests.get(CHAINLIST_URL)
     if response.status_code == 200:
-        return {int(chain_id): endpoints for chain_id, endpoints in response.json().items()}
+        return {
+            int(chain_id): endpoints for chain_id, endpoints in response.json().items()
+        }
     else:
         LOGGER.error(
             f"Failed to fetch default RPC endpoints: {response.status_code} | {response.text}"

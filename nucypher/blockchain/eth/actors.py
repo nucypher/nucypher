@@ -54,8 +54,8 @@ from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import (
     get_healthy_default_rpc_endpoints,
-    truncate_checksum_address,
     rpc_endpoint_health_check,
+    truncate_checksum_address,
 )
 from nucypher.crypto.powers import (
     CryptoPower,
