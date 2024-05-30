@@ -43,6 +43,9 @@ EXTRAS = {
     "dev": DEV_REQUIRES,
 }
 
+# read the contents of your README file
+long_description = (Path(__file__).parent / "README.md").read_text()
+
 setup(
 
     # Requirements
@@ -75,6 +78,8 @@ setup(
     author_email=ABOUT['__email__'],
     description=ABOUT['__summary__'],
     license=ABOUT['__license__'],
+    long_description_content_type="text/markdown",
+    long_description=long_description,
     keywords="threshold access control, distributed key generation",
     classifiers=PYPI_CLASSIFIERS,
 )
