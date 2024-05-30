@@ -55,6 +55,7 @@ from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import (
     get_healthy_default_rpc_endpoints,
     truncate_checksum_address,
+    rpc_endpoint_health_check,
 )
 from nucypher.crypto.powers import (
     CryptoPower,
@@ -280,14 +281,14 @@ class Operator(BaseActor):
         if set(self.domain.condition_chain_ids) != set(endpoints):
             raise self.ActorError(
                 f"Missing blockchain endpoints for chains: "
-                f"{self.domain.condition_chain_ids - set(endpoints)}"
+                f"{set(self.domain.condition_chain_ids) - set(endpoints)}"
             )
 
         # check that each chain id is supported
         for chain_id, endpoints in endpoints.items():
             if not self._is_permitted_condition_chain(chain_id):
                 raise NotImplementedError(
-                    f"Chain ID {chain_id} is not supported for condition evaluation by this Operator."
+                    f"Chain ID {chain_id} is not supported for condition evaluation by this operator."
                 )
 
             # connect to each endpoint and check that they are on the correct chain
@@ -297,22 +298,26 @@ class Operator(BaseActor):
                     raise self.ActorError(
                         f"Condition blockchain endpoint {uri} is not on chain {chain_id}"
                     )
+                healthy = rpc_endpoint_health_check(endpoint=uri)
+                if not healthy:
+                    self.log.warn(
+                        f"user-supplied condition RPC endpoint {uri} is unhealthy"
+                    )
                 providers[int(chain_id)].append(provider)
 
-        # Ingest default RPC providers for each chain
+        # Ingest default/fallback RPC providers for each chain
         for chain_id in self.domain.condition_chain_ids:
             default_endpoints = get_healthy_default_rpc_endpoints(chain_id)
             for uri in default_endpoints:
                 provider = self._make_condition_provider(uri)
                 providers[chain_id].append(provider)
 
-        self.log.info(f"Connected to {len(providers)} default RPC endpoints")
-
         humanized_chain_ids = ", ".join(
             _CONDITION_CHAINS[chain_id] for chain_id in providers
         )
         self.log.info(
-            f"Connected to {len(providers)} total endpoints for condition checking: {humanized_chain_ids}"
+            f"Connected to {len(providers.values())} RPC endpoints for condition "
+            f"checking on chain IDs {humanized_chain_ids}"
         )
 
         return providers

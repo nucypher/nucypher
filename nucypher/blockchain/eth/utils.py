@@ -112,8 +112,8 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
     if data["result"] is None:
         LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: no block data")
         return False
-    block_data = data["result"]
 
+    block_data = data["result"]
     try:
         timestamp = int(block_data.get("timestamp"), 16)
     except TypeError:
@@ -134,7 +134,8 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
 
 def get_default_rpc_endpoints() -> Dict[int, List[str]]:
     """
-    Fetches the default RPC endpoints for various chains from the nucypher/chainlist repository.
+    Fetches the default RPC endpoints for various chains
+    from the nucypher/chainlist repository.
     """
     LOGGER.debug("Fetching default RPC endpoints from remote chainlist")
     response = requests.get(CHAINLIST_URL)
@@ -148,18 +149,25 @@ def get_default_rpc_endpoints() -> Dict[int, List[str]]:
 
 
 def get_healthy_default_rpc_endpoints(chain_id: int) -> List[str]:
-    """
-    Returns a list of healthy RPC endpoints for a given chain ID.
-    """
-    healthy = []
+    """Returns a list of healthy RPC endpoints for a given chain ID."""
+
+    healthy = list()
     endpoints = get_default_rpc_endpoints()
     chain_endpoints = endpoints.get(chain_id)
+
     if not chain_endpoints:
         LOGGER.error(f"No default RPC endpoints found for chain ID {chain_id}")
         return healthy
+
     for endpoint in chain_endpoints:
         if rpc_endpoint_health_check(endpoint=endpoint):
             healthy.append(endpoint)
 
     LOGGER.info(f"Healthy RPC endpoints for chain ID {chain_id}: {healthy}")
+
+    if len(healthy) == 0:
+        LOGGER.warn(
+            f"No healthy default RPC endpoints available for chain ID {chain_id}"
+        )
+
     return healthy
