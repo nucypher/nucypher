@@ -4,6 +4,7 @@ from typing import Dict, List, Union
 
 import requests
 from eth_typing import ChecksumAddress
+from requests import RequestException
 from web3 import Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
 from web3.types import TxParams
@@ -137,8 +138,16 @@ def get_default_rpc_endpoints() -> Dict[int, List[str]]:
     Fetches the default RPC endpoints for various chains
     from the nucypher/chainlist repository.
     """
-    LOGGER.debug("Fetching default RPC endpoints from remote chainlist")
-    response = requests.get(CHAINLIST_URL)
+    LOGGER.debug(
+        f"Fetching default RPC endpoints from remote chainlist {CHAINLIST_URL}"
+    )
+
+    try:
+        response = requests.get(CHAINLIST_URL)
+    except RequestException:
+        LOGGER.warn("Failed to fetch default RPC endpoints: network error")
+        return {}
+
     if response.status_code == 200:
         return {
             int(chain_id): endpoints for chain_id, endpoints in response.json().items()
@@ -153,21 +162,18 @@ def get_default_rpc_endpoints() -> Dict[int, List[str]]:
 def get_healthy_default_rpc_endpoints(chain_id: int) -> List[str]:
     """Returns a list of healthy RPC endpoints for a given chain ID."""
 
-    healthy = list()
     endpoints = get_default_rpc_endpoints()
     chain_endpoints = endpoints.get(chain_id)
 
     if not chain_endpoints:
         LOGGER.error(f"No default RPC endpoints found for chain ID {chain_id}")
-        return healthy
+        return list()
 
-    for endpoint in chain_endpoints:
-        if rpc_endpoint_health_check(endpoint=endpoint):
-            healthy.append(endpoint)
-
+    healthy = [
+        endpoint for endpoint in chain_endpoints if rpc_endpoint_health_check(endpoint)
+    ]
     LOGGER.info(f"Healthy RPC endpoints for chain ID {chain_id}: {healthy}")
-
-    if len(healthy) == 0:
+    if not healthy:
         LOGGER.warn(
             f"No healthy default RPC endpoints available for chain ID {chain_id}"
         )
