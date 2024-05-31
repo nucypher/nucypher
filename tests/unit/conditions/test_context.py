@@ -1,14 +1,28 @@
+import copy
 import itertools
 import re
 
 import pytest
 
+from nucypher.policy.conditions.auth import Auth
 from nucypher.policy.conditions.context import (
+    USER_ADDRESS_EIP712_CONTEXT,
+    USER_ADDRESS_EIP4361_CONTEXT,
+    USER_ADDRESS_SCHEMES,
     _resolve_context_variable,
+    _resolve_user_address,
+    get_context_value,
     is_context_variable,
     resolve_any_context_variables,
 )
-from nucypher.policy.conditions.lingo import ReturnValueTest
+from nucypher.policy.conditions.exceptions import (
+    ContextVariableVerificationFailed,
+    InvalidConditionContext,
+    InvalidContextVariableData,
+)
+from nucypher.policy.conditions.lingo import (
+    ReturnValueTest,
+)
 
 INVALID_CONTEXT_PARAM_NAMES = [
     ":",
@@ -81,3 +95,113 @@ def test_resolve_any_context_variables():
         assert resolved_return_value.comparator == return_value_test.comparator
         assert resolved_return_value.index == return_value_test.index
         assert resolved_return_value.value == resolved_value
+
+
+@pytest.mark.parametrize("expected_entry", ["address", "signature", "typedData"])
+@pytest.mark.parametrize(
+    "context_variable_name, valid_user_address_auth_message",
+    list(USER_ADDRESS_SCHEMES.items()),
+    indirect=["valid_user_address_auth_message"],
+)
+def test_user_address_context_missing_required_entries(
+    expected_entry, context_variable_name, valid_user_address_auth_message
+):
+    context = {context_variable_name: valid_user_address_auth_message}
+    del context[context_variable_name][expected_entry]
+    with pytest.raises(InvalidContextVariableData):
+        get_context_value(context_variable_name, **context)
+
+
+@pytest.mark.parametrize(
+    "context_variable_name, valid_user_address_auth_message",
+    list(USER_ADDRESS_SCHEMES.items()),
+    indirect=["valid_user_address_auth_message"],
+)
+def test_user_address_context_invalid_typed_data(
+    context_variable_name, valid_user_address_auth_message
+):
+    # invalid typed data
+    context = {context_variable_name: valid_user_address_auth_message}
+    context[context_variable_name]["typedData"] = dict(
+        randomSaying="Comparison is the thief of joy."  # -– Theodore Roosevelt
+    )
+    with pytest.raises(InvalidContextVariableData):
+        get_context_value(context_variable_name, **context)
+
+
+@pytest.mark.parametrize(
+    "context_variable_name, valid_user_address_auth_message",
+    list(
+        zip(
+            [
+                USER_ADDRESS_EIP712_CONTEXT,
+                USER_ADDRESS_EIP4361_CONTEXT,
+            ],
+            [
+                Auth.AuthScheme.EIP4361.value,
+                Auth.AuthScheme.EIP712.value,
+            ],
+        )
+    ),
+    indirect=["valid_user_address_auth_message"],
+)
+def test_user_address_context_unexpected_scheme_data(
+    context_variable_name, valid_user_address_auth_message
+):
+    # scheme in message is unexpected for context variable name
+    context = {context_variable_name: valid_user_address_auth_message}
+    with pytest.raises(InvalidContextVariableData, match="UnexpectedScheme"):
+        get_context_value(context_variable_name, **context)
+
+
+@pytest.mark.parametrize(
+    "context_variable_name, valid_user_address_auth_message",
+    list(USER_ADDRESS_SCHEMES.items()),
+    indirect=["valid_user_address_auth_message"],
+)
+def test_user_address_context_variable_verification(
+    context_variable_name, valid_user_address_auth_message, get_random_checksum_address
+):
+    valid_user_address_context = {
+        context_variable_name: valid_user_address_auth_message
+    }
+
+    # call underlying directive directly (appease codecov)
+    address = _resolve_user_address(
+        user_address_context_variable=context_variable_name,
+        **valid_user_address_context,
+    )
+    assert address == valid_user_address_context[context_variable_name]["address"]
+
+    # valid user address context
+    address = get_context_value(context_variable_name, **valid_user_address_context)
+    assert address == valid_user_address_context[context_variable_name]["address"]
+
+    # invalid user address context - signature does not match address
+    # internals are mutable - deepcopy
+    mismatch_with_address_context = copy.deepcopy(valid_user_address_context)
+    mismatch_with_address_context[context_variable_name][
+        "address"
+    ] = get_random_checksum_address()
+    with pytest.raises(ContextVariableVerificationFailed):
+        get_context_value(context_variable_name, **mismatch_with_address_context)
+
+    # invalid user address context - signature does not match address
+    # internals are mutable - deepcopy
+    mismatch_with_address_context = copy.deepcopy(valid_user_address_context)
+    signature = (
+        "0x93252ddff5f90584b27b5eef1915b23a8b01a703be56c8bf0660647c15cb75e9"
+        "1983bde9877eaad11da5a3ebc9b64957f1c182536931f9844d0c600f0c41293d1b"
+    )
+    mismatch_with_address_context[context_variable_name]["signature"] = signature
+    with pytest.raises(ContextVariableVerificationFailed):
+        get_context_value(context_variable_name, **mismatch_with_address_context)
+
+    # invalid signature
+    # internals are mutable - deepcopy
+    invalid_signature_context = copy.deepcopy(valid_user_address_context)
+    invalid_signature_context[context_variable_name][
+        "signature"
+    ] = "0xdeadbeef"  # invalid signature
+    with pytest.raises(InvalidConditionContext):
+        get_context_value(context_variable_name, **invalid_signature_context)

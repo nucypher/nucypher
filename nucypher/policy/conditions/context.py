@@ -1,4 +1,5 @@
 import re
+from functools import partial
 from typing import Any, List, Union
 
 from eth_typing import ChecksumAddress
@@ -12,18 +13,30 @@ from nucypher.policy.conditions.exceptions import (
 )
 
 USER_ADDRESS_CONTEXT = ":userAddress"
+USER_ADDRESS_EIP712_CONTEXT = ":userAddressEIP712"
+USER_ADDRESS_EIP4361_CONTEXT = ":userAddressEIP4361"
 
 CONTEXT_PREFIX = ":"
 CONTEXT_REGEX = re.compile(":[a-zA-Z_][a-zA-Z0-9_]*")
 
+USER_ADDRESS_SCHEMES = {
+    USER_ADDRESS_CONTEXT: None,  # any of the available auth types
+    USER_ADDRESS_EIP712_CONTEXT: Auth.AuthScheme.EIP712.value,
+    USER_ADDRESS_EIP4361_CONTEXT: Auth.AuthScheme.EIP4361.value,
+}
 
-def _recover_user_address(**context) -> ChecksumAddress:
+
+class UnexpectedScheme(Exception):
+    pass
+
+
+def _resolve_user_address(user_address_context_variable, **context) -> ChecksumAddress:
     """
     Recovers a checksum address from a signed message.
 
     Expected format:
     {
-        ":userAddress":
+        ":userAddress...":
             {
                 "signature": "<signature>",
                 "address": "<address>",
@@ -33,35 +46,50 @@ def _recover_user_address(**context) -> ChecksumAddress:
     }
     """
     try:
-        user_address_info = context[USER_ADDRESS_CONTEXT]
+        user_address_info = context[user_address_context_variable]
         signature = user_address_info["signature"]
         expected_address = to_checksum_address(user_address_info["address"])
-        type_data = user_address_info["typedData"]
+        typed_data = user_address_info["typedData"]
 
         scheme = user_address_info.get("scheme", Auth.AuthScheme.EIP712.value)
+        expected_scheme = USER_ADDRESS_SCHEMES[user_address_context_variable]
+        if expected_scheme and scheme != expected_scheme:
+            raise UnexpectedScheme(
+                f"Expected {expected_scheme} authentication scheme, but received {scheme}"
+            )
+
         auth = Auth.from_scheme(scheme)
         auth.authenticate(
-            data=type_data, signature=signature, expected_address=expected_address
+            data=typed_data, signature=signature, expected_address=expected_address
         )
     except Auth.InvalidData as e:
         raise InvalidContextVariableData(
-            f"Invalid context variable data for '{USER_ADDRESS_CONTEXT}'; {e}"
+            f"Invalid context variable data for '{user_address_context_variable}'; {e}"
         )
     except Auth.AuthenticationFailed as e:
         raise ContextVariableVerificationFailed(
-            f"Authentication failed for '{USER_ADDRESS_CONTEXT}'; {e}"
+            f"Authentication failed for '{user_address_context_variable}'; {e}"
         )
     except Exception as e:
         # data could not be processed
         raise InvalidContextVariableData(
-            f"Invalid context variable data for '{USER_ADDRESS_CONTEXT}'; {e.__class__.__name__} - {e}"
+            f"Invalid context variable data for '{user_address_context_variable}'; {e.__class__.__name__} - {e}"
         )
 
     return expected_address
 
 
 _DIRECTIVES = {
-    USER_ADDRESS_CONTEXT: _recover_user_address,
+    USER_ADDRESS_CONTEXT: partial(
+        _resolve_user_address, user_address_context_variable=USER_ADDRESS_CONTEXT
+    ),
+    USER_ADDRESS_EIP712_CONTEXT: partial(
+        _resolve_user_address, user_address_context_variable=USER_ADDRESS_EIP712_CONTEXT
+    ),
+    USER_ADDRESS_EIP4361_CONTEXT: partial(
+        _resolve_user_address,
+        user_address_context_variable=USER_ADDRESS_EIP4361_CONTEXT,
+    ),
 }
 
 
