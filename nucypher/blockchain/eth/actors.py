@@ -316,7 +316,7 @@ class Operator(BaseActor):
             _CONDITION_CHAINS[chain_id] for chain_id in providers
         )
         self.log.info(
-            f"Connected to {len(providers.values())} RPC endpoints for condition "
+            f"Connected to {sum(len(v) for v in providers.values())} RPC endpoints for condition "
             f"checking on chain IDs {humanized_chain_ids}"
         )
 
