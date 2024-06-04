@@ -277,6 +277,12 @@ class Operator(BaseActor):
     ) -> DefaultDict[int, List[HTTPProvider]]:
         providers = defaultdict(list)
 
+        # de-duplicate, preserving order
+        deduplicated = {}
+        for chain_id, uris in endpoints.items():
+            deduplicated[chain_id] = list(dict.fromkeys(uris))
+        endpoints = deduplicated
+
         # check that we have endpoints for all condition chains
         if set(self.domain.condition_chain_ids) != set(endpoints):
             raise self.ActorError(
