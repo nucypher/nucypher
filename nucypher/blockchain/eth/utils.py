@@ -172,7 +172,7 @@ def get_healthy_default_rpc_endpoints(chain_id: int) -> List[str]:
     healthy = [
         endpoint for endpoint in chain_endpoints if rpc_endpoint_health_check(endpoint)
     ]
-    LOGGER.info(f"Healthy RPC endpoints for chain ID {chain_id}: {healthy}")
+    LOGGER.info(f"Healthy default RPC endpoints for chain ID {chain_id}: {healthy}")
     if not healthy:
         LOGGER.warn(
             f"No healthy default RPC endpoints available for chain ID {chain_id}"
