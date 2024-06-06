@@ -7,7 +7,7 @@ from eth_account.messages import HexBytes, encode_typed_data
 from siwe import SiweMessage, VerificationError
 
 
-class Auth:
+class EvmAuth:
     class AuthScheme(Enum):
         EIP712 = "EIP712"
         EIP4361 = "EIP4361"
@@ -36,7 +36,7 @@ class Auth:
         raise ValueError(f"Invalid authentication scheme: {scheme}")
 
 
-class EIP712Auth(Auth):
+class EIP712Auth(EvmAuth):
     @classmethod
     def authenticate(cls, data, signature, expected_address):
         try:
@@ -65,7 +65,7 @@ class EIP712Auth(Auth):
             )
 
 
-class EIP4361Auth(Auth):
+class EIP4361Auth(EvmAuth):
     FRESHNESS_IN_HOURS = 2
 
     @classmethod
@@ -85,12 +85,14 @@ class EIP4361Auth(Auth):
             )
 
         # enforce a freshness check
-        # TODO: "not-before" throws off the freshness timing; so skip if specified. Is this safe / what we want?
+        # TODO: "not-before" throws off the freshness timing; so skip if specified.
+        #  Is this safe / what we want?
         if not siwe_message.not_before:
             issued_at = maya.MayaDT.from_iso8601(siwe_message.issued_at)
             if maya.now() > issued_at.add(hours=cls.FRESHNESS_IN_HOURS):
                 raise cls.AuthenticationFailed(
-                    f"EIP4361 message is stale; more than {cls.FRESHNESS_IN_HOURS} hours old (issued at {issued_at.iso8601()})"
+                    f"EIP4361 message is stale; more than {cls.FRESHNESS_IN_HOURS} "
+                    f"hours old (issued at {issued_at.iso8601()})"
                 )
 
         if siwe_message.address != expected_address:

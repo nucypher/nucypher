@@ -5,7 +5,7 @@ from typing import Any, List, Union
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 
-from nucypher.policy.conditions.auth import Auth
+from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.exceptions import (
     ContextVariableVerificationFailed,
     InvalidContextVariableData,
@@ -21,8 +21,8 @@ CONTEXT_REGEX = re.compile(":[a-zA-Z_][a-zA-Z0-9_]*")
 
 USER_ADDRESS_SCHEMES = {
     USER_ADDRESS_CONTEXT: None,  # any of the available auth types
-    USER_ADDRESS_EIP712_CONTEXT: Auth.AuthScheme.EIP712.value,
-    USER_ADDRESS_EIP4361_CONTEXT: Auth.AuthScheme.EIP4361.value,
+    USER_ADDRESS_EIP712_CONTEXT: EvmAuth.AuthScheme.EIP712.value,
+    USER_ADDRESS_EIP4361_CONTEXT: EvmAuth.AuthScheme.EIP4361.value,
 }
 
 
@@ -40,8 +40,8 @@ def _resolve_user_address(user_address_context_variable, **context) -> ChecksumA
             {
                 "signature": "<signature>",
                 "address": "<address>",
-                "scheme": "EIP712" | "SIWE" | ...
-                "typeData": ...
+                "scheme": "EIP712" | "EIP4361" | ...
+                "typedData": ...
             }
     }
     """
@@ -51,22 +51,22 @@ def _resolve_user_address(user_address_context_variable, **context) -> ChecksumA
         expected_address = to_checksum_address(user_address_info["address"])
         typed_data = user_address_info["typedData"]
 
-        scheme = user_address_info.get("scheme", Auth.AuthScheme.EIP712.value)
+        scheme = user_address_info.get("scheme", EvmAuth.AuthScheme.EIP712.value)
         expected_scheme = USER_ADDRESS_SCHEMES[user_address_context_variable]
         if expected_scheme and scheme != expected_scheme:
             raise UnexpectedScheme(
                 f"Expected {expected_scheme} authentication scheme, but received {scheme}"
             )
 
-        auth = Auth.from_scheme(scheme)
+        auth = EvmAuth.from_scheme(scheme)
         auth.authenticate(
             data=typed_data, signature=signature, expected_address=expected_address
         )
-    except Auth.InvalidData as e:
+    except EvmAuth.InvalidData as e:
         raise InvalidContextVariableData(
             f"Invalid context variable data for '{user_address_context_variable}'; {e}"
         )
-    except Auth.AuthenticationFailed as e:
+    except EvmAuth.AuthenticationFailed as e:
         raise ContextVariableVerificationFailed(
             f"Authentication failed for '{user_address_context_variable}'; {e}"
         )
