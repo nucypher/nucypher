@@ -3,23 +3,23 @@ import pytest
 from siwe import SiweMessage
 
 from nucypher.blockchain.eth.signers import InMemorySigner
-from nucypher.policy.conditions.auth import Auth, EIP712Auth, EIP4361Auth
+from nucypher.policy.conditions.auth.evm import EIP712Auth, EIP4361Auth, EvmAuth
 
 
 def test_auth_scheme():
-    for scheme in Auth.AuthScheme:
+    for scheme in EvmAuth.AuthScheme:
         expected_scheme = (
-            EIP712Auth if scheme == Auth.AuthScheme.EIP712 else EIP4361Auth
+            EIP712Auth if scheme == EvmAuth.AuthScheme.EIP712 else EIP4361Auth
         )
-        assert Auth.from_scheme(scheme=scheme.value) == expected_scheme
+        assert EvmAuth.from_scheme(scheme=scheme.value) == expected_scheme
 
     # non-existent scheme
     with pytest.raises(ValueError):
-        _ = Auth.from_scheme(scheme="rando")
+        _ = EvmAuth.from_scheme(scheme="rando")
 
 
 @pytest.mark.parametrize(
-    "valid_user_address_auth_message", [Auth.AuthScheme.EIP712.value], indirect=True
+    "valid_user_address_auth_message", [EvmAuth.AuthScheme.EIP712.value], indirect=True
 )
 def test_authenticate_eip712(
     valid_user_address_auth_message, get_random_checksum_address
@@ -31,14 +31,14 @@ def test_authenticate_eip712(
     # invalid data
     invalid_data = dict(data)  # make a copy
     del invalid_data["domain"]
-    with pytest.raises(Auth.InvalidData):
+    with pytest.raises(EvmAuth.InvalidData):
         EIP712Auth.authenticate(
             data=invalid_data, signature=signature, expected_address=address
         )
 
     invalid_data = dict(data)  # make a copy
     del invalid_data["message"]
-    with pytest.raises(Auth.InvalidData):
+    with pytest.raises(EvmAuth.InvalidData):
         EIP712Auth.authenticate(
             data=invalid_data, signature=signature, expected_address=address
         )
@@ -48,20 +48,20 @@ def test_authenticate_eip712(
         "0x93252ddff5f90584b27b5eef1915b23a8b01a703be56c8bf0660647c15cb75e9"
         "1983bde9877eaad11da5a3ebc9b64957f1c182536931f9844d0c600f0c41293d1b"
     )
-    with pytest.raises(Auth.AuthenticationFailed):
+    with pytest.raises(EvmAuth.AuthenticationFailed):
         EIP712Auth.authenticate(
             data=data, signature=incorrect_signature, expected_address=address
         )
 
     # invalid signature
     invalid_signature = "0xdeadbeef"
-    with pytest.raises(Auth.InvalidData):
+    with pytest.raises(EvmAuth.InvalidData):
         EIP712Auth.authenticate(
             data=data, signature=invalid_signature, expected_address=address
         )
 
     # mismatch with expected address
-    with pytest.raises(Auth.AuthenticationFailed):
+    with pytest.raises(EvmAuth.AuthenticationFailed):
         EIP712Auth.authenticate(
             data=data,
             signature=signature,
@@ -97,7 +97,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
 
     # invalid data
     invalid_data = "just a regular old string"
-    with pytest.raises(Auth.InvalidData):
+    with pytest.raises(EvmAuth.InvalidData):
         EIP4361Auth.authenticate(
             data=invalid_data,
             signature=valid_message_signature,
@@ -110,7 +110,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
         "1983bde9877eaad11da5a3ebc9b64957f1c182536931f9844d0c600f0c41293d1b"
     )
     with pytest.raises(
-        Auth.AuthenticationFailed,
+        EvmAuth.AuthenticationFailed,
         match="EIP4361 verification failed - InvalidSignature",
     ):
         EIP4361Auth.authenticate(
@@ -122,7 +122,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     # invalid signature
     invalid_signature = "0xdeadbeef"
     with pytest.raises(
-        Auth.AuthenticationFailed,
+        EvmAuth.AuthenticationFailed,
         match="EIP4361 verification failed - InvalidSignature",
     ):
         EIP4361Auth.authenticate(
@@ -133,7 +133,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
 
     # mismatch with expected address
     with pytest.raises(
-        Auth.AuthenticationFailed, match="does not match expected address"
+        EvmAuth.AuthenticationFailed, match="does not match expected address"
     ):
         EIP4361Auth.authenticate(
             data=valid_message,
@@ -150,7 +150,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     stale_message_signature = signer.sign_message(
         account=valid_address_for_signature, message=stale_message.encode()
     )
-    with pytest.raises(Auth.AuthenticationFailed, match="EIP4361 message is stale"):
+    with pytest.raises(EvmAuth.AuthenticationFailed, match="EIP4361 message is stale"):
         EIP4361Auth.authenticate(
             stale_message, stale_message_signature.hex(), valid_address_for_signature
         )
@@ -185,7 +185,8 @@ def test_authenticate_eip4361(get_random_checksum_address):
         message=not_stale_but_past_expiry_message.encode(),
     )
     with pytest.raises(
-        Auth.AuthenticationFailed, match="EIP4361 verification failed - ExpiredMessage"
+        EvmAuth.AuthenticationFailed,
+        match="EIP4361 verification failed - ExpiredMessage",
     ):
         EIP4361Auth.authenticate(
             not_stale_but_past_expiry_message,
@@ -201,7 +202,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
         account=valid_address_for_signature, message=not_before_message.encode()
     )
     with pytest.raises(
-        Auth.AuthenticationFailed,
+        EvmAuth.AuthenticationFailed,
         match="EIP4361 verification failed - NotYetValidMessage",
     ):
         EIP4361Auth.authenticate(

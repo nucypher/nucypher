@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from nucypher.policy.conditions.auth import Auth
+from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_EIP712_CONTEXT,
     USER_ADDRESS_EIP4361_CONTEXT,
@@ -138,8 +138,8 @@ def test_user_address_context_invalid_typed_data(
                 USER_ADDRESS_EIP4361_CONTEXT,
             ],
             [
-                Auth.AuthScheme.EIP4361.value,
-                Auth.AuthScheme.EIP712.value,
+                EvmAuth.AuthScheme.EIP4361.value,
+                EvmAuth.AuthScheme.EIP712.value,
             ],
         )
     ),
