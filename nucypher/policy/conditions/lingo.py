@@ -417,6 +417,7 @@ class ConditionLingo(_Serializable):
         conditions expression framework.
         """
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
+        from nucypher.policy.conditions.offchain import OffchainCondition
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
@@ -427,6 +428,7 @@ class ConditionLingo(_Serializable):
             ContractCondition,
             RPCCondition,
             CompoundAccessControlCondition,
+            OffchainCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition
