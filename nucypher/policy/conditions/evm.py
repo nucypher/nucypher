@@ -102,51 +102,6 @@ def _validate_chain(chain: int) -> None:
         )
 
 
-class OffchainCondition(AccessControlCondition):
-    """
-    An offchain condition is a condition that can be evaluated by reading from a JSON
-    endpoint or other offchain source. It is used to evaluate conditions that cannot
-    be evaluated onchain.  This may be a REST service but the only requirement is that
-    the response is JSON and can be parsed using jsonpath.
-    """
-
-    CONDITION_TYPE = ConditionType.OFFCHAIN.value
-
-    class Schema(CamelCaseSchema):
-        name = fields.Str(required=False)
-        condition_type = fields.Str(
-            validate=validate.Equal(ConditionType), required=True
-        )
-        endpoint = fields.Str(required=True)
-
-        @post_load
-        def make(self, data, **kwargs):
-            return OffchainCondition(**data)
-
-    def __init__(
-        self,
-        endpoint: str,
-        condition_type: str = ConditionType.OFFCHAIN.value,
-        **kwargs,
-    ):
-
-        # internal
-        if condition_type != self.CONDITION_TYPE:
-            raise InvalidCondition(
-                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
-            )
-
-        self.endpoint = endpoint
-
-    def verify(
-        self, providers: Dict[int, Set[HTTPProvider]], **context
-    ) -> Tuple[bool, Any]:
-        """
-        Verifies the offchain condition is met by performing a read operation and evaluating the return value test.
-        """
-        raise NotImplementedError("Offchain conditions are not yet implemented.")
-
-
 class RPCCondition(AccessControlCondition):
     ETH_PREFIX = "eth_"
     ALLOWED_METHODS = {
