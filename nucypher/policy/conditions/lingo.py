@@ -74,6 +74,7 @@ class ConditionType(Enum):
     CONTRACT = "contract"
     RPC = "rpc"
     COMPOUND = "compound"
+    OFFCHAIN = "offchain"
 
     @classmethod
     def values(cls) -> List[str]:
