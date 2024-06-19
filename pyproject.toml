@@ -28,6 +28,7 @@ prometheus-client = '*'
 siwe = "*"
 time-machine = "^2.13.0"
 twisted = "^24.2.0rc1"
+jsonpath-ng = "^1.6.1"
 
 [tool.poetry.dev-dependencies]
 pytest = '<7'
