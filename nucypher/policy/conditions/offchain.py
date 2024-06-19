@@ -28,8 +28,7 @@ class JSONPathField(Field):
 class OffchainCondition(AccessControlCondition):
     """
     An offchain condition is a condition that can be evaluated by reading from a JSON
-    endpoint or other offchain source. It is used to evaluate conditions that cannot
-    be evaluated onchain.  This may be a REST service but the only requirement is that
+    endpoint. This may be a REST service but the only requirement is that
     the response is JSON and can be parsed using jsonpath.
     """
 
@@ -85,7 +84,7 @@ class OffchainCondition(AccessControlCondition):
         """
         Verifies the offchain condition is met by performing a read operation on the endpoint
         and evaluating the return value test with the result.  Parses the endpoint's JSON response using
-        jsonpath if necessary.
+        jsonpath.
         """
 
         response = self.fetch()
