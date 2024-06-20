@@ -2,7 +2,10 @@ import pytest
 import requests
 from marshmallow import ValidationError
 
-from nucypher.policy.conditions.exceptions import InvalidCondition
+from nucypher.policy.conditions.exceptions import (
+    ConditionEvaluationFailed,
+    InvalidCondition,
+)
 from nucypher.policy.conditions.lingo import ReturnValueTest
 from nucypher.policy.conditions.offchain import JSONPathField, OffchainCondition
 
@@ -149,6 +152,6 @@ def test_offchain_condition_verify_invalid_json(mocker):
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", "2"),
     )
-    with pytest.raises(InvalidCondition) as excinfo:
+    with pytest.raises(ConditionEvaluationFailed) as excinfo:
         condition.verify()
     assert "Failed to parse JSON response" in str(excinfo.value)
