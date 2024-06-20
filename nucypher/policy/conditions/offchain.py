@@ -58,6 +58,7 @@ class OffchainCondition(AccessControlCondition):
         endpoint: str,
         query: Optional[str],
         return_value_test: ReturnValueTest,
+        headers: Optional[dict] = None,
         parameters: Optional[dict] = None,
         condition_type: str = ConditionType.OFFCHAIN.value,
     ):
@@ -69,13 +70,16 @@ class OffchainCondition(AccessControlCondition):
             )
 
         self.endpoint = endpoint
+        self.headers = headers
         self.parameters = parameters
         self.query = query
         self.return_value_test = return_value_test
 
     def fetch(self):
         try:
-            response = requests.get(self.endpoint, params=self.parameters)
+            response = requests.get(
+                self.endpoint, params=self.parameters, headers=self.headers
+            )
         except requests.exceptions.RequestException as e:
             raise InvalidCondition(f"Failed to fetch endpoint {self.endpoint}: {e}")
         return response
