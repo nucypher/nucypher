@@ -103,7 +103,7 @@ class OffchainCondition(AccessControlCondition):
         """Deserializes the JSON response from the endpoint."""
         try:
             data = response.json()
-        except requests.exceptions.RequestException as json_error:
+        except (requests.exceptions.RequestException, ValueError) as json_error:
             self.logger.error(f"JSON parsing error occurred: {json_error}")
             raise ConditionEvaluationFailed(
                 f"Failed to parse JSON response: {json_error}"

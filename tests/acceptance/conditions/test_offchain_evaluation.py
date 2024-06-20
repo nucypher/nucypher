@@ -155,3 +155,24 @@ def test_offchain_condition_verify_invalid_json(mocker):
     with pytest.raises(ConditionEvaluationFailed) as excinfo:
         condition.verify()
     assert "Failed to parse JSON response" in str(excinfo.value)
+
+
+def test_non_json_response(mocker):
+    # Mock the requests.get method to return a response with non-JSON content
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.json.side_effect = ValueError("No JSON object could be decoded")
+    mock_response.text = "This is not JSON"
+
+    mocker.patch("requests.get", return_value=mock_response)
+
+    condition = OffchainCondition(
+        endpoint="https://api.example.com/data",
+        query="$.store.book[0].price",
+        return_value_test=ReturnValueTest("==", "18"),
+    )
+
+    with pytest.raises(ConditionEvaluationFailed) as excinfo:
+        condition.verify()
+
+    assert "Failed to parse JSON response" in str(excinfo.value)
