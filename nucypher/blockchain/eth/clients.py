@@ -10,7 +10,10 @@ from web3.contract.contract import Contract
 from web3.exceptions import TimeExhausted, TransactionNotFound
 from web3.types import TxReceipt, Wei
 
-from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
+from nucypher.blockchain.eth.constants import (
+    AVERAGE_BLOCK_TIME_IN_SECONDS,
+    PUBLIC_CHAINS,
+)
 from nucypher.blockchain.middleware.retry import (
     AlchemyRetryRequestMiddleware,
     InfuraRetryRequestMiddleware,
@@ -31,28 +34,6 @@ class Web3ClientConnectionFailed(Web3ClientError):
 
 class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
-
-
-PUBLIC_CHAINS = {
-    1: "Mainnet",
-    137: "Polygon/Mainnet",
-    11155111: "Sepolia",
-    80002: "Polygon/Amoy",
-}
-
-# This list is not exhaustive,
-# but is sufficient for the current needs of the project.
-POA_CHAINS = {
-    4,  # Rinkeby
-    5,  # Goerli
-    42,  # Kovan
-    77,  # Sokol
-    100,  # xDAI
-    10200,  # gnosis/chiado,
-    137,  # Polygon/Mainnet
-    80001,  # "Polygon/Mumbai"
-    80002,  # "Polygon/Amoy"
-}
 
 
 class EthereumClient:

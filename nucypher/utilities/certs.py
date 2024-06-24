@@ -1,9 +1,9 @@
 import ssl
 import time
+from _socket import gethostbyname
 from typing import Dict, NamedTuple
 from urllib.parse import urlparse, urlunparse
 
-from _socket import gethostbyname
 from requests import PreparedRequest, Response, Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException

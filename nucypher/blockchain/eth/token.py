@@ -1,6 +1,6 @@
+from _pydecimal import Decimal
 from typing import Union
 
-from _pydecimal import Decimal
 from eth_utils import currency
 
 from nucypher.types import ERC20UNits, NuNits, TuNits

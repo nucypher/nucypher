@@ -1,0 +1,2 @@
+Add functionality for ``:userAddressEIP712`` and ``:userAddressEIP4361`` to provide specific authentication
+support for user address context values for conditions. ``:userAddress`` will allow any valid authentication scheme.

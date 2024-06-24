@@ -1,0 +1,1 @@
+Add support for Sign-in With Ethereum (SIWE) messages to be used when verifying wallet address ownership for the ``:userAddress`` special context variable during decryption requests.

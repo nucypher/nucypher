@@ -21,7 +21,8 @@ from web3.middleware import geth_poa_middleware, simple_cache_middleware
 from web3.providers import BaseProvider
 from web3.types import TxParams, TxReceipt
 
-from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient
+from nucypher.blockchain.eth.clients import EthereumClient
+from nucypher.blockchain.eth.constants import POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_http_provider,
