@@ -5,7 +5,7 @@ authors = ["NuCypher"]
 description = "A threshold access control application to empower privacy in decentralized systems."
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4"
+python = ">=3.9,<4"
 nucypher-core = "==0.13.0"
 cryptography = "*"
 pynacl = ">=1.4.0"
@@ -40,6 +40,7 @@ eth-ape = "*"
 ape-solidity = '*'
 coverage = '^7.3.2'
 pre-commit = '^2.12.1'
+numpy = '^1.26.0'
 
 
 [tool.towncrier]
