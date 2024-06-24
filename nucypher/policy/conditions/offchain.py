@@ -43,10 +43,15 @@ class OffchainCondition(AccessControlCondition):
 
         name = fields.Str(required=False)
         condition_type = fields.Str(
-            validate=validate.Equal(ConditionType), required=True
+            validate=validate.Equal(ConditionType.OFFCHAIN.value), required=True
         )
+        headers = fields.Dict(required=False)
+        parameters = fields.Dict(required=False)
         endpoint = fields.Str(required=True)
         query = JSONPathField(required=True)
+        return_value_test = fields.Nested(
+            ReturnValueTest.ReturnValueTestSchema(), required=True
+        )
 
         def validate_query(self, value):
             try:
