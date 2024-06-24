@@ -1,3 +1,5 @@
+import json
+
 import pytest
 import requests
 from marshmallow import ValidationError
@@ -6,58 +8,8 @@ from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     InvalidCondition,
 )
-from nucypher.policy.conditions.lingo import ReturnValueTest
+from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.offchain import JSONPathField, OffchainCondition
-
-
-def test_basic_offchain_condition_evaluation_with_parameters(
-    accounts, condition_providers, mocker
-):
-    mocked_get = mocker.patch(
-        "requests.get",
-        return_value=mocker.Mock(
-            status_code=200, json=lambda: {"ethereum": {"usd": 0.0}}
-        ),
-    )
-
-    condition = OffchainCondition(
-        endpoint="https://api.coingecko.com/api/v3/simple/price",
-        parameters={
-            "ids": "ethereum",
-            "vs_currencies": "usd",
-        },
-        query="ethereum.usd",
-        return_value_test=ReturnValueTest("==", 0.0),
-    )
-
-    assert condition.verify() == (True, 0.0)
-    assert mocked_get.call_count == 1
-
-
-def test_basic_offchain_condition_evaluation_with_headers(
-    accounts, condition_providers, mocker
-):
-    mocked_get = mocker.patch(
-        "requests.get",
-        return_value=mocker.Mock(
-            status_code=200, json=lambda: {"ethereum": {"usd": 0.0}}
-        ),
-    )
-
-    condition = OffchainCondition(
-        endpoint="https://api.coingecko.com/api/v3/simple/price",
-        parameters={
-            "ids": "ethereum",
-            "vs_currencies": "usd",
-        },
-        headers={"Authorization": "Bearer 1234567890"},
-        query="ethereum.usd",
-        return_value_test=ReturnValueTest("==", 0.0),
-    )
-
-    assert condition.verify() == (True, 0.0)
-    assert mocked_get.call_count == 1
-    assert mocked_get.call_args[1]["headers"]["Authorization"] == "Bearer 1234567890"
 
 
 def test_jsonpath_field_valid():
@@ -99,17 +51,17 @@ def test_offchain_condition_invalid_type():
 
 def test_offchain_condition_fetch(mocker):
     mock_response = mocker.Mock(status_code=200)
-    mock_response.json.return_value = {"store": {"book": [{"price": "1"}]}}
+    mock_response.json.return_value = {"store": {"book": [{"title": "Test Title"}]}}
     mocker.patch("requests.get", return_value=mock_response)
 
     condition = OffchainCondition(
         endpoint="https://api.example.com/data",
-        query="$.store.book[0].price",
-        return_value_test=ReturnValueTest("==", "1"),
+        query="$.store.book[0].title",
+        return_value_test=ReturnValueTest("==", "'Test Title'"),
     )
     response = condition.fetch()
     assert response.status_code == 200
-    assert response.json() == {"store": {"book": [{"price": "1"}]}}
+    assert response.json() == {"store": {"book": [{"title": "Test Title"}]}}
 
 
 def test_offchain_condition_fetch_failure(mocker):
@@ -176,3 +128,79 @@ def test_non_json_response(mocker):
         condition.verify()
 
     assert "Failed to parse JSON response" in str(excinfo.value)
+
+
+def test_basic_offchain_condition_evaluation_with_parameters(
+    accounts, condition_providers, mocker
+):
+    mocked_get = mocker.patch(
+        "requests.get",
+        return_value=mocker.Mock(
+            status_code=200, json=lambda: {"ethereum": {"usd": 0.0}}
+        ),
+    )
+
+    condition = OffchainCondition(
+        endpoint="https://api.coingecko.com/api/v3/simple/price",
+        parameters={
+            "ids": "ethereum",
+            "vs_currencies": "usd",
+        },
+        query="ethereum.usd",
+        return_value_test=ReturnValueTest("==", 0.0),
+    )
+
+    assert condition.verify() == (True, 0.0)
+    assert mocked_get.call_count == 1
+
+
+def test_basic_offchain_condition_evaluation_with_headers(
+    accounts, condition_providers, mocker
+):
+    mocked_get = mocker.patch(
+        "requests.get",
+        return_value=mocker.Mock(
+            status_code=200, json=lambda: {"ethereum": {"usd": 0.0}}
+        ),
+    )
+
+    condition = OffchainCondition(
+        endpoint="https://api.coingecko.com/api/v3/simple/price",
+        parameters={
+            "ids": "ethereum",
+            "vs_currencies": "usd",
+        },
+        headers={"Authorization": "Bearer 1234567890"},
+        query="ethereum.usd",
+        return_value_test=ReturnValueTest("==", 0.0),
+    )
+
+    assert condition.verify() == (True, 0.0)
+    assert mocked_get.call_count == 1
+    assert mocked_get.call_args[1]["headers"]["Authorization"] == "Bearer 1234567890"
+
+
+def test_offchain_condition_from_lingo_expression():
+    lingo_dict = {
+        "conditionType": "offchain",
+        "endpoint": "https://api.example.com/data",
+        "query": "$.store.book[0].price",
+        "parameters": {
+            "ids": "ethereum",
+            "vs_currencies": "usd",
+        },
+        "headers": {
+            "Authorization": "Bearer 1234567890",
+        },
+        "returnValueTest": {
+            "comparator": "==",
+            "value": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+        },
+    }
+
+    cls = ConditionLingo.resolve_condition_class(lingo_dict, version=1.0)
+    assert cls == OffchainCondition
+
+    lingo_json = json.dumps(lingo_dict)
+    condition = OffchainCondition.from_json(lingo_json)
+    assert isinstance(condition, OffchainCondition)
