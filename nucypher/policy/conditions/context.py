@@ -21,7 +21,7 @@ CONTEXT_PREFIX = ":"
 CONTEXT_REGEX = re.compile(":[a-zA-Z_][a-zA-Z0-9_]*")
 
 USER_ADDRESS_SCHEMES = {
-    USER_ADDRESS_CONTEXT: None,  # TODO either EIP712 or EIP4361 for now, but should use the default that is eventually decided (likely EIP4361)
+    USER_ADDRESS_CONTEXT: None,  # TODO either EIP712 or EIP4361 for now, but should use the default that is eventually decided (likely EIP4361) - #tdec/178
     USER_ADDRESS_EIP712_CONTEXT: EvmAuth.AuthScheme.EIP712.value,
     USER_ADDRESS_EIP4361_CONTEXT: EvmAuth.AuthScheme.EIP4361.value,
     USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT: EvmAuth.AuthScheme.EIP4361.value,

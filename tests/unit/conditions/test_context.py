@@ -148,7 +148,7 @@ def test_user_address_context_invalid_typed_data(
     ),
     indirect=["valid_user_address_auth_message"],
 )
-def test_user_address_context_unexpected_scheme_data(
+def test_user_address_context_variable_with_incompatible_auth_message(
     context_variable_name, valid_user_address_auth_message
 ):
     # scheme in message is unexpected for context variable name
