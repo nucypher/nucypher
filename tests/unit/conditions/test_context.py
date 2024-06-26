@@ -4,7 +4,6 @@ import re
 
 import pytest
 
-from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
     USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT,
@@ -138,8 +137,8 @@ def test_user_address_context_invalid_typed_data(
                 USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT,
             ],
             [
-                EvmAuth.AuthScheme.EIP712.value,
-                EvmAuth.AuthScheme.EIP712.value,
+                "EIP712",
+                "EIP712",
             ],
         )
     ),
@@ -151,6 +150,12 @@ def test_user_address_context_variable_with_incompatible_auth_message(
     # scheme in message is unexpected for context variable name
     context = {context_variable_name: valid_user_address_auth_message}
     with pytest.raises(InvalidContextVariableData, match="UnexpectedScheme"):
+        get_context_value(context_variable_name, **context)
+
+    # no scheme (older clients did not use a scheme)
+    del valid_user_address_auth_message["scheme"]
+    context = {context_variable_name: valid_user_address_auth_message}
+    with pytest.raises(InvalidContextVariableData, match="Invalid EIP4361 message"):
         get_context_value(context_variable_name, **context)
 
 

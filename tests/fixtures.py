@@ -656,11 +656,11 @@ def valid_user_address_auth_message(request):
         # pick one at random
         auth_message_type = random.choice(EvmAuth.AuthScheme.values())
 
-    if auth_message_type == EvmAuth.AuthScheme.EIP712.value:
+    if auth_message_type == "EIP712":  # for invalid scheme testing
         auth_message = {
             "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
             "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
-            "scheme": f"{EvmAuth.AuthScheme.EIP712.value}",
+            "scheme": "EIP712",
             "typedData": {
                 "primaryType": "Wallet",
                 "types": {

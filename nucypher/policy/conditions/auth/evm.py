@@ -2,14 +2,11 @@ from enum import Enum
 from typing import List
 
 import maya
-from eth_account.account import Account
-from eth_account.messages import HexBytes, encode_typed_data
 from siwe import SiweMessage, VerificationError
 
 
 class EvmAuth:
     class AuthScheme(Enum):
-        EIP712 = "EIP712"
         EIP4361 = "EIP4361"
 
         @classmethod
@@ -28,41 +25,10 @@ class EvmAuth:
 
     @classmethod
     def from_scheme(cls, scheme: str):
-        if scheme == cls.AuthScheme.EIP712.value:
-            return EIP712Auth
-        elif scheme == cls.AuthScheme.EIP4361.value:
+        if scheme == cls.AuthScheme.EIP4361.value:
             return EIP4361Auth
 
         raise ValueError(f"Invalid authentication scheme: {scheme}")
-
-
-class EIP712Auth(EvmAuth):
-    @classmethod
-    def authenticate(cls, data, signature, expected_address):
-        try:
-            # convert hex data for byte fields - bytes are expected by underlying library
-            # 1. salt
-            salt = data["domain"]["salt"]
-            data["domain"]["salt"] = HexBytes(salt)
-            # 2. blockHash
-            blockHash = data["message"]["blockHash"]
-            data["message"]["blockHash"] = HexBytes(blockHash)
-
-            signable_message = encode_typed_data(full_message=data)
-            address_for_signature = Account.recover_message(
-                signable_message=signable_message, signature=signature
-            )
-        except Exception as e:
-            # data could not be processed
-            raise cls.InvalidData(
-                f"Invalid EIP712 message: {str(e) or e.__class__.__name__}"
-            )
-
-        if address_for_signature != expected_address:
-            # verification failed - addresses don't match
-            raise cls.AuthenticationFailed(
-                f"EIP712 verification failed; signature does not match expected address, {expected_address}"
-            )
 
 
 class EIP4361Auth(EvmAuth):

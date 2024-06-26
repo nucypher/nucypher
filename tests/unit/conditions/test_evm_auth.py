@@ -3,73 +3,16 @@ import pytest
 from siwe import SiweMessage
 
 from nucypher.blockchain.eth.signers import InMemorySigner
-from nucypher.policy.conditions.auth.evm import EIP712Auth, EIP4361Auth, EvmAuth
+from nucypher.policy.conditions.auth.evm import EIP4361Auth, EvmAuth
 
 
 def test_auth_scheme():
     for scheme in EvmAuth.AuthScheme:
-        expected_scheme = (
-            EIP712Auth if scheme == EvmAuth.AuthScheme.EIP712 else EIP4361Auth
-        )
-        assert EvmAuth.from_scheme(scheme=scheme.value) == expected_scheme
+        assert EvmAuth.from_scheme(scheme=scheme.value) == EIP4361Auth
 
     # non-existent scheme
     with pytest.raises(ValueError):
         _ = EvmAuth.from_scheme(scheme="rando")
-
-
-@pytest.mark.parametrize(
-    "valid_user_address_auth_message", [EvmAuth.AuthScheme.EIP712.value], indirect=True
-)
-def test_authenticate_eip712(
-    valid_user_address_auth_message, get_random_checksum_address
-):
-    data = valid_user_address_auth_message["typedData"]
-    signature = valid_user_address_auth_message["signature"]
-    address = valid_user_address_auth_message["address"]
-
-    # invalid data
-    invalid_data = dict(data)  # make a copy
-    del invalid_data["domain"]
-    with pytest.raises(EvmAuth.InvalidData):
-        EIP712Auth.authenticate(
-            data=invalid_data, signature=signature, expected_address=address
-        )
-
-    invalid_data = dict(data)  # make a copy
-    del invalid_data["message"]
-    with pytest.raises(EvmAuth.InvalidData):
-        EIP712Auth.authenticate(
-            data=invalid_data, signature=signature, expected_address=address
-        )
-
-    # signature not for expected address
-    incorrect_signature = (
-        "0x93252ddff5f90584b27b5eef1915b23a8b01a703be56c8bf0660647c15cb75e9"
-        "1983bde9877eaad11da5a3ebc9b64957f1c182536931f9844d0c600f0c41293d1b"
-    )
-    with pytest.raises(EvmAuth.AuthenticationFailed):
-        EIP712Auth.authenticate(
-            data=data, signature=incorrect_signature, expected_address=address
-        )
-
-    # invalid signature
-    invalid_signature = "0xdeadbeef"
-    with pytest.raises(EvmAuth.InvalidData):
-        EIP712Auth.authenticate(
-            data=data, signature=invalid_signature, expected_address=address
-        )
-
-    # mismatch with expected address
-    with pytest.raises(EvmAuth.AuthenticationFailed):
-        EIP712Auth.authenticate(
-            data=data,
-            signature=signature,
-            expected_address=get_random_checksum_address(),
-        )
-
-    # everything valid
-    EIP712Auth.authenticate(data, signature, address)
 
 
 def test_authenticate_eip4361(get_random_checksum_address):
