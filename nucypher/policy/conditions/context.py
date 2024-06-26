@@ -49,7 +49,7 @@ def _resolve_user_address(user_address_context_variable, **context) -> ChecksumA
         expected_address = to_checksum_address(user_address_info["address"])
         typed_data = user_address_info["typedData"]
 
-        scheme = user_address_info.get("scheme", EvmAuth.AuthScheme.EIP712.value)
+        scheme = user_address_info.get("scheme", EvmAuth.AuthScheme.EIP4361.value)
         expected_scheme = USER_ADDRESS_SCHEMES[user_address_context_variable]
         if expected_scheme and scheme != expected_scheme:
             raise UnexpectedScheme(
