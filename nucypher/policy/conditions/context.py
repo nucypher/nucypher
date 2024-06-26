@@ -13,17 +13,13 @@ from nucypher.policy.conditions.exceptions import (
 )
 
 USER_ADDRESS_CONTEXT = ":userAddress"
-USER_ADDRESS_EIP712_CONTEXT = ":userAddressEIP712"
-USER_ADDRESS_EIP4361_CONTEXT = ":userAddressEIP4361"
 USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT = ":userAddressExternalEIP4361"
 
 CONTEXT_PREFIX = ":"
 CONTEXT_REGEX = re.compile(":[a-zA-Z_][a-zA-Z0-9_]*")
 
 USER_ADDRESS_SCHEMES = {
-    USER_ADDRESS_CONTEXT: None,  # TODO either EIP712 or EIP4361 for now, but should use the default that is eventually decided (likely EIP4361) - #tdec/178
-    USER_ADDRESS_EIP712_CONTEXT: EvmAuth.AuthScheme.EIP712.value,
-    USER_ADDRESS_EIP4361_CONTEXT: EvmAuth.AuthScheme.EIP4361.value,
+    USER_ADDRESS_CONTEXT: EvmAuth.AuthScheme.EIP4361.value,
     USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT: EvmAuth.AuthScheme.EIP4361.value,
 }
 
@@ -42,7 +38,7 @@ def _resolve_user_address(user_address_context_variable, **context) -> ChecksumA
             {
                 "signature": "<signature>",
                 "address": "<address>",
-                "scheme": "EIP712" | "EIP4361" | ...
+                "scheme": "EIP4361" | ...
                 "typedData": ...
             }
     }
@@ -84,13 +80,6 @@ def _resolve_user_address(user_address_context_variable, **context) -> ChecksumA
 _DIRECTIVES = {
     USER_ADDRESS_CONTEXT: partial(
         _resolve_user_address, user_address_context_variable=USER_ADDRESS_CONTEXT
-    ),
-    USER_ADDRESS_EIP712_CONTEXT: partial(
-        _resolve_user_address, user_address_context_variable=USER_ADDRESS_EIP712_CONTEXT
-    ),
-    USER_ADDRESS_EIP4361_CONTEXT: partial(
-        _resolve_user_address,
-        user_address_context_variable=USER_ADDRESS_EIP4361_CONTEXT,
     ),
     USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT: partial(
         _resolve_user_address,
