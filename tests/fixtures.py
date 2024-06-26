@@ -1,7 +1,6 @@
 import contextlib
 import json
 import os
-import random
 import shutil
 import tempfile
 from datetime import timedelta
@@ -650,71 +649,70 @@ def rpc_condition():
 
 
 @pytest.fixture(scope="function")
-def valid_user_address_auth_message(request):
-    auth_message_type = request.param
-    if auth_message_type is None:
-        # pick one at random
-        auth_message_type = random.choice(EvmAuth.AuthScheme.values())
-
-    if auth_message_type == "EIP712":  # for invalid scheme testing
-        auth_message = {
-            "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
-            "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
-            "scheme": "EIP712",
-            "typedData": {
-                "primaryType": "Wallet",
-                "types": {
-                    "EIP712Domain": [
-                        {"name": "name", "type": "string"},
-                        {"name": "version", "type": "string"},
-                        {"name": "chainId", "type": "uint256"},
-                        {"name": "salt", "type": "bytes32"},
-                    ],
-                    "Wallet": [
-                        {"name": "address", "type": "string"},
-                        {"name": "blockNumber", "type": "uint256"},
-                        {"name": "blockHash", "type": "bytes32"},
-                        {"name": "signatureText", "type": "string"},
-                    ],
-                },
-                "domain": {
-                    "name": "tDec",
-                    "version": "1",
-                    "chainId": 80001,
-                    "salt": "0x3e6365d35fd4e53cbc00b080b0742b88f8b735352ea54c0534ed6a2e44a83ff0",
-                },
-                "message": {
-                    "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
-                    "blockNumber": 28117088,
-                    "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
-                    "signatureText": "I'm the owner of address 0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E as of block number 28117088",
-                },
-            },
-        }
-    elif auth_message_type == EvmAuth.AuthScheme.EIP4361.value:
-        signer = InMemorySigner()
-        siwe_message_data = {
-            "domain": "login.xyz",
-            "address": f"{signer.accounts[0]}",
-            "statement": "Sign-In With Ethereum Example Statement",
-            "uri": "https://login.xyz",
+def valid_but_no_longer_supported_eip712_auth_message():
+    data = {
+        "primaryType": "Wallet",
+        "types": {
+            "EIP712Domain": [
+                {"name": "name", "type": "string"},
+                {"name": "version", "type": "string"},
+                {"name": "chainId", "type": "uint256"},
+                {"name": "salt", "type": "bytes32"},
+            ],
+            "Wallet": [
+                {"name": "address", "type": "string"},
+                {"name": "blockNumber", "type": "uint256"},
+                {"name": "blockHash", "type": "bytes32"},
+                {"name": "signatureText", "type": "string"},
+            ],
+        },
+        "domain": {
+            "name": "tDec",
             "version": "1",
-            "nonce": "bTyXgcQxn2htgkjJn",
-            "chain_id": 1,
-            "issued_at": f"{maya.now().iso8601()}",
-        }
-        siwe_message = SiweMessage(siwe_message_data).prepare_message()
-        signature = signer.sign_message(
-            account=signer.accounts[0], message=siwe_message.encode()
-        )
-        auth_message = {
-            "signature": f"{signature.hex()}",
-            "address": f"{signer.accounts[0]}",
-            "scheme": f"{EvmAuth.AuthScheme.EIP4361.value}",
-            "typedData": f"{siwe_message}",
-        }
-    else:
-        raise ValueError(f"No context for provided scheme, {request.param}")
+            "chainId": 80001,
+            "salt": "0x3e6365d35fd4e53cbc00b080b0742b88f8b735352ea54c0534ed6a2e44a83ff0",
+        },
+        "message": {
+            "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
+            "blockNumber": 28117088,
+            "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
+            "signatureText": "I'm the owner of address 0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E as of block number 28117088",
+        },
+    }
+
+    auth_message = {
+        "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
+        "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
+        "scheme": "EIP712",
+        "typedData": data,
+    }
+
+    return auth_message
+
+
+@pytest.fixture(scope="function")
+def valid_eip4361_auth_message():
+    signer = InMemorySigner()
+    siwe_message_data = {
+        "domain": "login.xyz",
+        "address": f"{signer.accounts[0]}",
+        "statement": "Sign-In With Ethereum Example Statement",
+        "uri": "https://login.xyz",
+        "version": "1",
+        "nonce": "bTyXgcQxn2htgkjJn",
+        "chain_id": 1,
+        "issued_at": f"{maya.now().iso8601()}",
+    }
+    siwe_message = SiweMessage(siwe_message_data).prepare_message()
+    signature = signer.sign_message(
+        account=signer.accounts[0], message=siwe_message.encode()
+    )
+    auth_message = {
+        "signature": f"{signature.hex()}",
+        "address": f"{signer.accounts[0]}",
+        "scheme": f"{EvmAuth.AuthScheme.EIP4361.value}",
+        "typedData": f"{siwe_message}",
+    }
 
     return auth_message
 
