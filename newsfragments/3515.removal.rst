@@ -1,0 +1,3 @@
+Deprecate the use of EIP712 authentication for proving wallet address ownership
+for the `:userAddress` context variable for conditions. Instead EIP4361 authentication
+messages are expected to be used.

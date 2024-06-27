@@ -4,11 +4,7 @@ import re
 
 import pytest
 
-from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.context import (
-    USER_ADDRESS_EIP712_CONTEXT,
-    USER_ADDRESS_EIP4361_CONTEXT,
-    USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT,
     USER_ADDRESS_SCHEMES,
     _resolve_context_variable,
     _resolve_user_address,
@@ -99,30 +95,22 @@ def test_resolve_any_context_variables():
 
 
 @pytest.mark.parametrize("expected_entry", ["address", "signature", "typedData"])
-@pytest.mark.parametrize(
-    "context_variable_name, valid_user_address_auth_message",
-    list(USER_ADDRESS_SCHEMES.items()),
-    indirect=["valid_user_address_auth_message"],
-)
+@pytest.mark.parametrize("context_variable_name", list(USER_ADDRESS_SCHEMES.keys()))
 def test_user_address_context_missing_required_entries(
-    expected_entry, context_variable_name, valid_user_address_auth_message
+    expected_entry, context_variable_name, valid_eip4361_auth_message
 ):
-    context = {context_variable_name: valid_user_address_auth_message}
+    context = {context_variable_name: valid_eip4361_auth_message}
     del context[context_variable_name][expected_entry]
     with pytest.raises(InvalidContextVariableData):
         get_context_value(context_variable_name, **context)
 
 
-@pytest.mark.parametrize(
-    "context_variable_name, valid_user_address_auth_message",
-    list(USER_ADDRESS_SCHEMES.items()),
-    indirect=["valid_user_address_auth_message"],
-)
+@pytest.mark.parametrize("context_variable_name", list(USER_ADDRESS_SCHEMES.keys()))
 def test_user_address_context_invalid_typed_data(
-    context_variable_name, valid_user_address_auth_message
+    context_variable_name, valid_eip4361_auth_message
 ):
     # invalid typed data
-    context = {context_variable_name: valid_user_address_auth_message}
+    context = {context_variable_name: valid_eip4361_auth_message}
     context[context_variable_name]["typedData"] = dict(
         randomSaying="Comparison is the thief of joy."  # -– Theodore Roosevelt
     )
@@ -130,44 +118,27 @@ def test_user_address_context_invalid_typed_data(
         get_context_value(context_variable_name, **context)
 
 
-@pytest.mark.parametrize(
-    "context_variable_name, valid_user_address_auth_message",
-    list(
-        zip(
-            [
-                USER_ADDRESS_EIP712_CONTEXT,
-                USER_ADDRESS_EIP4361_CONTEXT,
-                USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT,
-            ],
-            [
-                EvmAuth.AuthScheme.EIP4361.value,
-                EvmAuth.AuthScheme.EIP712.value,
-                EvmAuth.AuthScheme.EIP712.value,
-            ],
-        )
-    ),
-    indirect=["valid_user_address_auth_message"],
-)
+@pytest.mark.parametrize("context_variable_name", list(USER_ADDRESS_SCHEMES.keys()))
 def test_user_address_context_variable_with_incompatible_auth_message(
-    context_variable_name, valid_user_address_auth_message
+    context_variable_name, valid_but_no_longer_supported_eip712_auth_message
 ):
     # scheme in message is unexpected for context variable name
-    context = {context_variable_name: valid_user_address_auth_message}
+    context = {context_variable_name: valid_but_no_longer_supported_eip712_auth_message}
     with pytest.raises(InvalidContextVariableData, match="UnexpectedScheme"):
         get_context_value(context_variable_name, **context)
 
+    # no scheme (older clients did not use a scheme)
+    del valid_but_no_longer_supported_eip712_auth_message["scheme"]
+    context = {context_variable_name: valid_but_no_longer_supported_eip712_auth_message}
+    with pytest.raises(InvalidContextVariableData, match="Invalid EIP4361 message"):
+        get_context_value(context_variable_name, **context)
 
-@pytest.mark.parametrize(
-    "context_variable_name, valid_user_address_auth_message",
-    list(USER_ADDRESS_SCHEMES.items()),
-    indirect=["valid_user_address_auth_message"],
-)
+
+@pytest.mark.parametrize("context_variable_name", list(USER_ADDRESS_SCHEMES.keys()))
 def test_user_address_context_variable_verification(
-    context_variable_name, valid_user_address_auth_message, get_random_checksum_address
+    context_variable_name, valid_eip4361_auth_message, get_random_checksum_address
 ):
-    valid_user_address_context = {
-        context_variable_name: valid_user_address_auth_message
-    }
+    valid_user_address_context = {context_variable_name: valid_eip4361_auth_message}
 
     # call underlying directive directly (appease codecov)
     address = _resolve_user_address(
