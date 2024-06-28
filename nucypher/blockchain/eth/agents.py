@@ -698,10 +698,51 @@ class CoordinatorAgent(EthereumContractAgent):
         This contract read is relayed through coordinator to the access controller
         contract associated with a given ritual.
         """
-        result = self.contract.functions.isEncryptionAuthorized(
-            ritual_id, evidence, ciphertext_header
+
+        # TODO this makes the test pass more easily - find a better way
+        #  for this access controller calling logic
+        ritual = self.get_ritual(ritual_id=ritual_id)
+        abi = """[
+            {
+                "type": "function",
+                "name": "isAuthorized",
+                "stateMutability": "view",
+                "inputs": [
+                    {
+                        "name": "ritualId",
+                        "type": "uint32",
+                        "internalType": "uint32"
+                    },
+                    {
+                        "name": "evidence",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                    },
+                    {
+                        "name": "ciphertextHeader",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "name": "",
+                        "type": "bool",
+                        "internalType": "bool"
+                    }
+                ]
+            }
+        ]"""
+        encryption_authorizer = self.blockchain.w3.eth.contract(
+            address=ritual.access_controller, abi=abi
+        )
+        is_authorized = encryption_authorizer.functions.isAuthorized(
+            ritual_id,
+            evidence,
+            ciphertext_header,
         ).call()
-        return result
+
+        return is_authorized
 
     @contract_api(CONTRACT_CALL)
     def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
