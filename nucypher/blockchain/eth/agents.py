@@ -722,6 +722,7 @@ class CoordinatorAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def initiate_ritual(
         self,
+        fee_model: ChecksumAddress,
         providers: List[ChecksumAddress],
         authority: ChecksumAddress,
         duration: int,
@@ -729,7 +730,7 @@ class CoordinatorAgent(EthereumContractAgent):
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.initiateRitual(
-            providers, authority, duration, access_controller
+            fee_model, providers, authority, duration, access_controller
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function, transacting_power=transacting_power
@@ -779,15 +780,6 @@ class CoordinatorAgent(EthereumContractAgent):
             info={"ritual_id": ritual_id, "phase": PHASE2},
         )
         return async_tx
-
-    @contract_api(CONTRACT_CALL)
-    def get_ritual_initiation_cost(
-        self, providers: List[ChecksumAddress], duration: int
-    ) -> Wei:
-        result = self.contract.functions.getRitualInitiationCost(
-            providers, duration
-        ).call()
-        return Wei(result)
 
     @contract_api(CONTRACT_CALL)
     def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
