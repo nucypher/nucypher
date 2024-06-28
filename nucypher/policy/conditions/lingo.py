@@ -73,8 +73,8 @@ class ConditionType(Enum):
     TIME = "time"
     CONTRACT = "contract"
     RPC = "rpc"
+    JSONAPI = "json-api"
     COMPOUND = "compound"
-    OFFCHAIN = "offchain"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -417,7 +417,7 @@ class ConditionLingo(_Serializable):
         conditions expression framework.
         """
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
-        from nucypher.policy.conditions.offchain import OffchainCondition
+        from nucypher.policy.conditions.offchain import JsonApiCondition
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
@@ -428,7 +428,7 @@ class ConditionLingo(_Serializable):
             ContractCondition,
             RPCCondition,
             CompoundAccessControlCondition,
-            OffchainCondition,
+            JsonApiCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition
