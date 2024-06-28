@@ -108,6 +108,7 @@ class MockCoordinatorAgent(MockContractAgent):
             ],
             dkg_size=len(providers),
             threshold=self.get_threshold_for_ritual_size(len(providers)),
+            fee_model=fee_model,
         )
         self._rituals.append(ritual)
         self.emit_event(
