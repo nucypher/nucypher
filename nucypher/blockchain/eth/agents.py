@@ -605,9 +605,10 @@ class CoordinatorAgent(EthereumContractAgent):
             threshold=result[7],
             aggregation_mismatch=result[8],
             access_controller=ChecksumAddress(result[9]),
-            aggregated_transcript=bytes(result[11]),
             public_key=Ferveo.G1Point(result[10][0], result[10][1]),
+            aggregated_transcript=bytes(result[11]),
             participants=[],  # solidity does not return sub-structs
+            fee_model=ChecksumAddress(result[12]),
         )
         return ritual
 
