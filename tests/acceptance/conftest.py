@@ -32,6 +32,7 @@ from tests.utils.ursula import (
 
 test_logger = Logger("acceptance-test-logger")
 
+ONE_DAY = 24 * 60 * 60
 
 # ERC-20
 TOTAL_SUPPLY = Web3.to_wei(11_000_000_000, "ether")
@@ -42,17 +43,17 @@ NU_TOTAL_SUPPLY = Web3.to_wei(
 # TACo Application
 MIN_AUTHORIZATION = Web3.to_wei(40_000, "ether")
 
-REWARD_DURATION = 60 * 60 * 24 * 7  # one week in seconds
-DEAUTHORIZATION_DURATION = 60 * 60 * 24 * 60  # 60 days in seconds
+REWARD_DURATION = 7 * ONE_DAY  # one week in seconds
+DEAUTHORIZATION_DURATION = 60 * ONE_DAY  # 60 days in seconds
 
-COMMITMENT_DURATION_1 = 182 * 60 * 24 * 60  # 182 days in seconds
+COMMITMENT_DURATION_1 = 182 * ONE_DAY  # 182 days in seconds
 COMMITMENT_DURATION_2 = 2 * COMMITMENT_DURATION_1  # 365 days in seconds
 
-COMMITMENT_DEADLINE = 60 * 60 * 24 * 100  # 100 days after deployment
+COMMITMENT_DEADLINE = 100 * ONE_DAY  # 100 days after deployment
 
 PENALTY_DEFAULT = 1000  # 10% penalty
 PENALTY_INCREMENT = 2500  # 25% penalty increment
-PENALTY_DURATION = 60 * 60 * 24  # 1 day in seconds
+PENALTY_DURATION = ONE_DAY  # 1 day in seconds
 
 
 # Coordinator
