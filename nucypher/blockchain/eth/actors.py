@@ -738,7 +738,7 @@ class Operator(BaseActor):
 
         return async_tx
 
-    def derive_decryption_share(
+    def produce_decryption_share(
         self,
         ritual_id: int,
         ciphertext_header: CiphertextHeader,
@@ -750,7 +750,7 @@ class Operator(BaseActor):
         aggregated_transcript = AggregatedTranscript.from_bytes(
             bytes(ritual.aggregated_transcript)
         )
-        decryption_share = self.ritual_power.derive_decryption_share(
+        decryption_share = self.ritual_power.produce_decryption_share(
             nodes=validators,
             threshold=ritual.threshold,
             shares=ritual.shares,
@@ -798,17 +798,53 @@ class Operator(BaseActor):
                 f"Node not part of ritual {decryption_request.ritual_id}",
             )
 
-    def _verify_ciphertext_authorization(
+    def _verify_encryption_authorization(
         self, decryption_request: ThresholdDecryptionRequest
     ) -> None:
-        """check that the ciphertext is authorized for this ritual"""
+        """Check that the encryption is authorized for this ritual"""
         ciphertext_header = decryption_request.ciphertext_header
         authorization = decryption_request.acp.authorization
-        if not self.coordinator_agent.is_encryption_authorized(
-            ritual_id=decryption_request.ritual_id,
-            evidence=authorization,
-            ciphertext_header=bytes(ciphertext_header),
-        ):
+        ritual = self._resolve_ritual(decryption_request.ritual_id)
+        abi = """[
+                {
+                    "type": "function",
+                    "name": "isAuthorized",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "ritualId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "evidence",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        },
+                        {
+                            "name": "ciphertextHeader",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                }
+            ]"""
+        encryption_authorizer = self.coordinator_agent.blockchain.w3.eth.contract(
+            address=ritual.access_controller, abi=abi
+        )
+        is_authorized = encryption_authorizer.functions.isAuthorized(
+            decryption_request.ritual_id,
+            authorization,
+            bytes(ciphertext_header),
+        ).call()
+        if not is_authorized:
             raise self.UnauthorizedRequest(
                 f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",
             )
@@ -844,10 +880,10 @@ class Operator(BaseActor):
     ) -> None:
         """check that the decryption request is authorized for this ritual"""
         self._verify_active_ritual(decryption_request)
-        self._verify_ciphertext_authorization(decryption_request)
+        self._verify_encryption_authorization(decryption_request)
         self._evaluate_conditions(decryption_request)
 
-    def _derive_decryption_share_for_request(
+    def _produce_decryption_share_for_request(
         self,
         decryption_request: ThresholdDecryptionRequest,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
@@ -856,7 +892,7 @@ class Operator(BaseActor):
             decryption_request=decryption_request
         )
         try:
-            decryption_share = self.derive_decryption_share(
+            decryption_share = self.produce_decryption_share(
                 ritual_id=decryption_request.ritual_id,
                 ciphertext_header=decryption_request.ciphertext_header,
                 aad=decryption_request.acp.aad(),
