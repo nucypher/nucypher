@@ -117,6 +117,7 @@ class Coordinator:
         initiator: ChecksumAddress
         authority: ChecksumAddress
         access_controller: ChecksumAddress
+        fee_model: ChecksumAddress
         dkg_size: int
         init_timestamp: int
         end_timestamp: int
@@ -127,6 +128,7 @@ class Coordinator:
         aggregation_mismatch: bool = False
         aggregated_transcript: bytes = bytes()
         participants: List = field(default_factory=list)
+
 
         @property
         def providers(self):
