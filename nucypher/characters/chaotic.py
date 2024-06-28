@@ -184,7 +184,7 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
             self._learner._dkg_insight.validator_keypairs,
         ):
             # get decryption fragments/shares
-            decryption_share = dkg.derive_decryption_share(
+            decryption_share = dkg.produce_decryption_share(
                 ritual_id=ritual_id,
                 me=validator,
                 shares=self._learner._dkg_insight.shares_num,

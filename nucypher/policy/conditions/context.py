@@ -2,7 +2,7 @@ import re
 from typing import Any, List, Union
 
 from eth_account.account import Account
-from eth_account.messages import HexBytes, encode_structured_data
+from eth_account.messages import HexBytes, encode_typed_data
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 
@@ -48,7 +48,7 @@ def _recover_user_address(**context) -> ChecksumAddress:
         blockHash = eip712_message["message"]["blockHash"]
         eip712_message["message"]["blockHash"] = HexBytes(blockHash)
 
-        signable_message = encode_structured_data(primitive=eip712_message)
+        signable_message = encode_typed_data(full_message=eip712_message)
     except Exception as e:
         # data could not be processed
         raise InvalidContextVariableData(

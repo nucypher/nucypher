@@ -155,6 +155,7 @@ def test_ursula_ritualist(
             print("==================== INITIALIZING ====================")
             cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
             mock_coordinator_agent.initiate_ritual(
+                fee_model=get_random_checksum_address(),
                 providers=cohort_staking_provider_addresses,
                 authority=alice.transacting_power.account,
                 duration=1,
