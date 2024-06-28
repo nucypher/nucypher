@@ -3,7 +3,7 @@ from typing import Any, Optional, Tuple
 import requests
 from jsonpath_ng.exceptions import JsonPathLexerError, JsonPathParserError
 from jsonpath_ng.ext import parse
-from marshmallow import ValidationError, fields, post_load, validate
+from marshmallow import fields, post_load, validate
 from marshmallow.fields import Field
 
 from nucypher.policy.conditions.base import AccessControlCondition
@@ -17,33 +17,36 @@ from nucypher.utilities.logging import Logger
 
 
 class JSONPathField(Field):
-    default_error_messages = {"invalid": "Not a valid JSONPath expression."}
+    default_error_messages = {
+        "invalidType": "Expression of type '{type(value)}' is not valid for JSONPath",
+        "invalid": "'{value}' is not a valid JSONPath expression",
+    }
 
     def _deserialize(self, value, attr, data, **kwargs):
         if not isinstance(value, str):
-            self.fail("invalid")
+            raise self.make_error("invalidType", input=value)
         try:
             parse(value)
         except (JsonPathLexerError, JsonPathParserError):
-            self.fail("invalid")
+            raise self.make_error("invalid", value=value)
         return value
 
 
-class OffchainCondition(AccessControlCondition):
+class JsonApiCondition(AccessControlCondition):
     """
-    An offchain condition is a condition that can be evaluated by reading from a JSON
-    endpoint. This may be a REST service but the only requirement is that
-    the response is JSON and can be parsed using jsonpath.
+    A JSON API condition is a condition that can be evaluated by reading from a JSON
+    HTTPS endpoint. The response must return an HTTP 200 with valid JSON in the response body.
+    The response will be deserialized as JSON and parsed using jsonpath.
     """
 
-    CONDITION_TYPE = ConditionType.OFFCHAIN.value
-    LOGGER = Logger("nucypher.policy.conditions.offchain")
+    CONDITION_TYPE = ConditionType.JSONAPI.value
+    LOGGER = Logger("nucypher.policy.conditions.JsonApiCondition")
 
     class Schema(CamelCaseSchema):
 
         name = fields.Str(required=False)
         condition_type = fields.Str(
-            validate=validate.Equal(ConditionType.OFFCHAIN.value), required=True
+            validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
         headers = fields.Dict(required=False)
         parameters = fields.Dict(required=False)
@@ -53,15 +56,9 @@ class OffchainCondition(AccessControlCondition):
             ReturnValueTest.ReturnValueTestSchema(), required=True
         )
 
-        def validate_query(self, value):
-            try:
-                parse(value)
-            except Exception as e:
-                raise ValidationError(f"Invalid JSONPath query: {e}")
-
         @post_load
         def make(self, data, **kwargs):
-            return OffchainCondition(**data)
+            return JsonApiCondition(**data)
 
     def __init__(
         self,
@@ -70,7 +67,7 @@ class OffchainCondition(AccessControlCondition):
         return_value_test: ReturnValueTest,
         headers: Optional[dict] = None,
         parameters: Optional[dict] = None,
-        condition_type: str = ConditionType.OFFCHAIN.value,
+        condition_type: str = ConditionType.JSONAPI.value,
     ):
         if condition_type != self.CONDITION_TYPE:
             raise InvalidCondition(
@@ -100,6 +97,14 @@ class OffchainCondition(AccessControlCondition):
             self.logger.error(f"Request exception occurred: {request_error}")
             raise InvalidCondition(
                 f"Failed to fetch endpoint {self.endpoint}: {request_error}"
+            )
+
+        if response.status_code != 200:
+            self.logger.error(
+                f"Failed to fetch endpoint {self.endpoint}: {response.status_code}"
+            )
+            raise ConditionEvaluationFailed(
+                f"Failed to fetch endpoint {self.endpoint}: {response.status_code}"
             )
 
         return response
