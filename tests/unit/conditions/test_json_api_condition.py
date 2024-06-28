@@ -9,7 +9,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
-from nucypher.policy.conditions.offchain import JSONPathField, OffchainCondition
+from nucypher.policy.conditions.offchain import JsonApiCondition, JSONPathField
 
 
 def test_jsonpath_field_valid():
@@ -24,11 +24,13 @@ def test_jsonpath_field_invalid():
     invalid_jsonpath = "invalid jsonpath"
     with pytest.raises(ValidationError) as excinfo:
         field.deserialize(invalid_jsonpath)
-    assert "Not a valid JSONPath expression." in str(excinfo.value)
+    assert f"'{invalid_jsonpath}' is not a valid JSONPath expression" in str(
+        excinfo.value
+    )
 
 
-def test_offchain_condition_initialization():
-    condition = OffchainCondition(
+def test_json_api_condition_initialization():
+    condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 0),
@@ -38,23 +40,23 @@ def test_offchain_condition_initialization():
     assert condition.return_value_test.eval(0)
 
 
-def test_offchain_condition_invalid_type():
+def test_json_api_condition_invalid_type():
     with pytest.raises(InvalidCondition) as excinfo:
-        OffchainCondition(
+        JsonApiCondition(
             endpoint="https://api.example.com/data",
             query="$.store.book[0].price",
             return_value_test=ReturnValueTest("==", 0),
             condition_type="INVALID_TYPE",
         )
-    assert "must be instantiated with the offchain type" in str(excinfo.value)
+    assert "must be instantiated with the json-api type" in str(excinfo.value)
 
 
-def test_offchain_condition_fetch(mocker):
+def test_json_api_condition_fetch(mocker):
     mock_response = mocker.Mock(status_code=200)
     mock_response.json.return_value = {"store": {"book": [{"title": "Test Title"}]}}
     mocker.patch("requests.get", return_value=mock_response)
 
-    condition = OffchainCondition(
+    condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].title",
         return_value_test=ReturnValueTest("==", "'Test Title'"),
@@ -64,12 +66,12 @@ def test_offchain_condition_fetch(mocker):
     assert response.json() == {"store": {"book": [{"title": "Test Title"}]}}
 
 
-def test_offchain_condition_fetch_failure(mocker):
+def test_json_api_condition_fetch_failure(mocker):
     mocker.patch(
         "requests.get", side_effect=requests.exceptions.RequestException("Error")
     )
 
-    condition = OffchainCondition(
+    condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", "1"),
@@ -79,12 +81,12 @@ def test_offchain_condition_fetch_failure(mocker):
     assert "Failed to fetch endpoint" in str(excinfo.value)
 
 
-def test_offchain_condition_verify(mocker):
+def test_json_api_condition_verify(mocker):
     mock_response = mocker.Mock(status_code=200)
     mock_response.json.return_value = {"store": {"book": [{"price": "1"}]}}
     mocker.patch("requests.get", return_value=mock_response)
 
-    condition = OffchainCondition(
+    condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", "1"),
@@ -94,12 +96,12 @@ def test_offchain_condition_verify(mocker):
     assert value == "1"
 
 
-def test_offchain_condition_verify_invalid_json(mocker):
+def test_json_api_condition_verify_invalid_json(mocker):
     mock_response = mocker.Mock(status_code=200)
     mock_response.json.side_effect = requests.exceptions.RequestException("Error")
     mocker.patch("requests.get", return_value=mock_response)
 
-    condition = OffchainCondition(
+    condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", "2"),
@@ -118,7 +120,7 @@ def test_non_json_response(mocker):
 
     mocker.patch("requests.get", return_value=mock_response)
 
-    condition = OffchainCondition(
+    condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", "18"),
@@ -130,9 +132,7 @@ def test_non_json_response(mocker):
     assert "Failed to parse JSON response" in str(excinfo.value)
 
 
-def test_basic_offchain_condition_evaluation_with_parameters(
-    accounts, condition_providers, mocker
-):
+def test_basic_json_api_condition_evaluation_with_parameters(mocker):
     mocked_get = mocker.patch(
         "requests.get",
         return_value=mocker.Mock(
@@ -140,7 +140,7 @@ def test_basic_offchain_condition_evaluation_with_parameters(
         ),
     )
 
-    condition = OffchainCondition(
+    condition = JsonApiCondition(
         endpoint="https://api.coingecko.com/api/v3/simple/price",
         parameters={
             "ids": "ethereum",
@@ -154,9 +154,7 @@ def test_basic_offchain_condition_evaluation_with_parameters(
     assert mocked_get.call_count == 1
 
 
-def test_basic_offchain_condition_evaluation_with_headers(
-    accounts, condition_providers, mocker
-):
+def test_basic_json_api_condition_evaluation_with_headers(mocker):
     mocked_get = mocker.patch(
         "requests.get",
         return_value=mocker.Mock(
@@ -164,7 +162,7 @@ def test_basic_offchain_condition_evaluation_with_headers(
         ),
     )
 
-    condition = OffchainCondition(
+    condition = JsonApiCondition(
         endpoint="https://api.coingecko.com/api/v3/simple/price",
         parameters={
             "ids": "ethereum",
@@ -180,9 +178,9 @@ def test_basic_offchain_condition_evaluation_with_headers(
     assert mocked_get.call_args[1]["headers"]["Authorization"] == "Bearer 1234567890"
 
 
-def test_offchain_condition_from_lingo_expression():
+def test_json_api_condition_from_lingo_expression():
     lingo_dict = {
-        "conditionType": "offchain",
+        "conditionType": "json-api",
         "endpoint": "https://api.example.com/data",
         "query": "$.store.book[0].price",
         "parameters": {
@@ -199,8 +197,8 @@ def test_offchain_condition_from_lingo_expression():
     }
 
     cls = ConditionLingo.resolve_condition_class(lingo_dict, version=1.0)
-    assert cls == OffchainCondition
+    assert cls == JsonApiCondition
 
     lingo_json = json.dumps(lingo_dict)
-    condition = OffchainCondition.from_json(lingo_json)
-    assert isinstance(condition, OffchainCondition)
+    condition = JsonApiCondition.from_json(lingo_json)
+    assert isinstance(condition, JsonApiCondition)
