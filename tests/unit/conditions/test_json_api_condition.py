@@ -9,7 +9,26 @@ from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
-from nucypher.policy.conditions.offchain import JsonApiCondition, JSONPathField
+from nucypher.policy.conditions.offchain import (
+    HTTPSField,
+    JsonApiCondition,
+    JSONPathField,
+)
+
+
+def test_https_field_valid():
+    field = HTTPSField()
+    valid_https = "https://api.example.com/data"
+    result = field.deserialize(valid_https)
+    assert result == valid_https
+
+
+def test_https_field_invalid():
+    field = HTTPSField()
+    invalid_https = "http://api.example.com/data"
+    with pytest.raises(ValidationError) as excinfo:
+        field.deserialize(invalid_https)
+    assert f"'{invalid_https}' is not a valid HTTPS endpoint" in str(excinfo.value)
 
 
 def test_jsonpath_field_valid():
@@ -154,30 +173,6 @@ def test_basic_json_api_condition_evaluation_with_parameters(mocker):
     assert mocked_get.call_count == 1
 
 
-def test_basic_json_api_condition_evaluation_with_headers(mocker):
-    mocked_get = mocker.patch(
-        "requests.get",
-        return_value=mocker.Mock(
-            status_code=200, json=lambda: {"ethereum": {"usd": 0.0}}
-        ),
-    )
-
-    condition = JsonApiCondition(
-        endpoint="https://api.coingecko.com/api/v3/simple/price",
-        parameters={
-            "ids": "ethereum",
-            "vs_currencies": "usd",
-        },
-        headers={"Authorization": "Bearer 1234567890"},
-        query="ethereum.usd",
-        return_value_test=ReturnValueTest("==", 0.0),
-    )
-
-    assert condition.verify() == (True, 0.0)
-    assert mocked_get.call_count == 1
-    assert mocked_get.call_args[1]["headers"]["Authorization"] == "Bearer 1234567890"
-
-
 def test_json_api_condition_from_lingo_expression():
     lingo_dict = {
         "conditionType": "json-api",
@@ -186,9 +181,6 @@ def test_json_api_condition_from_lingo_expression():
         "parameters": {
             "ids": "ethereum",
             "vs_currencies": "usd",
-        },
-        "headers": {
-            "Authorization": "Bearer 1234567890",
         },
         "returnValueTest": {
             "comparator": "==",

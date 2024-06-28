@@ -32,6 +32,17 @@ class JSONPathField(Field):
         return value
 
 
+class HTTPSField(Field):
+    default_error_messages = {
+        "invalid": "'{value}' is not a valid HTTPS endpoint",
+    }
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if not value.startswith("https://"):
+            raise self.make_error("invalid", value=value)
+        return value
+
+
 class JsonApiCondition(AccessControlCondition):
     """
     A JSON API condition is a condition that can be evaluated by reading from a JSON
@@ -48,9 +59,8 @@ class JsonApiCondition(AccessControlCondition):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
-        headers = fields.Dict(required=False)
         parameters = fields.Dict(required=False)
-        endpoint = fields.Str(required=True)
+        endpoint = HTTPSField(required=True)
         query = JSONPathField(required=True)
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
@@ -65,7 +75,6 @@ class JsonApiCondition(AccessControlCondition):
         endpoint: str,
         query: Optional[str],
         return_value_test: ReturnValueTest,
-        headers: Optional[dict] = None,
         parameters: Optional[dict] = None,
         condition_type: str = ConditionType.JSONAPI.value,
     ):
@@ -75,7 +84,6 @@ class JsonApiCondition(AccessControlCondition):
             )
 
         self.endpoint = endpoint
-        self.headers = headers
         self.parameters = parameters
         self.query = query
         self.return_value_test = return_value_test
@@ -84,9 +92,7 @@ class JsonApiCondition(AccessControlCondition):
     def fetch(self) -> requests.Response:
         """Fetches data from the endpoint."""
         try:
-            response = requests.get(
-                self.endpoint, params=self.parameters, headers=self.headers
-            )
+            response = requests.get(self.endpoint, params=self.parameters, timeout=5)
             response.raise_for_status()
         except requests.exceptions.HTTPError as http_error:
             self.logger.error(f"HTTP error occurred: {http_error}")
