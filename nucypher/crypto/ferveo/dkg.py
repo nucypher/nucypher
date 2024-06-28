@@ -74,7 +74,7 @@ def verify_aggregate(
     pvss_aggregated.verify(shares, transcripts)
 
 
-def derive_decryption_share(
+def produce_decryption_share(
     nodes: List[Validator],
     aggregated_transcript: AggregatedTranscript,
     keypair: Keypair,
