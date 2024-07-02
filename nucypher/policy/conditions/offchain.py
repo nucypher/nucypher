@@ -10,6 +10,7 @@ from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     InvalidCondition,
+    InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 from nucypher.policy.conditions.utils import CamelCaseSchema
@@ -82,6 +83,20 @@ class JsonApiCondition(AccessControlCondition):
             raise InvalidCondition(
                 f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
             )
+
+        # validate inputs using marshmallow schema
+        data = {
+            "conditionType": condition_type,
+            "endpoint": endpoint,
+            "query": query,
+            "returnValueTest": return_value_test.as_dict(),
+        }
+        if parameters:
+            data["parameters"] = parameters
+        schema = self.Schema()
+        errors = schema.validate(data)
+        if errors:
+            raise InvalidConditionLingo(errors)
 
         self.endpoint = endpoint
         self.parameters = parameters
