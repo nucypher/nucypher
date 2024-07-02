@@ -73,6 +73,7 @@ class ConditionType(Enum):
     TIME = "time"
     CONTRACT = "contract"
     RPC = "rpc"
+    JSONAPI = "json-api"
     COMPOUND = "compound"
 
     @classmethod
@@ -322,6 +323,15 @@ class ReturnValueTest:
         value = _resolve_context_variable(self.value, **context)
         return ReturnValueTest(self.comparator, value=value, index=self.index)
 
+    def as_dict(self):
+        result = {
+            "comparator": self.comparator,
+            "value": self.value,
+        }
+        if self.index is not None:
+            result["index"] = self.index
+        return result
+
 
 class ConditionLingo(_Serializable):
     VERSION = "1.0.0"
@@ -416,6 +426,7 @@ class ConditionLingo(_Serializable):
         conditions expression framework.
         """
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
+        from nucypher.policy.conditions.offchain import JsonApiCondition
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
@@ -426,6 +437,7 @@ class ConditionLingo(_Serializable):
             ContractCondition,
             RPCCondition,
             CompoundAccessControlCondition,
+            JsonApiCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition
