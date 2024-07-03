@@ -7,28 +7,13 @@ from marshmallow import ValidationError
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     InvalidCondition,
+    InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.offchain import (
-    HTTPSField,
     JsonApiCondition,
     JSONPathField,
 )
-
-
-def test_https_field_valid():
-    field = HTTPSField()
-    valid_https = "https://api.example.com/data"
-    result = field.deserialize(valid_https)
-    assert result == valid_https
-
-
-def test_https_field_invalid():
-    field = HTTPSField()
-    invalid_https = "http://api.example.com/data"
-    with pytest.raises(ValidationError) as excinfo:
-        field.deserialize(invalid_https)
-    assert f"'{invalid_https}' is not a valid HTTPS endpoint" in str(excinfo.value)
 
 
 def test_jsonpath_field_valid():
@@ -68,6 +53,16 @@ def test_json_api_condition_invalid_type():
             condition_type="INVALID_TYPE",
         )
     assert "must be instantiated with the json-api type" in str(excinfo.value)
+
+
+def test_https_enforcement():
+    with pytest.raises(InvalidConditionLingo) as excinfo:
+        JsonApiCondition(
+            endpoint="http://api.example.com/data",
+            query="$.store.book[0].price",
+            return_value_test=ReturnValueTest("==", 0),
+        )
+    assert "Not a valid URL" in str(excinfo.value)
 
 
 def test_json_api_condition_fetch(mocker):

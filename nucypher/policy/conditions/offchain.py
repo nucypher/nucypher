@@ -4,7 +4,7 @@ import requests
 from jsonpath_ng.exceptions import JsonPathLexerError, JsonPathParserError
 from jsonpath_ng.ext import parse
 from marshmallow import fields, post_load, validate
-from marshmallow.fields import Field
+from marshmallow.fields import Field, Url
 
 from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.exceptions import (
@@ -33,17 +33,6 @@ class JSONPathField(Field):
         return value
 
 
-class HTTPSField(Field):
-    default_error_messages = {
-        "invalid": "'{value}' is not a valid HTTPS endpoint",
-    }
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        if not value.startswith("https://"):
-            raise self.make_error("invalid", value=value)
-        return value
-
-
 class JsonApiCondition(AccessControlCondition):
     """
     A JSON API condition is a condition that can be evaluated by reading from a JSON
@@ -61,7 +50,7 @@ class JsonApiCondition(AccessControlCondition):
             validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
         parameters = fields.Dict(required=False)
-        endpoint = HTTPSField(required=True)
+        endpoint = Url(required=True, relative=False, schemes=["https"])
         query = JSONPathField(required=True)
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
