@@ -65,6 +65,19 @@ def test_https_enforcement():
     assert "Not a valid URL" in str(excinfo.value)
 
 
+def test_json_api_condition_with_primitive_response(mocker):
+    mock_response = mocker.Mock(status_code=200)
+    mock_response.json.return_value = 1
+    mocker.patch("requests.get", return_value=mock_response)
+
+    condition = JsonApiCondition(
+        endpoint="https://api.example.com/data",
+        return_value_test=ReturnValueTest("==", 1),
+    )
+    success, result = condition.verify()
+    assert success is True
+
+
 def test_json_api_condition_fetch(mocker):
     mock_response = mocker.Mock(status_code=200)
     mock_response.json.return_value = {"store": {"book": [{"title": "Test Title"}]}}

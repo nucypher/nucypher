@@ -51,7 +51,7 @@ class JsonApiCondition(AccessControlCondition):
         )
         parameters = fields.Dict(required=False)
         endpoint = Url(required=True, relative=False, schemes=["https"])
-        query = JSONPathField(required=True)
+        query = JSONPathField(required=False, allow_none=True)
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
         )
@@ -63,8 +63,8 @@ class JsonApiCondition(AccessControlCondition):
     def __init__(
         self,
         endpoint: str,
-        query: Optional[str],
         return_value_test: ReturnValueTest,
+        query: Optional[str] = None,
         parameters: Optional[dict] = None,
         condition_type: str = ConditionType.JSONAPI.value,
     ):
@@ -131,6 +131,8 @@ class JsonApiCondition(AccessControlCondition):
         return data
 
     def query_response(self, data: Any) -> Any:
+        if not self.query:
+            return data  # primitive value
         try:
             expression = parse(self.query)
             matches = expression.find(data)
