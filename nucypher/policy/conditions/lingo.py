@@ -323,15 +323,6 @@ class ReturnValueTest:
         value = _resolve_context_variable(self.value, **context)
         return ReturnValueTest(self.comparator, value=value, index=self.index)
 
-    def as_dict(self):
-        result = {
-            "comparator": self.comparator,
-            "value": self.value,
-        }
-        if self.index is not None:
-            result["index"] = self.index
-        return result
-
 
 class ConditionLingo(_Serializable):
     VERSION = "1.0.0"

@@ -55,6 +55,16 @@ class AccessControlCondition(_Serializable, ABC):
     class Schema(Schema):
         name = NotImplemented
 
+    def __init__(self):
+
+        super().__init__()
+
+        # validate inputs using marshmallow schema
+        schema = self.Schema()
+        errors = schema.validate(self.to_dict())
+        if errors:
+            raise InvalidConditionLingo(errors)
+
     @abstractmethod
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         """Returns the boolean result of the evaluation and the returned value in a two-tuple."""
