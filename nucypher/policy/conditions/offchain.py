@@ -19,13 +19,13 @@ from nucypher.utilities.logging import Logger
 
 class JSONPathField(Field):
     default_error_messages = {
-        "invalidType": "Expression of type '{type(value)}' is not valid for JSONPath",
+        "invalidType": "Expression of type {value} is not valid for JSONPath",
         "invalid": "'{value}' is not a valid JSONPath expression",
     }
 
     def _deserialize(self, value, attr, data, **kwargs):
         if not isinstance(value, str):
-            raise self.make_error("invalidType", input=value)
+            raise self.make_error("invalidType", value=type(value))
         try:
             parse(value)
         except (JsonPathLexerError, JsonPathParserError):
