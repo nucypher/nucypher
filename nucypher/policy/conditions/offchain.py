@@ -41,6 +41,7 @@ class JsonApiCondition(AccessControlCondition):
 
     CONDITION_TYPE = ConditionType.JSONAPI.value
     LOGGER = Logger("nucypher.policy.conditions.JsonApiCondition")
+    TIMEOUT = 5  # seconds
 
     class Schema(CamelCaseSchema):
 
@@ -77,6 +78,7 @@ class JsonApiCondition(AccessControlCondition):
         self.parameters = parameters or {}
         self.query = query
         self.return_value_test = return_value_test
+        self.timeout = self.TIMEOUT
         self.logger = self.LOGGER
 
         super().__init__()
@@ -84,7 +86,9 @@ class JsonApiCondition(AccessControlCondition):
     def fetch(self) -> requests.Response:
         """Fetches data from the endpoint."""
         try:
-            response = requests.get(self.endpoint, params=self.parameters, timeout=5)
+            response = requests.get(
+                self.endpoint, params=self.parameters, timeout=self.timeout
+            )
             response.raise_for_status()
         except requests.exceptions.HTTPError as http_error:
             self.logger.error(f"HTTP error occurred: {http_error}")
