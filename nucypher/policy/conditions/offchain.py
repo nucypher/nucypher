@@ -10,7 +10,6 @@ from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     InvalidCondition,
-    InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 from nucypher.policy.conditions.utils import CamelCaseSchema
@@ -49,7 +48,7 @@ class JsonApiCondition(AccessControlCondition):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
-        parameters = fields.Dict(required=False)
+        parameters = fields.Dict(required=False, allow_none=True)
         endpoint = Url(required=True, relative=False, schemes=["https"])
         query = JSONPathField(required=False, allow_none=True)
         return_value_test = fields.Nested(
@@ -73,25 +72,14 @@ class JsonApiCondition(AccessControlCondition):
                 f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
             )
 
-        # validate inputs using marshmallow schema
-        data = {
-            "conditionType": condition_type,
-            "endpoint": endpoint,
-            "query": query,
-            "returnValueTest": return_value_test.as_dict(),
-        }
-        if parameters:
-            data["parameters"] = parameters
-        schema = self.Schema()
-        errors = schema.validate(data)
-        if errors:
-            raise InvalidConditionLingo(errors)
-
+        self.condition_type = condition_type
         self.endpoint = endpoint
-        self.parameters = parameters
+        self.parameters = parameters or {}
         self.query = query
         self.return_value_test = return_value_test
         self.logger = self.LOGGER
+
+        super().__init__()
 
     def fetch(self) -> requests.Response:
         """Fetches data from the endpoint."""

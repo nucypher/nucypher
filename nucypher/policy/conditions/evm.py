@@ -167,6 +167,8 @@ class RPCCondition(AccessControlCondition):
 
         self._validate_expected_return_type()
 
+        super().__init__()
+
     def _validate_method(self, method):
         if not method:
             raise InvalidCondition("Undefined method name")
