@@ -13,6 +13,7 @@ import maya
 import pytest
 from click.testing import CliRunner
 from eth_account import Account
+from eth_account.messages import encode_typed_data
 from eth_utils import to_checksum_address
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
 from siwe import SiweMessage
@@ -650,6 +651,9 @@ def rpc_condition():
 
 @pytest.fixture(scope="function")
 def valid_eip712_auth_message():
+    signer = Account.create()
+    account = signer.address
+
     data = {
         "primaryType": "Wallet",
         "types": {
@@ -673,16 +677,18 @@ def valid_eip712_auth_message():
             "salt": "0x3e6365d35fd4e53cbc00b080b0742b88f8b735352ea54c0534ed6a2e44a83ff0",
         },
         "message": {
-            "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
+            "address": f"{account}",
             "blockNumber": 28117088,
             "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
-            "signatureText": "I'm the owner of address 0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E as of block number 28117088",
+            "signatureText": f"I'm the owner of address {account} as of block number 28117088",
         },
     }
+    signable_message = encode_typed_data(full_message=data)
+    signature = signer.sign_message(signable_message=signable_message)
 
     auth_message = {
-        "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
-        "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
+        "signature": f"{signature.signature.hex()}",
+        "address": f"{account}",
         "scheme": "EIP712",
         "typedData": data,
     }
