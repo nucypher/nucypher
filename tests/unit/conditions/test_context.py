@@ -4,10 +4,9 @@ import re
 
 import pytest
 
-from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.context import (
+    USER_ADDRESS_CONTEXT,
     USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT,
-    USER_ADDRESS_SCHEMES,
     _resolve_context_variable,
     _resolve_user_address,
     get_context_value,
@@ -98,13 +97,19 @@ def test_resolve_any_context_variables():
 
 @pytest.mark.parametrize("expected_entry", ["address", "signature", "typedData"])
 @pytest.mark.parametrize(
-    "context_variable_name, valid_user_address_auth_message",
-    list(USER_ADDRESS_SCHEMES.items()),
-    indirect=["valid_user_address_auth_message"],
+    "context_variable_name, valid_user_address_fixture",
+    [
+        (USER_ADDRESS_CONTEXT, "valid_eip4361_auth_message"),
+        (USER_ADDRESS_CONTEXT, "valid_eip712_auth_message"),  # allowed for now
+        (USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT, "valid_eip4361_auth_message"),
+    ],
 )
 def test_user_address_context_missing_required_entries(
-    expected_entry, context_variable_name, valid_user_address_auth_message
+    expected_entry, context_variable_name, valid_user_address_fixture, request
 ):
+    valid_user_address_auth_message = request.getfixturevalue(
+        valid_user_address_fixture
+    )
     context = {context_variable_name: valid_user_address_auth_message}
     del context[context_variable_name][expected_entry]
     with pytest.raises(InvalidContextVariableData):
@@ -112,13 +117,19 @@ def test_user_address_context_missing_required_entries(
 
 
 @pytest.mark.parametrize(
-    "context_variable_name, valid_user_address_auth_message",
-    list(USER_ADDRESS_SCHEMES.items()),
-    indirect=["valid_user_address_auth_message"],
+    "context_variable_name, valid_user_address_fixture",
+    [
+        (USER_ADDRESS_CONTEXT, "valid_eip4361_auth_message"),
+        (USER_ADDRESS_CONTEXT, "valid_eip712_auth_message"),  # allowed for now
+        (USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT, "valid_eip4361_auth_message"),
+    ],
 )
 def test_user_address_context_invalid_typed_data(
-    context_variable_name, valid_user_address_auth_message
+    context_variable_name, valid_user_address_fixture, request
 ):
+    valid_user_address_auth_message = request.getfixturevalue(
+        valid_user_address_fixture
+    )
     # invalid typed data
     context = {context_variable_name: valid_user_address_auth_message}
     context[context_variable_name]["typedData"] = dict(
@@ -129,22 +140,18 @@ def test_user_address_context_invalid_typed_data(
 
 
 @pytest.mark.parametrize(
-    "context_variable_name, valid_user_address_auth_message",
-    list(
-        zip(
-            [
-                USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT,
-            ],
-            [
-                EvmAuth.AuthScheme.EIP712.value,
-            ],
-        )
-    ),
-    indirect=["valid_user_address_auth_message"],
+    "context_variable_name, valid_user_address_fixture",
+    [
+        # EIP712 message not compatible with EIP4361 context variable
+        (USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT, "valid_eip712_auth_message"),
+    ],
 )
 def test_user_address_context_variable_with_incompatible_auth_message(
-    context_variable_name, valid_user_address_auth_message
+    context_variable_name, valid_user_address_fixture, request
 ):
+    valid_user_address_auth_message = request.getfixturevalue(
+        valid_user_address_fixture
+    )
     # scheme in message is unexpected for context variable name
     context = {context_variable_name: valid_user_address_auth_message}
     with pytest.raises(InvalidContextVariableData, match="UnexpectedScheme"):
@@ -152,13 +159,22 @@ def test_user_address_context_variable_with_incompatible_auth_message(
 
 
 @pytest.mark.parametrize(
-    "context_variable_name, valid_user_address_auth_message",
-    list(USER_ADDRESS_SCHEMES.items()),
-    indirect=["valid_user_address_auth_message"],
+    "context_variable_name, valid_user_address_fixture",
+    [
+        (USER_ADDRESS_CONTEXT, "valid_eip4361_auth_message"),
+        (USER_ADDRESS_CONTEXT, "valid_eip712_auth_message"),  # allowed for now
+        (USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT, "valid_eip4361_auth_message"),
+    ],
 )
 def test_user_address_context_variable_verification(
-    context_variable_name, valid_user_address_auth_message, get_random_checksum_address
+    context_variable_name,
+    valid_user_address_fixture,
+    get_random_checksum_address,
+    request,
 ):
+    valid_user_address_auth_message = request.getfixturevalue(
+        valid_user_address_fixture
+    )
     valid_user_address_context = {
         context_variable_name: valid_user_address_auth_message
     }
