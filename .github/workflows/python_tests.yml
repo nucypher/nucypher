@@ -142,7 +142,7 @@ jobs:
       # Only upload coverage files after all tests have passed
       - name: Upload unit tests coverage to Codecov
         if: matrix.python-version == '3.12'
-        uses: codecov/codecov-action@v4.3.0
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: unit-coverage.xml
@@ -152,7 +152,7 @@ jobs:
 
       - name: Upload integration tests coverage to Codecov
         if: matrix.python-version == '3.12'
-        uses: codecov/codecov-action@v4.3.0
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: integration-coverage.xml
@@ -162,7 +162,7 @@ jobs:
 
       - name: Upload acceptance tests coverage to Codecov
         if: matrix.python-version == '3.12'
-        uses: codecov/codecov-action@v4.3.0
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: tests/acceptance
