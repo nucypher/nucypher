@@ -123,20 +123,29 @@ class JsonApiCondition(AccessControlCondition):
         return data
 
     def query_response(self, data: Any) -> Any:
+
         if not self.query:
             return data  # primitive value
+
         try:
             expression = parse(self.query)
             matches = expression.find(data)
             if not matches:
-                self.logger.info("No matches found for the JSONPath query.")
-                raise ConditionEvaluationFailed(
-                    "No matches found for the JSONPath query."
-                )
-            result = matches[0].value
+                message = f"No matches found for the JSONPath query: {self.query}"
+                self.logger.info(message)
+                raise ConditionEvaluationFailed(message)
         except (JsonPathLexerError, JsonPathParserError) as jsonpath_err:
             self.logger.error(f"JSONPath error occurred: {jsonpath_err}")
             raise ConditionEvaluationFailed(f"JSONPath error: {jsonpath_err}")
+
+        if len(matches) > 1:
+            message = (
+                f"Ambiguous JSONPath query - Multiple matches found for: {self.query}"
+            )
+            self.logger.info(message)
+            raise ConditionEvaluationFailed(message)
+        result = matches[0].value
+
         return result
 
     def verify(self, **context) -> Tuple[bool, Any]:
