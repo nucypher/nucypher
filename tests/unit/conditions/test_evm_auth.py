@@ -18,15 +18,10 @@ def test_auth_scheme():
         _ = EvmAuth.from_scheme(scheme="rando")
 
 
-@pytest.mark.parametrize(
-    "valid_user_address_auth_message", [EvmAuth.AuthScheme.EIP712.value], indirect=True
-)
-def test_authenticate_eip712(
-    valid_user_address_auth_message, get_random_checksum_address
-):
-    data = valid_user_address_auth_message["typedData"]
-    signature = valid_user_address_auth_message["signature"]
-    address = valid_user_address_auth_message["address"]
+def test_authenticate_eip712(valid_eip712_auth_message, get_random_checksum_address):
+    data = valid_eip712_auth_message["typedData"]
+    signature = valid_eip712_auth_message["signature"]
+    address = valid_eip712_auth_message["address"]
 
     # invalid data
     invalid_data = dict(data)  # make a copy
