@@ -202,3 +202,21 @@ def test_json_api_condition_from_lingo_expression():
     lingo_json = json.dumps(lingo_dict)
     condition = JsonApiCondition.from_json(lingo_json)
     assert isinstance(condition, JsonApiCondition)
+
+
+def test_ambiguous_json_path_multiple_results(mocker):
+    mock_response = mocker.Mock(status_code=200)
+    mock_response.json.return_value = {"store": {"book": [{"price": 1}, {"price": 2}]}}
+
+    mocker.patch("requests.get", return_value=mock_response)
+
+    condition = JsonApiCondition(
+        endpoint="https://api.example.com/data",
+        query="$.store.book[*].price",
+        return_value_test=ReturnValueTest("==", 1),
+    )
+
+    with pytest.raises(ConditionEvaluationFailed) as excinfo:
+        condition.verify()
+
+    assert "Ambiguous JSONPath query" in str(excinfo.value)
