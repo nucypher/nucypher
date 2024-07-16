@@ -107,6 +107,9 @@ class SelfSignedCertificateAdapter(HTTPAdapter):
             self.certificate_cache, *args, **kwargs
         )
 
+    def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
+        return self.get_connection(request.url, proxies)
+
 
 class P2PSession(Session):
     _DEFAULT_HOSTNAME = ""
