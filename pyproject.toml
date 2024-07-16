@@ -12,7 +12,7 @@ pynacl = ">=1.4.0"
 mnemonic = "*"
 pyopenssl = "*"
 web3 = '^6.15.1'
-atxm = "*"
+atxm = { git = "https://github.com/derekpierre/ATxM.git", branch = "update-deps" }
 flask = "*"
 hendrix = "*"
 requests = "*"
@@ -25,7 +25,7 @@ marshmallow = '*'
 appdirs = '*'
 constant-sorrow = '^0.1.0a9'
 prometheus-client = '*'
-siwe = "*"
+siwe = { git = "https://github.com/derekpierre/siwe-py.git", branch = "update-deps" }
 time-machine = "^2.13.0"
 twisted = "^24.2.0rc1"
 
