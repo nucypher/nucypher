@@ -71,7 +71,7 @@ class EIP4361Auth(EvmAuth):
     @classmethod
     def authenticate(cls, data, signature, expected_address):
         try:
-            siwe_message = SiweMessage(message=data)
+            siwe_message = SiweMessage.from_message(message=data)
         except Exception as e:
             raise cls.InvalidData(
                 f"Invalid EIP4361 message - {str(e) or e.__class__.__name__}"

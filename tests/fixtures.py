@@ -709,7 +709,7 @@ def valid_eip4361_auth_message():
         "chain_id": 1,
         "issued_at": f"{maya.now().iso8601()}",
     }
-    siwe_message = SiweMessage(siwe_message_data).prepare_message()
+    siwe_message = SiweMessage(**siwe_message_data).prepare_message()
     signature = signer.sign_message(
         account=signer.accounts[0], message=siwe_message.encode()
     )
