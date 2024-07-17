@@ -4071,7 +4071,7 @@ develop = false
 
 [package.dependencies]
 abnf = ">=2.2,<3"
-eth-account = ">=0.8.0,<0.12"
+eth-account = ">=0.10.0,<0.12"
 eth-typing = ">=3.4.0"
 eth-utils = ">=2.2.0"
 pydantic = ">=2.7,<3"
@@ -4083,7 +4083,7 @@ web3 = ">=6.17,<7"
 type = "git"
 url = "https://github.com/derekpierre/siwe-py.git"
 reference = "update-deps"
-resolved_reference = "fb7566e6a8ff2b7397535770d536f7ba5e3c8a0f"
+resolved_reference = "7ef9c2cfc1f13a1f413ef74fcb399838754b2830"
 
 [[package]]
 name = "six"

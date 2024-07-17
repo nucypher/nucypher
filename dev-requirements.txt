@@ -150,7 +150,7 @@ safe-pysha3==1.0.4 ; python_version >= "3.9" and python_version < "4" and implem
 semantic-version==2.10.0 ; python_version >= "3.9" and python_version < "4"
 service-identity==24.1.0 ; python_version >= "3.9" and python_version < "4"
 setuptools==70.3.0 ; python_version >= "3.9" and python_version < "4"
-siwe @ git+https://github.com/derekpierre/siwe-py.git@fb7566e6a8ff2b7397535770d536f7ba5e3c8a0f ; python_version >= "3.9" and python_version < "4.0"
+siwe @ git+https://github.com/derekpierre/siwe-py.git@7ef9c2cfc1f13a1f413ef74fcb399838754b2830 ; python_version >= "3.9" and python_version < "4.0"
 six==1.16.0 ; python_version >= "3.9" and python_version < "4"
 snaptime==0.2.4 ; python_version >= "3.9" and python_version < "4"
 sortedcontainers==2.4.0 ; python_version >= "3.9" and python_version < "4"
