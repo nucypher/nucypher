@@ -25,7 +25,7 @@ marshmallow = '*'
 appdirs = '*'
 constant-sorrow = '^0.1.0a9'
 prometheus-client = '*'
-siwe = { git = "https://github.com/derekpierre/siwe-py.git", branch = "update-deps" }
+siwe = "^4.2.0"
 time-machine = "^2.13.0"
 twisted = "^24.2.0rc1"
 
