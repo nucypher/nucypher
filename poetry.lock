@@ -232,30 +232,14 @@ tests-no-zope = ["attrs[tests-mypy]", "cloudpickle", "hypothesis", "pympler", "p
 
 [[package]]
 name = "atxm"
-version = "0.3.0"
-description = "Automatic Transaction Machine (ATxM) for Ethereum."
+version = "0.4.0"
+description = "Automatic Transaction Machine (ATxM) for Ethereum"
 optional = false
-python-versions = ">=3.9,<4"
-files = []
-develop = false
-
-[package.dependencies]
-eth-abi = "*"
-eth-account = ">=0.10.0"
-eth-keys = "*"
-eth-typing = "*"
-eth-utils = "*"
-python-statemachine = "*"
-rlp = "*"
-twisted = "*"
-urllib3 = "*"
-web3 = "^6.15.1"
-
-[package.source]
-type = "git"
-url = "https://github.com/derekpierre/ATxM.git"
-reference = "update-deps"
-resolved_reference = "4675678d0d29be69b32c15a80d3d85d22f2f0e1a"
+python-versions = ">=3.9"
+files = [
+    {file = "atxm-0.4.0-py3-none-any.whl", hash = "sha256:83ed05c25f3b9e2fec1f61e2da2311790cbda341b7a53d690e69d7db0c5f44a1"},
+    {file = "atxm-0.4.0.tar.gz", hash = "sha256:30ec894a6eaa42a6994adecf18e92250a4c6447320186f9fff169320dd497660"},
+]
 
 [[package]]
 name = "autobahn"
@@ -3607,17 +3591,6 @@ files = [
 cli = ["click (>=5.0)"]
 
 [[package]]
-name = "python-statemachine"
-version = "2.3.4"
-description = "Python Finite State Machines made easy."
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "python_statemachine-2.3.4-py3-none-any.whl", hash = "sha256:c892b66f1248af80854ec3ff4186399625693a79e205e3ca33dffee0c058c963"},
-    {file = "python_statemachine-2.3.4.tar.gz", hash = "sha256:f5a061a5f0abef0977a2679bf7aefecbe4d87a57ac5839e97c8f30b2d6a9f3ae"},
-]
-
-[[package]]
 name = "pytz"
 version = "2024.1"
 description = "World timezone definitions, modern and historical"
@@ -4610,13 +4583,13 @@ files = [
 
 [[package]]
 name = "web3"
-version = "6.20.0"
+version = "6.20.1"
 description = "web3.py"
 optional = false
 python-versions = ">=3.7.2"
 files = [
-    {file = "web3-6.20.0-py3-none-any.whl", hash = "sha256:ec09882d21378b688210cf29385e82b604bdc18fe5c2e238bf3b5fe2a6e6dbbc"},
-    {file = "web3-6.20.0.tar.gz", hash = "sha256:b04725517502cad4f15e39356eaf7c4fcb0127c7728f83eec8cbafb5b6455f33"},
+    {file = "web3-6.20.1-py3-none-any.whl", hash = "sha256:16fe72aeb48bbd5f7e7e64b323a0d3a16522a28eb4f19ef9f9dd6ce7ee813c82"},
+    {file = "web3-6.20.1.tar.gz", hash = "sha256:a29bc1863734e1c05f128ddbc56878f299ea71776806e667b581a83b5d5be0ed"},
 ]
 
 [package.dependencies]
@@ -4995,4 +4968,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4"
-content-hash = "a373967eca0a5dc11de0f0684a414cf4b3dc1bad4d4ac12f305a735724635777"
+content-hash = "af07b8f5e342f9dffb86c3372287f293ee979151d808da9d73ab0cdef00d9318"
