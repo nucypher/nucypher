@@ -5,14 +5,14 @@ authors = ["NuCypher"]
 description = "A threshold access control application to empower privacy in decentralized systems."
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4"
+python = ">=3.9,<4"
 nucypher-core = "==0.13.0"
 cryptography = "*"
 pynacl = ">=1.4.0"
 mnemonic = "*"
 pyopenssl = "*"
 web3 = '^6.15.1'
-atxm = "*"
+atxm = "^0.4.0"
 flask = "*"
 hendrix = "*"
 requests = "*"
@@ -25,7 +25,7 @@ marshmallow = '*'
 appdirs = '*'
 constant-sorrow = '^0.1.0a9'
 prometheus-client = '*'
-siwe = "*"
+siwe = "^4.2.0"
 time-machine = "^2.13.0"
 twisted = "^24.2.0rc1"
 
@@ -35,10 +35,11 @@ pytest-cov = '*'
 pytest-mock = '*'
 pytest-timeout = '*'
 pytest-twisted = '*'
-eth-ape = "*"
+eth-ape = ">=0.7"
 ape-solidity = '*'
 coverage = '^7.3.2'
 pre-commit = '^2.12.1'
+numpy = '^1.26.0'
 
 
 [tool.towncrier]

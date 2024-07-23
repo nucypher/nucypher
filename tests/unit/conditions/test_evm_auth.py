@@ -73,13 +73,14 @@ def test_authenticate_eip4361(get_random_checksum_address):
         "domain": "login.xyz",
         "address": f"{signer.accounts[0]}",
         "statement": "Sign-In With Ethereum Example Statement",
-        "uri": "https://login.xyz",
+        "uri": "did:key:z6Mkf55NiCvhxbLg6waBsJ58Hq4Nx6diedT7MGv1189gxV4i",
         "version": "1",
         "nonce": "bTyXgcQxn2htgkjJn",
         "chain_id": 1,
         "issued_at": f"{maya.now().iso8601()}",
+        "resources": ["ceramic://*"],
     }
-    valid_message = SiweMessage(siwe_message_data).prepare_message()
+    valid_message = SiweMessage(**siwe_message_data).prepare_message()
     valid_message_signature = signer.sign_message(
         account=signer.accounts[0], message=valid_message.encode()
     )
@@ -141,7 +142,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     stale_message_data["issued_at"] = (
         f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS + 1).iso8601()}"
     )
-    stale_message = SiweMessage(stale_message_data).prepare_message()
+    stale_message = SiweMessage(**stale_message_data).prepare_message()
     stale_message_signature = signer.sign_message(
         account=valid_address_for_signature, message=stale_message.encode()
     )
@@ -156,7 +157,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
         f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS - 1).iso8601()}"
     )
     old_but_not_stale_message = SiweMessage(
-        old_but_not_stale_message_data
+        **old_but_not_stale_message_data
     ).prepare_message()
     old_not_stale_message_signature = signer.sign_message(
         account=valid_address_for_signature, message=old_but_not_stale_message.encode()
@@ -173,7 +174,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
         f"{maya.now().subtract(seconds=30).iso8601()}"
     )
     not_stale_but_past_expiry_message = SiweMessage(
-        not_stale_but_past_expiry
+        **not_stale_but_past_expiry
     ).prepare_message()
     not_stale_but_past_expiry_signature = signer.sign_message(
         account=valid_address_for_signature,
@@ -192,7 +193,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     # not before specified
     not_before_message_data = dict(siwe_message_data)
     not_before_message_data["not_before"] = f"{maya.now().add(hours=1).iso8601()}"
-    not_before_message = SiweMessage(not_before_message_data).prepare_message()
+    not_before_message = SiweMessage(**not_before_message_data).prepare_message()
     not_before_message_signature = signer.sign_message(
         account=valid_address_for_signature, message=not_before_message.encode()
     )
@@ -216,7 +217,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
         f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS - 2).iso8601()}"
     )
     not_before_no_stale_check_message = SiweMessage(
-        not_before_no_stale_check_message_data
+        **not_before_no_stale_check_message_data
     ).prepare_message()
     not_before_no_stale_check_message_signature = signer.sign_message(
         account=valid_address_for_signature,
