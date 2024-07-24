@@ -56,7 +56,9 @@ def test_authenticate_eip712(valid_eip712_auth_message, get_random_checksum_addr
         )
 
     # mismatch with expected address
-    with pytest.raises(EvmAuth.AuthenticationFailed):
+    with pytest.raises(
+        EvmAuth.AuthenticationFailed, match="signature not valid for expected address"
+    ):
         EIP712Auth.authenticate(
             data=data,
             signature=signature,
