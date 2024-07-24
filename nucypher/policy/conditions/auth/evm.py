@@ -65,7 +65,7 @@ class EIP712Auth(EvmAuth):
         if address_for_signature != expected_address:
             # verification failed - addresses don't match
             raise cls.AuthenticationFailed(
-                f"EIP712 verification failed; signature does not match expected address, {expected_address}"
+                f"EIP712 verification failed; signature not valid for expected address, {expected_address}"
             )
 
 
