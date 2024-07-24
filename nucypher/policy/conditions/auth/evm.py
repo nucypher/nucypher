@@ -91,7 +91,12 @@ class EIP4361Auth(EvmAuth):
 
         # enforce a freshness check - reference point is issued at
         issued_at = maya.MayaDT.from_iso8601(siwe_message.issued_at)
-        if maya.now() > issued_at.add(hours=cls.FRESHNESS_IN_HOURS):
+        now = maya.now()
+        if issued_at > now:
+            raise cls.AuthenticationFailed(
+                f"EIP4361 issued-at datetime is in the future: {issued_at.iso8601()}"
+            )
+        if now > issued_at.add(hours=cls.FRESHNESS_IN_HOURS):
             raise cls.StaleMessage(
                 f"EIP4361 message is more than {cls.FRESHNESS_IN_HOURS} "
                 f"hours old (issued at {issued_at.iso8601()})"

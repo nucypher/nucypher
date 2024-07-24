@@ -202,6 +202,28 @@ def test_authenticate_eip4361(get_random_checksum_address):
         not_before_message, not_before_signature.hex(), valid_address_for_signature
     )  # all is well
 
+    # issued at in the future (sneaky!)
+    futuristic_issued_at_message_data = dict(siwe_message_data)
+    futuristic_issued_at_message_data["issued_at"] = (
+        f"{maya.now().add(minutes=30).iso8601()}"
+    )
+    futuristic_issued_at_message = SiweMessage(
+        **futuristic_issued_at_message_data
+    ).prepare_message()
+    futuristic_issued_at_message_signature = signer.sign_message(
+        account=valid_address_for_signature,
+        message=futuristic_issued_at_message.encode(),
+    )
+    with pytest.raises(
+        EvmAuth.AuthenticationFailed,
+        match="EIP4361 issued-at datetime is in the future",
+    ):
+        EIP4361Auth.authenticate(
+            futuristic_issued_at_message,
+            futuristic_issued_at_message_signature.hex(),
+            valid_address_for_signature,
+        )
+
     # stale message - issued_at
     stale_message_data = dict(siwe_message_data)
     stale_message_data["issued_at"] = (
