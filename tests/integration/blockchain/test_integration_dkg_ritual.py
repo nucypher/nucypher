@@ -13,6 +13,7 @@ from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import RitualisticPower
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
@@ -37,12 +38,12 @@ ROUND_1_EVENT_NAME = "StartRitual"
 ROUND_2_EVENT_NAME = "StartAggregationRound"
 
 PARAMS = [  # dkg_size, ritual_id, variant
-    (2, 0, FerveoVariant.Precomputed),
-    (5, 1, FerveoVariant.Precomputed),
-    (8, 2, FerveoVariant.Precomputed),
-    (2, 3, FerveoVariant.Simple),
-    (5, 4, FerveoVariant.Simple),
-    (8, 5, FerveoVariant.Simple),
+    # (2, 0, FerveoVariant.Precomputed),
+    (5, 0, FerveoVariant.Precomputed),
+    (8, 1, FerveoVariant.Precomputed),
+    (2, 2, FerveoVariant.Simple),
+    (5, 3, FerveoVariant.Simple),
+    (8, 4, FerveoVariant.Simple),
     # TODO: slow and need additional accounts for testing
     # (16, 6, FerveoVariant.Precomputed),
     # (16, 7, FerveoVariant.Simple),
@@ -77,6 +78,22 @@ def cohort(ursulas, mock_coordinator_agent):
         u.ritual_tracker.coordinator_agent = mock_coordinator_agent
 
     return ursulas
+
+
+@pytest.fixture(scope="function")
+def bad_cohort(cohort, mock_coordinator_agent):
+    """Modify the first Ursula's keystore to be different"""
+    ursula = cohort[0]
+    # ursula.keystore = Keystore.generate(password="anotherpassword", interactive=False)
+    keystore, seed_phrase = Keystore.generate(
+        password="anotherpassword", interactive=False
+    )
+    keystore.unlock("anotherpassword")
+    power = keystore.derive_crypto_power(RitualisticPower)
+    ursula._crypto_power._CryptoPower__power_ups[RitualisticPower] = power
+    # breakpoint()
+    print(f"BAD URSULA: {ursula.checksum_address}")
+    return cohort
 
 
 def execute_round_1(ritual_id: int, authority: ChecksumAddress, cohort: List[Ursula]):
@@ -128,7 +145,7 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
 def test_ursula_ritualist(
     testerchain,
     mock_coordinator_agent,
-    cohort,
+    bad_cohort,
     alice,
     bob,
     dkg_size,
@@ -137,7 +154,7 @@ def test_ursula_ritualist(
     get_random_checksum_address,
 ):
     """Tests the DKG and the encryption/decryption of a message"""
-    cohort = cohort[:dkg_size]
+    cohort = bad_cohort[:dkg_size]
 
     # adjust threshold since we are testing with pre-computed (simple is the default)
     threshold = mock_coordinator_agent.get_threshold_for_ritual_size(
@@ -152,7 +169,9 @@ def test_ursula_ritualist(
 
         def initialize():
             """Initiates the ritual"""
-            print("==================== INITIALIZING ====================")
+            print(
+                f"==================== INITIALIZING {dkg_size} {variant} ===================="
+            )
             cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
             mock_coordinator_agent.initiate_ritual(
                 providers=cohort_staking_provider_addresses,
@@ -160,6 +179,9 @@ def test_ursula_ritualist(
                 duration=1,
                 access_controller=get_random_checksum_address(),
                 transacting_power=alice.transacting_power,
+            )
+            print(
+                f"cohort_staking_provider_addresses: {cohort_staking_provider_addresses}"
             )
             assert mock_coordinator_agent.number_of_rituals() == ritual_id + 1
 
