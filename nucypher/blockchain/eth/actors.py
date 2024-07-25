@@ -70,6 +70,7 @@ from nucypher.policy.payment import ContractPayment
 from nucypher.types import PhaseId
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.warnings import render_ferveo_key_mismatch_warning
 
 
 class BaseActor:
@@ -997,12 +998,29 @@ class Operator(BaseActor):
                 f" for {self.staking_provider_address} on {taco_child_pretty_chain_name} with txhash {txhash})",
                 color="green",
             )
+
         else:
-            emitter.message(
-                f"✓ Provider's DKG participation public key already set for "
-                f"{self.staking_provider_address} on {taco_child_pretty_chain_name} at Coordinator {coordinator_address}",
-                color="green",
+
+            # this node's ferveo public key is already set
+            local_ferveo_key = self.ritual_power.public_key()
+            onchain_ferveo_key = self.coordinator_agent.get_provider_public_key(
+                provider=self.staking_provider_address
             )
+
+            if bytes(local_ferveo_key) != bytes(onchain_ferveo_key):
+                message = render_ferveo_key_mismatch_warning(
+                    local_key=local_ferveo_key,
+                    onchain_key=onchain_ferveo_key,
+                )
+                self.log.critical(message)
+                raise self.ActorError(message)
+
+            else:
+                emitter.message(
+                    f"✓ Provider's DKG participation public key already set for "
+                    f"{self.staking_provider_address} on {taco_child_pretty_chain_name} at Coordinator {coordinator_address}",
+                    color="green",
+                )
 
 
 class PolicyAuthor(NucypherTokenActor):
