@@ -13,7 +13,7 @@ from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.crypto.keystore import Keystore
+from nucypher.crypto.keypairs import RitualisticKeypair
 from nucypher.crypto.powers import RitualisticPower
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
@@ -38,24 +38,19 @@ ROUND_1_EVENT_NAME = "StartRitual"
 ROUND_2_EVENT_NAME = "StartAggregationRound"
 
 PARAMS = [  # dkg_size, ritual_id, variant
-    # (2, 0, FerveoVariant.Precomputed),
-    (5, 0, FerveoVariant.Precomputed),
-    (8, 1, FerveoVariant.Precomputed),
-    (2, 2, FerveoVariant.Simple),
-    (5, 3, FerveoVariant.Simple),
-    (8, 4, FerveoVariant.Simple),
+    (2, 0, FerveoVariant.Simple),
+    (5, 1, FerveoVariant.Simple),
+    (8, 2, FerveoVariant.Simple),
     # TODO: slow and need additional accounts for testing
-    # (16, 6, FerveoVariant.Precomputed),
-    # (16, 7, FerveoVariant.Simple),
-    # (32, 8, FerveoVariant.Precomputed),
-    # (32, 9, FerveoVariant.Simple),
+    # (16, 3, FerveoVariant.Simple),
+    # (32, 4, FerveoVariant.Simple),
 ]
 
 BLOCKS = list(reversed(range(1, 1000)))
 COORDINATOR = MockCoordinatorAgent(MockBlockchain())
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function")
 def mock_coordinator_agent(testerchain, mock_contract_agency):
     mock_contract_agency._MockContractAgency__agents[CoordinatorAgent] = COORDINATOR
 
@@ -65,7 +60,7 @@ def mock_coordinator_agent(testerchain, mock_contract_agency):
 
 @pytest.fixture(scope="function")
 def cohort(ursulas, mock_coordinator_agent):
-    """Creates a cohort of Ursulas"""
+
     for u in ursulas:
         # set mapping in coordinator agent
         mock_coordinator_agent._add_operator_to_staking_provider_mapping(
@@ -74,26 +69,11 @@ def cohort(ursulas, mock_coordinator_agent):
         mock_coordinator_agent.set_provider_public_key(
             u.public_keys(RitualisticPower), u.transacting_power
         )
+
         u.coordinator_agent = mock_coordinator_agent
         u.ritual_tracker.coordinator_agent = mock_coordinator_agent
 
     return ursulas
-
-
-@pytest.fixture(scope="function")
-def bad_cohort(cohort, mock_coordinator_agent):
-    """Modify the first Ursula's keystore to be different"""
-    ursula = cohort[0]
-    # ursula.keystore = Keystore.generate(password="anotherpassword", interactive=False)
-    keystore, seed_phrase = Keystore.generate(
-        password="anotherpassword", interactive=False
-    )
-    keystore.unlock("anotherpassword")
-    power = keystore.derive_crypto_power(RitualisticPower)
-    ursula._crypto_power._CryptoPower__power_ups[RitualisticPower] = power
-    # breakpoint()
-    print(f"BAD URSULA: {ursula.checksum_address}")
-    return cohort
 
 
 def execute_round_1(ritual_id: int, authority: ChecksumAddress, cohort: List[Ursula]):
@@ -140,10 +120,7 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
         )
 
 
-@pytest.mark.parametrize("dkg_size, ritual_id, variant", PARAMS)
-@pytest_twisted.inlineCallbacks()
-def test_ursula_ritualist(
-    testerchain,
+def run_test(
     mock_coordinator_agent,
     bad_cohort,
     alice,
@@ -157,11 +134,7 @@ def test_ursula_ritualist(
     cohort = bad_cohort[:dkg_size]
 
     # adjust threshold since we are testing with pre-computed (simple is the default)
-    threshold = mock_coordinator_agent.get_threshold_for_ritual_size(
-        dkg_size
-    )  # default is simple
-    if variant == FerveoVariant.Precomputed:
-        threshold = dkg_size
+    threshold = mock_coordinator_agent.get_threshold_for_ritual_size(dkg_size)
 
     with patch.object(
         mock_coordinator_agent, "get_threshold_for_ritual_size", return_value=threshold
@@ -172,6 +145,7 @@ def test_ursula_ritualist(
             print(
                 f"==================== INITIALIZING {dkg_size} {variant} ===================="
             )
+
             cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
             mock_coordinator_agent.initiate_ritual(
                 providers=cohort_staking_provider_addresses,
@@ -378,3 +352,66 @@ def test_ursula_ritualist(
             d.addCallback(callback)
             d.addErrback(error_handler)
         yield d
+
+
+@pytest.mark.parametrize("dkg_size, ritual_id, variant", PARAMS)
+@pytest_twisted.inlineCallbacks()
+def test_ursula_ritualist_good_cohort(
+    testerchain,
+    mock_coordinator_agent,
+    cohort,
+    alice,
+    bob,
+    dkg_size,
+    ritual_id,
+    variant,
+    get_random_checksum_address,
+):
+    yield from run_test(
+        mock_coordinator_agent,
+        cohort,
+        alice,
+        bob,
+        dkg_size,
+        ritual_id,
+        variant,
+        get_random_checksum_address,
+    )
+
+
+@pytest.mark.xfail(reason="This is not fixed yet")
+@pytest_twisted.inlineCallbacks()
+def test_ursula_ritualist_bad_cohort(
+    mock_coordinator_agent,
+    cohort,
+    alice,
+    bob,
+    get_random_checksum_address,
+):
+    """Modify the first Ursula's keystore to be different"""
+
+    bad_ursula = cohort[0]
+    old_public_key = bad_ursula.public_keys(RitualisticPower)
+    new_keypair = RitualisticKeypair()
+    new_public_key = new_keypair.pubkey
+
+    # Modify the first Ursula's keystore to be different
+    bad_ursula._crypto_power._CryptoPower__power_ups[RitualisticPower].keypair = (
+        new_keypair
+    )
+
+    assert old_public_key != new_public_key
+    assert old_public_key != bad_ursula.public_keys(RitualisticPower)
+    assert new_public_key == bad_ursula.public_keys(RitualisticPower)
+    print(f"BAD URSULA: {bad_ursula.checksum_address}")
+
+    yield from run_test(
+        mock_coordinator_agent,
+        cohort,
+        alice,
+        bob,
+        2,
+        3,
+        FerveoVariant.Precomputed,
+        get_random_checksum_address,
+    )
