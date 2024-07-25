@@ -571,6 +571,22 @@ class Operator(BaseActor):
         Errors raised by this method are not explicitly caught and are expected
         to be handled by the EventActuator.
         """
+
+        local_ferveo_key = self.ritual_power.public_key()
+        onchain_ferveo_key = self.coordinator_agent.get_provider_public_key(
+            ritual_id=ritual_id,
+            provider=self.staking_provider_address,
+        )
+
+        if bytes(local_ferveo_key) != bytes(onchain_ferveo_key):
+            self.log.critical(
+                render_ferveo_key_mismatch_warning(
+                    local_key=local_ferveo_key, onchain_key=onchain_ferveo_key
+                )
+            )
+            self.stop()
+            exit()
+
         if self.checksum_address not in participants:
             message = (
                 f"{self.checksum_address}|{self.wallet_address} "
