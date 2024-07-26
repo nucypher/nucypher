@@ -94,7 +94,7 @@ class EthereumClient:
             self.add_middleware(RetryRequestMiddleware)
 
         # poa middleware
-        chain_id = int(self.chain_id)
+        chain_id = self.chain_id
         is_poa = chain_id in POA_CHAINS
 
         self.log.debug(
