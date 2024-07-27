@@ -310,6 +310,10 @@ class BlockchainInterface:
         # self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
 
     def connect(self):
+        if self.is_connected:
+            # safety check - connect was already previously called
+            return
+
         endpoint = self.endpoint
         self.log.info(f"Using external Web3 Provider '{self.endpoint}'")
 
@@ -322,7 +326,6 @@ class BlockchainInterface:
         if self._provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
 
-        # Connect if not connected
         try:
             self.w3 = self.Web3(provider=self._provider)
             # client mutates w3 instance (configures middleware etc.)
