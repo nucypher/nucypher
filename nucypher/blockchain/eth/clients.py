@@ -8,10 +8,12 @@ from web3 import Web3
 from web3._utils.threads import Timeout
 from web3.contract.contract import Contract
 from web3.exceptions import TimeExhausted, TransactionNotFound
+from web3.middleware import geth_poa_middleware, simple_cache_middleware
 from web3.types import TxReceipt, Wei
 
 from nucypher.blockchain.eth.constants import (
     AVERAGE_BLOCK_TIME_IN_SECONDS,
+    POA_CHAINS,
     PUBLIC_CHAINS,
 )
 from nucypher.blockchain.middleware.retry import (
@@ -79,6 +81,7 @@ class EthereumClient:
         self._add_default_middleware()
 
     def _add_default_middleware(self):
+        # retry request middleware
         endpoint_uri = getattr(self.w3.provider, "endpoint_uri", "")
         if "infura" in endpoint_uri:
             self.log.debug("Adding Infura RPC retry middleware to client")
@@ -89,6 +92,22 @@ class EthereumClient:
         else:
             self.log.debug("Adding RPC retry middleware to client")
             self.add_middleware(RetryRequestMiddleware)
+
+        # poa middleware
+        chain_id = self.chain_id
+        is_poa = chain_id in POA_CHAINS
+
+        self.log.debug(
+            f"Blockchain: {self.chain_name} (chain_id={chain_id}, poa={is_poa})"
+        )
+        if is_poa:
+            # proof-of-authority blockchain
+            self.log.debug("Injecting POA middleware at layer 0")
+            self.inject_middleware(geth_poa_middleware, layer=0)
+
+        # simple cache middleware
+        self.log.debug("Adding simple_cache_middleware")
+        self.add_middleware(simple_cache_middleware)
 
     @property
     def chain_name(self) -> str:

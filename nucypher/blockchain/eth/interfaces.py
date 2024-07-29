@@ -17,12 +17,10 @@ from eth_utils import to_checksum_address
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider
 from web3.contract.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted
-from web3.middleware import geth_poa_middleware, simple_cache_middleware
 from web3.providers import BaseProvider
 from web3.types import TxParams, TxReceipt
 
 from nucypher.blockchain.eth.clients import EthereumClient
-from nucypher.blockchain.eth.constants import POA_CHAINS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_http_provider,
@@ -241,14 +239,7 @@ class BlockchainInterface:
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client: EthereumClient = NO_BLOCKCHAIN_CONNECTION
         self.is_light = light
-
-        speedup_strategy = ExponentialSpeedupStrategy(
-            w3=self.w3,
-            min_time_between_speedups=120,
-        )  # speedup txs if not mined after 2 mins.
-        self.tx_machine = AutomaticTxMachine(
-            w3=self.w3, tx_exec_timeout=self.TIMEOUT, strategies=[speedup_strategy]
-        )
+        self.tx_machine = None
 
         # TODO: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
         if gas_strategy not in (
@@ -292,24 +283,6 @@ class BlockchainInterface:
                 gas_strategy = cls.GAS_STRATEGIES[cls.DEFAULT_GAS_STRATEGY]
         return gas_strategy
 
-    def attach_middleware(self):
-        chain_id = int(self.client.chain_id)
-        self.poa = chain_id in POA_CHAINS
-
-        self.log.debug(
-            f"Blockchain: {self.client.chain_name} (chain_id={chain_id}, poa={self.poa})"
-        )
-
-        # For use with Proof-Of-Authority test-blockchains
-        if self.poa is True:
-            self.log.debug("Injecting POA middleware at layer 0")
-            self.client.inject_middleware(geth_poa_middleware, layer=0)
-
-        self.log.debug("Adding simple_cache_middleware")
-        self.client.add_middleware(simple_cache_middleware)
-
-        # TODO:  See #2770
-        # self.configure_gas_strategy()
 
     def configure_gas_strategy(self, gas_strategy: Optional[Callable] = None) -> None:
         if gas_strategy:
@@ -337,6 +310,10 @@ class BlockchainInterface:
         # self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
 
     def connect(self):
+        if self.is_connected:
+            # safety check - connect was already previously called
+            return
+
         endpoint = self.endpoint
         self.log.info(f"Using external Web3 Provider '{self.endpoint}'")
 
@@ -349,11 +326,19 @@ class BlockchainInterface:
         if self._provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
 
-        # Connect if not connected
         try:
             self.w3 = self.Web3(provider=self._provider)
-            self.tx_machine.w3 = self.w3  # share this web3 instance with the tracker
+            # client mutates w3 instance (configures middleware etc.)
             self.client = EthereumClient(w3=self.w3)
+
+            # web3 instance fully configured; share instance with ATxM and respective strategies
+            speedup_strategy = ExponentialSpeedupStrategy(
+                w3=self.w3,
+                min_time_between_speedups=120,
+            )  # speedup txs if not mined after 2 mins.
+            self.tx_machine = AutomaticTxMachine(
+                w3=self.w3, tx_exec_timeout=self.TIMEOUT, strategies=[speedup_strategy]
+            )
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(
                 f"Connection Failed - {str(self.endpoint)} - is RPC enabled?"
@@ -362,8 +347,6 @@ class BlockchainInterface:
             raise self.ConnectionFailed(
                 f"Connection Failed - {str(self.endpoint)} - is IPC enabled?"
             )
-        else:
-            self.attach_middleware()
 
         return self.is_connected
 
