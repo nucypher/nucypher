@@ -102,7 +102,7 @@ class EthereumClient:
         )
         if is_poa:
             # proof-of-authority blockchain
-            self.log.debug("Injecting POA middleware at layer 0")
+            self.log.info("Injecting POA middleware at layer 0")
             self.inject_middleware(geth_poa_middleware, layer=0)
 
         # simple cache middleware
