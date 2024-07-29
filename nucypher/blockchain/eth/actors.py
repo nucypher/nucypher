@@ -1013,7 +1013,7 @@ class Operator(BaseActor):
             self.check_ferveo_public_key_match()
             emitter.message(
                 f"✓ Provider's DKG participation public key already set for "
-                f"{self.staking_provider_address} on Coordinator {self.coordinator_agent.contract_address}",
+                f"{self.staking_provider_address} on Coordinator {coordinator_address}",
                 color="green",
             )
 

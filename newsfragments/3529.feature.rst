@@ -1,1 +1,1 @@
-Prevents nodes from starting up or participating in DKGs if there is a local vs. onchain ferveo key mismatch.  This will assist in alerting node operators who need to relocate or recover thier hosts about the correct procedure.
+Prevents nodes from starting up or participating in DKGs if there is a local vs. onchain ferveo key mismatch.  This will assist in alerting node operators who need to relocate or recover their hosts about the correct procedure.
