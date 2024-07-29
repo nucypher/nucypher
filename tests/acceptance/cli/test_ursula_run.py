@@ -6,6 +6,7 @@ import pytest_twisted as pt
 from eth_account import Account
 from twisted.internet import threads
 
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.characters.base import Learner
 from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
 from nucypher.cli.main import nucypher_cli
@@ -35,6 +36,10 @@ def test_missing_configuration_file(_default_filepath_mock, click_runner):
 def test_run_lone_default_development_ursula(click_runner, mocker, ursulas, accounts):
     deploy_port = select_test_port()
     operator_address = ursulas[0].operator_address
+
+    # mock key mismatch detection
+    mocker.patch.object(Operator, "check_ferveo_public_key_match", return_value=None)
+
     args = (
         "ursula",
         "run",  # Stat Ursula Command

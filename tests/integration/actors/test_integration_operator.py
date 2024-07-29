@@ -6,6 +6,7 @@ from web3 import Web3
 from nucypher.blockchain.eth.actors import BaseActor, Operator
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.crypto.powers import RitualisticPower
 
 
 @pytest.fixture(scope="function")
@@ -116,6 +117,13 @@ def test_operator_block_until_ready_success(
         get_random_checksum_address(),
         ursula.checksum_address,
     ]
+
+    # mock key commitment
+    mocker.patch.object(
+        ursula.coordinator_agent,
+        "get_provider_public_key",
+        return_value=bytes(ursula.public_keys(RitualisticPower)),
+    )
 
     log_messages = []
 

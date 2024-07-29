@@ -57,6 +57,7 @@ from nucypher.blockchain.eth.utils import (
     rpc_endpoint_health_check,
     truncate_checksum_address,
 )
+from nucypher.crypto.ferveo.exceptions import FerveoKeyMismatch
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
@@ -70,6 +71,7 @@ from nucypher.policy.payment import ContractPayment
 from nucypher.types import PhaseId
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.warnings import render_ferveo_key_mismatch_warning
 
 
 class BaseActor:
@@ -570,6 +572,14 @@ class Operator(BaseActor):
         Errors raised by this method are not explicitly caught and are expected
         to be handled by the EventActuator.
         """
+
+        try:
+            self.check_ferveo_public_key_match()
+        except FerveoKeyMismatch:
+            # crash this node
+            self.stop(halt_reactor=True)
+            return
+
         if self.checksum_address not in participants:
             message = (
                 f"{self.checksum_address}|{self.wallet_address} "
@@ -997,12 +1007,30 @@ class Operator(BaseActor):
                 f" for {self.staking_provider_address} on {taco_child_pretty_chain_name} with txhash {txhash})",
                 color="green",
             )
+
         else:
+            # this node's ferveo public key is already published
+            self.check_ferveo_public_key_match()
             emitter.message(
                 f"✓ Provider's DKG participation public key already set for "
-                f"{self.staking_provider_address} on {taco_child_pretty_chain_name} at Coordinator {coordinator_address}",
+                f"{self.staking_provider_address} on Coordinator {coordinator_address}",
                 color="green",
             )
+
+    def check_ferveo_public_key_match(self):
+        latest_ritual_id = self.coordinator_agent.number_of_rituals()
+        local_ferveo_key = self.ritual_power.public_key()
+        onchain_ferveo_key = self.coordinator_agent.get_provider_public_key(
+            ritual_id=latest_ritual_id, provider=self.staking_provider_address
+        )
+
+        if bytes(local_ferveo_key) != bytes(onchain_ferveo_key):
+            message = render_ferveo_key_mismatch_warning(
+                local_key=local_ferveo_key,
+                onchain_key=onchain_ferveo_key,
+            )
+            self.log.critical(message)
+            raise FerveoKeyMismatch(message)
 
 
 class PolicyAuthor(NucypherTokenActor):
