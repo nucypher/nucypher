@@ -123,9 +123,13 @@ def test_dkg_failure_with_ferveo_key_mismatch(
         yield clock.advance(interval)
         yield testerchain.time_travel(seconds=1)
 
-    assert log_messages[0] == render_ferveo_key_mismatch_warning(
-        bytes(new_public_key), bytes(onchain_public_key)
+    assert (
+        render_ferveo_key_mismatch_warning(
+            bytes(new_public_key), bytes(onchain_public_key)
+        )
+        in log_messages
     )
 
     testerchain.tx_machine.stop()
     assert not testerchain.tx_machine.running
+    globalLogPublisher.removeObserver(log_trapper)
