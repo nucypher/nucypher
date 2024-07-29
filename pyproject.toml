@@ -12,7 +12,7 @@ pynacl = ">=1.4.0"
 mnemonic = "*"
 pyopenssl = "*"
 web3 = '^6.15.1'
-atxm = "^0.4.0"
+atxm = { git = "https://github.com/derekpierre/ATxM.git", branch = "memoize-fix" }
 flask = "*"
 hendrix = "*"
 requests = "*"

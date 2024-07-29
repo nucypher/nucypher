@@ -233,13 +233,29 @@ tests-no-zope = ["attrs[tests-mypy]", "cloudpickle", "hypothesis", "pympler", "p
 [[package]]
 name = "atxm"
 version = "0.4.0"
-description = "Automatic Transaction Machine (ATxM) for Ethereum"
+description = "Automatic Transaction Machine (ATxM) for Ethereum."
 optional = false
-python-versions = ">=3.9"
-files = [
-    {file = "atxm-0.4.0-py3-none-any.whl", hash = "sha256:83ed05c25f3b9e2fec1f61e2da2311790cbda341b7a53d690e69d7db0c5f44a1"},
-    {file = "atxm-0.4.0.tar.gz", hash = "sha256:30ec894a6eaa42a6994adecf18e92250a4c6447320186f9fff169320dd497660"},
-]
+python-versions = ">=3.9,<4"
+files = []
+develop = false
+
+[package.dependencies]
+eth-abi = "*"
+eth-account = ">=0.10.0"
+eth-keys = "*"
+eth-typing = "*"
+eth-utils = "*"
+python-statemachine = "*"
+rlp = "*"
+twisted = "*"
+urllib3 = "*"
+web3 = "^6.15.1"
+
+[package.source]
+type = "git"
+url = "https://github.com/derekpierre/ATxM.git"
+reference = "memoize-fix"
+resolved_reference = "b37a5fe09149877c927c52a6d558a07d2047ba7f"
 
 [[package]]
 name = "autobahn"
@@ -3594,6 +3610,17 @@ files = [
 cli = ["click (>=5.0)"]
 
 [[package]]
+name = "python-statemachine"
+version = "2.3.4"
+description = "Python Finite State Machines made easy."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "python_statemachine-2.3.4-py3-none-any.whl", hash = "sha256:c892b66f1248af80854ec3ff4186399625693a79e205e3ca33dffee0c058c963"},
+    {file = "python_statemachine-2.3.4.tar.gz", hash = "sha256:f5a061a5f0abef0977a2679bf7aefecbe4d87a57ac5839e97c8f30b2d6a9f3ae"},
+]
+
+[[package]]
 name = "pytz"
 version = "2024.1"
 description = "World timezone definitions, modern and historical"
@@ -4975,4 +5002,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4"
-content-hash = "d034e80d0254d189fce3b642d8d43e3cfd60fb6a7343d45caab6f6f6d4102b52"
+content-hash = "8939e39ea7bd13cc627c9b6a1ca9908c6ae0ac463cd13149ce652d1c9baf7c2d"
