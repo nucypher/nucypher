@@ -22,6 +22,10 @@ class EvmAuth:
     class AuthenticationFailed(Exception):
         pass
 
+    class StaleMessage(AuthenticationFailed):
+        """The message is too old."""
+        pass
+
     @classmethod
     def authenticate(cls, data, signature, expected_address):
         raise NotImplementedError
@@ -61,7 +65,7 @@ class EIP712Auth(EvmAuth):
         if address_for_signature != expected_address:
             # verification failed - addresses don't match
             raise cls.AuthenticationFailed(
-                f"EIP712 verification failed; signature does not match expected address, {expected_address}"
+                f"EIP712 verification failed; signature not valid for expected address, {expected_address}"
             )
 
 
@@ -78,25 +82,28 @@ class EIP4361Auth(EvmAuth):
             )
 
         try:
+            # performs various validation checks on message eg. expiration, not-before, signature etc.
             siwe_message.verify(signature=signature)
         except VerificationError as e:
             raise cls.AuthenticationFailed(
                 f"EIP4361 verification failed - {str(e) or e.__class__.__name__}"
             )
 
-        # enforce a freshness check
-        # TODO: "not-before" throws off the freshness timing; so skip if specified.
-        #  Is this safe / what we want?
-        if not siwe_message.not_before:
-            issued_at = maya.MayaDT.from_iso8601(siwe_message.issued_at)
-            if maya.now() > issued_at.add(hours=cls.FRESHNESS_IN_HOURS):
-                raise cls.AuthenticationFailed(
-                    f"EIP4361 message is stale; more than {cls.FRESHNESS_IN_HOURS} "
-                    f"hours old (issued at {issued_at.iso8601()})"
-                )
+        # enforce a freshness check - reference point is issued at
+        issued_at = maya.MayaDT.from_iso8601(siwe_message.issued_at)
+        now = maya.now()
+        if issued_at > now:
+            raise cls.AuthenticationFailed(
+                f"EIP4361 issued-at datetime is in the future: {issued_at.iso8601()}"
+            )
+        if now > issued_at.add(hours=cls.FRESHNESS_IN_HOURS):
+            raise cls.StaleMessage(
+                f"EIP4361 message is more than {cls.FRESHNESS_IN_HOURS} "
+                f"hours old (issued at {issued_at.iso8601()})"
+            )
 
         if siwe_message.address != expected_address:
             # verification failed - addresses don't match
             raise cls.AuthenticationFailed(
-                f"Invalid EIP4361 signature; does not match expected address, {expected_address}"
+                f"Invalid EIP4361 signature; signature not valid for expected address, {expected_address}"
             )

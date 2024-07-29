@@ -56,7 +56,9 @@ def test_authenticate_eip712(valid_eip712_auth_message, get_random_checksum_addr
         )
 
     # mismatch with expected address
-    with pytest.raises(EvmAuth.AuthenticationFailed):
+    with pytest.raises(
+        EvmAuth.AuthenticationFailed, match="signature not valid for expected address"
+    ):
         EIP712Auth.authenticate(
             data=data,
             signature=signature,
@@ -129,7 +131,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
 
     # mismatch with expected address
     with pytest.raises(
-        EvmAuth.AuthenticationFailed, match="does not match expected address"
+        EvmAuth.AuthenticationFailed, match="signature not valid for expected address"
     ):
         EIP4361Auth.authenticate(
             data=valid_message,
@@ -137,7 +139,92 @@ def test_authenticate_eip4361(get_random_checksum_address):
             expected_address=get_random_checksum_address(),
         )
 
-    # stale message
+    # expiration provided - not yet reached
+    expiration_message_data = dict(siwe_message_data)
+    expiration_message_data["expiration_time"] = maya.now().add(hours=1).iso8601()
+    expiration_message = SiweMessage(**expiration_message_data).prepare_message()
+    expiration_message_signature = signer.sign_message(
+        account=valid_address_for_signature, message=expiration_message.encode()
+    )
+    EIP4361Auth.authenticate(
+        expiration_message,
+        expiration_message_signature.hex(),
+        valid_address_for_signature,
+    )  # authentication works
+
+    # expiration provided - already expired
+    already_expired_message_data = dict(siwe_message_data)
+    already_expired_message_data["expiration_time"] = (
+        maya.now().subtract(minutes=45).iso8601()
+    )
+    already_expired_message_data["issued_at"] = (
+        maya.now().subtract(minutes=60).iso8601()
+    )
+    already_expired_message = SiweMessage(
+        **already_expired_message_data
+    ).prepare_message()
+    already_expired_message_signature = signer.sign_message(
+        account=valid_address_for_signature, message=already_expired_message.encode()
+    )
+    with pytest.raises(
+        EvmAuth.AuthenticationFailed,
+        match="EIP4361 verification failed - ExpiredMessage",
+    ):
+        EIP4361Auth.authenticate(
+            already_expired_message,
+            already_expired_message_signature.hex(),
+            valid_address_for_signature,
+        )  # authentication fails
+
+    # not_before not yet reached
+    not_before_message_data = dict(siwe_message_data)
+    not_before_message_data["not_before"] = maya.now().add(hours=1).iso8601()
+    not_before_message = SiweMessage(**not_before_message_data).prepare_message()
+    not_before_signature = signer.sign_message(
+        account=valid_address_for_signature, message=not_before_message.encode()
+    )
+    with pytest.raises(
+        EvmAuth.AuthenticationFailed,
+        match="EIP4361 verification failed - NotYetValidMessage",
+    ):
+        EIP4361Auth.authenticate(
+            not_before_message, not_before_signature.hex(), valid_address_for_signature
+        )
+
+    # not_before already reached
+    not_before_message_data = dict(siwe_message_data)
+    not_before_message_data["not_before"] = maya.now().subtract(hours=1).iso8601()
+    not_before_message = SiweMessage(**not_before_message_data).prepare_message()
+    not_before_signature = signer.sign_message(
+        account=valid_address_for_signature, message=not_before_message.encode()
+    )
+    EIP4361Auth.authenticate(
+        not_before_message, not_before_signature.hex(), valid_address_for_signature
+    )  # all is well
+
+    # issued at in the future (sneaky!)
+    futuristic_issued_at_message_data = dict(siwe_message_data)
+    futuristic_issued_at_message_data["issued_at"] = (
+        f"{maya.now().add(minutes=30).iso8601()}"
+    )
+    futuristic_issued_at_message = SiweMessage(
+        **futuristic_issued_at_message_data
+    ).prepare_message()
+    futuristic_issued_at_message_signature = signer.sign_message(
+        account=valid_address_for_signature,
+        message=futuristic_issued_at_message.encode(),
+    )
+    with pytest.raises(
+        EvmAuth.AuthenticationFailed,
+        match="EIP4361 issued-at datetime is in the future",
+    ):
+        EIP4361Auth.authenticate(
+            futuristic_issued_at_message,
+            futuristic_issued_at_message_signature.hex(),
+            valid_address_for_signature,
+        )
+
+    # stale message - issued_at
     stale_message_data = dict(siwe_message_data)
     stale_message_data["issued_at"] = (
         f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS + 1).iso8601()}"
@@ -146,7 +233,10 @@ def test_authenticate_eip4361(get_random_checksum_address):
     stale_message_signature = signer.sign_message(
         account=valid_address_for_signature, message=stale_message.encode()
     )
-    with pytest.raises(EvmAuth.AuthenticationFailed, match="EIP4361 message is stale"):
+    with pytest.raises(
+        EvmAuth.StaleMessage,
+        match=f"EIP4361 message is more than {EIP4361Auth.FRESHNESS_IN_HOURS} hours old",
+    ):
         EIP4361Auth.authenticate(
             stale_message, stale_message_signature.hex(), valid_address_for_signature
         )
@@ -168,7 +258,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
         valid_address_for_signature,
     )
 
-    # old but not stale, but still fails due to expiry time used in message itself
+    # old but not stale; fails due to expiry time used in message itself
     not_stale_but_past_expiry = dict(old_but_not_stale_message_data)
     not_stale_but_past_expiry["expiration_time"] = (
         f"{maya.now().subtract(seconds=30).iso8601()}"
@@ -189,43 +279,3 @@ def test_authenticate_eip4361(get_random_checksum_address):
             not_stale_but_past_expiry_signature.hex(),
             valid_address_for_signature,
         )
-
-    # not before specified
-    not_before_message_data = dict(siwe_message_data)
-    not_before_message_data["not_before"] = f"{maya.now().add(hours=1).iso8601()}"
-    not_before_message = SiweMessage(**not_before_message_data).prepare_message()
-    not_before_message_signature = signer.sign_message(
-        account=valid_address_for_signature, message=not_before_message.encode()
-    )
-    with pytest.raises(
-        EvmAuth.AuthenticationFailed,
-        match="EIP4361 verification failed - NotYetValidMessage",
-    ):
-        EIP4361Auth.authenticate(
-            not_before_message,
-            not_before_message_signature.hex(),
-            valid_address_for_signature,
-        )
-
-    # not before specified, so stale message check not performed
-    not_before_no_stale_check_message_data = dict(siwe_message_data)
-    not_before_no_stale_check_message_data["not_before"] = (
-        f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS - 1).iso8601()}"
-    )
-    # issued more than freshness check hours ago
-    old_but_not_stale_message_data["issued_at"] = (
-        f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS - 2).iso8601()}"
-    )
-    not_before_no_stale_check_message = SiweMessage(
-        **not_before_no_stale_check_message_data
-    ).prepare_message()
-    not_before_no_stale_check_message_signature = signer.sign_message(
-        account=valid_address_for_signature,
-        message=not_before_no_stale_check_message.encode(),
-    )
-    # even though stale, "not-before" causes check to be skipped
-    EIP4361Auth.authenticate(
-        not_before_no_stale_check_message,
-        not_before_no_stale_check_message_signature.hex(),
-        valid_address_for_signature,
-    )
