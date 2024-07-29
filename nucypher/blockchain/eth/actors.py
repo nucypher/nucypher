@@ -633,8 +633,9 @@ class Operator(BaseActor):
                 ritual_id=ritual.id,
             )
         except Exception as e:
+            stack_trace = traceback.format_stack()
             self.log.critical(
-                f"Failed to generate a transcript for ritual #{ritual.id}: {str(e)}"
+                f"Failed to generate a transcript for ritual #{ritual.id}: {str(e)}\n{stack_trace}"
             )
             return
 
@@ -723,8 +724,9 @@ class Operator(BaseActor):
                 transcripts=messages,
             )
         except Exception as e:
+            stack_trace = traceback.format_stack()
             self.log.critical(
-                f"Failed to aggregate transcripts for ritual #{ritual.id}: {str(e)}"
+                f"Failed to aggregate transcripts for ritual #{ritual.id}: {str(e)}\n{stack_trace}"
             )
             return
 
