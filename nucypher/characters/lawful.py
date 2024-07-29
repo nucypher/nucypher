@@ -994,7 +994,11 @@ class Ursula(Teacher, Character, Operator):
             if self._prometheus_metrics_tracker:
                 self._prometheus_metrics_tracker.stop()
         if halt_reactor:
-            reactor.stop()
+            self.halt_reactor()
+
+    @staticmethod
+    def halt_reactor() -> None:
+        reactor.stop()
 
     def _finalize(self):
         """

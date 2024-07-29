@@ -836,3 +836,8 @@ def mock_async_hooks(mocker):
     )
 
     return hooks
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_halt_reactor(session_mocker):
+    session_mocker.patch.object(Ursula, "halt_reactor")

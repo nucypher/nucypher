@@ -577,8 +577,8 @@ class Operator(BaseActor):
             self.check_ferveo_public_key_match()
         except FerveoKeyMismatch:
             # crash this node
-            self.stop()
-            exit()
+            self.stop(halt_reactor=True)
+            return
 
         if self.checksum_address not in participants:
             message = (
