@@ -57,6 +57,7 @@ from nucypher.blockchain.eth.utils import (
     rpc_endpoint_health_check,
     truncate_checksum_address,
 )
+from nucypher.crypto.ferveo.exceptions import FerveoKeyMismatch
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
@@ -1029,7 +1030,7 @@ class Operator(BaseActor):
                     onchain_key=onchain_ferveo_key,
                 )
                 self.log.critical(message)
-                raise self.ActorError(message)
+                raise FerveoKeyMismatch(message)
 
             else:
                 emitter.message(
