@@ -633,11 +633,11 @@ class Operator(BaseActor):
                 ritual_id=ritual.id,
             )
         except Exception as e:
-            # TODO: Handle this better #3096
+            stack_trace = traceback.format_stack()
             self.log.critical(
-                f"Failed to generate a transcript for ritual #{ritual.id}: {str(e)}"
+                f"Failed to generate a transcript for ritual #{ritual.id}: {str(e)}\n{stack_trace}"
             )
-            raise e
+            return
 
         # publish the transcript and store the receipt
         self.dkg_storage.store_validators(ritual_id=ritual.id, validators=validators)
@@ -724,10 +724,11 @@ class Operator(BaseActor):
                 transcripts=messages,
             )
         except Exception as e:
-            self.log.debug(
-                f"Failed to aggregate transcripts for ritual #{ritual.id}: {str(e)}"
+            stack_trace = traceback.format_stack()
+            self.log.critical(
+                f"Failed to aggregate transcripts for ritual #{ritual.id}: {str(e)}\n{stack_trace}"
             )
-            raise e
+            return
 
         # publish the transcript with network-wide jitter to avoid tx congestion
         time.sleep(random.randint(0, self.AGGREGATION_SUBMISSION_MAX_DELAY))
