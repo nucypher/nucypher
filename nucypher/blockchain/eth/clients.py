@@ -103,7 +103,7 @@ class EthereumClient:
         if is_poa:
             # proof-of-authority blockchain
             self.log.info("Injecting POA middleware at layer 0")
-            self.inject_middleware(geth_poa_middleware, layer=0)
+            self.inject_middleware(geth_poa_middleware, layer=0, name="poa")
 
         # simple cache middleware
         self.log.debug("Adding simple_cache_middleware")
@@ -272,7 +272,7 @@ class EthereumClient:
         return (time.time() - self.get_blocktime()) < self.STALECHECK_ALLOWABLE_DELAY
 
     @classmethod
-    def _get_chain_id(cls, w3: Web3):
+    def _get_chain_id(cls, w3: Web3) -> int:
         result = w3.eth.chain_id
         try:
             # from hex-str
