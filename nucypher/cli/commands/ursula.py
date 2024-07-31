@@ -317,8 +317,40 @@ def init(general_config, config_options, force, config_root, key_material):
     """Create a new Ursula node configuration."""
     emitter = setup_emitter(general_config, config_options.operator_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
+
     if not config_root:
         config_root = general_config.config_root
+
+    config_path = Path(config_root)
+    keystore_path = config_path / Keystore._DEFAULT_DIR
+    if config_path.exists() and keystore_path.exists():
+        click.clear()
+        emitter.echo(
+            f"There are existing secret keys in '{keystore_path}'.\n"
+            "The 'init' command is a one-time operation, do not run it again.\n\n",
+            color="red",
+        )
+
+        emitter.echo(
+            "To review your existing configuration, run:\n\n"
+            "nucypher ursula config\n\n"
+            "To run your node with the existing configuration, run:\n\n"
+            "nucypher ursula run\n",
+            color="cyan",
+        )
+        return click.get_current_context().exit(1)
+
+    click.clear()
+    emitter.echo(
+        "Hello Operator, welcome on board :-) \n\n"
+        "NOTE: Initializing a new Ursula node configuration is a one-time operation\n"
+        "for the lifetime of your node.  This is a two-step process:\n\n"
+        "1. Creating a password to encrypt your operator keys\n"
+        "2. Securing a taco node seed phase\n\n"
+        "Please follow the prompts.",
+        color="cyan",
+    )
+
     if not config_options.eth_endpoint:
         raise click.BadOptionUsage(
             "--eth-endpoint",

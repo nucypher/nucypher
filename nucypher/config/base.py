@@ -593,6 +593,7 @@ class CharacterConfiguration(BaseConfiguration):
         """Shortcut: Hook-up a new initial installation and configuration."""
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize(key_material=key_material, password=password)
+        node_config.keystore.unlock(password)
         return node_config
 
     def cleanup(self) -> None:
