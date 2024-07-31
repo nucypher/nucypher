@@ -28,12 +28,13 @@ from nucypher.blockchain.eth.interfaces import (
 )
 from nucypher.blockchain.eth.signers.software import InMemorySigner, KeystoreSigner
 from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.cli.config import GroupGeneralConfig
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
     UrsulaConfiguration,
 )
-from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
@@ -841,3 +842,28 @@ def mock_async_hooks(mocker):
 @pytest.fixture(scope="session", autouse=True)
 def mock_halt_reactor(session_mocker):
     session_mocker.patch.object(Ursula, "halt_reactor")
+
+
+@pytest.fixture(scope="session")
+def temp_config_root():
+    return Path("/tmp/nucypher-test")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_default_config_root(session_mocker, temp_config_root):
+    if DEFAULT_CONFIG_ROOT.exists():
+        raise RuntimeError(
+            f"{DEFAULT_CONFIG_ROOT} already exists.  It is not permitted to run tests in an (production) "
+            f"environment where this directory exists.  Please remove it before running tests."
+        )
+    session_mocker.patch(
+        "nucypher.config.constants.DEFAULT_CONFIG_ROOT", temp_config_root
+    )
+    session_mocker.patch.object(GroupGeneralConfig, "config_root", temp_config_root)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clear_config_root(temp_config_root):
+    if temp_config_root.exists():
+        print(f"Removing {temp_config_root}")
+        shutil.rmtree(Path("/tmp/nucypher-test"))

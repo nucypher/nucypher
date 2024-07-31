@@ -223,7 +223,8 @@ class Keystore:
     _ID_SIZE = 32
 
     # Filepath
-    _DEFAULT_DIR: Path = DEFAULT_CONFIG_ROOT / 'keystore'
+    _DIR_NAME = "keystore"
+    _DEFAULT_DIR: Path = DEFAULT_CONFIG_ROOT / _DIR_NAME
     _DELIMITER = '-'
     _SUFFIX = 'priv'
 
