@@ -102,7 +102,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             self.operator_address
         )
 
-        if staking_provider_address != NULL_ADDRESS:
+        if staking_provider_address and staking_provider_address != NULL_ADDRESS:
             if coordinator_agent.is_provider_public_key_set(staking_provider_address):
                 message = (
                     f"Operator {self.operator_address} has already published a public key.\n"
