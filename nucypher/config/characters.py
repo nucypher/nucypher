@@ -98,25 +98,28 @@ class UrsulaConfiguration(CharacterConfiguration):
             registry=self.registry,
         )
 
-        staking_provider_address = application_agent.staking_provider_from_operator(
-            self.operator_address
-        )
-
-        if staking_provider_address and staking_provider_address != NULL_ADDRESS:
-            if coordinator_agent.is_provider_public_key_set(staking_provider_address):
-                message = (
-                    f"Operator {self.operator_address} has already published a public key.\n"
-                    f"It is not permitted to create a new node with this operator address."
-                    f"{render_lost_seed_phrase_message()}"
-                )
-                self.log.critical(message)
-                raise self.ConfigurationError(message)
-        else:
-            emitter.echo(
-                "NOTE: Your operator is not bonded to a staking provider. \n"
-                "Bond the operator to a staking provider on the threshold dashboard.",
-                color="cyan",
+        if self.operator_address:
+            staking_provider_address = application_agent.staking_provider_from_operator(
+                self.operator_address
             )
+
+            if staking_provider_address and staking_provider_address != NULL_ADDRESS:
+                if coordinator_agent.is_provider_public_key_set(
+                    staking_provider_address
+                ):
+                    message = (
+                        f"Operator {self.operator_address} has already published a public key.\n"
+                        f"It is not permitted to create a new node with this operator address."
+                        f"{render_lost_seed_phrase_message()}"
+                    )
+                    self.log.critical(message)
+                    raise self.ConfigurationError(message)
+            else:
+                emitter.echo(
+                    "NOTE: Your operator is not bonded to a staking provider. \n"
+                    "Bond the operator to a staking provider on the threshold dashboard.",
+                    color="cyan",
+                )
 
         return super().initialize(*args, **kwargs)
 
