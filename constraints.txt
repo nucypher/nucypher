@@ -1,1 +1,0 @@
-setuptools==71.0.4 ; python_version >= "3.9" and python_version < "4"
