@@ -47,9 +47,7 @@ jobs:
         run: python -m pip install --upgrade pip
 
       - name: Install packages (incl. updated code)
-        run: |
-            export PIP_CONSTRAINT="$(pwd)/constraints.txt"
-            pip install .[dev]
+        run: pip install .[dev]
 
       - name: Check CLI Entrypoint
         run: nucypher --help

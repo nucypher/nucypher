@@ -12,7 +12,7 @@ pynacl = ">=1.4.0"
 mnemonic = "*"
 pyopenssl = "*"
 web3 = '^6.15.1'
-atxm = "^0.4.0"
+atxm = "^0.5.0"
 flask = "*"
 hendrix = "*"
 requests = "*"
@@ -25,7 +25,6 @@ marshmallow = '*'
 appdirs = '*'
 constant-sorrow = '^0.1.0a9'
 prometheus-client = '*'
-setuptools = "<71.1.0"
 siwe = "^4.2.0"
 time-machine = "^2.13.0"
 twisted = "^24.2.0rc1"
