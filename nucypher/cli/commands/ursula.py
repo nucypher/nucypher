@@ -321,13 +321,12 @@ def init(general_config, config_options, force, config_root, key_material):
     if not config_root:
         config_root = general_config.config_root
 
-    config_path = Path(config_root)
-    keystore_path = config_path / Keystore._DEFAULT_DIR
-    if config_path.exists() and keystore_path.exists():
+    keystore_path = Path(config_root) / Keystore._DIR_NAME
+    if keystore_path.exists() and any(keystore_path.iterdir()):
         click.clear()
         emitter.echo(
             f"There are existing secret keys in '{keystore_path}'.\n"
-            "The 'init' command is a one-time operation, do not run it again.\n\n",
+            "The 'init' command is a one-time operation, do not run it again.\n",
             color="red",
         )
 
