@@ -19,7 +19,7 @@ BlockchainInterfaceFactory._interfaces[MOCK_ETH_PROVIDER_URI] = CACHED_MOCK_TEST
 
 class MockContractAgent:
 
-    FAKE_CALL_RESULT = 1
+    FAKE_CALL_RESULT = 0
 
     # Internal
     __COLLECTION_MARKER = "contract_api"  # decorator attribute
@@ -53,7 +53,8 @@ class MockContractAgent:
     def __setup_mock(self, agent_class: Type[Agent]) -> None:
 
         api_methods: Iterable[Callable] = list(self.__collect_contract_api(agent_class=agent_class))
-        mock_methods, mock_properties = list(), dict()
+        mock_methods = list()
+        # mock_properties = dict()
 
         for agent_interface in api_methods:
 
@@ -88,7 +89,8 @@ class MockContractAgent:
         self._REAL_METHODS = api_methods
 
     def __get_interface_calls(self, interface: Enum) -> List[Callable]:
-        predicate = lambda method: bool(method.contract_api == interface)
+        def predicate(method):
+            return bool(method.contract_api == interface)
         interface_calls = list(filter(predicate, self._MOCK_METHODS))
         return interface_calls
 
@@ -127,9 +129,13 @@ class MockContractAgent:
 
     def get_unexpected_transactions(self, allowed: Union[Iterable[Callable], None]) -> List[Callable]:
         if allowed:
-            predicate = lambda tx: tx not in allowed and tx.called
+
+            def predicate(tx):
+                return tx not in allowed and tx.called
         else:
-            predicate = lambda tx: tx.called
+
+            def predicate(tx):
+                return tx.called
         unexpected_transactions = list(filter(predicate, self.all_transactions))
         return unexpected_transactions
 

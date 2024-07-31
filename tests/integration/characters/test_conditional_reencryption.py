@@ -26,7 +26,10 @@ def _policy_info_kwargs(enacted_policy):
     )
 
 
-def test_single_retrieve_with_truthy_conditions(enacted_policy, bob, ursulas, mocker):
+@pytest.mark.usefixtures("mock_payment_method")
+def test_single_retrieve_with_truthy_conditions(
+    enacted_policy, bob, ursulas, mocker, mock_payment_method
+):
     from nucypher_core import MessageKit
 
     reencrypt_spy = mocker.spy(Ursula, '_reencrypt')
@@ -68,7 +71,10 @@ def test_single_retrieve_with_truthy_conditions(enacted_policy, bob, ursulas, mo
     assert reencrypt_spy.call_count == enacted_policy.threshold
 
 
-def test_single_retrieve_with_falsy_conditions(enacted_policy, bob, ursulas, mocker):
+@pytest.mark.usefixtures("mock_payment_method")
+def test_single_retrieve_with_falsy_conditions(
+    enacted_policy, bob, ursulas, mocker, mock_payment_method
+):
     from nucypher_core import MessageKit
 
     reencrypt_spy = mocker.spy(Ursula, '_reencrypt')
@@ -124,6 +130,7 @@ FAILURE_CASE_EXCEPTION_CODE_MATCHING = [
     "eval_failure_exception_class, middleware_exception_class",
     FAILURE_CASE_EXCEPTION_CODE_MATCHING,
 )
+@pytest.mark.usefixtures("mock_payment_method")
 def test_middleware_handling_of_failed_condition_responses(
     eval_failure_exception_class,
     middleware_exception_class,
@@ -131,6 +138,7 @@ def test_middleware_handling_of_failed_condition_responses(
     enacted_policy,
     bob,
     mock_rest_middleware,
+    mock_payment_method,
 ):
     # we use a failed condition for reencryption to test conversion of response codes to middleware exceptions
     from nucypher_core import MessageKit

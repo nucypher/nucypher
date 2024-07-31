@@ -870,6 +870,11 @@ def clear_config_root(temp_config_root):
     if temp_config_root.exists():
         print(f"Removing {temp_config_root}")
         shutil.rmtree(Path("/tmp/nucypher-test"))
+    yield
+    if DEFAULT_CONFIG_ROOT.exists():
+        raise RuntimeError(
+            f"{DEFAULT_CONFIG_ROOT} was used by a test.  This is not permitted, please mock."
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)
