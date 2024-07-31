@@ -870,3 +870,11 @@ def clear_config_root(temp_config_root):
     if temp_config_root.exists():
         print(f"Removing {temp_config_root}")
         shutil.rmtree(Path("/tmp/nucypher-test"))
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_default_rpc_endpoint_fetch(session_mocker):
+    session_mocker.patch(
+        "nucypher.blockchain.eth.utils.get_default_rpc_endpoints",
+        return_value={TESTERCHAIN_CHAIN_ID: [TEST_ETH_PROVIDER_URI]},
+    )
