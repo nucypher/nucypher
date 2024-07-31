@@ -852,10 +852,13 @@ def temp_config_root():
 @pytest.fixture(scope="session", autouse=True)
 def mock_default_config_root(session_mocker, temp_config_root):
     if DEFAULT_CONFIG_ROOT.exists():
-        raise RuntimeError(
-            f"{DEFAULT_CONFIG_ROOT} already exists.  It is not permitted to run tests in an (production) "
-            f"environment where this directory exists.  Please remove it before running tests."
-        )
+        if os.getenv("GITHUB_ACTIONS") == "true":
+            shutil.rmtree(DEFAULT_CONFIG_ROOT)
+        else:
+            raise RuntimeError(
+                f"{DEFAULT_CONFIG_ROOT} already exists.  It is not permitted to run tests in an (production) "
+                f"environment where this directory exists.  Please remove it before running tests."
+            )
     session_mocker.patch(
         "nucypher.config.constants.DEFAULT_CONFIG_ROOT", temp_config_root
     )
