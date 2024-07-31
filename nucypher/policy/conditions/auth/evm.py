@@ -24,7 +24,6 @@ class EvmAuth:
 
     class StaleMessage(AuthenticationFailed):
         """The message is too old."""
-        pass
 
     @classmethod
     def authenticate(cls, data, signature, expected_address):
