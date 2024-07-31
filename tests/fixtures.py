@@ -34,7 +34,10 @@ from nucypher.config.characters import (
     BobConfiguration,
     UrsulaConfiguration,
 )
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, TEMPORARY_DOMAIN_NAME
+from nucypher.config.constants import (
+    APP_DIR,
+    TEMPORARY_DOMAIN_NAME,
+)
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
@@ -851,12 +854,13 @@ def temp_config_root():
 
 @pytest.fixture(scope="session", autouse=True)
 def mock_default_config_root(session_mocker, temp_config_root):
-    if DEFAULT_CONFIG_ROOT.exists():
+    real_default_config_root = Path(APP_DIR.user_data_dir)
+    if real_default_config_root.exists():
         if os.getenv("GITHUB_ACTIONS") == "true":
-            shutil.rmtree(DEFAULT_CONFIG_ROOT)
+            shutil.rmtree(real_default_config_root)
         else:
             raise RuntimeError(
-                f"{DEFAULT_CONFIG_ROOT} already exists.  It is not permitted to run tests in an (production) "
+                f"{real_default_config_root} already exists.  It is not permitted to run tests in an (production) "
                 f"environment where this directory exists.  Please remove it before running tests."
             )
     session_mocker.patch(
@@ -871,9 +875,9 @@ def clear_config_root(temp_config_root):
         print(f"Removing {temp_config_root}")
         shutil.rmtree(Path("/tmp/nucypher-test"))
     yield
-    if DEFAULT_CONFIG_ROOT.exists():
+    if Path(APP_DIR.user_data_dir).exists():
         raise RuntimeError(
-            f"{DEFAULT_CONFIG_ROOT} was used by a test.  This is not permitted, please mock."
+            f"{APP_DIR.user_data_dir} was used by a test.  This is not permitted, please mock."
         )
 
 
