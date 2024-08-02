@@ -324,7 +324,9 @@ class Keystore:
         return instance
 
     @classmethod
-    def import_secure(cls, key_material: bytes, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
+    def import_secure(
+        cls, key_material: bytes, password: str, keystore_dir: Optional[Path] = None
+    ) -> "Keystore":
         """
         Generate a Keystore using a a custom pre-secured entropy blob.
         This method of keystore creation does not generate a mnemonic phrase - it is assumed
@@ -364,21 +366,19 @@ class Keystore:
         emitter = StdoutEmitter()
         emitter.message(
             f"""
-        Operator wallet generated successfully!
-        Address: {address}
-        Derivation path: {derivation_path}
-        Operator wallet filepath: {filepath.absolute()}
+Operator wallet generated successfully!
+Address: {address}
+Derivation: {derivation_path}
+Filepath: {filepath.absolute()}
         """,
             color="cyan",
         )
-        if not click.confirm("Continue?"):
-            emitter.message("Aborted.", color="red")
-            raise click.Abort()
 
     @classmethod
     def _write_wallet(cls, filepath: Path, data: Dict) -> None:
         if filepath.exists():
             raise FileExistsError(f"File {filepath} already exists.")
+        filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(filepath, "w") as f:
             json.dump(data, f)
 
@@ -422,10 +422,7 @@ class Keystore:
             address, dpath, fpath = cls._generate_wallet(
                 _phrase=__words, _password=password
             )
-            if interactive:
-                cls._confirm_wallet(
-                    address=address, derivation_path=dpath, filepath=fpath
-                )
+            cls._confirm_wallet(address=address, derivation_path=dpath, filepath=fpath)
 
         # Generate keystore
         __secret = bytes(mnemonic.to_entropy(__words))

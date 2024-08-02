@@ -192,9 +192,6 @@ class UrsulaInitOptions:
         return UrsulaConfiguration.generate(
             key_material=bytes.fromhex(key_material) if key_material else None,
             keystore_password=get_nucypher_password(emitter=emitter, confirm=True),
-            wallet_password=get_client_password(
-                envvar=NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD, confirm=True
-            ),
             wallet_filepath=self.wallet_filepath,
             signer_uri=self.signer_uri,
             config_root=config_root,

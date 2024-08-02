@@ -27,10 +27,8 @@ from nucypher.blockchain.eth.signers import KeystoreSigner, Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.config import constants
 from nucypher.config.util import cast_paths_from
-from nucypher.crypto.constants import _ENTROPY_BITS, _MNEMONIC_LANGUAGE
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
-from nucypher.crypto.utils import _generate_mnemonic, _generate_wallet
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.payment import PRE_PAYMENT_METHODS
 from nucypher.utilities.logging import Logger
@@ -615,20 +613,19 @@ class CharacterConfiguration(BaseConfiguration):
     def generate(
         cls,
         keystore_password: str,
-        wallet_password: str = None,
         key_material: Optional[bytes] = None,
+        signer_uri: Optional[str] = None,
         *args,
         **kwargs,
     ):
         """
         Generates local directories, private keys, and initial configuration for a new node.
         """
-        node_config = cls(dev_mode=False, *args, **kwargs)
+        node_config = cls(dev_mode=False, signer_uri=signer_uri, *args, **kwargs)
         node_config.initialize(
             key_material=key_material,
             keystore_password=keystore_password,
-            wallet_password=wallet_password,
-            generate_wallet=bool(wallet_password),
+            generate_wallet=not bool(signer_uri),
         )
         node_config.keystore.unlock(keystore_password)
         return node_config
@@ -812,12 +809,9 @@ class CharacterConfiguration(BaseConfiguration):
         self,
         keystore_password: str,
         generate_wallet: bool = True,
-        wallet_password: Optional[str] = None,
         key_material: Optional[bytes] = None,
     ) -> Path:
         """Initialize a new configuration and write installation files to disk."""
-        if generate_wallet and not wallet_password:
-            raise ValueError("Cannot generate wallet without a wallet password.")
 
         # Development
         if self.dev_mode:
@@ -832,7 +826,6 @@ class CharacterConfiguration(BaseConfiguration):
             self.keygen(
                 key_material=key_material,
                 keystore_password=keystore_password,
-                wallet_password=wallet_password,
                 generate_wallet=generate_wallet,
             )
         self._cache_runtime_filepaths()
@@ -850,7 +843,6 @@ class CharacterConfiguration(BaseConfiguration):
         self,
         keystore_password: str,
         generate_wallet: bool = True,
-        wallet_password: Optional[str] = None,
         key_material: Optional[bytes] = None,
     ) -> Keystore:
         if key_material:
@@ -860,30 +852,11 @@ class CharacterConfiguration(BaseConfiguration):
                 keystore_dir=self.keystore_dir,
             )
         else:
-
-            __words = _generate_mnemonic(
-                entropy=_ENTROPY_BITS, language=_MNEMONIC_LANGUAGE, interactive=True
-            )
-
             self.__keystore = Keystore.generate(
-                phrase=__words,
-                keystore_password=keystore_password,
+                password=keystore_password,
                 keystore_dir=self.keystore_dir,
+                generate_wallet=generate_wallet,
             )
-
-            if generate_wallet:
-                if not wallet_password:
-                    raise ValueError(
-                        "Cannot generate wallet without a wallet password."
-                    )
-                address, _dpath, _fpath = _generate_wallet(
-                    phrase=__words,
-                    language=_MNEMONIC_LANGUAGE,
-                    password=wallet_password,
-                    filepath=Keystore._DEFAULT_WALLET_FILEPATH,
-                    index=0,
-                )
-                self._wallet_filepath = _fpath
         return self.keystore
 
     def configure_pre_payment_method(self):
