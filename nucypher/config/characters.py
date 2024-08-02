@@ -5,13 +5,22 @@ from typing import Dict, List, Optional
 from cryptography.x509 import Certificate
 from eth_utils import is_checksum_address
 
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    CoordinatorAgent,
+    TACoChildApplicationAgent,
+)
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
 )
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
+from nucypher.utilities.warnings import render_lost_seed_phrase_message
 
 
 class UrsulaConfiguration(CharacterConfiguration):
@@ -66,6 +75,53 @@ class UrsulaConfiguration(CharacterConfiguration):
                 # convert chain from string key (for json) to integer
                 self.condition_blockchain_endpoints[int(chain)] = blockchain_endpoint
         self.configure_condition_blockchain_endpoints()
+
+    def initialize(self, *args, **kwargs) -> Path:
+        """
+        Check if the coordinator public key is set and prevent the creation of a new node if it is.
+        """
+        emitter = StdoutEmitter()
+        emitter.echo("Checking operator account status...")
+
+        BlockchainInterfaceFactory.get_or_create_interface(
+            endpoint=self.polygon_endpoint
+        )
+        coordinator_agent = ContractAgency.get_agent(
+            CoordinatorAgent,
+            blockchain_endpoint=self.polygon_endpoint,
+            registry=self.registry,
+        )
+
+        application_agent = ContractAgency.get_agent(
+            TACoChildApplicationAgent,
+            blockchain_endpoint=self.polygon_endpoint,
+            registry=self.registry,
+        )
+
+        if self.operator_address:
+            staking_provider_address = application_agent.staking_provider_from_operator(
+                self.operator_address
+            )
+
+            if staking_provider_address and staking_provider_address != NULL_ADDRESS:
+                if coordinator_agent.is_provider_public_key_set(
+                    staking_provider_address
+                ):
+                    message = (
+                        f"Operator {self.operator_address} has already published a public key.\n"
+                        f"It is not permitted to create a new node with this operator address."
+                        f"{render_lost_seed_phrase_message()}"
+                    )
+                    self.log.critical(message)
+                    raise self.ConfigurationError(message)
+            else:
+                emitter.echo(
+                    "NOTE: Your operator is not bonded to a staking provider. \n"
+                    "Bond the operator to a staking provider on the threshold dashboard.",
+                    color="cyan",
+                )
+
+        return super().initialize(*args, **kwargs)
 
     def configure_condition_blockchain_endpoints(self) -> None:
         """Configure default condition provider URIs for eth and polygon network."""

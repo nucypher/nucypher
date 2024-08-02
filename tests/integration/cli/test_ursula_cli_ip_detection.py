@@ -1,3 +1,5 @@
+import shutil
+
 import pytest
 
 from nucypher.blockchain.eth.actors import Operator
@@ -18,7 +20,7 @@ from tests.constants import (
 
 
 @pytest.mark.usefixtures("mock_registry_sources")
-def test_ursula_startup_ip_checkup(click_runner, mocker):
+def test_ursula_startup_ip_checkup(click_runner, mocker, temp_config_root):
     target = "nucypher.cli.actions.configure.determine_external_ip_address"
 
     # Patch the get_external_ip call
@@ -48,6 +50,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
     )
     assert result.exit_code == 0, result.output
     assert MOCK_IP_ADDRESS in result.output
+    shutil.rmtree(str(temp_config_root.absolute()))
 
     args = (
         "ursula",
@@ -64,6 +67,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
         nucypher_cli, args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED
     )
     assert result.exit_code == 0, result.output
+    shutil.rmtree(str(temp_config_root.absolute()))
 
     # Patch get_external_ip call to error output
     mocker.patch(target, side_effect=UnknownIPAddress)

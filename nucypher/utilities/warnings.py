@@ -1,3 +1,22 @@
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+
+
+def render_lost_seed_phrase_message():
+    message = f"""
+    
+To relocate your node to a new host copy the configuration directory ({DEFAULT_CONFIG_ROOT}) to the new host.
+If you do not have a backup of the original keystore or have lost your password, you will need to recover your 
+node using the recovery phrase assigned during the initial setup by running:
+
+nucypher ursula recover
+
+If you have lost your recovery phrase: Open a support ticket in the Threshold Discord server (#taco).
+Disclose the loss immediately to minimize penalties. Your stake may be slashed, but the punishment will be significantly
+reduced if a key material handover is completed quickly, ensuring the node's service is not disrupted.
+"""
+    return message
+
+
 def render_ferveo_key_mismatch_warning(local_key, onchain_key):
     message = f"""
 
@@ -8,15 +27,7 @@ This is a critical error. Without the original private keys, your node cannot se
 IMPORTANT: Running `nucypher ursula init` will generate new private keys, which is not the correct procedure
 for relocating or restoring a TACo node.
 
-To relocate your node to a new host copy the keystore directory (~/.local/share/nucypher) to the new host.
-If you do not have a backup of the original keystore or have lost your password, you will need to recover your 
-node using the recovery phrase assigned during the initial setup by running:
-
-nucypher ursula recover
-
-If you have lost your recovery phrase: Open a support ticket in the Threshold Discord server (#taco).
-Disclose the loss immediately to minimize penalties. Your stake may be slashed, but the punishment will be significantly
-reduced if a key material handover is completed quickly, ensuring the node's service is not disrupted.
+{render_lost_seed_phrase_message()}
 
 """
     return message

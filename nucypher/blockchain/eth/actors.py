@@ -1018,7 +1018,7 @@ class Operator(BaseActor):
                 color="green",
             )
 
-    def check_ferveo_public_key_match(self):
+    def check_ferveo_public_key_match(self) -> None:
         latest_ritual_id = self.coordinator_agent.number_of_rituals()
         local_ferveo_key = self.ritual_power.public_key()
         onchain_ferveo_key = self.coordinator_agent.get_provider_public_key(
