@@ -106,30 +106,70 @@ def _confirm_generate(__words: str) -> None:
 
     # notification
     emitter = StdoutEmitter()
-    emitter.message(
-        "Backup your seed words, you will not be able to view them again.\n"
+
+    emitter.echo(
+        "\nNOTE: Next, you will be assigned a taco node seed phase. This seed phase is used to\n"
+        "generate your keystore. You will need this seed phase to recover your keystore\n"
+        "in the future. Please write down the seed phase and keep it in a safe place.\n",
+        color="cyan",
     )
-    emitter.message(f"{__words}\n", color="cyan")
+
+    emitter.message(
+        "IMPORTANT: Backup your seed phrase, you will not be able to view them again.\n"
+        "You can use these words to restore your keystore in the future in case of loss of\n"
+        "your keystore files or password. Do not share these words with anyone.\n",
+        color="yellow",
+    )
+
+    emitter.message(
+        "WARNING: If you lose your seed phase and also lose access to your keystore/password "
+        "your stake will be slashed.\n",
+        color="red",
+    )
+    click.confirm("Reveal seed phase?", default=False, abort=True)
+    click.clear()
+
+    formatted_words = "\n".join(
+        f"{i} {w}" for i, w in enumerate(__words.split(), start=1)
+    )
+    emitter.message(f"{formatted_words}\n", color="green")
     if not click.confirm("Have you backed up your seed phrase?"):
         emitter.message("Keystore generation aborted.", color="red")
         raise click.Abort()
     click.clear()
 
     # confirmation
-    __response = click.prompt("Confirm seed words")
-    if __response != __words:
-        raise ValueError(
-            "Incorrect seed word confirmation. No keystore has been created, try again."
-        )
+    while True:
+        __response = click.prompt("Confirm seed words (space separated)")
+        if __response != __words:
+            emitter.message("Seed words do not match. Please try again.", color="red")
+            continue
+        break
     click.clear()
+    emitter.echo("Seed phrase confirmed. Generating keystore...", color="green")
 
 
-def _generate_mnemonic(entropy: int, language: str, interactive: bool) -> str:
+def _confirm_wallet(address: str, derivation_path: str, filepath: Path) -> None:
+    emitter = StdoutEmitter()
+    emitter.message(
+        f"""
+Operator wallet generated successfully!
+Address: {address}
+Derivation: {derivation_path}
+Filepath: {filepath.absolute()}
+    """,
+        color="cyan",
+    )
+
+
+def _generate_mnemonic(
+    entropy: int, language: str, interactive: bool
+) -> Tuple[Mnemonic, str]:
     mnemonic = Mnemonic(language=language)
     __words = mnemonic.generate(strength=entropy)
     if interactive:
         _confirm_generate(__words)
-    return __words
+    return mnemonic, __words
 
 
 def _write_wallet(filepath: Path, data: Dict) -> None:
@@ -143,7 +183,7 @@ def _write_wallet(filepath: Path, data: Dict) -> None:
 def _generate_wallet(
     phrase: str,
     language: str,
-    password: str,  # TODO: Use a unique password
+    password: str,
     filepath: Path,
     index: int = 0,
 ) -> Tuple[ChecksumAddress, str, Path]:
