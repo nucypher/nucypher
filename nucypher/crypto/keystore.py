@@ -36,7 +36,11 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
-from nucypher.crypto.utils import _confirm_wallet, _generate_mnemonic, _generate_wallet
+from nucypher.crypto.utils import (
+    WalletGeneration,
+    _generate_mnemonic,
+    _generate_wallet,
+)
 from nucypher.utilities.emitters import StdoutEmitter
 
 # HKDF
@@ -363,7 +367,10 @@ class Keystore:
         keystore_dir: Optional[Path] = None,
         interactive: bool = True,
         generate_wallet: bool = True,
-    ) -> Union["Keystore", Tuple["Keystore", str]]:
+    ) -> Union[
+        Tuple["Keystore", Optional[WalletGeneration], Optional[str]],
+        Tuple["Keystore", Optional[WalletGeneration]],
+    ]:
 
         # Generate mnemonic
         mnemonic, __words = _generate_mnemonic(
@@ -371,25 +378,26 @@ class Keystore:
         )
 
         # Generate wallet
+        wallet_generation = None
         if generate_wallet:
-            address, dpath, fpath = _generate_wallet(
+            wallet_generation = _generate_wallet(
                 phrase=__words,
                 language=_MNEMONIC_LANGUAGE,
                 password=password,
                 filepath=cls._DEFAULT_WALLET_FILEPATH,
             )
-            _confirm_wallet(address=address, derivation_path=dpath, filepath=fpath)
 
         # Generate keystore
         __secret = bytes(mnemonic.to_entropy(__words))
         keystore_path = cls.__commit(
             secret=__secret, password=password, keystore_dir=keystore_dir
         )
+
         keystore = cls(keystore_path=keystore_path)
 
         if interactive:
-            return keystore
-        return keystore, __words
+            return keystore, wallet_generation
+        return keystore, wallet_generation, __words
 
     @property
     def id(self) -> str:

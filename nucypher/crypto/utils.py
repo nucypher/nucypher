@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from secrets import SystemRandom
-from typing import Dict, Tuple, Union
+from typing import Dict, NamedTuple, Tuple, Union
 
 import click
 from bip44 import Wallet
@@ -18,6 +18,12 @@ from nucypher.crypto.signing import SignatureStamp
 from nucypher.utilities.emitters import StdoutEmitter
 
 SYSTEM_RAND = SystemRandom()
+
+
+class WalletGeneration(NamedTuple):
+    address: ChecksumAddress
+    derivation_path: str
+    filepath: Path
 
 
 def canonical_address_from_umbral_key(public_key: Union[PublicKey, SignatureStamp]) -> bytes:
@@ -186,7 +192,7 @@ def _generate_wallet(
     password: str,
     filepath: Path,
     index: int = 0,
-) -> Tuple[ChecksumAddress, str, Path]:
+) -> WalletGeneration:
     """
     Generate an encrypted ethereum wallet from seed words using a bip44 derivation path.
     Uses the web3 secret storage definition for the keystore format.
@@ -200,4 +206,5 @@ def _generate_wallet(
     account = Account.from_key(private_key)
     keystore = Account.encrypt(private_key, password)
     _write_wallet(filepath=filepath, data=keystore)
-    return ChecksumAddress(account.address), derivation_path, filepath
+    wallet_generation = WalletGeneration(account.address, derivation_path, filepath)
+    return wallet_generation

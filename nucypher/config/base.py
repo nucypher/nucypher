@@ -846,13 +846,13 @@ class CharacterConfiguration(BaseConfiguration):
         key_material: Optional[bytes] = None,
     ) -> Keystore:
         if key_material:
-            self.__keystore = Keystore.import_secure(
+            self.__keystore, _wallet, _words = Keystore.import_secure(
                 key_material=key_material,
                 password=keystore_password,
                 keystore_dir=self.keystore_dir,
             )
         else:
-            self.__keystore = Keystore.generate(
+            self.__keystore, _wallet = Keystore.generate(
                 password=keystore_password,
                 keystore_dir=self.keystore_dir,
                 generate_wallet=generate_wallet,
