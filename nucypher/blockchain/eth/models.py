@@ -117,11 +117,11 @@ class Coordinator:
         initiator: ChecksumAddress
         authority: ChecksumAddress
         access_controller: ChecksumAddress
-        fee_model: ChecksumAddress
         dkg_size: int
         init_timestamp: int
         end_timestamp: int
         threshold: int
+        fee_model: ChecksumAddress = None
         total_transcripts: int = 0
         total_aggregations: int = 0
         public_key: Ferveo.G1Point = None
