@@ -593,6 +593,8 @@ class CoordinatorAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def __rituals(self, ritual_id: int) -> Coordinator.Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
+        # legacy rituals do not have a fee model entry - so None is appropriate
+        fee_model = ChecksumAddress(result[12]) if len(result) >= 13 else None
         ritual = Coordinator.Ritual(
             id=ritual_id,
             initiator=ChecksumAddress(result[0]),
@@ -608,7 +610,7 @@ class CoordinatorAgent(EthereumContractAgent):
             public_key=Ferveo.G1Point(result[10][0], result[10][1]),
             aggregated_transcript=bytes(result[11]),
             participants=[],  # solidity does not return sub-structs
-            fee_model=ChecksumAddress(result[12]),
+            fee_model=fee_model,
         )
         return ritual
 
