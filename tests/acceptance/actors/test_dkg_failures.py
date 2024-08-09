@@ -57,6 +57,7 @@ def test_dkg_failure_with_ferveo_key_mismatch(
     interval,
     testerchain,
     initiator,
+    fee_model,
     global_allow_list,
     duration,
     accounts,
@@ -90,16 +91,15 @@ def test_dkg_failure_with_ferveo_key_mismatch(
     cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
 
     # Approve the ritual token for the coordinator agent to spend
-    amount = coordinator_agent.get_ritual_initiation_cost(
-        providers=cohort_staking_provider_addresses, duration=duration
-    )
+    amount = fee_model.getRitualCost(len(cohort_staking_provider_addresses), duration)
     ritual_token.approve(
-        coordinator_agent.contract_address,
+        fee_model.address,
         amount,
         sender=accounts[initiator.transacting_power.account],
     )
 
     receipt = coordinator_agent.initiate_ritual(
+        fee_model=fee_model.address,
         providers=cohort_staking_provider_addresses,
         authority=initiator.transacting_power.account,
         duration=duration,
