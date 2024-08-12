@@ -389,12 +389,10 @@ def init(general_config, config_options, force, config_root, key_material):
 
 
 @ursula.command()
-@group_config_options
-@group_general_config
 @option_config_file
-def recover(general_config, config_options, config_file):
+def recover(config_file):
     # TODO: Combine with work in PR #2682
-    emitter = setup_emitter(general_config, config_options.operator_address)
+    emitter = StdoutEmitter()
 
     new_keystore_path = recover_keystore(emitter=emitter)
 
