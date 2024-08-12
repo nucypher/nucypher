@@ -404,14 +404,16 @@ def recover(config_file):
         )
         click.Abort()
 
-    with open(ursula_config_file, "r+") as f:
+    with open(ursula_config_file, "r") as f:
         ursula_config = json.load(f)
-        ursula_config["keystore_path"] = str(new_keystore_path.absolute())
-        f.seek(0)
+
+    ursula_config["keystore_path"] = str(new_keystore_path.absolute())
+
+    with open(ursula_config_file, "w") as f:
         json.dump(ursula_config, f, indent=2)
 
     emitter.echo(
-        f"Updated ursula.json to use keystore filepath: {new_keystore_path.absolute()}"
+        f"Updated Ursula configuration, {ursula_config_file.absolute()}, to use keystore filepath: {new_keystore_path.absolute()}"
     )
 
 
