@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import click
@@ -53,6 +54,7 @@ from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, OPERATOR_IP
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
+    DEFAULT_CONFIG_ROOT,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
 )
@@ -382,11 +384,30 @@ def init(general_config, config_options, force, config_root, key_material):
 @ursula.command()
 @group_config_options
 @group_general_config
-def recover(general_config, config_options):
+@option_config_file
+def recover(general_config, config_options, config_file):
     # TODO: Combine with work in PR #2682
-    # TODO: Integrate regeneration of configuration files
     emitter = setup_emitter(general_config, config_options.operator_address)
-    recover_keystore(emitter=emitter)
+
+    new_keystore_path = recover_keystore(emitter=emitter)
+
+    # update/create ursula config
+    ursula_config_file = config_file or DEFAULT_CONFIG_ROOT / "ursula.json"
+    if not ursula_config_file.exists():
+        emitter.error(
+            f"Ursula configuration file not found - {ursula_config_file.absolute()}"
+        )
+        click.Abort()
+
+    with open(ursula_config_file, "r+") as f:
+        ursula_config = json.load(f)
+        ursula_config["keystore_path"] = str(new_keystore_path.absolute())
+        f.seek(0)
+        json.dump(ursula_config, f, indent=2)
+
+    emitter.echo(
+        f"Updated ursula.json to use keystore filepath: {new_keystore_path.absolute()}"
+    )
 
 
 @ursula.command()
