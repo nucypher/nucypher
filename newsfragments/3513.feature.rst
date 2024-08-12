@@ -1,2 +1,0 @@
-Add ability for special context variable to handle Sign-In With Ethereum (EIP-4361)
-pre-existing sign-on signature to be reused as proof for validating a user address in conditions.

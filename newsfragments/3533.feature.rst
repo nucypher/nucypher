@@ -1,2 +1,0 @@
-Prevent new nodes from initialization if the operator already has published a ferveo public key onchain.
-Improves information density and communication of keystore security obligations while using the init CLI.

@@ -1,1 +1,0 @@
-Support for default/fallback RPC endpoints from remote sources as a backup for operator-supplied RPC endpoints for condition evaluation.

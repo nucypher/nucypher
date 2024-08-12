@@ -4,6 +4,42 @@ Releases
 
 .. towncrier release notes start
 
+v7.4.0 (2024-08-12)
+-------------------
+
+Features
+~~~~~~~~
+
+- Support for default/fallback RPC endpoints from remote sources as a backup for operator-supplied RPC endpoints for condition evaluation. (`#3496 <https://github.com/nucypher/nucypher/issues/3496>`__)
+- Add support for Sign-in With Ethereum (SIWE) messages to be used when verifying wallet address ownership for the ``:userAddress`` special context variable during decryption requests. (`#3502 <https://github.com/nucypher/nucypher/issues/3502>`__)
+- Add functionality for ``:userAddressEIP712`` and ``:userAddressEIP4361`` to provide specific authentication
+  support for user address context values for conditions. ``:userAddress`` will allow any valid authentication scheme. (`#3508 <https://github.com/nucypher/nucypher/issues/3508>`__)
+- Add ability for special context variable to handle Sign-In With Ethereum (EIP-4361)
+  pre-existing sign-on signature to be reused as proof for validating a user address in conditions. (`#3513 <https://github.com/nucypher/nucypher/issues/3513>`__)
+- Prevents nodes from starting up or participating in DKGs if there is a local vs. onchain ferveo key mismatch.  This will assist in alerting node operators who need to relocate or recover their hosts about the correct procedure. (`#3529 <https://github.com/nucypher/nucypher/issues/3529>`__)
+- Prevent new nodes from initialization if the operator already has published a ferveo public key onchain.
+  Improves information density and communication of keystore security obligations while using the init CLI. (`#3533 <https://github.com/nucypher/nucypher/issues/3533>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Do not continuously retry ritual actions when unrecoverable ferveo error occurs during ritual ceremony. (`#3524 <https://github.com/nucypher/nucypher/issues/3524>`__)
+- ATxM instance did not pass correct web3 instance to underlying strategies. (`#3531 <https://github.com/nucypher/nucypher/issues/3531>`__)
+
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Drop support for Python 3.8. (`#3521 <https://github.com/nucypher/nucypher/issues/3521>`__)
+
+
+Internal Development Tasks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- `#3446 <https://github.com/nucypher/nucypher/issues/3446>`__, `#3498 <https://github.com/nucypher/nucypher/issues/3498>`__, `#3499 <https://github.com/nucypher/nucypher/issues/3499>`__, `#3507 <https://github.com/nucypher/nucypher/issues/3507>`__, `#3509 <https://github.com/nucypher/nucypher/issues/3509>`__, `#3510 <https://github.com/nucypher/nucypher/issues/3510>`__, `#3519 <https://github.com/nucypher/nucypher/issues/3519>`__, `#3521 <https://github.com/nucypher/nucypher/issues/3521>`__, `#3522 <https://github.com/nucypher/nucypher/issues/3522>`__, `#3532 <https://github.com/nucypher/nucypher/issues/3532>`__
+
+
 v7.3.0 (2024-05-07)
 -------------------
 
