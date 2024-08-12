@@ -3,6 +3,7 @@ from constant_sorrow.constants import NO_KEYSTORE_ATTACHED
 
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
+from nucypher.crypto.powers import RitualisticPower
 
 
 def echo_version(ctx, param, value):
@@ -30,17 +31,21 @@ def paint_new_installation_help(emitter, new_configuration, filepath):
     character_config_class = new_configuration.__class__
     character_name = character_config_class.NAME.lower()
     if new_configuration.keystore != NO_KEYSTORE_ATTACHED:
-        maybe_public_key = new_configuration.keystore.id
+        ritual_power = new_configuration.keystore.derive_crypto_power(RitualisticPower)
+        ferveo_public_key = bytes(ritual_power.public_key()).hex()
+        maybe_public_key = f"{ferveo_public_key[:8]}...{ferveo_public_key[-8:]}"
     else:
         maybe_public_key = "(no keystore attached)"
+
     emitter.message("Generated keystore", color="green")
     emitter.message(
         f"""
     
-Public Key:   {maybe_public_key}
+DKG Public Key:   {maybe_public_key}
 Path to Keystore: {new_configuration.keystore_dir}
+Path to Config:   {filepath}
+Path to Logs:     {USER_LOG_DIR}
 
-- You can share your public key with anyone. Others need it to interact with you.
 - Never share secret keys with anyone! 
 - Backup your keystore! Character keys are required to interact with the protocol!
 - Remember your password! Without the password, it's impossible to decrypt the key!
@@ -48,18 +53,6 @@ Path to Keystore: {new_configuration.keystore_dir}
 """
     )
 
-    default_config_filepath = True
-    if new_configuration.default_filepath() != filepath:
-        default_config_filepath = False
-    emitter.message(f'Generated configuration file at {"default" if default_config_filepath else "non-default"} '
-                    f'filepath {filepath}', color='green')
-
-    # add hint about --config-file
-    if not default_config_filepath:
-        emitter.message(f'* NOTE: for a non-default configuration filepath use `--config-file "{filepath}"` '
-                        f'with subsequent `{character_name}` CLI commands', color='yellow')
-
-    # Ursula
     if character_name == 'ursula':
         hint = '''
 * Review configuration  -> nucypher ursula config

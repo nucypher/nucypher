@@ -43,7 +43,6 @@ echo "Building Development Requirements"
 poetry lock
 poetry export -o dev-requirements.txt --without-hashes --with dev
 
-
 echo "Building Standard Requirements"
 poetry export -o requirements.txt --without-hashes --without dev
 

@@ -1,7 +1,5 @@
 # noinspection Mypy
 
-
-
 import os
 
 import click

@@ -1,9 +1,9 @@
 import ssl
 import time
+from _socket import gethostbyname
 from typing import Dict, NamedTuple
 from urllib.parse import urlparse, urlunparse
 
-from _socket import gethostbyname
 from requests import PreparedRequest, Response, Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
@@ -106,6 +106,9 @@ class SelfSignedCertificateAdapter(HTTPAdapter):
         self.poolmanager = SelfSignedPoolManager(
             self.certificate_cache, *args, **kwargs
         )
+
+    def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
+        return self.get_connection(request.url, proxies)
 
 
 class P2PSession(Session):

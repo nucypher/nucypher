@@ -17,7 +17,6 @@ PYPI_CLASSIFIERS = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -42,6 +41,9 @@ DEV_REQUIRES = read_requirements("dev-requirements.txt")
 EXTRAS = {
     "dev": DEV_REQUIRES,
 }
+
+# read the contents of your README file
+long_description = (Path(__file__).parent / "README.md").read_text()
 
 setup(
 
@@ -75,6 +77,8 @@ setup(
     author_email=ABOUT['__email__'],
     description=ABOUT['__summary__'],
     license=ABOUT['__license__'],
+    long_description_content_type="text/markdown",
+    long_description=long_description,
     keywords="threshold access control, distributed key generation",
     classifiers=PYPI_CLASSIFIERS,
 )

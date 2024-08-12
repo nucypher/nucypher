@@ -6,6 +6,11 @@ import pytest_twisted as pt
 from eth_account import Account
 from twisted.internet import threads
 
+from nucypher.blockchain.eth.agents import (
+    CoordinatorAgent,
+    TACoApplicationAgent,
+    TACoChildApplicationAgent,
+)
 from nucypher.characters.base import Learner
 from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
 from nucypher.cli.main import nucypher_cli
@@ -13,6 +18,8 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     TEMPORARY_DOMAIN_NAME,
 )
+from nucypher.crypto.ferveo.exceptions import FerveoKeyMismatch
+from nucypher.crypto.powers import RitualisticPower
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -32,9 +39,25 @@ def test_missing_configuration_file(_default_filepath_mock, click_runner):
 
 
 @pt.inlineCallbacks
-def test_run_lone_default_development_ursula(click_runner, mocker, ursulas, accounts):
+def test_ursula_startup(click_runner, mocker, accounts, testerchain):
     deploy_port = select_test_port()
-    operator_address = ursulas[0].operator_address
+    operator_address = accounts[-1].address
+
+    mocker.patch.object(
+        TACoApplicationAgent,
+        "get_staking_provider_from_operator",
+        return_value=accounts[-2].address,
+    )
+    mocker.patch.object(
+        TACoChildApplicationAgent,
+        "staking_provider_from_operator",
+        return_value=accounts[-2].address,
+    )
+    mocker.patch.object(CoordinatorAgent, "set_provider_public_key", return_value=None)
+
+    account = Account.from_key(private_key=accounts[operator_address].private_key)
+    mocker.patch.object(Account, "create", return_value=account)
+
     args = (
         "ursula",
         "run",  # Stat Ursula Command
@@ -54,9 +77,19 @@ def test_run_lone_default_development_ursula(click_runner, mocker, ursulas, acco
         "memory://",
     )
 
-    account = Account.from_key(private_key=accounts[operator_address].private_key)
-    mocker.patch.object(Account, "create", return_value=account)
+    # Trigger a ferveo key mismatch
+    mocker.patch.object(CoordinatorAgent, "get_provider_public_key", return_value=42)
+    with pytest.raises(FerveoKeyMismatch):
+        result = yield threads.deferToThread(
+            click_runner.invoke,
+            nucypher_cli,
+            args,
+            catch_exceptions=False,
+            input=INSECURE_DEVELOPMENT_PASSWORD + "\n",
+        )
 
+    # Normal startup
+    mocker.patch.object(RitualisticPower, "public_key", return_value=42)
     result = yield threads.deferToThread(
         click_runner.invoke,
         nucypher_cli,

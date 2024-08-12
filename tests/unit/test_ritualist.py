@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from atxm.exceptions import Fault, InsufficientFunds
 
@@ -139,8 +141,18 @@ def test_perform_round_1(
         lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
-    phase_id = PhaseId(ritual_id=0, phase=PHASE1)
+    # cryptographic issue does not raise exception
+    with patch(
+        "nucypher.crypto.ferveo.dkg.generate_transcript",
+        side_effect=Exception("transcript cryptography failed"),
+    ):
+        async_tx = ursula.perform_round_1(
+            ritual_id=0, authority=random_address, participants=cohort, timestamp=0
+        )
+        # exception not raised, but None returned
+        assert async_tx is None
 
+    phase_id = PhaseId(ritual_id=0, phase=PHASE1)
     assert (
         ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is None
     ), "no tx data as yet"
@@ -244,8 +256,16 @@ def test_perform_round_2(
         lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
     )
 
-    phase_2_id = PhaseId(ritual_id=0, phase=PHASE2)
+    # cryptographic issue does not raise exception
+    with patch(
+        "nucypher.crypto.ferveo.dkg.verify_aggregate",
+        side_effect=Exception("aggregate cryptography failed"),
+    ):
+        async_tx = ursula.perform_round_2(ritual_id=0, timestamp=0)
+        # exception not raised, but None returned
+        assert async_tx is None
 
+    phase_2_id = PhaseId(ritual_id=0, phase=PHASE2)
     assert (
         ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_2_id) is None
     ), "no tx data as yet"

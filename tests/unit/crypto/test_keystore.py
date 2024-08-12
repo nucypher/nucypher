@@ -226,8 +226,8 @@ def test_restore_keystore_from_mnemonic(tmpdir, mocker):
         _keystore = Keystore(keystore_path=keystore_path)
 
     # Restore with user-supplied words and a new password
-    keystore = Keystore.restore(words=words, password='ANewHope')
-    keystore.unlock(password='ANewHope')
+    keystore = Keystore.restore(words=words, password="ANewHope", keystore_dir=tmpdir)
+    keystore.unlock(password="ANewHope")
     assert keystore._Keystore__secret == secret
 
 

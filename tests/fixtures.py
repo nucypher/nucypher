@@ -13,8 +13,10 @@ import maya
 import pytest
 from click.testing import CliRunner
 from eth_account import Account
+from eth_account.messages import encode_typed_data
 from eth_utils import to_checksum_address
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
+from siwe import SiweMessage
 from twisted.internet.task import Clock
 from web3 import Web3
 
@@ -24,17 +26,22 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
 )
-from nucypher.blockchain.eth.signers.software import KeystoreSigner
+from nucypher.blockchain.eth.signers.software import InMemorySigner, KeystoreSigner
 from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.cli.config import GroupGeneralConfig
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
     UrsulaConfiguration,
 )
-from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
+from nucypher.config.constants import (
+    APP_DIR,
+    TEMPORARY_DOMAIN_NAME,
+)
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
+from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.lingo import (
@@ -646,43 +653,78 @@ def rpc_condition():
     return condition
 
 
-@pytest.fixture(scope="module")
-def valid_user_address_context():
-    return {
-        USER_ADDRESS_CONTEXT: {
-            "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
-            "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
-            "typedData": {
-                "primaryType": "Wallet",
-                "types": {
-                    "EIP712Domain": [
-                        {"name": "name", "type": "string"},
-                        {"name": "version", "type": "string"},
-                        {"name": "chainId", "type": "uint256"},
-                        {"name": "salt", "type": "bytes32"},
-                    ],
-                    "Wallet": [
-                        {"name": "address", "type": "string"},
-                        {"name": "blockNumber", "type": "uint256"},
-                        {"name": "blockHash", "type": "bytes32"},
-                        {"name": "signatureText", "type": "string"},
-                    ],
-                },
-                "domain": {
-                    "name": "tDec",
-                    "version": "1",
-                    "chainId": 80001,
-                    "salt": "0x3e6365d35fd4e53cbc00b080b0742b88f8b735352ea54c0534ed6a2e44a83ff0",
-                },
-                "message": {
-                    "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
-                    "blockNumber": 28117088,
-                    "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
-                    "signatureText": "I'm the owner of address 0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E as of block number 28117088",
-                },
-            },
-        }
+@pytest.fixture(scope="function")
+def valid_eip712_auth_message():
+    signer = Account.create()
+    account = signer.address
+
+    data = {
+        "primaryType": "Wallet",
+        "types": {
+            "EIP712Domain": [
+                {"name": "name", "type": "string"},
+                {"name": "version", "type": "string"},
+                {"name": "chainId", "type": "uint256"},
+                {"name": "salt", "type": "bytes32"},
+            ],
+            "Wallet": [
+                {"name": "address", "type": "string"},
+                {"name": "blockNumber", "type": "uint256"},
+                {"name": "blockHash", "type": "bytes32"},
+                {"name": "signatureText", "type": "string"},
+            ],
+        },
+        "domain": {
+            "name": "tDec",
+            "version": "1",
+            "chainId": 80001,
+            "salt": "0x3e6365d35fd4e53cbc00b080b0742b88f8b735352ea54c0534ed6a2e44a83ff0",
+        },
+        "message": {
+            "address": f"{account}",
+            "blockNumber": 28117088,
+            "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
+            "signatureText": f"I'm the owner of address {account} as of block number 28117088",
+        },
     }
+    signable_message = encode_typed_data(full_message=data)
+    signature = signer.sign_message(signable_message=signable_message)
+
+    auth_message = {
+        "signature": f"{signature.signature.hex()}",
+        "address": f"{account}",
+        "scheme": "EIP712",
+        "typedData": data,
+    }
+
+    return auth_message
+
+
+@pytest.fixture(scope="function")
+def valid_eip4361_auth_message():
+    signer = InMemorySigner()
+    siwe_message_data = {
+        "domain": "login.xyz",
+        "address": f"{signer.accounts[0]}",
+        "statement": "Sign-In With Ethereum Example Statement",
+        "uri": "https://login.xyz",
+        "version": "1",
+        "nonce": "bTyXgcQxn2htgkjJn",
+        "chain_id": 1,
+        "issued_at": f"{maya.now().iso8601()}",
+    }
+    siwe_message = SiweMessage(**siwe_message_data).prepare_message()
+    signature = signer.sign_message(
+        account=signer.accounts[0], message=siwe_message.encode()
+    )
+    auth_message = {
+        "signature": f"{signature.hex()}",
+        "address": f"{signer.accounts[0]}",
+        "scheme": f"{EvmAuth.AuthScheme.EIP4361.value}",
+        "typedData": f"{siwe_message}",
+    }
+
+    return auth_message
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -798,3 +840,50 @@ def mock_async_hooks(mocker):
     )
 
     return hooks
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_halt_reactor(session_mocker):
+    session_mocker.patch.object(Ursula, "halt_reactor")
+
+
+@pytest.fixture(scope="session")
+def temp_config_root():
+    return Path("/tmp/nucypher-test")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_default_config_root(session_mocker, temp_config_root):
+    real_default_config_root = Path(APP_DIR.user_data_dir)
+    if real_default_config_root.exists():
+        if os.getenv("GITHUB_ACTIONS") == "true":
+            shutil.rmtree(real_default_config_root)
+        else:
+            raise RuntimeError(
+                f"{real_default_config_root} already exists.  It is not permitted to run tests in an (production) "
+                f"environment where this directory exists.  Please remove it before running tests."
+            )
+    session_mocker.patch(
+        "nucypher.config.constants.DEFAULT_CONFIG_ROOT", temp_config_root
+    )
+    session_mocker.patch.object(GroupGeneralConfig, "config_root", temp_config_root)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clear_config_root(temp_config_root):
+    if temp_config_root.exists():
+        print(f"Removing {temp_config_root}")
+        shutil.rmtree(Path("/tmp/nucypher-test"))
+    yield
+    if Path(APP_DIR.user_data_dir).exists():
+        raise RuntimeError(
+            f"{APP_DIR.user_data_dir} was used by a test.  This is not permitted, please mock."
+        )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_default_rpc_endpoint_fetch(session_mocker):
+    session_mocker.patch(
+        "nucypher.blockchain.eth.utils.get_default_rpc_endpoints",
+        return_value={TESTERCHAIN_CHAIN_ID: [TEST_ETH_PROVIDER_URI]},
+    )

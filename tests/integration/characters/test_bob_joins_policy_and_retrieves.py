@@ -12,6 +12,7 @@ from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware
 
 
+@pytest.mark.usefixtures("mock_payment_method")
 def test_bob_full_retrieve_flow(
     ursulas, bob, alice, capsule_side_channel, treasure_map, enacted_policy
 ):
@@ -35,6 +36,7 @@ def test_bob_full_retrieve_flow(
     assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
 
 
+@pytest.mark.usefixtures("mock_payment_method")
 def test_bob_retrieves(accounts, alice, ursulas):
     """A test to show that Bob can retrieve data from Ursula"""
 
@@ -96,6 +98,7 @@ def test_bob_retrieves(accounts, alice, ursulas):
     bob.disenchant()
 
 
+@pytest.mark.usefixtures("mock_payment_method")
 def test_bob_retrieves_with_treasure_map(
     bob, ursulas, enacted_policy, capsule_side_channel
 ):
@@ -118,6 +121,7 @@ def test_bob_retrieves_with_treasure_map(
 
 # TODO: #2813 Without kfrag and arrangement storage by nodes,
 @pytest.mark.skip()
+@pytest.mark.usefixtures("mock_payment_method")
 def test_bob_retrieves_too_late(bob, ursulas, enacted_policy, capsule_side_channel):
     clock = Clock()
     clock.advance(time.time())

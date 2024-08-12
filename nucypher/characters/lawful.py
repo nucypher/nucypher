@@ -994,7 +994,11 @@ class Ursula(Teacher, Character, Operator):
             if self._prometheus_metrics_tracker:
                 self._prometheus_metrics_tracker.stop()
         if halt_reactor:
-            reactor.stop()
+            self.halt_reactor()
+
+    @staticmethod
+    def halt_reactor() -> None:
+        reactor.stop()
 
     def _finalize(self):
         """
@@ -1252,6 +1256,7 @@ class Ursula(Teacher, Character, Operator):
             known_nodes=known_nodes_info,
             balance_eth=balance_eth,
             block_height=self.ritual_tracker.scanner.get_last_scanned_block(),
+            ferveo_public_key=bytes(self.public_keys(RitualisticPower)).hex(),
         )
 
     def as_external_validator(self) -> Validator:
@@ -1289,6 +1294,7 @@ class LocalUrsulaStatus(NamedTuple):
     known_nodes: Optional[List[RemoteUrsulaStatus]]
     balance_eth: float
     block_height: int
+    ferveo_public_key: str
 
     def to_json(self) -> Dict[str, Any]:
         if self.known_nodes is None:
@@ -1310,6 +1316,7 @@ class LocalUrsulaStatus(NamedTuple):
             known_nodes=known_nodes_json,
             balance_eth=self.balance_eth,
             block_height=self.block_height,
+            ferveo_public_key=self.ferveo_public_key,
         )
 
 

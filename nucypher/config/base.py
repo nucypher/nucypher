@@ -590,9 +590,12 @@ class CharacterConfiguration(BaseConfiguration):
     def generate(
         cls, password: str, key_material: Optional[bytes] = None, *args, **kwargs
     ):
-        """Shortcut: Hook-up a new initial installation and configuration."""
+        """
+        Generates local directories, private keys, and initial configuration for a new node.
+        """
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize(key_material=key_material, password=password)
+        node_config.keystore.unlock(password)
         return node_config
 
     def cleanup(self) -> None:
@@ -786,7 +789,7 @@ class CharacterConfiguration(BaseConfiguration):
                 power_ups.append(power_up)
         return power_ups
 
-    def initialize(self, password: str, key_material: Optional[bytes] = None) -> str:
+    def initialize(self, password: str, key_material: Optional[bytes] = None) -> Path:
         """Initialize a new configuration and write installation files to disk."""
 
         # Development

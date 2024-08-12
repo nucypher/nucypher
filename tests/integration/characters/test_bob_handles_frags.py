@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from nucypher_core import Address, Conditions, RetrievalKit
 from nucypher_core._nucypher_core import MessageKit
 
@@ -15,6 +16,7 @@ def _policy_info_kwargs(enacted_policy):
         )
 
 
+@pytest.mark.usefixtures("mock_payment_method")
 def test_retrieval_kit(enacted_policy, ursulas):
     messages, message_kits = make_message_kits(enacted_policy.public_key)
 
@@ -29,7 +31,9 @@ def test_retrieval_kit(enacted_policy, ursulas):
     assert retrieval_kit.queried_addresses == retrieval_kit_back.queried_addresses
 
 
-def test_single_retrieve(enacted_policy, bob, ursulas):
+@pytest.mark.usefixtures("mock_payment_method")
+def test_single_retrieve(enacted_policy, bob, ursulas, mocker):
+
     bob.remember_node(ursulas[0])
     bob.start_learning_loop()
     messages, message_kits = make_message_kits(enacted_policy.public_key)
@@ -42,6 +46,7 @@ def test_single_retrieve(enacted_policy, bob, ursulas):
     assert cleartexts == messages
 
 
+@pytest.mark.usefixtures("mock_payment_method")
 def test_single_retrieve_conditions_set_directly_to_none(enacted_policy, bob, ursulas):
     bob.start_learning_loop()
     message = b"plaintext1"
@@ -59,6 +64,7 @@ def test_single_retrieve_conditions_set_directly_to_none(enacted_policy, bob, ur
     assert cleartexts == [message]
 
 
+@pytest.mark.usefixtures("mock_payment_method")
 def test_single_retrieve_conditions_empty_list(enacted_policy, bob, ursulas):
     bob.start_learning_loop()
     message = b"plaintext1"
@@ -76,6 +82,7 @@ def test_single_retrieve_conditions_empty_list(enacted_policy, bob, ursulas):
     assert cleartexts == [message]
 
 
+@pytest.mark.usefixtures("mock_payment_method")
 def test_use_external_cache(enacted_policy, bob, ursulas):
 
     bob.start_learning_loop()

@@ -53,8 +53,8 @@ DEFAULT_TO_LONE_CONFIG_FILE = "Defaulting to {config_class} configuration file: 
 
 #  Authentication
 PASSWORD_COLLECTION_NOTICE = """
-Please provide a password to lock Operator keys.
-Do not forget this password, and ideally store it using a password manager.
+Please provide a password to encrypt your node's private keys.
+Do not forget this password. Ideally generate and store this password using a password manager.
 """
 
 COLLECT_ETH_PASSWORD = "Enter ethereum account password ({checksum_address})"

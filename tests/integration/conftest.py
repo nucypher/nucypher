@@ -26,6 +26,7 @@ from nucypher.cli.types import ChecksumAddress
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
+from nucypher.policy.payment import SubscriptionManagerPayment
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
@@ -33,6 +34,7 @@ from tests.constants import (
     TEMPORARY_DOMAIN,
     TESTERCHAIN_CHAIN_ID,
 )
+from tests.mock.agents import MockContractAgency
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.io import MockStdinWrapper
 from tests.utils.registry import MockRegistrySource, mock_registry_sources
@@ -133,7 +135,6 @@ def test_registry(module_mocker):
 @pytest.fixture(scope='module', autouse=True)
 def mock_contract_agency():
     # Patch
-    from tests.mock.agents import MockContractAgency
 
     # Monkeypatch # TODO: Use better tooling for this monkeypatch?
     get_agent = ContractAgency.get_agent
@@ -295,3 +296,8 @@ def multichain_ursulas(ursulas, multichain_ids):
 @pytest.fixture(scope="module")
 def mock_prometheus(module_mocker):
     return module_mocker.patch("nucypher.characters.lawful.start_prometheus_exporter")
+
+
+@pytest.fixture(scope="module")
+def mock_payment_method(module_mocker):
+    module_mocker.patch.object(SubscriptionManagerPayment, "verify", return_value=True)
