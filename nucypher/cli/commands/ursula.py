@@ -50,7 +50,12 @@ from nucypher.cli.options import (
     option_teacher_uri,
 )
 from nucypher.cli.painting.help import paint_new_installation_help
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, OPERATOR_IP
+from nucypher.cli.types import (
+    EIP55_CHECKSUM_ADDRESS,
+    EXISTING_READABLE_FILE,
+    NETWORK_PORT,
+    OPERATOR_IP,
+)
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
@@ -59,6 +64,8 @@ from nucypher.config.constants import (
     TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.crypto.keystore import Keystore
+from nucypher.crypto.powers import RitualisticPower
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
 
@@ -555,6 +562,29 @@ def config(general_config, config_options, config_file, force, action):
                                 config_class=UrsulaConfiguration,
                                 filepath=config_file,
                                 updates=updates)
+
+
+@ursula.command()
+@click.option(
+    "--keystore-filepath",
+    help="Path to keystore .priv file",
+    type=EXISTING_READABLE_FILE,
+    required=True,
+)
+def public_keys(keystore_filepath):
+    emitter = StdoutEmitter()
+    keystore = Keystore(keystore_filepath)
+
+    # unlock keystore
+    password = get_nucypher_password(emitter=emitter, confirm=False)
+    keystore.unlock(password)
+
+    ritualistic_power = keystore.derive_crypto_power(RitualisticPower)
+    keystore_file_data = json.load(open(keystore_filepath, "r"))
+    emitter.echo(f"Keystore timestamp ........ {keystore_file_data['created']}")
+    emitter.echo(
+        f"Ferveo Public Key ......... {bytes(ritualistic_power.public_key()).hex()}"
+    )
 
 
 def _pre_launch_warnings(emitter, dev, force):

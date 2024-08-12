@@ -7,7 +7,7 @@ from json import JSONDecodeError
 from os.path import abspath
 from pathlib import Path
 from secrets import token_bytes
-from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 
 import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
@@ -439,10 +439,9 @@ class Keystore:
     def unlock(self, password: str) -> None:
         self.__decrypt_keystore(path=self.keystore_path, password=password)
 
-    def derive_crypto_power(self,
-                            power_class: ClassVar[CryptoPowerUp],
-                            *power_args, **power_kwargs
-                            ) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
+    def derive_crypto_power(
+        self, power_class: Type[CryptoPowerUp], *power_args, **power_kwargs
+    ) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
 
         if not self.is_unlocked:
             raise Keystore.Locked(f"{self.id} is locked and must be unlocked before use.")
