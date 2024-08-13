@@ -444,6 +444,7 @@ def audit(config_file, keystore_filepath, view_mnemonic):
         correct = keystore.audit(words=collect_mnemonic(emitter), password=password)
     except Keystore.InvalidMnemonic:
         emitter.message("Mnemonic is incorrect.", color="red")
+        return
     emitter.message(
         f"Mnemonic is {'' if correct else 'in'}correct.",
         color="green" if correct else "red",
