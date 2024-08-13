@@ -196,4 +196,5 @@ def update_config_keystore_path(keystore_path: Path, config_file: Path = None) -
         ursula_config = json.load(f)
         ursula_config["keystore_path"] = keystore_path
         f.seek(0)
-        json.dump(ursula_config, f, indent=4)
+        json.dump(ursula_config, f, indent=2)
+        f.truncate()  # rest of the file truncated
