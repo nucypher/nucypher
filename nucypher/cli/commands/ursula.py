@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 import click
@@ -393,34 +392,24 @@ def init(general_config, config_options, force, config_root, key_material):
 @ursula.command()
 @option_config_file
 @click.option(
-    "--check",
-    help="Check a mnemonic phrase against a keystore",
-    is_flag=True,
-    default=False,
-)
-@click.option(
     "--keystore-filepath",
     help="Path to keystore .priv file",
     type=EXISTING_READABLE_FILE,
     required=False,
 )
-def recover(config_file, check, keystore_filepath):
-    # TODO: Combine with work in PR #2682
+@click.option(
+    "--view-mnemonic",
+    help="View mnemonic seed words",
+    is_flag=True,
+)
+def audit(config_file, keystore_filepath, view_mnemonic):
+    """Audit a mnemonic phrase against a local keystore or view mnemonic seed words."""
     emitter = StdoutEmitter()
-
-    if check and config_file:
-        raise click.BadOptionUsage(
-            "--check",
-            message=click.style(
-                "--check is incompatible with --config-file",
-                fg="red",
-            ),
-        )
-    if not check and keystore_filepath:
+    if keystore_filepath and config_file:
         raise click.BadOptionUsage(
             "--keystore-filepath",
             message=click.style(
-                "--keystore-filepath is only compatible with --check",
+                "--keystore-filepath is incompatible with --config-file",
                 fg="red",
             ),
         )
@@ -430,35 +419,66 @@ def recover(config_file, check, keystore_filepath):
         emitter.error(f"Ursula configuration file not found - {config_file.absolute()}")
         click.Abort()
 
-    if check:
-        if keystore_filepath:
-            keystore = Keystore(keystore_filepath)
-        else:
-            ursula_config = UrsulaConfiguration.from_configuration_file(
-                filepath=config_file
-            )
-            keystore = ursula_config.keystore
-        password = get_nucypher_password(emitter=emitter, confirm=False)
-        try:
-            keystore.unlock(password=password)
-        except Keystore.AuthenticationFailed:
-            emitter.message("Password is incorrect.", color="red")
-            return
-        emitter.message("Password is correct.", color="green")
-        correct = keystore.check(words=collect_mnemonic(emitter), password=password)
-        emitter.message(
-            f"Mnemonic is {'' if correct else 'in'}correct.",
-            color="green" if correct else "red",
+    if keystore_filepath:
+        keystore = Keystore(keystore_filepath)
+    else:
+        ursula_config = UrsulaConfiguration.from_configuration_file(
+            filepath=config_file
         )
+        keystore = ursula_config.keystore
+
+    password = get_nucypher_password(emitter=emitter, confirm=False)
+    try:
+        keystore.unlock(password=password)
+    except Keystore.AuthenticationFailed:
+        emitter.message("Password is incorrect.", color="red")
+        return
+    emitter.message("Password is correct.", color="green")
+
+    if view_mnemonic:
+        mnemonic = keystore.get_mnemonic()
+        emitter.message(f"\n{mnemonic}", color="cyan")
         return
 
-    # Recover keystore
-    new_keystore_path = recover_keystore(emitter=emitter)
+    try:
+        correct = keystore.audit(words=collect_mnemonic(emitter), password=password)
+    except Keystore.InvalidMnemonic:
+        emitter.message("Mnemonic is incorrect.", color="red")
+    emitter.message(
+        f"Mnemonic is {'' if correct else 'in'}correct.",
+        color="green" if correct else "red",
+    )
+
+
+@ursula.command()
+@option_config_file
+@click.option(
+    "--keystore-filepath",
+    help="Path to keystore .priv file",
+    type=EXISTING_READABLE_FILE,
+    required=False,
+)
+def recover(config_file, keystore_filepath):
+    # TODO: Combine with work in PR #2682
+    emitter = StdoutEmitter()
+    if keystore_filepath and config_file:
+        raise click.BadOptionUsage(
+            "--keystore-filepath",
+            message=click.style(
+                "--keystore-filepath is incompatible with --config-file",
+                fg="red",
+            ),
+        )
+    config_file = config_file or DEFAULT_CONFIG_FILEPATH
+    if not config_file.exists():
+        emitter.error(f"Ursula configuration file not found - {config_file.absolute()}")
+        click.Abort()
+    keystore = recover_keystore(emitter=emitter)
     update_config_keystore_path(
-        keystore_path=new_keystore_path, config_file=config_file
+        keystore_path=keystore.keystore_path, config_file=config_file
     )
     emitter.message(
-        f"Updated {config_file} to use keystore filepath: {new_keystore_path}",
+        f"Updated {config_file} to use keystore filepath: {keystore.keystore_path}",
         color="green",
     )
 
@@ -482,37 +502,38 @@ def destroy(general_config, config_options, config_file, force):
     "--keystore-filepath",
     help="Path to keystore .priv file",
     type=EXISTING_READABLE_FILE,
-    required=True,
 )
-def public_keys(config_file, keystore_filepath):
+@click.option(
+    "--from-mnemonic",
+    help="View TACo public keys from mnemonic seed words",
+    is_flag=True,
+)
+def public_keys(config_file, keystore_filepath, from_mnemonic):
     """Display the public key of a keystore."""
     emitter = StdoutEmitter()
-    if keystore_filepath and config_file:
+
+    if sum(1 for i in (keystore_filepath, config_file, from_mnemonic) if i) > 1:
         raise click.BadOptionUsage(
             "--keystore-filepath",
             message=click.style(
-                "--keystore-filepath is incompatible with --config-file",
+                "Exactly one of --keystore-filepath, --config-file, or --from-mnemonic must be specified",
                 fg="red",
             ),
         )
 
-    if keystore_filepath:
-        keystore = Keystore(keystore_filepath)
+    if from_mnemonic:
+        keystore = Keystore.from_mnemonic(collect_mnemonic(emitter))
     else:
         config_file = config_file or DEFAULT_CONFIG_FILEPATH
         ursula_config = UrsulaConfiguration.from_configuration_file(
             filepath=config_file
         )
-        keystore = ursula_config.keystore
-
-    password = get_nucypher_password(emitter=emitter, confirm=False)
-    keystore.unlock(password)
+        keystore = Keystore(keystore_filepath or ursula_config.keystore.keystore_path)
+        keystore.unlock(get_nucypher_password(emitter=emitter, confirm=False))
 
     ritualistic_power = keystore.derive_crypto_power(RitualisticPower)
     ferveo_public_key = bytes(ritualistic_power.public_key()).hex()
-    keystore_file_data = json.load(open(keystore_filepath, "r"))
-    emitter.echo(f"Keystore timestamp ........ {keystore_file_data['created']}")
-    emitter.echo(f"Ferveo Public Key ......... {ferveo_public_key}")
+    emitter.message(f"\nFerveo Public Key: {ferveo_public_key}", color="cyan")
 
 
 @ursula.command()

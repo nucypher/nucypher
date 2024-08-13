@@ -253,12 +253,34 @@ class Keystore:
     class AuthenticationFailed(RuntimeError):
         pass
 
-    def __init__(self, keystore_path: Path):
-        self.keystore_path = keystore_path
-        self.__created, self.__id = _parse_path(keystore_path)
+    class InvalidMnemonic(ValueError):
+        pass
+
+    def __init__(self, keystore_path: Path = None):
         self.__secret = KEYSTORE_LOCKED
+        self.keystore_path = keystore_path
+        if self.keystore_path:
+            self.__created, self.__id = _parse_path(keystore_path)
+
+    @classmethod
+    def from_keystore_id(cls, filepath: Path) -> "Keystore":
+        instance = cls(keystore_path=filepath)
+        return instance
+
+    @classmethod
+    def from_mnemonic(cls, words: str) -> "Keystore":
+        __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
+        __secret = bytes(__mnemonic.to_entropy(words))
+        keystore = cls()
+        keystore.__secret = __secret
+        return keystore
 
     def __decrypt_keystore(self, path: Path, password: str) -> bool:
+        if not self.keystore_path:
+            raise Keystore.Invalid(
+                "Keystore path not set, initialize with a valid path."
+            )
+
         payload = _read_keystore(path, deserializer=_deserialize_keystore)
         __password_material = derive_key_material_from_password(password=password.encode(),
                                                                 salt=payload['password_salt'])
