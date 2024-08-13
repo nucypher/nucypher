@@ -4,6 +4,7 @@ from pathlib import Path
 import click
 
 from nucypher.cli.actions.auth import (
+    collect_mnemonic,
     get_client_password,
     get_nucypher_password,
     recover_keystore,
@@ -14,6 +15,7 @@ from nucypher.cli.actions.configure import (
     get_or_update_configuration,
     handle_missing_configuration_file,
     perform_startup_ip_check,
+    update_config_keystore_path,
 )
 from nucypher.cli.actions.migrate import migrate
 from nucypher.cli.actions.select import (
@@ -59,7 +61,7 @@ from nucypher.cli.types import (
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
-    DEFAULT_CONFIG_ROOT,
+    DEFAULT_CONFIG_FILEPATH,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
 )
@@ -390,30 +392,74 @@ def init(general_config, config_options, force, config_root, key_material):
 
 @ursula.command()
 @option_config_file
-def recover(config_file):
+@click.option(
+    "--check",
+    help="Check a mnemonic phrase against a keystore",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--keystore-filepath",
+    help="Path to keystore .priv file",
+    type=EXISTING_READABLE_FILE,
+    required=False,
+)
+def recover(config_file, check, keystore_filepath):
     # TODO: Combine with work in PR #2682
     emitter = StdoutEmitter()
 
-    new_keystore_path = recover_keystore(emitter=emitter)
-
-    # update/create ursula config
-    ursula_config_file = config_file or DEFAULT_CONFIG_ROOT / "ursula.json"
-    if not ursula_config_file.exists():
-        emitter.error(
-            f"Ursula configuration file not found - {ursula_config_file.absolute()}"
+    if check and config_file:
+        raise click.BadOptionUsage(
+            "--check",
+            message=click.style(
+                "--check is incompatible with --config-file",
+                fg="red",
+            ),
         )
+    if not check and keystore_filepath:
+        raise click.BadOptionUsage(
+            "--keystore-filepath",
+            message=click.style(
+                "--keystore-filepath is only compatible with --check",
+                fg="red",
+            ),
+        )
+
+    config_file = config_file or DEFAULT_CONFIG_FILEPATH
+    if not config_file.exists():
+        emitter.error(f"Ursula configuration file not found - {config_file.absolute()}")
         click.Abort()
 
-    with open(ursula_config_file, "r") as f:
-        ursula_config = json.load(f)
+    if check:
+        if keystore_filepath:
+            keystore = Keystore(keystore_filepath)
+        else:
+            ursula_config = UrsulaConfiguration.from_configuration_file(
+                filepath=config_file
+            )
+            keystore = ursula_config.keystore
+        password = get_nucypher_password(emitter=emitter, confirm=False)
+        try:
+            keystore.unlock(password=password)
+        except Keystore.AuthenticationFailed:
+            emitter.message("Password is incorrect.", color="red")
+            return
+        emitter.message("Password is correct.", color="green")
+        correct = keystore.check(words=collect_mnemonic(emitter), password=password)
+        emitter.message(
+            f"Mnemonic is {'' if correct else 'in'}correct.",
+            color="green" if correct else "red",
+        )
+        return
 
-    ursula_config["keystore_path"] = str(new_keystore_path.absolute())
-
-    with open(ursula_config_file, "w") as f:
-        json.dump(ursula_config, f, indent=2)
-
-    emitter.echo(
-        f"Updated Ursula configuration, {ursula_config_file.absolute()}, to use keystore filepath: {new_keystore_path.absolute()}"
+    # Recover keystore
+    new_keystore_path = recover_keystore(emitter=emitter)
+    update_config_keystore_path(
+        keystore_path=new_keystore_path, config_file=config_file
+    )
+    emitter.message(
+        f"Updated {config_file} to use keystore filepath: {new_keystore_path}",
+        color="green",
     )
 
 
