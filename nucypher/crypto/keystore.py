@@ -352,6 +352,13 @@ class Keystore:
         keystore = cls(keystore_path=path)
         return keystore
 
+    def check(self, words: str, password: str) -> bool:
+        """Check if a mnemonic phrase can derive the secret key"""
+        __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
+        __expected_secret = bytes(__mnemonic.to_entropy(words))
+        self.__decrypt_keystore(path=self.keystore_path, password=password)
+        return self.__secret == __expected_secret
+
     @classmethod
     def generate(
             cls, password: str,

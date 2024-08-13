@@ -187,3 +187,13 @@ def perform_startup_ip_check(emitter: StdoutEmitter, ursula: Ursula, force: bool
         raise click.Abort()
     else:
         emitter.message('✓ External IP matches configuration', 'green')
+
+
+def update_config_keystore_path(keystore_path: Path, config_file: Path = None) -> None:
+    """Update the ursula.json configuration file to use the provided keystore path."""
+    keystore_path = str(keystore_path.resolve())
+    with open(config_file, "r+") as f:
+        ursula_config = json.load(f)
+        ursula_config["keystore_path"] = keystore_path
+        f.seek(0)
+        json.dump(ursula_config, f, indent=4)
