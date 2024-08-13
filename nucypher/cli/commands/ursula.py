@@ -164,7 +164,7 @@ class UrsulaConfigOptions:
                 # TODO: Exit codes (not only for this, but for other exceptions)
                 return click.get_current_context().exit(1)
 
-    def generate_config(self, emitter, config_root, force, key_material):
+    def generate_config(self, emitter, config_root, force, key_material, with_mnemonic):
 
         if self.dev:
             raise RuntimeError(
@@ -193,6 +193,7 @@ class UrsulaConfigOptions:
         return UrsulaConfiguration.generate(
             password=get_nucypher_password(emitter=emitter, confirm=True),
             key_material=bytes.fromhex(key_material) if key_material else None,
+            with_mnemonic=with_mnemonic,
             config_root=config_root,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
@@ -323,7 +324,14 @@ def ursula():
 @option_config_root
 @group_general_config
 @option_key_material
-def init(general_config, config_options, force, config_root, key_material):
+@click.option(
+    "--with-mnemonic",
+    help="Initialize with a mnemonic phrase instead of generating a new keypair from scratch",
+    is_flag=True,
+)
+def init(
+    general_config, config_options, force, config_root, key_material, with_mnemonic
+):
     """Create a new Ursula node configuration."""
     emitter = setup_emitter(general_config, config_options.operator_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
@@ -350,15 +358,24 @@ def init(general_config, config_options, force, config_root, key_material):
         return click.get_current_context().exit(1)
 
     click.clear()
-    emitter.echo(
-        "Hello Operator, welcome on board :-) \n\n"
-        "NOTE: Initializing a new Ursula node configuration is a one-time operation\n"
-        "for the lifetime of your node.  This is a two-step process:\n\n"
-        "1. Creating a password to encrypt your operator keys\n"
-        "2. Securing a taco node seed phase\n\n"
-        "Please follow the prompts.",
-        color="cyan",
-    )
+    if with_mnemonic:
+        emitter.echo(
+            "Hello Operator, welcome back :-) \n\n"
+            "You are about to initialize a new Ursula node configuration using an existing mnemonic phrase.\n"
+            "Have your mnemonic phrase ready and ensure you are in a secure environment.\n"
+            "Please follow the prompts.",
+            color="cyan",
+        )
+    else:
+        emitter.echo(
+            "Hello Operator, welcome on board :-) \n\n"
+            "NOTE: Initializing a new Ursula node configuration is a one-time operation\n"
+            "for the lifetime of your node.  This is a two-step process:\n\n"
+            "1. Creating a password to encrypt your operator keys\n"
+            "2. Securing a taco node seed phase\n\n"
+            "Please follow the prompts.",
+            color="cyan",
+        )
 
     if not config_options.eth_endpoint:
         raise click.BadOptionUsage(
@@ -381,7 +398,11 @@ def init(general_config, config_options, force, config_root, key_material):
             message="Select TACo Domain",
         )
     ursula_config = config_options.generate_config(
-        emitter=emitter, config_root=config_root, force=force, key_material=key_material
+        emitter=emitter,
+        config_root=config_root,
+        force=force,
+        key_material=key_material,
+        with_mnemonic=with_mnemonic,
     )
     filepath = ursula_config.to_configuration_file()
     paint_new_installation_help(
@@ -460,7 +481,6 @@ def audit(config_file, keystore_filepath, view_mnemonic):
     required=False,
 )
 def recover(config_file, keystore_filepath):
-    # TODO: Combine with work in PR #2682
     emitter = StdoutEmitter()
     if keystore_filepath and config_file:
         raise click.BadOptionUsage(
@@ -510,7 +530,7 @@ def destroy(general_config, config_options, config_file, force):
     is_flag=True,
 )
 def public_keys(config_file, keystore_filepath, from_mnemonic):
-    """Display the public key of a keystore."""
+    """Display the public keys of a keystore."""
     emitter = StdoutEmitter()
 
     if sum(1 for i in (keystore_filepath, config_file, from_mnemonic) if i) > 1:
