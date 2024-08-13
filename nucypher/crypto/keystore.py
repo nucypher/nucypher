@@ -368,18 +368,31 @@ class Keystore:
     @classmethod
     def restore(cls, words: str, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
         """Restore a keystore from seed words"""
-        __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
-        __secret = bytes(__mnemonic.to_entropy(words))
+        mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
+        __secret = bytes(mnemonic.to_entropy(words))
         path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
         return keystore
 
-    def check(self, words: str, password: str) -> bool:
-        """Check if a mnemonic phrase can derive the secret key"""
-        __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
-        __expected_secret = bytes(__mnemonic.to_entropy(words))
+    def audit(self, words: str, password: str) -> bool:
+        """Check if a mnemonic phrase can derive the secret key for the local keystore"""
+        mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
+        try:
+            __expected_secret = bytes(mnemonic.to_entropy(words))
+        except ValueError as e:
+            raise self.InvalidMnemonic(str(e))
         self.__decrypt_keystore(path=self.keystore_path, password=password)
         return self.__secret == __expected_secret
+
+    def get_mnemonic(self) -> str:
+        """Return the mnemonic phrase for the keystore"""
+        if self.__secret is KEYSTORE_LOCKED:
+            raise Keystore.Locked(
+                f"{self.id} is locked and must be unlocked before use."
+            )
+        mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
+        __words = mnemonic.to_mnemonic(self.__secret)
+        return __words
 
     @classmethod
     def generate(
