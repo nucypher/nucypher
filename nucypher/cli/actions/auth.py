@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 import click
 from constant_sorrow.constants import NO_PASSWORD
@@ -95,7 +94,7 @@ def collect_mnemonic(emitter: StdoutEmitter) -> str:
     return __words
 
 
-def recover_keystore(emitter) -> Path:
+def recover_keystore(emitter) -> Keystore:
     emitter.message('This procedure will recover your nucypher keystore from mnemonic seed words. '
                     'You will need to provide the entire mnemonic (space seperated) in the correct '
                     'order and choose a new password.', color='cyan')
@@ -104,4 +103,4 @@ def recover_keystore(emitter) -> Path:
     __password = get_nucypher_password(emitter=emitter, confirm=True)
     keystore = Keystore.restore(words=__words, password=__password)
     emitter.message(f'Recovered nucypher keystore {keystore.id} to \n {keystore.keystore_path}', color='green')
-    return keystore.keystore_path
+    return keystore
