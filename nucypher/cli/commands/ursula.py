@@ -477,6 +477,45 @@ def destroy(general_config, config_options, config_file, force):
 
 
 @ursula.command()
+@option_config_file
+@click.option(
+    "--keystore-filepath",
+    help="Path to keystore .priv file",
+    type=EXISTING_READABLE_FILE,
+    required=True,
+)
+def public_keys(config_file, keystore_filepath):
+    """Display the public key of a keystore."""
+    emitter = StdoutEmitter()
+    if keystore_filepath and config_file:
+        raise click.BadOptionUsage(
+            "--keystore-filepath",
+            message=click.style(
+                "--keystore-filepath is incompatible with --config-file",
+                fg="red",
+            ),
+        )
+
+    if keystore_filepath:
+        keystore = Keystore(keystore_filepath)
+    else:
+        config_file = config_file or DEFAULT_CONFIG_FILEPATH
+        ursula_config = UrsulaConfiguration.from_configuration_file(
+            filepath=config_file
+        )
+        keystore = ursula_config.keystore
+
+    password = get_nucypher_password(emitter=emitter, confirm=False)
+    keystore.unlock(password)
+
+    ritualistic_power = keystore.derive_crypto_power(RitualisticPower)
+    ferveo_public_key = bytes(ritualistic_power.public_key()).hex()
+    keystore_file_data = json.load(open(keystore_filepath, "r"))
+    emitter.echo(f"Keystore timestamp ........ {keystore_file_data['created']}")
+    emitter.echo(f"Ferveo Public Key ......... {ferveo_public_key}")
+
+
+@ursula.command()
 @group_character_options
 @option_config_file
 @option_dry_run
@@ -608,29 +647,6 @@ def config(general_config, config_options, config_file, force, action):
                                 config_class=UrsulaConfiguration,
                                 filepath=config_file,
                                 updates=updates)
-
-
-@ursula.command()
-@click.option(
-    "--keystore-filepath",
-    help="Path to keystore .priv file",
-    type=EXISTING_READABLE_FILE,
-    required=True,
-)
-def public_keys(keystore_filepath):
-    emitter = StdoutEmitter()
-    keystore = Keystore(keystore_filepath)
-
-    # unlock keystore
-    password = get_nucypher_password(emitter=emitter, confirm=False)
-    keystore.unlock(password)
-
-    ritualistic_power = keystore.derive_crypto_power(RitualisticPower)
-    keystore_file_data = json.load(open(keystore_filepath, "r"))
-    emitter.echo(f"Keystore timestamp ........ {keystore_file_data['created']}")
-    emitter.echo(
-        f"Ferveo Public Key ......... {bytes(ritualistic_power.public_key()).hex()}"
-    )
 
 
 def _pre_launch_warnings(emitter, dev, force):
