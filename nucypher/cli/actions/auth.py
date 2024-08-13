@@ -11,7 +11,6 @@ from nucypher.cli.literature import (
     GENERIC_PASSWORD_PROMPT,
     PASSWORD_COLLECTION_NOTICE,
 )
-from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD
 from nucypher.crypto.keystore import _WORD_COUNT, Keystore
 from nucypher.utilities.emitters import StdoutEmitter
@@ -36,7 +35,7 @@ def get_client_password(checksum_address: str, envvar: str = None, confirm: bool
     return client_password
 
 
-def unlock_signer_account(config: CharacterConfiguration, json_ipc: bool) -> None:
+def unlock_signer_account(config, json_ipc: bool) -> None:
 
     # TODO: Remove this block after deprecating 'operator_address'
     from nucypher.config.characters import UrsulaConfiguration
@@ -67,7 +66,11 @@ def get_nucypher_password(emitter, confirm: bool = False, envvar=NUCYPHER_ENVVAR
     return keystore_password
 
 
-def unlock_nucypher_keystore(emitter: StdoutEmitter, password: str, character_configuration: CharacterConfiguration) -> bool:
+def unlock_nucypher_keystore(
+    emitter: StdoutEmitter,
+    password: str,
+    character_configuration,
+) -> bool:
     """Unlocks a nucypher keystore and attaches it to the supplied configuration if successful."""
     emitter.message(DECRYPTING_CHARACTER_KEYSTORE.format(name=character_configuration.NAME.capitalize()), color='yellow')
 
