@@ -703,7 +703,7 @@ class CoordinatorAgent(EthereumContractAgent):
         """
 
         # TODO this makes the test pass more easily - find a better way
-        #  for this access controller calling logic
+        #  for this access controller calling logic  #3503
         ritual = self.get_ritual(ritual_id=ritual_id)
         abi = """[
             {
