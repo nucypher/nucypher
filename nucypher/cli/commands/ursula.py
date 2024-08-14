@@ -483,14 +483,6 @@ def audit(config_file, keystore_filepath, view_mnemonic):
 )
 def recover(config_file, keystore_filepath):
     emitter = StdoutEmitter()
-    if keystore_filepath and config_file:
-        raise click.BadOptionUsage(
-            "--keystore-filepath",
-            message=click.style(
-                "--keystore-filepath is incompatible with --config-file",
-                fg="red",
-            ),
-        )
     config_file = config_file or DEFAULT_CONFIG_FILEPATH
     if not config_file.exists():
         emitter.error(f"Ursula configuration file not found - {config_file.resolve()}")
