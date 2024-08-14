@@ -477,7 +477,7 @@ def audit(config_file, keystore_filepath, view_mnemonic):
 @option_config_file
 @click.option(
     "--keystore-filepath",
-    help="Path to keystore .priv file",
+    help="Path to keystore .priv file Ursula should use",
     type=EXISTING_READABLE_FILE,
     required=False,
 )
@@ -494,8 +494,22 @@ def recover(config_file, keystore_filepath):
     config_file = config_file or DEFAULT_CONFIG_FILEPATH
     if not config_file.exists():
         emitter.error(f"Ursula configuration file not found - {config_file.absolute()}")
-        click.Abort()
-    keystore = recover_keystore(emitter=emitter)
+        raise click.Abort()
+
+    if keystore_filepath:
+        # use available file
+        keystore = Keystore(keystore_filepath)
+        # ensure that the password for the keystore file is known
+        password = get_nucypher_password(emitter=emitter, confirm=False)
+        try:
+            keystore.unlock(password=password)
+        except Keystore.AuthenticationFailed:
+            emitter.error("Password is incorrect.")
+            raise click.Abort()
+    else:
+        # recovery keystore using user-provided mnemonic
+        keystore = recover_keystore(emitter=emitter)
+
     update_config_keystore_path(
         keystore_path=keystore.keystore_path, config_file=config_file
     )
