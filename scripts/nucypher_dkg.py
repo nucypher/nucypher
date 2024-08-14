@@ -16,6 +16,7 @@ from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Bob, Enrico
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.emitters import StdoutEmitter
@@ -118,6 +119,13 @@ def get_transacting_power(signer: Signer):
     type=click.Choice([GLOBAL_ALLOW_LIST, "OpenAccessAuthorizer"]),
     required=False,
 )
+@click.option(
+    "--fee-model",
+    "-f",
+    help="Fee model contract address",
+    type=EIP55_CHECKSUM_ADDRESS,
+    required=False,
+)
 def nucypher_dkg(
     domain,
     eth_endpoint,
@@ -129,6 +137,7 @@ def nucypher_dkg(
     ritual_duration,
     use_random_enrico,
     access_controller,
+    fee_model,
 ):
     if ritual_id < 0:
         # if creating ritual(s)
@@ -148,6 +157,14 @@ def nucypher_dkg(
                     fg="red",
                 ),
             )
+        if fee_model is None:
+            raise click.BadOptionUsage(
+                option_name="--fee-model",
+                message=click.style(
+                    "--fee-model must be provided to create new ritual",
+                    fg="red",
+                ),
+            )
         if num_rituals < 1:
             raise click.BadOptionUsage(
                 option_name="--num-rituals",
@@ -164,7 +181,14 @@ def nucypher_dkg(
                     fg="red",
                 ),
             )
-
+        if fee_model:
+            raise click.BadOptionUsage(
+                option_name="--fee-model",
+                message=click.style(
+                    "--fee-model not needed since it is obtained from the Coordinator",
+                    fg="red",
+                ),
+            )
         if num_rituals != 1:
             raise click.BadOptionUsage(
                 option_name="--ritual-id, --num-rituals",
@@ -248,6 +272,7 @@ def nucypher_dkg(
             dkg_staking_providers.sort()
             emitter.echo(f"Using staking providers for DKG: {dkg_staking_providers}")
             receipt = coordinator_agent.initiate_ritual(
+                fee_model=fee_model,
                 providers=dkg_staking_providers,
                 authority=account_address,
                 duration=ritual_duration,

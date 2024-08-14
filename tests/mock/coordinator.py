@@ -86,6 +86,7 @@ class MockCoordinatorAgent(MockContractAgent):
 
     def initiate_ritual(
         self,
+        fee_model: ChecksumAddress,
         providers: List[ChecksumAddress],
         authority: ChecksumAddress,
         duration: int,
@@ -107,6 +108,7 @@ class MockCoordinatorAgent(MockContractAgent):
             ],
             dkg_size=len(providers),
             threshold=self.get_threshold_for_ritual_size(len(providers)),
+            fee_model=fee_model,
         )
         self._rituals.append(ritual)
         self.emit_event(
@@ -317,8 +319,3 @@ class MockCoordinatorAgent(MockContractAgent):
     ) -> bool:
         # always allow
         return True
-
-    def get_ritual_initiation_cost(
-        self, providers: List[ChecksumAddress], duration: int
-    ):
-        return len(providers) * duration

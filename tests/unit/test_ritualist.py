@@ -49,9 +49,11 @@ def test_initiate_ritual(
 ):
     # any value will do
     global_allow_list = get_random_checksum_address()
+    fee_model = get_random_checksum_address()
 
     duration = 100
     receipt = agent.initiate_ritual(
+        fee_model=fee_model,
         authority=transacting_power.account,
         access_controller=global_allow_list,
         providers=cohort,
@@ -80,6 +82,7 @@ def test_initiate_ritual(
         init_timestamp=123456,
         end_timestamp=end_timestamp,
         participants=participants,
+        fee_model=fee_model,
     )
     agent.get_ritual = lambda *args, **kwargs: ritual
 
@@ -114,6 +117,7 @@ def test_perform_round_1(
         end_timestamp=end_timestamp,
         total_transcripts=4,
         participants=list(participants.values()),
+        fee_model=get_random_checksum_address(),
     )
     agent.get_ritual = lambda *args, **kwargs: ritual
     agent.get_participant = lambda ritual_id, provider, transcript: participants[
@@ -228,6 +232,7 @@ def test_perform_round_2(
         end_timestamp=end_timestamp,
         total_transcripts=len(cohort),
         participants=list(participants.values()),
+        fee_model=get_random_checksum_address(),
     )
 
     agent.get_ritual = lambda *args, **kwargs: ritual

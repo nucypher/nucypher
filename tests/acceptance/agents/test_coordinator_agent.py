@@ -62,6 +62,7 @@ def test_initiate_ritual(
     agent,
     cohort,
     get_random_checksum_address,
+    fee_model,
     global_allow_list,
     transacting_powers,
     ritual_token,
@@ -72,17 +73,18 @@ def test_initiate_ritual(
     assert number_of_rituals == 0
 
     duration = 60 * 60 * 24
-    amount = agent.get_ritual_initiation_cost(cohort, duration)
+    amount = fee_model.getRitualCost(len(cohort), duration)
 
     # Approve the ritual token for the coordinator agent to spend
     ritual_token.approve(
-        agent.contract_address,
+        fee_model.address,
         amount,
         sender=accounts[initiator.transacting_power.account],
     )
 
     authority = get_random_checksum_address()
     receipt = agent.initiate_ritual(
+        fee_model=fee_model.address,
         providers=cohort,
         authority=authority,
         duration=duration,
