@@ -48,7 +48,7 @@ def get_transacting_power(signer: Signer):
     "--domain",
     "domain",
     help="TACo Domain",
-    type=click.Choice([str(domains.TAPIR), str(domains.LYNX)]),
+    type=click.Choice([str(domains.TAPIR), str(domains.LYNX), str(domains.MAINNET)]),
     default=str(domains.LYNX),
 )
 @click.option(
