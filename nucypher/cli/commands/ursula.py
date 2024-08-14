@@ -465,12 +465,13 @@ def audit(config_file, keystore_filepath, view_mnemonic):
     try:
         correct = keystore.audit(words=collect_mnemonic(emitter), password=password)
     except Keystore.InvalidMnemonic:
+        correct = False
+
+    if not correct:
         emitter.message("Mnemonic is incorrect.", color="red")
-        return
-    emitter.message(
-        f"Mnemonic is {'' if correct else 'in'}correct.",
-        color="green" if correct else "red",
-    )
+        raise click.Abort()
+
+    emitter.message("Mnemonic is correct.", color="green")
 
 
 @ursula.command()
