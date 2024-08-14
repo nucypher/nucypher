@@ -560,11 +560,15 @@ def public_keys(config_file, keystore_filepath, from_mnemonic):
     if from_mnemonic:
         keystore = Keystore.from_mnemonic(collect_mnemonic(emitter))
     else:
-        config_file = config_file or DEFAULT_CONFIG_FILEPATH
-        ursula_config = UrsulaConfiguration.from_configuration_file(
-            filepath=config_file
-        )
-        keystore = Keystore(keystore_filepath or ursula_config.keystore.keystore_path)
+        keystore_path_to_use = keystore_filepath
+        if not keystore_path_to_use:
+            config_file = config_file or DEFAULT_CONFIG_FILEPATH
+            ursula_config = UrsulaConfiguration.from_configuration_file(
+                filepath=config_file
+            )
+            keystore_path_to_use = ursula_config.keystore.keystore_path
+
+        keystore = Keystore(keystore_path_to_use)
         keystore.unlock(get_nucypher_password(emitter=emitter, confirm=False))
 
     ritualistic_power = keystore.derive_crypto_power(RitualisticPower)
