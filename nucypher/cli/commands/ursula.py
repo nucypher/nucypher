@@ -438,7 +438,7 @@ def audit(config_file, keystore_filepath, view_mnemonic):
     config_file = config_file or DEFAULT_CONFIG_FILEPATH
     if not config_file.exists():
         emitter.error(f"Ursula configuration file not found - {config_file.absolute()}")
-        click.Abort()
+        raise click.Abort()
 
     if keystore_filepath:
         keystore = Keystore(keystore_filepath)
@@ -452,8 +452,9 @@ def audit(config_file, keystore_filepath, view_mnemonic):
     try:
         keystore.unlock(password=password)
     except Keystore.AuthenticationFailed:
-        emitter.message("Password is incorrect.", color="red")
-        return
+        emitter.error("Password is incorrect.")
+        raise click.Abort()
+
     emitter.message("Password is correct.", color="green")
 
     if view_mnemonic:
@@ -663,7 +664,7 @@ def config(general_config, config_options, config_file, force, action):
             emitter.error(
                 "--config-file <FILEPATH> is required to run a configuration file migration."
             )
-            return click.Abort()
+            raise click.Abort()
         config_file = select_config_file(
             emitter=emitter,
             checksum_address=config_options.operator_address,
