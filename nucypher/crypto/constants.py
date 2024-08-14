@@ -12,3 +12,8 @@ BLAKE2B_DIGEST_LENGTH = 64
 # Hashes
 SHA256 = hashes.SHA256()
 BLAKE2B = hashes.BLAKE2b(64)
+
+# Mnemonic
+_ENTROPY_BITS = 256
+_WORD_COUNT = 24
+_MNEMONIC_LANGUAGE = "english"

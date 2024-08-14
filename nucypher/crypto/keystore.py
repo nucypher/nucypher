@@ -9,7 +9,6 @@ from pathlib import Path
 from secrets import token_bytes
 from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
 
-import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from mnemonic.mnemonic import Mnemonic
 from nucypher_core import SessionSecretFactory
@@ -17,6 +16,7 @@ from nucypher_core.ferveo import Keypair
 from nucypher_core.umbral import SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.crypto.constants import _ENTROPY_BITS, _MNEMONIC_LANGUAGE
 from nucypher.crypto.keypairs import HostingKeypair, RitualisticKeypair
 from nucypher.crypto.passwords import (
     SecretBoxAuthenticationError,
@@ -36,6 +36,11 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
+from nucypher.crypto.utils import (
+    WalletGeneration,
+    _generate_mnemonic,
+    _generate_wallet,
+)
 from nucypher.utilities.emitters import StdoutEmitter
 
 # HKDF
@@ -49,11 +54,6 @@ _TLS_INFO = __INFO_BASE + b"tls"
 
 # Wrapping key
 _SALT_SIZE = 32
-
-# Mnemonic
-_ENTROPY_BITS = 256
-_WORD_COUNT = 24
-_MNEMONIC_LANGUAGE = "english"
 
 # Keystore File
 FILE_ENCODING = 'utf-8'
@@ -225,6 +225,8 @@ class Keystore:
     # Filepath
     _DIR_NAME = "keystore"
     _DEFAULT_DIR: Path = DEFAULT_CONFIG_ROOT / _DIR_NAME
+    _DEFAULT_WALLET_FILEPATH = _DEFAULT_DIR / "operator.json"
+
     _DELIMITER = '-'
     _SUFFIX = 'priv'
 
@@ -272,7 +274,9 @@ class Keystore:
             raise self.AuthenticationFailed
 
     @staticmethod
-    def __save(secret: bytes, password: str, keystore_dir: Optional[Path] = None) -> Path:
+    def __commit(
+        secret: bytes, password: str, keystore_dir: Optional[Path] = None
+    ) -> Path:
         failures = validate_keystore_password(password)
         if failures:
             # TODO: Ensure this scope is separable from the scope containing the password
@@ -321,7 +325,9 @@ class Keystore:
         return instance
 
     @classmethod
-    def import_secure(cls, key_material: bytes, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
+    def import_secure(
+        cls, key_material: bytes, password: str, keystore_dir: Optional[Path] = None
+    ) -> "Keystore":
         """
         Generate a Keystore using a a custom pre-secured entropy blob.
         This method of keystore creation does not generate a mnemonic phrase - it is assumed
@@ -337,7 +343,7 @@ class Keystore:
             raise ValueError(
                 f"Entropy bytes bust be exactly {SecretKeyFactory.seed_size()}."
             )
-        path = Keystore.__save(
+        path = Keystore.__commit(
             secret=key_material, password=password, keystore_dir=keystore_dir
         )
         keystore = cls(keystore_path=path)
@@ -348,82 +354,50 @@ class Keystore:
         """Restore a keystore from seed words"""
         __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __secret = bytes(__mnemonic.to_entropy(words))
-        path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
+        path = Keystore.__commit(
+            secret=__secret, password=password, keystore_dir=keystore_dir
+        )
         keystore = cls(keystore_path=path)
         return keystore
 
     @classmethod
     def generate(
-            cls, password: str,
-            keystore_dir: Optional[Path] = None,
-            interactive: bool = True,
-            ) -> Union['Keystore', Tuple['Keystore', str]]:
-        """Generate a new nucypher keystore for use with characters"""
-        mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
-        __words = mnemonic.generate(strength=_ENTROPY_BITS)
-        if interactive:
-            cls._confirm_generate(__words)
+        cls,
+        password: str,
+        keystore_dir: Optional[Path] = None,
+        interactive: bool = True,
+        generate_wallet: bool = True,
+    ) -> Union[
+        Tuple["Keystore", Optional[WalletGeneration], Optional[str]],
+        Tuple["Keystore", Optional[WalletGeneration]],
+    ]:
+
+        # Generate mnemonic
+        mnemonic, __words = _generate_mnemonic(
+            entropy=_ENTROPY_BITS, language=_MNEMONIC_LANGUAGE, interactive=interactive
+        )
+
+        # Generate wallet
+        wallet_generation = None
+        if generate_wallet:
+            wallet_generation = _generate_wallet(
+                phrase=__words,
+                language=_MNEMONIC_LANGUAGE,
+                password=password,
+                filepath=cls._DEFAULT_WALLET_FILEPATH,
+            )
+
+        # Generate keystore
         __secret = bytes(mnemonic.to_entropy(__words))
-        path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
-        keystore = cls(keystore_path=path)
+        keystore_path = cls.__commit(
+            secret=__secret, password=password, keystore_dir=keystore_dir
+        )
+
+        keystore = cls(keystore_path=keystore_path)
 
         if interactive:
-            return keystore
-
-        return keystore, __words
-
-    @staticmethod
-    def _confirm_generate(__words: str) -> None:
-        """
-        Inform the caller of new keystore seed words generation the console
-        and optionally perform interactive confirmation.
-        """
-
-        # notification
-        emitter = StdoutEmitter()
-
-        emitter.echo(
-            "\nNOTE: Next, you will be assigned a taco node seed phase. This seed phase is used to\n"
-            "generate your keystore. You will need this seed phase to recover your keystore\n"
-            "in the future. Please write down the seed phase and keep it in a safe place.\n",
-            color="cyan",
-        )
-
-        emitter.message(
-            "IMPORTANT: Backup your seed phrase, you will not be able to view them again.\n"
-            "You can use these words to restore your keystore in the future in case of loss of\n"
-            "your keystore files or password. Do not share these words with anyone.\n",
-            color="yellow",
-        )
-
-        emitter.message(
-            "WARNING: If you lose your seed phase and also lose access to your keystore/password "
-            "your stake will be slashed.\n",
-            color="red",
-        )
-        click.confirm("Reveal seed phase?", default=False, abort=True)
-        click.clear()
-
-        formatted_words = "\n".join(
-            f"{i} {w}" for i, w in enumerate(__words.split(), start=1)
-        )
-        emitter.message(f"{formatted_words}\n", color="green")
-        if not click.confirm("Have you backed up your seed phrase?"):
-            emitter.message('Keystore generation aborted.', color='red')
-            raise click.Abort()
-        click.clear()
-
-        # confirmation
-        while True:
-            __response = click.prompt("Confirm seed words (space separated)")
-            if __response != __words:
-                emitter.message(
-                    "Seed words do not match. Please try again.", color="red"
-                )
-                continue
-            break
-        click.clear()
-        emitter.echo("Seed phrase confirmed. Generating keystore...", color="green")
+            return keystore, wallet_generation
+        return keystore, wallet_generation, __words
 
     @property
     def id(self) -> str:

@@ -18,6 +18,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
 )
+from nucypher.crypto.keystore import Keystore
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from nucypher.utilities.warnings import render_lost_seed_phrase_message
@@ -35,6 +36,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     LOCAL_SIGNERS_ALLOWED = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
     MNEMONIC_KEYSTORE = True
+    DEFAULT_WALLET_FILEPATH = Keystore._DEFAULT_DIR / "operator.json"
 
     def __init__(
         self,
@@ -45,6 +47,8 @@ class UrsulaConfiguration(CharacterConfiguration):
         rest_port: Optional[int] = None,
         certificate: Optional[Certificate] = None,
         condition_blockchain_endpoints: Optional[Dict[str, List[str]]] = None,
+        signer_uri: Optional[str] = None,
+        wallet_filepath: Optional[Path] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -62,9 +66,20 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.rest_port = rest_port
         self.rest_host = rest_host
         self.certificate = certificate
+
+        if signer_uri and wallet_filepath:
+            raise ValueError("Cannot specify both a signer URI and a wallet filepath.")
+        if not signer_uri and not wallet_filepath:
+            wallet_filepath = self.DEFAULT_WALLET_FILEPATH
         self.operator_address = operator_address
+
         super().__init__(
-            dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs
+            dev_mode=dev_mode,
+            keystore_path=keystore_path,
+            signer_uri=signer_uri,
+            wallet_filepath=wallet_filepath,
+            *args,
+            **kwargs,
         )
 
         # json configurations don't allow for integer keyed dictionaries
@@ -169,14 +184,10 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def static_payload(self) -> dict:
         payload = dict(
-            operator_address=self.operator_address,
+            wallet_filepath=self._wallet_filepath,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
             condition_blockchain_endpoints=self.condition_blockchain_endpoints,
-
-            # PRE Payments
-            # TODO: Resolve variable prefixing below (uses nested configuration fields?)
-            pre_payment_method=self.pre_payment_method,
         )
         return {**super().static_payload(), **payload}
 
@@ -186,6 +197,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             network_middleware=self.network_middleware,
             certificate=self.certificate,
             pre_payment_method=self.configure_pre_payment_method(),
+            operator_address=self.wallet_address,
         )
         return {**super().dynamic_payload, **payload}
 
@@ -240,6 +252,7 @@ class AliceConfiguration(CharacterConfiguration):
             pre_payment_method=self.pre_payment_method,
             rate=self.rate,
             duration=self.duration,
+            checksum_address=self.checksum_address,
         )
         return {**super().static_payload(), **payload}
 
