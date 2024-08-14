@@ -21,9 +21,9 @@ def test_ursula_public_keys_invalid(click_runner, ursula_test_config, custom_fil
         "ursula",
         "public-keys",
         "--config-file",
-        str(ursula_config_file.absolute()),
+        str(ursula_config_file.resolve()),
         "--keystore-filepath",
-        str(keystore.keystore_path.absolute()),
+        str(keystore.keystore_path.resolve()),
     )
 
     result = click_runner.invoke(nucypher_cli, public_keys_args, catch_exceptions=False)
@@ -35,7 +35,7 @@ def test_ursula_public_keys_invalid(click_runner, ursula_test_config, custom_fil
         "ursula",
         "public-keys",
         "--config-file",
-        str(ursula_config_file.absolute()),
+        str(ursula_config_file.resolve()),
         "--from-mnemonic",
     )
 
@@ -48,7 +48,7 @@ def test_ursula_public_keys_invalid(click_runner, ursula_test_config, custom_fil
         "ursula",
         "public-keys",
         "--keystore-filepath",
-        str(keystore.keystore_path.absolute()),
+        str(keystore.keystore_path.resolve()),
         "--from-mnemonic",
     )
 
@@ -61,9 +61,9 @@ def test_ursula_public_keys_invalid(click_runner, ursula_test_config, custom_fil
         "ursula",
         "public-keys",
         "--config-file",
-        str(ursula_config_file.absolute()),
+        str(ursula_config_file.resolve()),
         "--keystore-filepath",
-        str(keystore.keystore_path.absolute()),
+        str(keystore.keystore_path.resolve()),
         "--from-mnemonic",
     )
 
@@ -88,7 +88,7 @@ def test_ursula_public_keys_derived_ferveo_key(
         "ursula",
         "public-keys",
         "--keystore-filepath",
-        str(keystore.keystore_path.absolute()),
+        str(keystore.keystore_path.resolve()),
     )
 
     user_input = f"{INSECURE_DEVELOPMENT_PASSWORD}\n"
@@ -101,7 +101,7 @@ def test_ursula_public_keys_derived_ferveo_key(
 
     # using config file produces same key
     config_values = json.loads(ursula_test_config.serialize())
-    config_values["keystore_path"] = str(keystore.keystore_path.absolute())
+    config_values["keystore_path"] = str(keystore.keystore_path.resolve())
     updated_config_file = custom_filepath / "updated-ursula.json"
     with open(updated_config_file, "w") as f:
         json.dump(config_values, f)
@@ -110,7 +110,7 @@ def test_ursula_public_keys_derived_ferveo_key(
         "ursula",
         "public-keys",
         "--config-file",
-        str(updated_config_file.absolute()),
+        str(updated_config_file.resolve()),
     )
     user_input = f"{INSECURE_DEVELOPMENT_PASSWORD}\n"
 
