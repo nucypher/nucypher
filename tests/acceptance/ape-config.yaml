@@ -6,7 +6,7 @@ plugins:
 dependencies:
   - name: nucypher-contracts
     github: nucypher/nucypher-contracts
-    ref: epic-subscription
+    ref: main
     config_override:
       solidity:
         version: 0.8.23
