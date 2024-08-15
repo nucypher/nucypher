@@ -357,24 +357,13 @@ def init(
         )
         return click.get_current_context().exit(1)
 
-    click.clear()
-    if with_mnemonic:
-        emitter.echo(
-            "Hello Operator, welcome back :-) \n\n"
-            "You are about to initialize a new Ursula node configuration using an existing mnemonic phrase.\n"
-            "Have your mnemonic phrase ready and ensure you are in a secure environment.\n"
-            "Please follow the prompts.",
-            color="cyan",
-        )
-    else:
-        emitter.echo(
-            "Hello Operator, welcome on board :-) \n\n"
-            "NOTE: Initializing a new Ursula node configuration is a one-time operation\n"
-            "for the lifetime of your node.  This is a two-step process:\n\n"
-            "1. Creating a password to encrypt your operator keys\n"
-            "2. Securing a taco node seed phase\n\n"
-            "Please follow the prompts.",
-            color="cyan",
+    if key_material and with_mnemonic:
+        raise click.BadOptionUsage(
+            "--key-material",
+            message=click.style(
+                "--key-material is incompatible with --with-mnemonic",
+                fg="red",
+            ),
         )
 
     if not config_options.eth_endpoint:
@@ -392,11 +381,33 @@ def init(
                 fg="red",
             ),
         )
+
+    click.clear()
+    if with_mnemonic:
+        emitter.echo(
+            "Hello Operator, welcome :-) \n\n"
+            "You are about to initialize a new Ursula node configuration using an existing mnemonic phrase.\n"
+            "Have your mnemonic phrase ready and ensure you are in a secure environment.\n"
+            "Please follow the prompts.",
+            color="cyan",
+        )
+    else:
+        emitter.echo(
+            "Hello Operator, welcome on board :-) \n\n"
+            "NOTE: Initializing a new Ursula node configuration is a one-time operation\n"
+            "for the lifetime of your node.  This is a two-step process:\n\n"
+            "1. Creating a password to encrypt your operator keys\n"
+            "2. Securing a taco node seed phase\n\n"
+            "Please follow the prompts.",
+            color="cyan",
+        )
+
     if not config_options.domain:
         config_options.domain = select_domain(
             emitter,
             message="Select TACo Domain",
         )
+
     ursula_config = config_options.generate_config(
         emitter=emitter,
         config_root=config_root,
