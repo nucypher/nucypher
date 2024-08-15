@@ -598,8 +598,14 @@ class CharacterConfiguration(BaseConfiguration):
     ):
         """Generates local directories, private keys, and initial configuration for a new node."""
         node_config = cls(dev_mode=False, *args, **kwargs)
+        if key_material and with_mnemonic:
+            raise ValueError(
+                "Cannot provide key_material and with_mnemonic simultaneously"
+            )
         node_config.initialize(
-            key_material=key_material, with_mnemonic=with_mnemonic, password=password
+            key_material=key_material,
+            with_mnemonic=with_mnemonic,
+            password=password,
         )
         node_config.keystore.unlock(password)
         return node_config
@@ -803,6 +809,11 @@ class CharacterConfiguration(BaseConfiguration):
     ) -> Path:
         """Initialize a new configuration and write installation files to disk."""
 
+        if key_material and with_mnemonic:
+            raise ValueError(
+                "Cannot provide key_material and with_mnemonic simultaneously"
+            )
+
         # Development
         if self.dev_mode:
             self.__temp_dir = TemporaryDirectory(
@@ -838,6 +849,12 @@ class CharacterConfiguration(BaseConfiguration):
         interactive: bool = True,
         with_mnemonic: bool = False,
     ) -> Keystore:
+
+        if key_material and with_mnemonic:
+            raise ValueError(
+                "Cannot provide key_material and with_mnemonic simultaneously"
+            )
+
         if key_material:
             self.__keystore = Keystore.import_secure(
                 key_material=key_material,
