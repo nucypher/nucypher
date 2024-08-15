@@ -446,14 +446,16 @@ def audit(config_file, keystore_filepath, view_mnemonic):
             ),
         )
 
-    config_file = config_file or DEFAULT_CONFIG_FILEPATH
-    if not config_file.exists():
-        emitter.error(f"Ursula configuration file not found - {config_file.resolve()}")
-        raise click.Abort()
-
     if keystore_filepath:
         keystore = Keystore(keystore_filepath)
     else:
+        config_file = config_file or DEFAULT_CONFIG_FILEPATH
+        if not config_file.exists():
+            emitter.error(
+                f"Ursula configuration file not found - {config_file.resolve()}"
+            )
+            raise click.Abort()
+
         ursula_config = UrsulaConfiguration.from_configuration_file(
             filepath=config_file
         )
