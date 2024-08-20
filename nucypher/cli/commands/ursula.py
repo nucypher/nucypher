@@ -558,7 +558,7 @@ def public_keys(config_file, keystore_filepath, from_mnemonic):
         raise click.BadOptionUsage(
             "--keystore-filepath",
             message=click.style(
-                "Exactly one of --keystore-filepath, --config-file, or --from-mnemonic must be specified",
+                "At most, one of --keystore-filepath, --config-file, or --from-mnemonic must be specified",
                 fg="red",
             ),
         )
