@@ -14,7 +14,7 @@ def test_ursula_public_keys_invalid(click_runner, ursula_test_config, custom_fil
     ursula_config_file = custom_filepath / "ursula-test.json"
     ursula_test_config._write_configuration_file(filepath=ursula_config_file)
 
-    expected_error = "Exactly one of --keystore-filepath, --config-file, or --from-mnemonic must be specified"
+    expected_error = "At most, one of --keystore-filepath, --config-file, or --from-mnemonic must be specified"
 
     # config-file and keystore-filepath
     public_keys_args = (
