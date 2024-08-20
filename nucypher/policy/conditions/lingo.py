@@ -52,6 +52,7 @@ class _ConditionField(fields.Dict):
         instance = condition_class.from_dict(condition_data)
         return instance
 
+
 #
 # CONDITION = BASE_CONDITION | COMPOUND_CONDITION
 #
@@ -75,6 +76,7 @@ class ConditionType(Enum):
     RPC = "rpc"
     JSONAPI = "json-api"
     COMPOUND = "compound"
+    ADDRESS = "address"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -380,7 +382,7 @@ class ConditionLingo(_Serializable):
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
 
     @classmethod
-    def from_json(cls, data: str) -> 'ConditionLingo':
+    def from_json(cls, data: str) -> "ConditionLingo":
         try:
             return super().from_json(data)
         except ValidationError as e:
@@ -391,7 +393,7 @@ class ConditionLingo(_Serializable):
         return data
 
     @classmethod
-    def from_base64(cls, data: bytes) -> 'ConditionLingo':
+    def from_base64(cls, data: bytes) -> "ConditionLingo":
         decoded_json = base64.b64decode(data).decode()
         instance = cls.from_json(decoded_json)
         return instance
@@ -416,6 +418,7 @@ class ConditionLingo(_Serializable):
         Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
         conditions expression framework.
         """
+        from nucypher.policy.conditions.address import AddressMatchCondition
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
         from nucypher.policy.conditions.offchain import JsonApiCondition
         from nucypher.policy.conditions.time import TimeCondition
@@ -429,6 +432,7 @@ class ConditionLingo(_Serializable):
             RPCCondition,
             CompoundAccessControlCondition,
             JsonApiCondition,
+            AddressMatchCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition

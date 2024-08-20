@@ -13,7 +13,9 @@ from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.interfaces import MockBlockchain
 
 MOCK_TESTERCHAIN = MockBlockchain()
-CACHED_MOCK_TESTERCHAIN = BlockchainInterfaceFactory.CachedInterface(interface=MOCK_TESTERCHAIN, emitter=None)
+CACHED_MOCK_TESTERCHAIN = BlockchainInterfaceFactory.CachedInterface(
+    interface=MOCK_TESTERCHAIN, emitter=None
+)
 BlockchainInterfaceFactory._interfaces[MOCK_ETH_PROVIDER_URI] = CACHED_MOCK_TESTERCHAIN
 
 
@@ -47,14 +49,14 @@ class MockContractAgent:
         self.__setup_mock(agent_class=agent_class)
 
     def __repr__(self) -> str:
-        r = f'Mock{self.agent_class.__name__}(id={id(self)})'
+        r = f"Mock{self.agent_class.__name__}(id={id(self)})"
         return r
 
     def __setup_mock(self, agent_class: Type[Agent]) -> None:
-
-        api_methods: Iterable[Callable] = list(self.__collect_contract_api(agent_class=agent_class))
-        mock_methods = list()
-        # mock_properties = dict()
+        api_methods: Iterable[Callable] = list(
+            self.__collect_contract_api(agent_class=agent_class)
+        )
+        mock_methods, mock_properties = list(), dict()  # noqa: F841
 
         for agent_interface in api_methods:
 
@@ -91,6 +93,7 @@ class MockContractAgent:
     def __get_interface_calls(self, interface: Enum) -> List[Callable]:
         def predicate(method):
             return bool(method.contract_api == interface)
+
         interface_calls = list(filter(predicate, self._MOCK_METHODS))
         return interface_calls
 
@@ -100,15 +103,21 @@ class MockContractAgent:
         try:
             real_method: Callable = method_or_property.fget  # Property (getter)
         except AttributeError:
-            real_method: Callable = method_or_property       # Method
+            real_method: Callable = method_or_property  # Method
         contract_api: bool = hasattr(real_method, cls.__COLLECTION_MARKER)
         return contract_api
 
     @classmethod
-    def __collect_contract_api(cls, agent_class: Type[Agent]) -> Generator[Callable, None, None]:
+    def __collect_contract_api(
+        cls, agent_class: Type[Agent]
+    ) -> Generator[Callable, None, None]:
         agent_attrs = dir(agent_class)
         predicate = cls.__is_contract_method
-        methods = (getattr(agent_class, name) for name in agent_attrs if predicate(agent_class, name))
+        methods = (
+            getattr(agent_class, name)
+            for name in agent_attrs
+            if predicate(agent_class, name)
+        )
         return methods
 
     #
@@ -127,13 +136,13 @@ class MockContractAgent:
         transaction_functions = self.__get_interface_calls(interface=interface)
         return transaction_functions
 
-    def get_unexpected_transactions(self, allowed: Union[Iterable[Callable], None]) -> List[Callable]:
+    def get_unexpected_transactions(
+        self, allowed: Union[Iterable[Callable], None]
+    ) -> List[Callable]:
         if allowed:
-
             def predicate(tx):
                 return tx not in allowed and tx.called
         else:
-
             def predicate(tx):
                 return tx.called
         unexpected_transactions = list(filter(predicate, self.all_transactions))
@@ -147,9 +156,13 @@ class MockContractAgent:
         unexpected_transactions = self.get_unexpected_transactions(allowed=None)
         assert not bool(unexpected_transactions)
 
-    def reset(self, clear_side_effects: bool = True, clear_return_values: bool = True) -> None:
+    def reset(
+        self, clear_side_effects: bool = True, clear_return_values: bool = True
+    ) -> None:
         for mock in self._MOCK_METHODS:
-            mock.reset_mock(return_value=clear_return_values, side_effect=clear_side_effects)
+            mock.reset_mock(
+                return_value=clear_return_values, side_effect=clear_side_effects
+            )
             if clear_return_values:
                 interface = getattr(mock, self.__COLLECTION_MARKER)
                 default_return = self.__DEFAULTS.get(interface)
@@ -170,7 +183,9 @@ class MockContractAgency(ContractAgency):
         return mock_agent
 
     @classmethod
-    def get_agent_by_contract_name(cls, contract_name: str, *args, **kwargs) -> MockContractAgent:
+    def get_agent_by_contract_name(
+        cls, contract_name: str, *args, **kwargs
+    ) -> MockContractAgent:
         agent_name = super()._contract_name_to_agent_name(name=contract_name)
         agent_class = getattr(agents, agent_name)
         mock_agent = cls.get_agent(agent_class=agent_class)

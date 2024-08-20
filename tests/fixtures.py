@@ -42,6 +42,7 @@ from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.auth.evm import EvmAuth
+from nucypher.policy.conditions.address import AddressMatchCondition
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.lingo import (
@@ -686,6 +687,70 @@ def valid_eip712_auth_message():
             "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
             "signatureText": f"I'm the owner of address {account} as of block number 28117088",
         },
+    }
+
+    signable_message = encode_typed_data(full_message=data)
+    signature = signer.sign_message(signable_message=signable_message)
+
+    auth_message = {
+        "signature": f"{signature.signature.hex()}",
+        "address": f"{account}",
+        "scheme": "EIP712",
+        "typedData": data,
+    }
+
+    return auth_message
+
+
+@pytest.fixture
+def address_condition():
+    condition = AddressMatchCondition(
+        method="address_match",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(
+            "==", "0xaDD9D957170dF6F33982001E4c22eCCdd5539118"
+        ),
+        parameters=[USER_ADDRESS_CONTEXT],
+    )
+    return condition
+
+
+@pytest.fixture(scope="module")
+def valid_user_address_context():
+    return {
+        USER_ADDRESS_CONTEXT: {
+            "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
+            "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
+            "typedData": {
+                "primaryType": "Wallet",
+                "types": {
+                    "EIP712Domain": [
+                        {"name": "name", "type": "string"},
+                        {"name": "version", "type": "string"},
+                        {"name": "chainId", "type": "uint256"},
+                        {"name": "salt", "type": "bytes32"},
+                    ],
+                    "Wallet": [
+                        {"name": "address", "type": "string"},
+                        {"name": "blockNumber", "type": "uint256"},
+                        {"name": "blockHash", "type": "bytes32"},
+                        {"name": "signatureText", "type": "string"},
+                    ],
+                },
+                "domain": {
+                    "name": "tDec",
+                    "version": "1",
+                    "chainId": 80001,
+                    "salt": "0x3e6365d35fd4e53cbc00b080b0742b88f8b735352ea54c0534ed6a2e44a83ff0",
+                },
+                "message": {
+                    "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
+                    "blockNumber": 28117088,
+                    "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
+                    "signatureText": "I'm the owner of address 0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E as of block number 28117088",
+                },
+            },
+        }
     }
     signable_message = encode_typed_data(full_message=data)
     signature = signer.sign_message(signable_message=signable_message)
