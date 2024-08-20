@@ -6,7 +6,7 @@ repos:
 
       - id: tests
         name: Run Nucypher Unit Tests
-        entry: scripts/hooks/run_unit_tests.sh
+        entry: scripts/run_unit_tests.sh
         language: system
         types: [python]
         stages: [push]  # required additional setup: pre-commit install && pre-commit install -t pre-push
