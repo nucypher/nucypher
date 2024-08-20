@@ -3,6 +3,7 @@ from pathlib import Path
 import click
 
 from nucypher.cli.actions.auth import (
+    collect_mnemonic,
     get_client_password,
     get_nucypher_password,
     recover_keystore,
@@ -13,6 +14,7 @@ from nucypher.cli.actions.configure import (
     get_or_update_configuration,
     handle_missing_configuration_file,
     perform_startup_ip_check,
+    update_config_keystore_path,
 )
 from nucypher.cli.actions.migrate import migrate
 from nucypher.cli.actions.select import (
@@ -49,14 +51,22 @@ from nucypher.cli.options import (
     option_teacher_uri,
 )
 from nucypher.cli.painting.help import paint_new_installation_help
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, OPERATOR_IP
+from nucypher.cli.types import (
+    EIP55_CHECKSUM_ADDRESS,
+    EXISTING_READABLE_FILE,
+    NETWORK_PORT,
+    OPERATOR_IP,
+)
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
+    DEFAULT_CONFIG_FILEPATH,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.crypto.keystore import Keystore
+from nucypher.crypto.powers import RitualisticPower
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
 
@@ -154,7 +164,7 @@ class UrsulaConfigOptions:
                 # TODO: Exit codes (not only for this, but for other exceptions)
                 return click.get_current_context().exit(1)
 
-    def generate_config(self, emitter, config_root, force, key_material):
+    def generate_config(self, emitter, config_root, force, key_material, with_mnemonic):
 
         if self.dev:
             raise RuntimeError(
@@ -183,6 +193,7 @@ class UrsulaConfigOptions:
         return UrsulaConfiguration.generate(
             password=get_nucypher_password(emitter=emitter, confirm=True),
             key_material=bytes.fromhex(key_material) if key_material else None,
+            with_mnemonic=with_mnemonic,
             config_root=config_root,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
@@ -313,7 +324,14 @@ def ursula():
 @option_config_root
 @group_general_config
 @option_key_material
-def init(general_config, config_options, force, config_root, key_material):
+@click.option(
+    "--with-mnemonic",
+    help="Initialize with a mnemonic phrase instead of generating a new keypair from scratch",
+    is_flag=True,
+)
+def init(
+    general_config, config_options, force, config_root, key_material, with_mnemonic
+):
     """Create a new Ursula node configuration."""
     emitter = setup_emitter(general_config, config_options.operator_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
@@ -339,16 +357,14 @@ def init(general_config, config_options, force, config_root, key_material):
         )
         return click.get_current_context().exit(1)
 
-    click.clear()
-    emitter.echo(
-        "Hello Operator, welcome on board :-) \n\n"
-        "NOTE: Initializing a new Ursula node configuration is a one-time operation\n"
-        "for the lifetime of your node.  This is a two-step process:\n\n"
-        "1. Creating a password to encrypt your operator keys\n"
-        "2. Securing a taco node seed phase\n\n"
-        "Please follow the prompts.",
-        color="cyan",
-    )
+    if key_material and with_mnemonic:
+        raise click.BadOptionUsage(
+            "--key-material",
+            message=click.style(
+                "--key-material is incompatible with --with-mnemonic",
+                fg="red",
+            ),
+        )
 
     if not config_options.eth_endpoint:
         raise click.BadOptionUsage(
@@ -365,13 +381,39 @@ def init(general_config, config_options, force, config_root, key_material):
                 fg="red",
             ),
         )
+
+    click.clear()
+    if with_mnemonic:
+        emitter.echo(
+            "Hello Operator, welcome :-) \n\n"
+            "You are about to initialize a new Ursula node configuration using an existing mnemonic phrase.\n"
+            "Have your mnemonic phrase ready and ensure you are in a secure environment.\n"
+            "Please follow the prompts.",
+            color="cyan",
+        )
+    else:
+        emitter.echo(
+            "Hello Operator, welcome on board :-) \n\n"
+            "NOTE: Initializing a new Ursula node configuration is a one-time operation\n"
+            "for the lifetime of your node.  This is a two-step process:\n\n"
+            "1. Creating a password to encrypt your operator keys\n"
+            "2. Securing a taco node seed phase\n\n"
+            "Please follow the prompts.",
+            color="cyan",
+        )
+
     if not config_options.domain:
         config_options.domain = select_domain(
             emitter,
             message="Select TACo Domain",
         )
+
     ursula_config = config_options.generate_config(
-        emitter=emitter, config_root=config_root, force=force, key_material=key_material
+        emitter=emitter,
+        config_root=config_root,
+        force=force,
+        key_material=key_material,
+        with_mnemonic=with_mnemonic,
     )
     filepath = ursula_config.to_configuration_file()
     paint_new_installation_help(
@@ -380,13 +422,107 @@ def init(general_config, config_options, force, config_root, key_material):
 
 
 @ursula.command()
-@group_config_options
-@group_general_config
-def recover(general_config, config_options):
-    # TODO: Combine with work in PR #2682
-    # TODO: Integrate regeneration of configuration files
-    emitter = setup_emitter(general_config, config_options.operator_address)
-    recover_keystore(emitter=emitter)
+@option_config_file
+@click.option(
+    "--keystore-filepath",
+    help="Path to keystore .priv file",
+    type=EXISTING_READABLE_FILE,
+    required=False,
+)
+@click.option(
+    "--view-mnemonic",
+    help="View mnemonic seed words",
+    is_flag=True,
+)
+def audit(config_file, keystore_filepath, view_mnemonic):
+    """Audit a mnemonic phrase against a local keystore or view mnemonic seed words."""
+    emitter = StdoutEmitter()
+    if keystore_filepath and config_file:
+        raise click.BadOptionUsage(
+            "--keystore-filepath",
+            message=click.style(
+                "--keystore-filepath is incompatible with --config-file",
+                fg="red",
+            ),
+        )
+
+    if keystore_filepath:
+        keystore = Keystore(keystore_filepath)
+    else:
+        config_file = config_file or DEFAULT_CONFIG_FILEPATH
+        if not config_file.exists():
+            emitter.error(
+                f"Ursula configuration file not found - {config_file.resolve()}"
+            )
+            raise click.Abort()
+
+        ursula_config = UrsulaConfiguration.from_configuration_file(
+            filepath=config_file
+        )
+        keystore = ursula_config.keystore
+
+    password = get_nucypher_password(emitter=emitter, confirm=False)
+    try:
+        keystore.unlock(password=password)
+    except Keystore.AuthenticationFailed:
+        emitter.error("Password is incorrect.")
+        raise click.Abort()
+
+    emitter.message("Password is correct.", color="green")
+
+    if view_mnemonic:
+        mnemonic = keystore.get_mnemonic()
+        emitter.message(f"\n{mnemonic}", color="cyan")
+        return
+
+    try:
+        correct = keystore.audit(words=collect_mnemonic(emitter), password=password)
+    except Keystore.InvalidMnemonic:
+        correct = False
+
+    if not correct:
+        emitter.message("Mnemonic is incorrect.", color="red")
+        raise click.Abort()
+
+    emitter.message("Mnemonic is correct.", color="green")
+
+
+@ursula.command()
+@option_config_file
+@click.option(
+    "--keystore-filepath",
+    help="Path to keystore .priv file Ursula should use",
+    type=EXISTING_READABLE_FILE,
+    required=False,
+)
+def recover(config_file, keystore_filepath):
+    emitter = StdoutEmitter()
+    config_file = config_file or DEFAULT_CONFIG_FILEPATH
+    if not config_file.exists():
+        emitter.error(f"Ursula configuration file not found - {config_file.resolve()}")
+        raise click.Abort()
+
+    if keystore_filepath:
+        # use available file
+        keystore = Keystore(keystore_filepath)
+        # ensure that the password for the keystore file is known
+        password = get_nucypher_password(emitter=emitter, confirm=False)
+        try:
+            keystore.unlock(password=password)
+        except Keystore.AuthenticationFailed:
+            emitter.error("Password is incorrect.")
+            raise click.Abort()
+    else:
+        # recovery keystore using user-provided mnemonic
+        keystore = recover_keystore(emitter=emitter)
+
+    update_config_keystore_path(
+        keystore_path=keystore.keystore_path, config_file=config_file
+    )
+    emitter.message(
+        f"Updated {config_file} to use keystore filepath: {keystore.keystore_path.resolve()}",
+        color="green",
+    )
 
 
 @ursula.command()
@@ -400,6 +536,50 @@ def destroy(general_config, config_options, config_file, force):
     _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
     ursula_config = config_options.create_config(emitter, config_file)
     destroy_configuration(emitter, character_config=ursula_config, force=force)
+
+
+@ursula.command()
+@option_config_file
+@click.option(
+    "--keystore-filepath",
+    help="Path to keystore .priv file",
+    type=EXISTING_READABLE_FILE,
+)
+@click.option(
+    "--from-mnemonic",
+    help="View TACo public keys from mnemonic seed words",
+    is_flag=True,
+)
+def public_keys(config_file, keystore_filepath, from_mnemonic):
+    """Display the public keys of a keystore."""
+    emitter = StdoutEmitter()
+
+    if sum(1 for i in (keystore_filepath, config_file, from_mnemonic) if i) > 1:
+        raise click.BadOptionUsage(
+            "--keystore-filepath",
+            message=click.style(
+                "Exactly one of --keystore-filepath, --config-file, or --from-mnemonic must be specified",
+                fg="red",
+            ),
+        )
+
+    if from_mnemonic:
+        keystore = Keystore.from_mnemonic(collect_mnemonic(emitter))
+    else:
+        keystore_path_to_use = keystore_filepath
+        if not keystore_path_to_use:
+            config_file = config_file or DEFAULT_CONFIG_FILEPATH
+            ursula_config = UrsulaConfiguration.from_configuration_file(
+                filepath=config_file
+            )
+            keystore_path_to_use = ursula_config.keystore.keystore_path
+
+        keystore = Keystore(keystore_path_to_use)
+        keystore.unlock(get_nucypher_password(emitter=emitter, confirm=False))
+
+    ritualistic_power = keystore.derive_crypto_power(RitualisticPower)
+    ferveo_public_key = bytes(ritualistic_power.public_key()).hex()
+    emitter.message(f"\nFerveo Public Key: {ferveo_public_key}", color="cyan")
 
 
 @ursula.command()
@@ -508,7 +688,7 @@ def config(general_config, config_options, config_file, force, action):
             emitter.error(
                 "--config-file <FILEPATH> is required to run a configuration file migration."
             )
-            return click.Abort()
+            raise click.Abort()
         config_file = select_config_file(
             emitter=emitter,
             checksum_address=config_options.operator_address,
