@@ -2,6 +2,7 @@ import pytest
 import pytest_twisted
 from twisted.logger import globalLogPublisher
 
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.crypto.keypairs import RitualisticKeypair
 from nucypher.crypto.powers import RitualisticPower
@@ -117,11 +118,22 @@ def test_dkg_failure_with_ferveo_key_mismatch(
 
     globalLogPublisher.addObserver(log_trapper)
 
-    print("==================== AWAITING DKG FAILURE ====================")
-    while len(log_messages) == 0:
-
+    print(
+        "==================== AWAITING DKG FAILURE (FERVEO MISMATCH) ===================="
+    )
+    while (
+        coordinator_agent.get_ritual_status(ritual_id)
+        != Coordinator.RitualStatus.DKG_TIMEOUT
+    ):
+        # remains in awaiting transcripts because of the one bad ursula not submitting transcript
+        assert (
+            coordinator_agent.get_ritual_status(ritual_id)
+            == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
+        )
         yield clock.advance(interval)
-        yield testerchain.time_travel(seconds=1)
+        yield testerchain.time_travel(
+            seconds=coordinator_agent.get_timeout() // 6
+        )  # min. 6 rounds before timeout
 
     assert (
         render_ferveo_key_mismatch_warning(
@@ -129,6 +141,17 @@ def test_dkg_failure_with_ferveo_key_mismatch(
         )
         in log_messages
     )
+
+    for ursula in cohort:
+        participant = coordinator_agent.get_participant(
+            ritual_id, ursula.checksum_address, True
+        )
+        if ursula.checksum_address == bad_ursula.checksum_address:
+            assert (
+                not participant.transcript
+            ), "transcript not submitted due to mismatched ferveo key"
+        else:
+            assert participant.transcript, "transcript submitted"
 
     testerchain.tx_machine.stop()
     assert not testerchain.tx_machine.running
