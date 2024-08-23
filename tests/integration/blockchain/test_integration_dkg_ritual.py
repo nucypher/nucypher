@@ -7,6 +7,7 @@ import pytest_twisted
 from eth_typing import ChecksumAddress
 from nucypher_core.ferveo import FerveoVariant
 from twisted.internet.threads import deferToThread
+from twisted.logger import globalLogPublisher
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
@@ -16,6 +17,7 @@ from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.crypto.keypairs import RitualisticKeypair
 from nucypher.crypto.powers import RitualisticPower
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
+from nucypher.utilities.warnings import render_ferveo_key_mismatch_warning
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
@@ -122,7 +124,7 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
 
 def run_test(
     mock_coordinator_agent,
-    bad_cohort,
+    cohort,
     alice,
     bob,
     dkg_size,
@@ -131,7 +133,7 @@ def run_test(
     get_random_checksum_address,
 ):
     """Tests the DKG and the encryption/decryption of a message"""
-    cohort = bad_cohort[:dkg_size]
+    cohort = cohort[:dkg_size]
 
     # adjust threshold since we are testing with pre-computed (simple is the default)
     threshold = mock_coordinator_agent.get_threshold_for_ritual_size(dkg_size)
@@ -380,19 +382,16 @@ def test_ursula_ritualist_good_cohort(
     )
 
 
-@pytest.mark.xfail(reason="This is not fixed yet")
-@pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist_bad_cohort(
     mock_coordinator_agent,
     cohort,
     alice,
-    bob,
     get_random_checksum_address,
 ):
     """Modify the first Ursula's keystore to be different"""
 
     bad_ursula = cohort[0]
-    old_public_key = bad_ursula.public_keys(RitualisticPower)
+    onchain_public_key = bad_ursula.public_keys(RitualisticPower)
     new_keypair = RitualisticKeypair()
     new_public_key = new_keypair.pubkey
 
@@ -401,18 +400,62 @@ def test_ursula_ritualist_bad_cohort(
         new_keypair
     )
 
-    assert old_public_key != new_public_key
-    assert old_public_key != bad_ursula.public_keys(RitualisticPower)
+    assert onchain_public_key != new_public_key
+    assert onchain_public_key != bad_ursula.public_keys(RitualisticPower)
     assert new_public_key == bad_ursula.public_keys(RitualisticPower)
     print(f"BAD URSULA: {bad_ursula.checksum_address}")
 
-    yield from run_test(
-        mock_coordinator_agent,
-        cohort,
-        alice,
-        bob,
-        2,
-        3,
-        FerveoVariant.Precomputed,
-        get_random_checksum_address,
+    ritual_id = mock_coordinator_agent.number_of_rituals()
+
+    "==================== INITIALIZING ===================="
+    cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
+    mock_coordinator_agent.initiate_ritual(
+        fee_model=get_random_checksum_address(),
+        providers=cohort_staking_provider_addresses,
+        authority=alice.transacting_power.account,
+        duration=1,
+        access_controller=get_random_checksum_address(),
+        transacting_power=alice.transacting_power,
     )
+
+    print(
+        "==================== AWAITING DKG FAILURE (FERVEO MISMATCH) ===================="
+    )
+
+    ritual = mock_coordinator_agent.get_ritual(ritual_id)
+
+    status = mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+    assert status == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
+
+    # collect log messages
+    log_messages = []
+
+    def log_trapper(event):
+        log_messages.append(event["log_format"])
+
+    globalLogPublisher.addObserver(log_trapper)
+
+    execute_round_1(ritual_id, ritual.authority, cohort)
+
+    status = mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+    assert status != Coordinator.RitualStatus.ACTIVE
+    # remains in awaiting transcripts until ritual expires, since bad ursula doesn't submit their transcript
+    assert status == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
+
+    assert (
+        render_ferveo_key_mismatch_warning(
+            bytes(new_public_key), bytes(onchain_public_key)
+        )
+        in log_messages
+    )
+
+    for ursula in cohort:
+        participant = mock_coordinator_agent.get_participant(
+            ritual_id, ursula.checksum_address, True
+        )
+        if ursula.checksum_address == bad_ursula.checksum_address:
+            assert (
+                not participant.transcript
+            ), "transcript not submitted due to mismatched ferveo key"
+        else:
+            assert participant.transcript, "transcript submitted"
