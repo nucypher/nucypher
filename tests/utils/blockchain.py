@@ -1,4 +1,4 @@
-from functools import cached_property
+from functools import cached_property, singledispatchmethod
 from typing import List, Union
 
 import maya
@@ -6,6 +6,7 @@ from ape.api import AccountAPI
 from ape.managers.accounts import TestAccountManager
 from eth_tester.exceptions import TransactionFailed
 from eth_typing import ChecksumAddress
+from eth_utils import to_checksum_address
 from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.interfaces import (
@@ -65,6 +66,24 @@ class ReservedTestAccountManager(TestAccountManager):
 
         self.__ape_accounts = test_accounts
         return test_accounts
+
+    @singledispatchmethod
+    def __getitem__(self, account_id):
+        raise NotImplementedError(f"Cannot use {type(account_id)} as account ID.")
+
+    @__getitem__.register
+    def __getitem_int(self, account_id: int):
+        account = self.accounts[account_id]
+        return account
+
+    @__getitem__.register
+    def __getitem_str(self, account_str: str):
+        account_id = to_checksum_address(account_str)
+        for account in self.accounts:
+            if account.address == account_id:
+                return account
+
+        raise KeyError(f"test account '{account_str}' not found")
 
     @property
     def etherbase_account(self) -> ChecksumAddress:
