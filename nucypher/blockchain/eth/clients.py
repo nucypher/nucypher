@@ -16,6 +16,7 @@ from nucypher.blockchain.eth.constants import (
     POA_CHAINS,
     PUBLIC_CHAINS,
 )
+from nucypher.blockchain.middleware.poa import POAErrorRedundancyMiddleware
 from nucypher.blockchain.middleware.retry import (
     AlchemyRetryRequestMiddleware,
     InfuraRetryRequestMiddleware,
@@ -97,13 +98,22 @@ class EthereumClient:
         chain_id = self.chain_id
         is_poa = chain_id in POA_CHAINS
 
-        self.log.debug(
+        self.log.info(
             f"Blockchain: {self.chain_name} (chain_id={chain_id}, poa={is_poa})"
         )
         if is_poa:
             # proof-of-authority blockchain
             self.log.info("Injecting POA middleware at layer 0")
-            self.inject_middleware(geth_poa_middleware, layer=0, name="poa")
+            self.inject_middleware(
+                # use naming from redundancy middleware
+                geth_poa_middleware,
+                layer=0,
+                name=POAErrorRedundancyMiddleware.POA_MIDDLEWARE_NAME,
+            )
+
+        # POA error redundancy middleware, just in case
+        self.log.debug("Adding POA redundancy middleware")
+        self.add_middleware(POAErrorRedundancyMiddleware)
 
         # simple cache middleware
         self.log.debug("Adding simple_cache_middleware")
