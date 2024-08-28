@@ -16,7 +16,7 @@ from nucypher.blockchain.eth.constants import (
     POA_CHAINS,
     PUBLIC_CHAINS,
 )
-from nucypher.blockchain.middleware.poa import POAErrorRedundancyMiddleware
+from nucypher.blockchain.middleware.poa import create_poa_error_redundancy_middleware
 from nucypher.blockchain.middleware.retry import (
     AlchemyRetryRequestMiddleware,
     InfuraRetryRequestMiddleware,
@@ -113,7 +113,7 @@ class EthereumClient:
 
         # POA error redundancy middleware, just in case
         self.log.debug("Adding POA redundancy middleware")
-        self.add_middleware(POAErrorRedundancyMiddleware)
+        self.add_middleware(create_poa_error_redundancy_middleware(existing_poa_middleware_name=poa_middleware_name))
 
         # simple cache middleware
         self.log.debug("Adding simple_cache_middleware")
