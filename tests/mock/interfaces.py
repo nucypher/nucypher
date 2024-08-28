@@ -71,6 +71,9 @@ class MockEthereumClient(EthereumClient):
     def add_middleware(self, middleware):
         pass
 
+    def inject_middleware(self, middleware, **kwargs):
+        pass
+
     @property
     def chain_id(self) -> int:
         return TESTERCHAIN_CHAIN_ID

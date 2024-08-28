@@ -101,16 +101,16 @@ class EthereumClient:
         self.log.info(
             f"Blockchain: {self.chain_name} (chain_id={chain_id}, poa={is_poa})"
         )
-        if is_poa:
-            # proof-of-authority blockchain
-            self.log.info("Injecting POA middleware at layer 0")
-            self.inject_middleware(
-                # use naming from redundancy middleware
-                geth_poa_middleware,
-                layer=0,
-                name=POAErrorRedundancyMiddleware.POA_MIDDLEWARE_NAME,
-            )
 
+        # proof-of-authority blockchain
+        poa_middleware_name = "poa"
+        self.log.info("Injecting POA middleware at layer 0")
+        self.inject_middleware(
+            # use naming from redundancy middleware
+            geth_poa_middleware,
+            layer=0,
+            name=poa_middleware_name,
+        )
         # POA error redundancy middleware, just in case
         self.log.debug("Adding POA redundancy middleware")
         self.add_middleware(create_poa_error_redundancy_middleware(existing_poa_middleware_name=poa_middleware_name))
