@@ -102,11 +102,10 @@ class EthereumClient:
             f"Blockchain: {self.chain_name} (chain_id={chain_id}, poa={is_poa})"
         )
 
-        # proof-of-authority blockchain
+        # add POA middleware irrespective of chain
         poa_middleware_name = "poa"
         self.log.info("Injecting POA middleware at layer 0")
         self.inject_middleware(
-            # use naming from redundancy middleware
             geth_poa_middleware,
             layer=0,
             name=poa_middleware_name,
