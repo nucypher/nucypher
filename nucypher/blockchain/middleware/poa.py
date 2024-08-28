@@ -8,7 +8,9 @@ from web3.types import Middleware, RPCEndpoint, RPCResponse
 from nucypher.utilities.logging import Logger
 
 
-def create_poa_error_redundancy_middleware(existing_poa_middleware_name: str = "poa") -> Middleware:
+def create_poa_error_redundancy_middleware(
+    existing_poa_middleware_name: str = "poa",
+) -> Middleware:
     """
     Redundant middleware for replacing already added named poa middleware if ExtraDataLengthError
     still encountered. Extra layer of defense in case random POA error is observed.

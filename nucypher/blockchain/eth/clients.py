@@ -113,7 +113,11 @@ class EthereumClient:
         )
         # POA error redundancy middleware, just in case
         self.log.debug("Adding POA redundancy middleware")
-        self.add_middleware(create_poa_error_redundancy_middleware(existing_poa_middleware_name=poa_middleware_name))
+        self.add_middleware(
+            create_poa_error_redundancy_middleware(
+                existing_poa_middleware_name=poa_middleware_name
+            )
+        )
 
         # simple cache middleware
         self.log.debug("Adding simple_cache_middleware")
