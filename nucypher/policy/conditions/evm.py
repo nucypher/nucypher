@@ -18,7 +18,6 @@ from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
-from nucypher.blockchain.eth.constants import POA_CHAINS
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
 from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.context import (
@@ -211,9 +210,9 @@ class RPCCondition(AccessControlCondition):
         # Instantiate a local web3 instance
         self.provider = provider
         w3 = Web3(provider)
-        if self.chain in POA_CHAINS:
-            # inject web3 middleware to handle POA chain extra_data field.
-            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        # inject web3 middleware to handle POA chain extra_data field.
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
+
         return w3
 
     def _check_chain_id(self) -> None:
