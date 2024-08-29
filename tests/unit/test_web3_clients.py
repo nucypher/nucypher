@@ -51,9 +51,12 @@ class SyncedMockW3Eth:
     chain_id = hex(CHAIN_ID)
     block_number = 5
 
-    def getBlock(self, blockNumber):
+    def get_block(self, blockNumber):
         return {
-            'timestamp': datetime.datetime.timestamp(datetime.datetime.now() - datetime.timedelta(seconds=25))
+            "timestamp": datetime.datetime.timestamp(
+                datetime.datetime.now() - datetime.timedelta(seconds=25)
+            ),
+            "number": 123456789,
         }
 
 

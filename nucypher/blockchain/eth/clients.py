@@ -13,7 +13,6 @@ from web3.types import TxReceipt, Wei
 
 from nucypher.blockchain.eth.constants import (
     AVERAGE_BLOCK_TIME_IN_SECONDS,
-    POA_CHAINS,
     PUBLIC_CHAINS,
 )
 from nucypher.blockchain.middleware.poa import create_poa_error_redundancy_middleware
@@ -93,14 +92,6 @@ class EthereumClient:
         else:
             self.log.debug("Adding RPC retry middleware to client")
             self.add_middleware(RetryRequestMiddleware, name="retry")
-
-        # poa middleware
-        chain_id = self.chain_id
-        is_poa = chain_id in POA_CHAINS
-
-        self.log.info(
-            f"Blockchain: {self.chain_name} (chain_id={chain_id}, poa={is_poa})"
-        )
 
         # add POA middleware irrespective of chain
         poa_middleware_name = "poa"
