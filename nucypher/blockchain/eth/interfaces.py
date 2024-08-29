@@ -331,6 +331,13 @@ class BlockchainInterface:
             # client mutates w3 instance (configures middleware etc.)
             self.client = EthereumClient(w3=self.w3)
 
+            # log info
+            latest_block_number = self.client.get_block("latest")["number"]
+            chain_id = self.client.chain_id
+            self.log.info(
+                f"Blockchain: {self.client.chain_name} (chain_id={chain_id}, block_num={latest_block_number})"
+            )
+
             # web3 instance fully configured; share instance with ATxM and respective strategies
             speedup_strategy = ExponentialSpeedupStrategy(
                 w3=self.w3,
