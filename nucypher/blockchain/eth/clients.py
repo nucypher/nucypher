@@ -119,10 +119,6 @@ class EthereumClient:
         return name
 
     @property
-    def is_connected(self):
-        return self.w3.is_connected()
-
-    @property
     def accounts(self):
         return self.w3.eth.accounts
 
