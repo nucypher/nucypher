@@ -253,7 +253,7 @@ class BlockchainInterface:
         self.gas_strategy = gas_strategy or self.DEFAULT_GAS_STRATEGY
         self.max_gas_price = max_gas_price
 
-        self.__is_connected = False
+        self.__is_initialized = False
 
     def __repr__(self):
         r = "{name}({uri})".format(name=self.__class__.__name__, uri=self.endpoint)
@@ -263,8 +263,8 @@ class BlockchainInterface:
         return self.client.get_blocktime()
 
     @property
-    def is_connected(self) -> bool:
-        return self.__is_connected
+    def is_initialized(self) -> bool:
+        return self.__is_initialized
 
     @classmethod
     def get_gas_strategy(cls, gas_strategy: Union[str, Callable] = None) -> Callable:
@@ -307,7 +307,7 @@ class BlockchainInterface:
         # self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
 
     def connect(self):
-        if self.__is_connected:
+        if self.__is_initialized:
             # safety check - connect was already previously called
             return
 
@@ -358,8 +358,8 @@ class BlockchainInterface:
             f"Blockchain: {client.chain_name} (chain_id={chain_id}, block_num={latest_block_number})"
         )
 
-        self.__is_connected = True
-        return self.__is_connected
+        self.__is_initialized = True
+        return self.__is_initialized
 
     @property
     def provider(self) -> BaseProvider:
@@ -844,7 +844,7 @@ class BlockchainInterfaceFactory:
 
         # Connect and Sync
         interface, emitter = cached_interface
-        if not interface.is_connected:
+        if not interface.is_initialized:
             interface.connect()
         return interface
 

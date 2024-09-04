@@ -136,11 +136,11 @@ def test_connect_handle_connectivity_issues(mocker):
         endpoint="https://public-node.io:8445"
     )
 
-    assert not blockchain_interface.is_connected
+    assert not blockchain_interface.is_initialized
 
     # connect() is called with no connectivity issues and executes successfully
     blockchain_interface.connect()
-    assert blockchain_interface.is_connected
+    assert blockchain_interface.is_initialized
 
     # poa, retry, simplecache
     current_middlewares = blockchain_interface.w3.middleware_onion.middlewares
