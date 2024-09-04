@@ -83,13 +83,13 @@ class EthereumClient:
         # retry request middleware
         endpoint_uri = getattr(self.w3.provider, "endpoint_uri", "")
         if "infura" in endpoint_uri:
-            self.log.debug("Adding Infura RPC retry middleware to client")
+            self.log.info("Adding Infura RPC retry middleware to client")
             self.add_middleware(InfuraRetryRequestMiddleware, name="infura_retry")
         elif "alchemyapi.io" in endpoint_uri:
-            self.log.debug("Adding Alchemy RPC retry middleware to client")
+            self.log.info("Adding Alchemy RPC retry middleware to client")
             self.add_middleware(AlchemyRetryRequestMiddleware, name="alchemy_retry")
         else:
-            self.log.debug("Adding RPC retry middleware to client")
+            self.log.info("Adding RPC retry middleware to client")
             self.add_middleware(RetryRequestMiddleware, name="retry")
 
         # add POA middleware irrespective of chain
@@ -102,7 +102,7 @@ class EthereumClient:
         )
 
         # simple cache middleware
-        self.log.debug("Adding simple_cache_middleware")
+        self.log.info("Adding simple_cache_middleware")
         self.add_middleware(simple_cache_middleware, name="simple_cache")
 
     @property
