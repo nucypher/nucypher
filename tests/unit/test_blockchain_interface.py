@@ -1,6 +1,9 @@
-
+from typing import Optional
+from unittest.mock import PropertyMock
 
 from constant_sorrow.constants import ALL_OF_THEM
+from requests import HTTPError
+from web3 import BaseProvider
 from web3.gas_strategies import time_based
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -99,3 +102,69 @@ def test_use_pending_nonce_when_building_payload(mock_testerchain, mocker, rando
     assert payload['nonce'] == 6
     payload = mock_testerchain.build_payload(sender_address=sender, payload=None, use_pending_nonce=False)
     assert payload['nonce'] == 6
+
+
+def test_connect_handle_connectivity_issues(mocker):
+
+    mock_eth = mocker.MagicMock()
+    type(mock_eth).chain_id = PropertyMock(return_value=137)
+
+    mock_middleware_onion = mocker.Mock()
+
+    class MockWeb3:
+        def __init__(self, provider: Optional[BaseProvider] = None, *args, **kwargs):
+            self.provider = provider
+            self.eth = mock_eth
+            self.middleware_onion = mock_middleware_onion
+
+            middlewares = []
+            self.middleware_onion.middlewares = middlewares
+
+            def add_middleware(middleware, name=None):
+                middlewares.append(middleware)
+
+            def inject_middleware(middleware, layer=0, name=None):
+                middlewares.insert(layer, middleware)
+
+            mock_middleware_onion.add.side_effect = add_middleware
+            mock_middleware_onion.inject.side_effect = inject_middleware
+
+    class TestBlockchainInterface(BlockchainInterface):
+        Web3 = MockWeb3
+
+    blockchain_interface = TestBlockchainInterface(
+        endpoint="https://public-node.io:8445"
+    )
+
+    assert not blockchain_interface.is_connected
+
+    # connect() is called with no connectivity issues and executes successfully
+    blockchain_interface.connect()
+    assert blockchain_interface.is_connected
+
+    # poa, retry, simplecache
+    current_middlewares = blockchain_interface.w3.middleware_onion.middlewares
+    assert len(current_middlewares) == 3
+
+    w3 = blockchain_interface.w3
+    client = blockchain_interface.client
+    tx_machine = blockchain_interface.tx_machine
+
+    # mimic connectivity issues
+    type(mock_eth).chain_id = PropertyMock(side_effect=HTTPError("connectivity issue"))
+
+    # Mimic scanner task that connectivity experienced exception and ran connect()
+    # again on blockchain interface.
+    # However, connect() does nothing the 2nd time around because it already completed
+    # successfully the first time
+    blockchain_interface.connect()
+
+    # no change;
+    # same underlying instances
+    assert w3 == blockchain_interface.w3
+    assert client == blockchain_interface.client
+    assert tx_machine == blockchain_interface.tx_machine
+
+    # same middlewares remain - poa, retry, simplecache
+    assert len(blockchain_interface.w3.middleware_onion.middlewares) == 3
+    assert blockchain_interface.w3.middleware_onion.middlewares == current_middlewares
