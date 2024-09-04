@@ -1,0 +1,2 @@
+Prevent connectivity issues from improperly re-initializing underlying instances of ``EthereumClient``
+and ``Web3`` within a ``BlockchainInterface`` instance.

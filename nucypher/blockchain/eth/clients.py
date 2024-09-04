@@ -13,7 +13,6 @@ from web3.types import TxReceipt, Wei
 
 from nucypher.blockchain.eth.constants import (
     AVERAGE_BLOCK_TIME_IN_SECONDS,
-    POA_CHAINS,
     PUBLIC_CHAINS,
 )
 from nucypher.blockchain.middleware.retry import (
@@ -81,42 +80,35 @@ class EthereumClient:
         self._add_default_middleware()
 
     def _add_default_middleware(self):
+        # add POA middleware irrespective of chain
+        poa_middleware_name = "poa"
+        self.log.info("Injecting POA middleware at layer 0")
+        self.inject_middleware(
+            geth_poa_middleware,
+            layer=0,
+            name=poa_middleware_name,
+        )
+
         # retry request middleware
         endpoint_uri = getattr(self.w3.provider, "endpoint_uri", "")
         if "infura" in endpoint_uri:
-            self.log.debug("Adding Infura RPC retry middleware to client")
-            self.add_middleware(InfuraRetryRequestMiddleware)
+            self.log.info("Adding Infura RPC retry middleware to client")
+            self.add_middleware(InfuraRetryRequestMiddleware, name="infura_retry")
         elif "alchemyapi.io" in endpoint_uri:
-            self.log.debug("Adding Alchemy RPC retry middleware to client")
-            self.add_middleware(AlchemyRetryRequestMiddleware)
+            self.log.info("Adding Alchemy RPC retry middleware to client")
+            self.add_middleware(AlchemyRetryRequestMiddleware, name="alchemy_retry")
         else:
-            self.log.debug("Adding RPC retry middleware to client")
-            self.add_middleware(RetryRequestMiddleware)
-
-        # poa middleware
-        chain_id = self.chain_id
-        is_poa = chain_id in POA_CHAINS
-
-        self.log.debug(
-            f"Blockchain: {self.chain_name} (chain_id={chain_id}, poa={is_poa})"
-        )
-        if is_poa:
-            # proof-of-authority blockchain
-            self.log.info("Injecting POA middleware at layer 0")
-            self.inject_middleware(geth_poa_middleware, layer=0, name="poa")
+            self.log.info("Adding RPC retry middleware to client")
+            self.add_middleware(RetryRequestMiddleware, name="retry")
 
         # simple cache middleware
-        self.log.debug("Adding simple_cache_middleware")
-        self.add_middleware(simple_cache_middleware)
+        self.log.info("Adding simple_cache_middleware")
+        self.add_middleware(simple_cache_middleware, name="simple_cache")
 
     @property
     def chain_name(self) -> str:
         name = PUBLIC_CHAINS.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
         return name
-
-    @property
-    def is_connected(self):
-        return self.w3.is_connected()
 
     @property
     def accounts(self):
@@ -128,8 +120,8 @@ class EthereumClient:
     def inject_middleware(self, middleware, **kwargs):
         self.w3.middleware_onion.inject(middleware, **kwargs)
 
-    def add_middleware(self, middleware):
-        self.w3.middleware_onion.add(middleware)
+    def add_middleware(self, middleware, **kwargs):
+        self.w3.middleware_onion.add(middleware, **kwargs)
 
     def set_gas_strategy(self, gas_strategy):
         self.w3.eth.set_gas_price_strategy(gas_strategy)
