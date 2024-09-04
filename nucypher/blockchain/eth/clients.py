@@ -80,6 +80,15 @@ class EthereumClient:
         self._add_default_middleware()
 
     def _add_default_middleware(self):
+        # add POA middleware irrespective of chain
+        poa_middleware_name = "poa"
+        self.log.info("Injecting POA middleware at layer 0")
+        self.inject_middleware(
+            geth_poa_middleware,
+            layer=0,
+            name=poa_middleware_name,
+        )
+
         # retry request middleware
         endpoint_uri = getattr(self.w3.provider, "endpoint_uri", "")
         if "infura" in endpoint_uri:
@@ -91,15 +100,6 @@ class EthereumClient:
         else:
             self.log.info("Adding RPC retry middleware to client")
             self.add_middleware(RetryRequestMiddleware, name="retry")
-
-        # add POA middleware irrespective of chain
-        poa_middleware_name = "poa"
-        self.log.info("Injecting POA middleware at layer 0")
-        self.inject_middleware(
-            geth_poa_middleware,
-            layer=0,
-            name=poa_middleware_name,
-        )
 
         # simple cache middleware
         self.log.info("Adding simple_cache_middleware")
