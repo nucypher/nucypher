@@ -232,19 +232,19 @@ _COMPARATOR_FUNCTIONS = {
 #
 # CONDITION = BASE_CONDITION | COMPOUND_CONDITION
 #
-# CALL = RPC_CALL | TIME_CALL | CONTRACT_CALL | JSON_API_CALL ...
+# EXECUTION_CALL = RPC_CALL | TIME_CALL | CONTRACT_CALL | JSON_API_CALL ...
 #
-# VARIABLE = {
+# EXECUTION_VARIABLE = {
 #     "varName": STR,
-#     "calls": [
-#         CALL
-#     ]
+#     "call": {
+#         EXECUTION_CALL
+#     }
 # }
 #
 # SEQUENTIAL_CONDITION = {
 #     "name": ...  (Optional)
 #     "conditionType": "sequential",
-#     "vars": [VARIABLE*]
+#     "variables": [EXECUTION_VARIABLE*]
 #     "condition": CONDITION
 # }
 
