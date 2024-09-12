@@ -253,6 +253,8 @@ class BlockchainInterface:
         self.gas_strategy = gas_strategy or self.DEFAULT_GAS_STRATEGY
         self.max_gas_price = max_gas_price
 
+        self.__is_initialized = False
+
     def __repr__(self):
         r = "{name}({uri})".format(name=self.__class__.__name__, uri=self.endpoint)
         return r
@@ -261,13 +263,8 @@ class BlockchainInterface:
         return self.client.get_blocktime()
 
     @property
-    def is_connected(self) -> bool:
-        """
-        https://web3py.readthedocs.io/en/stable/__provider.html#examples-using-automated-detection
-        """
-        if self.client is NO_BLOCKCHAIN_CONNECTION:
-            return False
-        return self.client.is_connected
+    def is_initialized(self) -> bool:
+        return self.__is_initialized
 
     @classmethod
     def get_gas_strategy(cls, gas_strategy: Union[str, Callable] = None) -> Callable:
@@ -310,7 +307,7 @@ class BlockchainInterface:
         # self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
 
     def connect(self):
-        if self.is_connected:
+        if self.__is_initialized:
             # safety check - connect was already previously called
             return
 
@@ -327,17 +324,21 @@ class BlockchainInterface:
             raise self.NoProvider("There are no configured blockchain providers")
 
         try:
-            self.w3 = self.Web3(provider=self._provider)
+            w3 = self.Web3(provider=self._provider)
             # client mutates w3 instance (configures middleware etc.)
-            self.client = EthereumClient(w3=self.w3)
+            client = EthereumClient(w3=w3)
+
+            # log info
+            latest_block_number = client.get_block("latest")["number"]
+            chain_id = client.chain_id
 
             # web3 instance fully configured; share instance with ATxM and respective strategies
             speedup_strategy = ExponentialSpeedupStrategy(
-                w3=self.w3,
+                w3=w3,
                 min_time_between_speedups=120,
             )  # speedup txs if not mined after 2 mins.
-            self.tx_machine = AutomaticTxMachine(
-                w3=self.w3, tx_exec_timeout=self.TIMEOUT, strategies=[speedup_strategy]
+            tx_machine = AutomaticTxMachine(
+                w3=w3, tx_exec_timeout=self.TIMEOUT, strategies=[speedup_strategy]
             )
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(
@@ -348,7 +349,17 @@ class BlockchainInterface:
                 f"Connection Failed - {str(self.endpoint)} - is IPC enabled?"
             )
 
-        return self.is_connected
+        # Only set member variables once early set up is successful
+        # - prevents incomplete instantiations
+        self.w3 = w3
+        self.client = client
+        self.tx_machine = tx_machine
+        self.log.info(
+            f"Blockchain: {client.chain_name} (chain_id={chain_id}, block_num={latest_block_number})"
+        )
+
+        self.__is_initialized = True
+        return self.__is_initialized
 
     @property
     def provider(self) -> BaseProvider:
@@ -833,7 +844,7 @@ class BlockchainInterfaceFactory:
 
         # Connect and Sync
         interface, emitter = cached_interface
-        if not interface.is_connected:
+        if not interface.is_initialized:
             interface.connect()
         return interface
 
