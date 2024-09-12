@@ -4,6 +4,16 @@ Releases
 
 .. towncrier release notes start
 
+v7.4.1 (2024-09-12)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Prevent connectivity issues from improperly re-initializing underlying instances of ``EthereumClient``
+  and ``Web3`` within a ``BlockchainInterface`` instance. (`#3549 <https://github.com/nucypher/nucypher/issues/3549>`__)
+
+
 v7.4.0 (2024-08-12)
 -------------------
 
