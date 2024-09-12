@@ -55,7 +55,15 @@ class ContractCallDict(RPCCallDict):
     functionAbi: NotRequired[ABIFunction]
 
 
-ExecutionCallDict = Union[RPCCallDict, TimeRPCCallDict, ContractCallDict]
+class JsonApiCallDict(BaseExecutionCallDict):
+    endpoint: str
+    query: NotRequired[str]
+    parameters: NotRequired[Dict]
+
+
+ExecutionCallDict = Union[
+    RPCCallDict, TimeRPCCallDict, ContractCallDict, JsonApiCallDict
+]
 
 
 # Variable

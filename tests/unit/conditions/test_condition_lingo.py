@@ -11,6 +11,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
+from nucypher.policy.conditions.offchain import JsonApiCall
 from nucypher.policy.conditions.time import TimeRPCCall
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
@@ -73,6 +74,7 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                                 {
                                     "varName": "timeValue",
                                     "call": {
+                                        # TimeRPCCall
                                         "callType": TimeRPCCall.CALL_TYPE,
                                         "method": "blocktime",
                                         "chain": TESTERCHAIN_CHAIN_ID,
@@ -81,6 +83,7 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                                 {
                                     "varName": "rpcValue",
                                     "call": {
+                                        # RPCCall
                                         "callType": RPCCall.CALL_TYPE,
                                         "chain": TESTERCHAIN_CHAIN_ID,
                                         "method": "eth_getBalance",
@@ -93,6 +96,7 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                                 {
                                     "varName": "contractValue",
                                     "call": {
+                                        # ContractCall
                                         "callType": ContractCall.CALL_TYPE,
                                         "chain": TESTERCHAIN_CHAIN_ID,
                                         "method": "isPolicyActive",
@@ -116,6 +120,19 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                                                     "internalType": "bool",
                                                 }
                                             ],
+                                        },
+                                    },
+                                },
+                                {
+                                    "varName": "jsonValue",
+                                    "call": {
+                                        # JsonApiCall
+                                        "callType": JsonApiCall.CALL_TYPE,
+                                        "endpoint": "https://api.example.com/data",
+                                        "query": "$.store.book[0].price",
+                                        "parameters": {
+                                            "ids": "ethereum",
+                                            "vs_currencies": "usd",
                                         },
                                     },
                                 },

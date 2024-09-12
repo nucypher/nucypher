@@ -232,7 +232,7 @@ _COMPARATOR_FUNCTIONS = {
 #
 # CONDITION = BASE_CONDITION | COMPOUND_CONDITION
 #
-# CALL = RPC_CALL | TIME_CALL | CONTRACT_CALL | ...
+# CALL = RPC_CALL | TIME_CALL | CONTRACT_CALL | JSON_API_CALL ...
 #
 # VARIABLE = {
 #     "varName": STR,
@@ -272,15 +272,12 @@ class _ExecutionCallField(fields.Dict):
             ContractCall,
             RPCCall,
         )
+        from nucypher.policy.conditions.offchain import JsonApiCall
         from nucypher.policy.conditions.time import TimeRPCCall
 
         call_type = execution_call_dict.get("callType")
 
-        for execution_call_type in (
-            RPCCall,
-            TimeRPCCall,
-            ContractCall,
-        ):
+        for execution_call_type in (RPCCall, TimeRPCCall, ContractCall, JsonApiCall):
             if execution_call_type.CALL_TYPE == call_type:
                 return execution_call_type
 
