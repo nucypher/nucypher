@@ -123,7 +123,22 @@ def test_json_api_condition_verify(mocker):
     assert value == 1
 
 
-def test_json_api_condition_verify_string(mocker):
+def test_json_api_condition_verify_string_without_whitespace(mocker):
+    mock_response = mocker.Mock(status_code=200)
+    mock_response.json.return_value = {"store": {"book": [{"title": "Title"}]}}
+    mocker.patch("requests.get", return_value=mock_response)
+
+    condition = JsonApiCondition(
+        endpoint="https://api.example.com/data",
+        query="$.store.book[0].title",
+        return_value_test=ReturnValueTest("==", "'Title'"),
+    )
+    result, value = condition.verify()
+    assert result is True
+    assert value == "Title"
+
+
+def test_json_api_condition_verify_string_with_whitespace(mocker):
     mock_response = mocker.Mock(status_code=200)
     mock_response.json.return_value = {"store": {"book": [{"title": "Test Title"}]}}
     mocker.patch("requests.get", return_value=mock_response)

@@ -148,6 +148,20 @@ class JsonApiCondition(AccessControlCondition):
 
         return result
 
+    @staticmethod
+    def _process_result_for_eval(result: Any):
+        # strings that are not already quoted will cause a problem for literal_eval
+        if isinstance(result, str):
+            # check if already quoted; if not, quote it
+            if not (
+                (result.startswith("'") and result.endswith("'"))
+                or (result.startswith('"') and result.endswith('"'))
+            ):
+                # quote the string
+                result = f"'{result}'"
+
+        return result
+
     def verify(self, **context) -> Tuple[bool, Any]:
         """
         Verifies the offchain condition is met by performing a read operation on the endpoint
@@ -161,5 +175,7 @@ class JsonApiCondition(AccessControlCondition):
         resolved_return_value_test = self.return_value_test.with_resolved_context(
             **context
         )
-        eval_result = resolved_return_value_test.eval(result)  # test
+
+        result_for_eval = self._process_result_for_eval(result)
+        eval_result = resolved_return_value_test.eval(result_for_eval)  # test
         return eval_result, result
