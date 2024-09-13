@@ -101,7 +101,7 @@ def test_json_api_condition_fetch_failure(mocker):
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
-        return_value_test=ReturnValueTest("==", "1"),
+        return_value_test=ReturnValueTest("==", 1),
     )
     with pytest.raises(InvalidCondition) as excinfo:
         condition.fetch()
@@ -110,17 +110,32 @@ def test_json_api_condition_fetch_failure(mocker):
 
 def test_json_api_condition_verify(mocker):
     mock_response = mocker.Mock(status_code=200)
-    mock_response.json.return_value = {"store": {"book": [{"price": "1"}]}}
+    mock_response.json.return_value = {"store": {"book": [{"price": 1}]}}
     mocker.patch("requests.get", return_value=mock_response)
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
-        return_value_test=ReturnValueTest("==", "1"),
+        return_value_test=ReturnValueTest("==", 1),
     )
     result, value = condition.verify()
     assert result is True
-    assert value == "1"
+    assert value == 1
+
+
+def test_json_api_condition_verify_string(mocker):
+    mock_response = mocker.Mock(status_code=200)
+    mock_response.json.return_value = {"store": {"book": [{"title": "Test Title"}]}}
+    mocker.patch("requests.get", return_value=mock_response)
+
+    condition = JsonApiCondition(
+        endpoint="https://api.example.com/data",
+        query="$.store.book[0].title",
+        return_value_test=ReturnValueTest("==", "'Test Title'"),
+    )
+    result, value = condition.verify()
+    assert result is True
+    assert value == "Test Title"
 
 
 def test_json_api_condition_verify_invalid_json(mocker):
@@ -131,7 +146,7 @@ def test_json_api_condition_verify_invalid_json(mocker):
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
-        return_value_test=ReturnValueTest("==", "2"),
+        return_value_test=ReturnValueTest("==", 2),
     )
     with pytest.raises(ConditionEvaluationFailed) as excinfo:
         condition.verify()
@@ -150,7 +165,7 @@ def test_non_json_response(mocker):
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
-        return_value_test=ReturnValueTest("==", "18"),
+        return_value_test=ReturnValueTest("==", 18),
     )
 
     with pytest.raises(ConditionEvaluationFailed) as excinfo:

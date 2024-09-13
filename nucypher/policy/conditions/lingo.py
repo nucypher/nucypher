@@ -295,7 +295,17 @@ class ReturnValueTest:
                     f"Index '{index}' not found in returned data."
                 )
 
-        if isinstance(processed_data, (list, tuple)):
+        # string results that have whitespace but are not already quoted will
+        # cause a problem for subsequent literal_eval
+        if isinstance(processed_data, str):
+            # string that contains whitespace, check if already quoted; if not, quote it
+            if " " in processed_data and not (
+                (processed_data.startswith("'") and processed_data.endswith("'"))
+                or (processed_data.startswith('"') and processed_data.endswith('"'))
+            ):
+                # quote the string
+                processed_data = f"'{processed_data}'"
+        elif isinstance(processed_data, (list, tuple)):
             # convert any bytes in list to hex (include nested lists/tuples); no additional indexing
             processed_data = [
                 self._process_data(data=item, index=None) for item in processed_data
