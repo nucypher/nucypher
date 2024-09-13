@@ -157,4 +157,9 @@ class JsonApiCondition(AccessControlCondition):
         response = self.fetch()
         data = self.deserialize_response(response)
         result = self.query_response(data)
-        return self.return_value_test.eval(result), result
+
+        resolved_return_value_test = self.return_value_test.with_resolved_context(
+            **context
+        )
+        eval_result = resolved_return_value_test.eval(result)  # test
+        return eval_result, result
