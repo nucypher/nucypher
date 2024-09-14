@@ -6,13 +6,10 @@ from packaging.version import parse as parse_version
 import nucypher
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
-from nucypher.policy.conditions.evm import ContractCall, RPCCall
 from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
-from nucypher.policy.conditions.offchain import JsonApiCall
-from nucypher.policy.conditions.time import TimeRPCCall
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
@@ -36,16 +33,15 @@ def lingo_with_compound_conditions(get_random_checksum_address):
             "operands": [
                 {
                     "conditionType": ConditionType.TIME.value,
-                    "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
+                    "returnValueTest": {"value": 0, "comparator": ">"},
                 },
                 {
                     "conditionType": ConditionType.CONTRACT.value,
                     "chain": TESTERCHAIN_CHAIN_ID,
                     "method": "isPolicyActive",
                     "parameters": [":hrac"],
-                    "returnValueTest": {"comparator": "==", "value": True},
                     "contractAddress": get_random_checksum_address(),
                     "functionAbi": {
                         "type": "function",
@@ -62,6 +58,7 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                             {"name": "", "type": "bool", "internalType": "bool"}
                         ],
                     },
+                    "returnValueTest": {"comparator": "==", "value": True},
                 },
                 {
                     "conditionType": ConditionType.COMPOUND.value,
@@ -70,34 +67,42 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                         # sequential condition
                         {
                             "conditionType": ConditionType.SEQUENTIAL.value,
-                            "variables": [
+                            "conditionVariables": [
                                 {
                                     "varName": "timeValue",
-                                    "call": {
-                                        # TimeRPCCall
-                                        "callType": TimeRPCCall.CALL_TYPE,
+                                    "condition": {
+                                        # Time
+                                        "conditionType": ConditionType.TIME.value,
                                         "method": "blocktime",
                                         "chain": TESTERCHAIN_CHAIN_ID,
+                                        "returnValueTest": {
+                                            "value": 0,
+                                            "comparator": ">",
+                                        },
                                     },
                                 },
                                 {
                                     "varName": "rpcValue",
-                                    "call": {
-                                        # RPCCall
-                                        "callType": RPCCall.CALL_TYPE,
+                                    "condition": {
+                                        # RPC
+                                        "conditionType": ConditionType.RPC.value,
                                         "chain": TESTERCHAIN_CHAIN_ID,
                                         "method": "eth_getBalance",
                                         "parameters": [
                                             get_random_checksum_address(),
                                             "latest",
                                         ],
+                                        "returnValueTest": {
+                                            "comparator": ">=",
+                                            "value": 10000000000000,
+                                        },
                                     },
                                 },
                                 {
                                     "varName": "contractValue",
-                                    "call": {
-                                        # ContractCall
-                                        "callType": ContractCall.CALL_TYPE,
+                                    "condition": {
+                                        # Contract
+                                        "conditionType": ConditionType.CONTRACT.value,
                                         "chain": TESTERCHAIN_CHAIN_ID,
                                         "method": "isPolicyActive",
                                         "parameters": [":hrac"],
@@ -121,28 +126,30 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                                                 }
                                             ],
                                         },
+                                        "returnValueTest": {
+                                            "comparator": "==",
+                                            "value": True,
+                                        },
                                     },
                                 },
                                 {
                                     "varName": "jsonValue",
-                                    "call": {
-                                        # JsonApiCall
-                                        "callType": JsonApiCall.CALL_TYPE,
+                                    "condition": {
+                                        # JSON API
+                                        "conditionType": ConditionType.JSONAPI.value,
                                         "endpoint": "https://api.example.com/data",
                                         "query": "$.store.book[0].price",
                                         "parameters": {
                                             "ids": "ethereum",
                                             "vs_currencies": "usd",
                                         },
+                                        "returnValueTest": {
+                                            "comparator": "==",
+                                            "value": 2,
+                                        },
                                     },
                                 },
                             ],
-                            "condition": {
-                                "conditionType": ConditionType.TIME.value,
-                                "chain": TESTERCHAIN_CHAIN_ID,
-                                "method": "blocktime",
-                                "returnValueTest": {"value": 0, "comparator": ">"},
-                            },
                         },
                         {
                             "conditionType": ConditionType.RPC.value,
@@ -162,9 +169,9 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                     "operands": [
                         {
                             "conditionType": ConditionType.TIME.value,
-                            "returnValueTest": {"value": 0, "comparator": ">"},
                             "method": "blocktime",
                             "chain": TESTERCHAIN_CHAIN_ID,
+                            "returnValueTest": {"value": 0, "comparator": ">"},
                         },
                     ],
                 },
