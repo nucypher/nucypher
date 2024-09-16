@@ -545,7 +545,7 @@ class ConditionLingo(_Serializable):
             )
 
 
-class BaseAccessControlCondition(AccessControlCondition):
+class BaseExecAccessControlCondition(AccessControlCondition):
     class Schema(AccessControlCondition.Schema):
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True

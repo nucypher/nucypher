@@ -32,7 +32,7 @@ from nucypher.policy.conditions.exceptions import (
     RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import (
-    BaseAccessControlCondition,
+    BaseExecAccessControlCondition,
     ConditionType,
     ReturnValueTest,
 )
@@ -225,10 +225,10 @@ class RPCCall(ExecutionCall):
         return rpc_result
 
 
-class RPCCondition(BaseAccessControlCondition):
+class RPCCondition(BaseExecAccessControlCondition):
     CONDITION_TYPE = ConditionType.RPC.value
 
-    class Schema(BaseAccessControlCondition.Schema):
+    class Schema(BaseExecAccessControlCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.RPC.value), required=True
         )
@@ -387,7 +387,6 @@ class ContractCondition(RPCCondition):
                 )
             except ValueError as e:
                 raise ValidationError(str(e))
-
 
     def __init__(
         self,

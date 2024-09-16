@@ -12,7 +12,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
 )
 from nucypher.policy.conditions.lingo import (
-    BaseAccessControlCondition,
+    BaseExecAccessControlCondition,
     ConditionType,
 )
 from nucypher.utilities.logging import Logger
@@ -122,7 +122,7 @@ class JsonApiCall(ExecutionCall):
         return result
 
 
-class JsonApiCondition(BaseAccessControlCondition):
+class JsonApiCondition(BaseExecAccessControlCondition):
     """
     A JSON API condition is a condition that can be evaluated by reading from a JSON
     HTTPS endpoint. The response must return an HTTP 200 with valid JSON in the response body.
@@ -131,7 +131,7 @@ class JsonApiCondition(BaseAccessControlCondition):
 
     CONDITION_TYPE = ConditionType.JSONAPI.value
 
-    class Schema(BaseAccessControlCondition.Schema):
+    class Schema(BaseExecAccessControlCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
