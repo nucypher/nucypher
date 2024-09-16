@@ -544,7 +544,7 @@ class ConditionLingo(_Serializable):
         cls, condition: ConditionDict, version: int = None
     ) -> Type[AccessControlCondition]:
         """
-        Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
+        Inspects a given block of JSON and attempts to resolve it's intended  datatype within the
         conditions expression framework.
         """
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
@@ -566,7 +566,7 @@ class ConditionLingo(_Serializable):
                 return condition
 
         raise InvalidConditionLingo(
-            f"Cannot resolve condition lingo with condition type {condition_type}"
+            f"Cannot resolve condition lingo, {condition}, with condition type {condition_type}"
         )
 
     @classmethod
