@@ -22,9 +22,6 @@ from nucypher.policy.conditions.evm import (
     RPCCondition,
 )
 from nucypher.policy.conditions.exceptions import (
-    ContextVariableVerificationFailed,
-    InvalidCondition,
-    InvalidContextVariableData,
     NoConnectionToChain,
     RequiredContextVariable,
     RPCExecutionFailed,
@@ -86,7 +83,7 @@ def test_rpc_condition_evaluation_invalid_provider_for_chain(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
     new_chain = 23
-    rpc_condition.rpc_call.chain = new_chain
+    rpc_condition.execution_call.chain = new_chain
     condition_providers = {new_chain: {testerchain.provider}}
     with pytest.raises(
         NoConnectionToChain, match=f"can only be evaluated on chain ID {new_chain}"
@@ -157,7 +154,9 @@ def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
         }
     }
 
-    mocker.patch.object(rpc_condition.rpc_call, "_configure_provider", my_configure_w3)
+    mocker.patch.object(
+        rpc_condition.execution_call, "_configure_provider", my_configure_w3
+    )
     with pytest.raises(RPCExecutionFailed):
         _ = rpc_condition.verify(providers=condition_providers, **context)
 
@@ -183,7 +182,9 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
         }
     }
 
-    mocker.patch.object(rpc_condition.rpc_call, "_configure_provider", my_configure_w3)
+    mocker.patch.object(
+        rpc_condition.execution_call, "_configure_provider", my_configure_w3
+    )
 
     condition_result, call_result = rpc_condition.verify(
         providers=condition_providers, **context
