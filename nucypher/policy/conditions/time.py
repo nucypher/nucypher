@@ -13,15 +13,6 @@ from nucypher.policy.conditions.lingo import ConditionType
 class TimeRPCCall(RPCCall):
     METHOD = "blocktime"
 
-    class Schema(RPCCall.Schema):
-        method = fields.Str(
-            dump_default="blocktime", required=True, validate=Equal("blocktime")
-        )
-
-        @post_load
-        def make(self, data, **kwargs):
-            return TimeRPCCall(**data)
-
     def __init__(
         self,
         chain: int,
@@ -50,9 +41,12 @@ class TimeRPCCall(RPCCall):
 class TimeCondition(RPCCondition):
     CONDITION_TYPE = ConditionType.TIME.value
 
-    class Schema(RPCCondition.Schema, TimeRPCCall.Schema):
+    class Schema(RPCCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.TIME.value), required=True
+        )
+        method = fields.Str(
+            dump_default="blocktime", required=True, validate=Equal("blocktime")
         )
 
         @post_load

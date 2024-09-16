@@ -37,15 +37,6 @@ class JSONPathField(Field):
 class JsonApiCall(ExecutionCall):
     TIMEOUT = 5  # seconds
 
-    class Schema(ExecutionCall.Schema):
-        endpoint = Url(required=True, relative=False, schemes=["https"])
-        parameters = fields.Dict(required=False, allow_none=True)
-        query = JSONPathField(required=False, allow_none=True)
-
-        @post_load
-        def make(self, data, **kwargs):
-            return JsonApiCall(**data)
-
     def __init__(
         self,
         endpoint: str,
@@ -140,10 +131,13 @@ class JsonApiCondition(BaseAccessControlCondition):
 
     CONDITION_TYPE = ConditionType.JSONAPI.value
 
-    class Schema(BaseAccessControlCondition.Schema, JsonApiCall.Schema):
+    class Schema(BaseAccessControlCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
+        endpoint = Url(required=True, relative=False, schemes=["https"])
+        parameters = fields.Dict(required=False, allow_none=True)
+        query = JSONPathField(required=False, allow_none=True)
 
         @post_load
         def make(self, data, **kwargs):

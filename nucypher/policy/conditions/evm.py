@@ -116,17 +116,6 @@ class RPCCall(ExecutionCall):
         "eth_getBalance": int,
     }  # TODO other allowed methods (tDEC #64)
 
-    class Schema(ExecutionCall.Schema):
-        chain = fields.Int(
-            required=True, strict=True, validate=validate.OneOf(_CONDITION_CHAINS)
-        )
-        method = fields.Str(required=True)
-        parameters = fields.List(fields.Field, attribute="parameters", required=False)
-
-        @post_load
-        def make(self, data, **kwargs):
-            return RPCCall(**data)
-
     def __init__(
         self,
         chain: int,
@@ -239,10 +228,15 @@ class RPCCall(ExecutionCall):
 class RPCCondition(BaseAccessControlCondition):
     CONDITION_TYPE = ConditionType.RPC.value
 
-    class Schema(BaseAccessControlCondition.Schema, RPCCall.Schema):
+    class Schema(BaseAccessControlCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.RPC.value), required=True
         )
+        chain = fields.Int(
+            required=True, strict=True, validate=validate.OneOf(_CONDITION_CHAINS)
+        )
+        method = fields.Str(required=True)
+        parameters = fields.List(fields.Field, attribute="parameters", required=False)
 
         @post_load
         def make(self, data, **kwargs):
@@ -310,26 +304,6 @@ class RPCCondition(BaseAccessControlCondition):
 
 
 class ContractCall(RPCCall):
-    class Schema(RPCCall.Schema):
-        contract_address = fields.Str(required=True)
-        standard_contract_type = fields.Str(required=False)
-        function_abi = fields.Dict(required=False)
-
-        @post_load
-        def make(self, data, **kwargs):
-            return ContractCall(**data)
-
-        @validates_schema
-        def check_standard_contract_type_or_function_abi(self, data, **kwargs):
-            standard_contract_type = data.get("standard_contract_type")
-            function_abi = data.get("function_abi")
-            try:
-                _validate_contract_call_abi(
-                    standard_contract_type, function_abi, method_name=data.get("method")
-                )
-            except ValueError as e:
-                raise ValidationError(str(e))
-
     def __init__(
         self,
         method: str,
@@ -391,14 +365,29 @@ class ContractCall(RPCCall):
 class ContractCondition(RPCCondition):
     CONDITION_TYPE = ConditionType.CONTRACT.value
 
-    class Schema(RPCCondition.Schema, ContractCall.Schema):
+    class Schema(RPCCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.CONTRACT.value), required=True
         )
+        contract_address = fields.Str(required=True)
+        standard_contract_type = fields.Str(required=False)
+        function_abi = fields.Dict(required=False)
 
         @post_load
         def make(self, data, **kwargs):
             return ContractCondition(**data)
+
+        @validates_schema
+        def check_standard_contract_type_or_function_abi(self, data, **kwargs):
+            standard_contract_type = data.get("standard_contract_type")
+            function_abi = data.get("function_abi")
+            try:
+                _validate_contract_call_abi(
+                    standard_contract_type, function_abi, method_name=data.get("method")
+                )
+            except ValueError as e:
+                raise ValidationError(str(e))
+
 
     def __init__(
         self,

@@ -101,11 +101,7 @@ class AccessControlCondition(_Serializable, ABC):
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
 
 
-class ExecutionCall(_Serializable, ABC):
-    class Schema(CamelCaseSchema):
-        SKIP_VALUES = (None,)
-        pass
-
+class ExecutionCall(ABC):
     @abstractmethod
     def execute(self, *args, **kwargs) -> Any:
         raise NotImplementedError
