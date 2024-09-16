@@ -59,21 +59,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-#
-# CONDITION = BASE_CONDITION | COMPOUND_CONDITION
-#
-# BASE_CONDITION = {
-#     // ..
-# }
-#
-# COMPOUND_CONDITION = {
-#     "name": ...  (Optional)
-#     "conditionType": "compound",
-#     "operator": OPERATOR,
-#     "operands": [CONDITION*]
-# }
-
-
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | COMPOUND | SEQUENTIAL
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -90,7 +76,14 @@ class ConditionType(Enum):
     def values(cls) -> List[str]:
         return [condition.value for condition in cls]
 
-
+# OPERATOR = AND | OR | NOT
+#
+# COMPOUND_CONDITION = {
+#     "name": ...  (Optional)
+#     "conditionType": "compound",
+#     "operator": OPERATOR,
+#     "operands": [CONDITION*]
+# }
 class CompoundAccessControlCondition(AccessControlCondition):
     AND_OPERATOR = "and"
     OR_OPERATOR = "or"
@@ -225,9 +218,6 @@ _COMPARATOR_FUNCTIONS = {
 }
 
 
-#
-# CONDITION = BASE_CONDITION | COMPOUND_CONDITION
-#
 # CONDITION_VARIABLE = {
 #     "varName": STR,
 #     "condition": {
@@ -240,8 +230,6 @@ _COMPARATOR_FUNCTIONS = {
 #     "conditionType": "sequential",
 #     "conditionVariables": [CONDITION_VARIABLE*]
 # }
-
-
 class ConditionVariable(_Serializable):
     class Schema(CamelCaseSchema):
         var_name = fields.Str(required=True)
@@ -479,16 +467,6 @@ class ConditionLingo(_Serializable):
     """
 
     def __init__(self, condition: AccessControlCondition, version: str = VERSION):
-        """
-        CONDITION = BASE_CONDITION | COMPOUND_CONDITION
-        BASE_CONDITION = {
-                // ..
-        }
-        COMPOUND_CONDITION = {
-                "operator": OPERATOR,
-                "operands": [CONDITION*]
-        }
-        """
         self.condition = condition
         self.check_version_compatibility(version)
         self.version = version
