@@ -4,17 +4,16 @@ from marshmallow import fields, post_load, validate
 from marshmallow.validate import Equal
 from web3 import Web3
 
+from nucypher.policy.conditions.base import ExecutionCall
 from nucypher.policy.conditions.evm import RPCCall, RPCCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import ConditionType
 
 
 class TimeRPCCall(RPCCall):
-    CALL_TYPE = "time"
     METHOD = "blocktime"
 
     class Schema(RPCCall.Schema):
-        call_type = fields.Str(validate=validate.Equal("time"), required=True)
         method = fields.Str(
             dump_default="blocktime", required=True, validate=Equal("blocktime")
         )
@@ -27,15 +26,12 @@ class TimeRPCCall(RPCCall):
         self,
         chain: int,
         method: str = METHOD,
-        call_type: str = CALL_TYPE,
         parameters: Optional[List[Any]] = None,
     ):
         if parameters:
             raise ValueError(f"{self.METHOD} does not take any parameters")
 
-        super().__init__(
-            chain=chain, method=method, parameters=parameters, call_type=call_type
-        )
+        super().__init__(chain=chain, method=method, parameters=parameters)
 
     def _validate_method(self, method):
         if method != self.METHOD:
@@ -58,9 +54,6 @@ class TimeCondition(RPCCondition):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.TIME.value), required=True
         )
-
-        class Meta:
-            exclude = ("call_type",)  # don't serialize call_type
 
         @post_load
         def make(self, data, **kwargs):
@@ -85,7 +78,7 @@ class TimeCondition(RPCCondition):
             **kwargs,
         )
 
-    def _create_rpc_call(self, *args, **kwargs):
+    def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
         return TimeRPCCall(*args, **kwargs)
 
     def _validate_expected_return_type(self):

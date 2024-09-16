@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from marshmallow import Schema, ValidationError, fields
 
@@ -52,13 +52,22 @@ class _Serializable:
 
 
 class AccessControlCondition(_Serializable, ABC):
+    CONDITION_TYPE = NotImplemented
 
     class Schema(CamelCaseSchema):
-        name = NotImplemented
+        SKIP_VALUES = (None,)
+        name = fields.Str(required=False)
+        condition_type = NotImplemented
 
-    def __init__(self):
-
+    def __init__(self, condition_type: str, name: Optional[str] = None):
         super().__init__()
+
+        if condition_type != self.CONDITION_TYPE:
+            raise InvalidCondition(
+                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
+            )
+        self.condition_type = condition_type
+        self.name = name
 
         # validate inputs using marshmallow schema
         schema = self.Schema()
@@ -93,10 +102,9 @@ class AccessControlCondition(_Serializable, ABC):
 
 
 class ExecutionCall(_Serializable, ABC):
-    CALL_TYPE = NotImplemented
-
     class Schema(CamelCaseSchema):
-        call_type = fields.Str(required=True)
+        SKIP_VALUES = (None,)
+        pass
 
     @abstractmethod
     def execute(self, *args, **kwargs) -> Any:

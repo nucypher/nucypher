@@ -2,6 +2,7 @@ import ast
 import base64
 import json
 import operator as pyoperator
+from abc import abstractmethod
 from enum import Enum
 from hashlib import md5
 from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
@@ -23,6 +24,7 @@ from web3 import HTTPProvider
 
 from nucypher.policy.conditions.base import (
     AccessControlCondition,
+    ExecutionCall,
     _Serializable,
 )
 from nucypher.policy.conditions.context import (
@@ -126,12 +128,10 @@ class CompoundAccessControlCondition(AccessControlCondition):
 
         # TODO nested operands
 
-    class Schema(CamelCaseSchema):
-        SKIP_VALUES = (None,)
+    class Schema(AccessControlCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.COMPOUND.value), required=True
         )
-        name = fields.Str(required=False)
         operator = fields.Str(required=True)
         operands = fields.List(_ConditionField, required=True)
 
@@ -164,11 +164,6 @@ class CompoundAccessControlCondition(AccessControlCondition):
             "operands": [CONDITION*]
         }
         """
-        if condition_type != self.CONDITION_TYPE:
-            raise InvalidCondition(
-                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
-            )
-
         self._validate_operator_and_operands(operator, operands, InvalidCondition)
 
         self.operator = operator
@@ -176,6 +171,8 @@ class CompoundAccessControlCondition(AccessControlCondition):
         self.condition_type = condition_type
         self.name = name
         self.id = md5(bytes(self)).hexdigest()[:6]
+
+        super().__init__(condition_type=condition_type, name=name)
 
     def __repr__(self):
         return f"Operator={self.operator} (NumOperands={len(self.operands)}), id={self.id})"
@@ -274,9 +271,7 @@ class SequentialAccessControlCondition(AccessControlCondition):
                 f"Maximum of {cls.MAX_NUM_CONDITION_VARIABLES} condition variables are allowed"
             )
 
-    class Schema(CamelCaseSchema):
-        SKIP_VALUES = (None,)
-        name = fields.Str(required=False)
+    class Schema(AccessControlCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.SEQUENTIAL.value), required=True
         )
@@ -305,17 +300,12 @@ class SequentialAccessControlCondition(AccessControlCondition):
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
-        if condition_type != self.CONDITION_TYPE:
-            raise InvalidCondition(
-                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
-            )
         self._validate_condition_variables(
             condition_variables=condition_variables, exception_class=InvalidCondition
         )
-
-        self.name = name
         self.condition_variables = condition_variables
-        self.condition_type = condition_type
+
+        super().__init__(condition_type=condition_type, name=name)
 
     def __repr__(self):
         r = f"{self.__class__.__name__}(num_condition_variables={len(self.condition_variables)})"
@@ -575,3 +565,46 @@ class ConditionLingo(_Serializable):
             raise InvalidConditionLingo(
                 f"Version provided, {version}, is incompatible with current version {cls.VERSION}"
             )
+
+
+class BaseAccessControlCondition(AccessControlCondition):
+    class Schema(AccessControlCondition.Schema):
+        return_value_test = fields.Nested(
+            ReturnValueTest.ReturnValueTestSchema(), required=True
+        )
+
+    def __init__(
+        self,
+        condition_type: str,
+        return_value_test: ReturnValueTest,
+        name: Optional[str] = None,
+        *args,
+        **kwargs,
+    ):
+        self.return_value_test = return_value_test
+        try:
+            self.execution_call = self._create_execution_call(*args, **kwargs)
+        except ValueError as e:
+            raise InvalidCondition(str(e))
+
+        super().__init__(condition_type=condition_type, name=name)
+
+    @abstractmethod
+    def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
+        """
+        Returns the execution call that the condition executes.
+        """
+        raise NotImplementedError
+
+    def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
+        """
+        Verifies the condition is met by performing execution call and
+        evaluating the return value test.
+        """
+        result = self.execution_call.execute(*args, **kwargs)
+
+        resolved_return_value_test = self.return_value_test.with_resolved_context(
+            **kwargs
+        )
+        eval_result = resolved_return_value_test.eval(result)  # test
+        return eval_result, result

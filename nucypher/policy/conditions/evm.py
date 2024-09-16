@@ -19,7 +19,6 @@ from web3.types import ABIFunction
 
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
 from nucypher.policy.conditions.base import (
-    AccessControlCondition,
     ExecutionCall,
 )
 from nucypher.policy.conditions.context import (
@@ -32,7 +31,11 @@ from nucypher.policy.conditions.exceptions import (
     RequiredContextVariable,
     RPCExecutionFailed,
 )
-from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
+from nucypher.policy.conditions.lingo import (
+    BaseAccessControlCondition,
+    ConditionType,
+    ReturnValueTest,
+)
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.policy.conditions.validation import (
     _align_comparator_value_with_abi,
@@ -106,8 +109,6 @@ def _validate_chain(chain: int) -> None:
 
 
 class RPCCall(ExecutionCall):
-    CALL_TYPE = "rpc"
-
     LOG = logging.Logger(__name__)
 
     ALLOWED_METHODS = {
@@ -116,8 +117,6 @@ class RPCCall(ExecutionCall):
     }  # TODO other allowed methods (tDEC #64)
 
     class Schema(ExecutionCall.Schema):
-        SKIP_VALUES = (None,)
-        call_type = fields.Str(validate=validate.Equal("rpc"), required=True)
         chain = fields.Int(
             required=True, strict=True, validate=validate.OneOf(_CONDITION_CHAINS)
         )
@@ -132,18 +131,10 @@ class RPCCall(ExecutionCall):
         self,
         chain: int,
         method: str,
-        call_type: str = CALL_TYPE,
         parameters: Optional[List[Any]] = None,
     ):
         # Validate input
-        if call_type != self.CALL_TYPE:
-            raise ValueError(
-                f"{self.__class__.__name__} must be instantiated with the '{self.CALL_TYPE}' type; '{call_type}' is invalid"
-            )
-
         _validate_chain(chain=chain)
-
-        self.call_type = call_type
 
         self.chain = chain
         self.method = self._validate_method(method=method)
@@ -245,20 +236,13 @@ class RPCCall(ExecutionCall):
         return rpc_result
 
 
-class RPCCondition(AccessControlCondition):
+class RPCCondition(BaseAccessControlCondition):
     CONDITION_TYPE = ConditionType.RPC.value
 
-    class Schema(RPCCall.Schema):
-        name = fields.Str(required=False)
+    class Schema(BaseAccessControlCondition.Schema, RPCCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.RPC.value), required=True
         )
-        return_value_test = fields.Nested(
-            ReturnValueTest.ReturnValueTestSchema(), required=True
-        )
-
-        class Meta:
-            exclude = ("call_type",)  # don't serialize call_type
 
         @post_load
         def make(self, data, **kwargs):
@@ -270,43 +254,28 @@ class RPCCondition(AccessControlCondition):
 
     def __init__(
         self,
-        return_value_test: ReturnValueTest,
         condition_type: str = CONDITION_TYPE,
-        name: Optional[str] = None,
         *args,
         **kwargs,
     ):
-        # internal
-        if condition_type != self.CONDITION_TYPE:
-            raise InvalidCondition(
-                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
-            )
+        super().__init__(condition_type=condition_type, *args, **kwargs)
 
-        try:
-            self.rpc_call = self._create_rpc_call(*args, **kwargs)
-        except ValueError as e:
-            raise InvalidCondition(str(e))
-
-        self.name = name
-        self.condition_type = condition_type
-
-        self.return_value_test = return_value_test  # output
         self._validate_expected_return_type()
 
-    def _create_rpc_call(self, *args, **kwargs):
+    def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
         return RPCCall(*args, **kwargs)
 
     @property
     def method(self):
-        return self.rpc_call.method
+        return self.execution_call.method
 
     @property
     def chain(self):
-        return self.rpc_call.chain
+        return self.execution_call.chain
 
     @property
     def parameters(self):
-        return self.rpc_call.parameters
+        return self.execution_call.parameters
 
     def _validate_expected_return_type(self):
         expected_return_type = RPCCall.ALLOWED_METHODS[self.method]
@@ -328,27 +297,20 @@ class RPCCondition(AccessControlCondition):
     def verify(
         self, providers: Dict[int, Set[HTTPProvider]], **context
     ) -> Tuple[bool, Any]:
-        """
-        Verifies the onchain condition is met by performing a
-        read operation and evaluating the return value test.
-        """
         resolved_return_value_test = self.return_value_test.with_resolved_context(
             **context
         )
         return_value_test = self._align_comparator_value_with_abi(
             resolved_return_value_test
         )
-        result = self.rpc_call.execute(providers=providers, **context)
+        result = self.execution_call.execute(providers=providers, **context)
 
         eval_result = return_value_test.eval(result)  # test
         return eval_result, result
 
 
 class ContractCall(RPCCall):
-    CALL_TYPE = "contract"
-
     class Schema(RPCCall.Schema):
-        call_type = fields.Str(validate=validate.Equal("contract"), required=True)
         contract_address = fields.Str(required=True)
         standard_contract_type = fields.Str(required=False)
         function_abi = fields.Dict(required=False)
@@ -372,7 +334,6 @@ class ContractCall(RPCCall):
         self,
         method: str,
         contract_address: ChecksumAddress,
-        call_type: str = CALL_TYPE,
         standard_contract_type: Optional[str] = None,
         function_abi: Optional[ABIFunction] = None,
         *args,
@@ -391,7 +352,7 @@ class ContractCall(RPCCall):
         self.standard_contract_type = standard_contract_type
         self.function_abi = function_abi
 
-        super().__init__(method=method, call_type=call_type, *args, **kwargs)
+        super().__init__(method=method, *args, **kwargs)
         self.contract_function = self._get_unbound_contract_function()
 
     def _validate_method(self, method):
@@ -435,9 +396,6 @@ class ContractCondition(RPCCondition):
             validate=validate.Equal(ConditionType.CONTRACT.value), required=True
         )
 
-        class Meta:
-            exclude = ("call_type",)  # don't serialize call_type
-
         @post_load
         def make(self, data, **kwargs):
             return ContractCondition(**data)
@@ -451,24 +409,24 @@ class ContractCondition(RPCCondition):
         # call to super must be at the end for proper validation
         super().__init__(condition_type=condition_type, *args, **kwargs)
 
-    def _create_rpc_call(self, *args, **kwargs) -> ContractCall:
+    def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
         return ContractCall(*args, **kwargs)
 
     @property
     def function_abi(self):
-        return self.rpc_call.function_abi
+        return self.execution_call.function_abi
 
     @property
     def standard_contract_type(self):
-        return self.rpc_call.standard_contract_type
+        return self.execution_call.standard_contract_type
 
     @property
     def contract_function(self):
-        return self.rpc_call.contract_function
+        return self.execution_call.contract_function
 
     @property
     def contract_address(self):
-        return self.rpc_call.contract_address
+        return self.execution_call.contract_address
 
     def _validate_expected_return_type(self) -> None:
         _validate_contract_function_expected_return_type(

@@ -6,12 +6,15 @@ from jsonpath_ng.ext import parse
 from marshmallow import fields, post_load, validate
 from marshmallow.fields import Field, Url
 
-from nucypher.policy.conditions.base import AccessControlCondition, ExecutionCall
+from nucypher.policy.conditions.base import ExecutionCall
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     InvalidCondition,
 )
-from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
+from nucypher.policy.conditions.lingo import (
+    BaseAccessControlCondition,
+    ConditionType,
+)
 from nucypher.utilities.logging import Logger
 
 
@@ -32,13 +35,9 @@ class JSONPathField(Field):
 
 
 class JsonApiCall(ExecutionCall):
-    CALL_TYPE = "json-api"
-
     TIMEOUT = 5  # seconds
 
     class Schema(ExecutionCall.Schema):
-        SKIP_VALUES = (None,)
-        call_type = fields.Str(validate=validate.Equal("json-api"), required=True)
         endpoint = Url(required=True, relative=False, schemes=["https"])
         parameters = fields.Dict(required=False, allow_none=True)
         query = JSONPathField(required=False, allow_none=True)
@@ -50,12 +49,9 @@ class JsonApiCall(ExecutionCall):
     def __init__(
         self,
         endpoint: str,
-        call_type: str = CALL_TYPE,
         parameters: Optional[dict] = None,
         query: Optional[str] = None,
     ):
-        self.call_type = call_type
-
         self.endpoint = endpoint
         self.parameters = parameters or {}
         self.query = query
@@ -135,7 +131,7 @@ class JsonApiCall(ExecutionCall):
         return result
 
 
-class JsonApiCondition(AccessControlCondition):
+class JsonApiCondition(BaseAccessControlCondition):
     """
     A JSON API condition is a condition that can be evaluated by reading from a JSON
     HTTPS endpoint. The response must return an HTTP 200 with valid JSON in the response body.
@@ -144,17 +140,10 @@ class JsonApiCondition(AccessControlCondition):
 
     CONDITION_TYPE = ConditionType.JSONAPI.value
 
-    class Schema(JsonApiCall.Schema):
-        name = fields.Str(required=False)
+    class Schema(BaseAccessControlCondition.Schema, JsonApiCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
-        return_value_test = fields.Nested(
-            ReturnValueTest.ReturnValueTestSchema(), required=True
-        )
-
-        class Meta:
-            exclude = ("call_type",)  # don't serialize call_type
 
         @post_load
         def make(self, data, **kwargs):
@@ -162,47 +151,30 @@ class JsonApiCondition(AccessControlCondition):
 
     def __init__(
         self,
-        return_value_test: ReturnValueTest,
         condition_type: str = ConditionType.JSONAPI.value,
-        name: Optional[str] = None,
         *args,
         **kwargs,
     ):
-        if condition_type != self.CONDITION_TYPE:
-            raise InvalidCondition(
-                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
-            )
+        super().__init__(condition_type=condition_type, *args, **kwargs)
 
-        try:
-            self.json_api_call = self._create_json_api_call(*args, **kwargs)
-        except ValueError as e:
-            raise InvalidCondition(str(e))
-
-        self.name = name
-        self.condition_type = condition_type
-
-        self.return_value_test = return_value_test
-
-        super().__init__()
-
-    def _create_json_api_call(self, *args, **kwargs):
+    def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
         return JsonApiCall(*args, **kwargs)
 
     @property
     def endpoint(self):
-        return self.json_api_call.endpoint
+        return self.execution_call.endpoint
 
     @property
     def query(self):
-        return self.json_api_call.query
+        return self.execution_call.query
 
     @property
     def parameters(self):
-        return self.json_api_call.parameters
+        return self.execution_call.parameters
 
     @property
     def timeout(self):
-        return self.json_api_call.timeout
+        return self.execution_call.timeout
 
     @staticmethod
     def _process_result_for_eval(result: Any):
@@ -226,7 +198,7 @@ class JsonApiCondition(AccessControlCondition):
         and evaluating the return value test with the result. Parses the endpoint's JSON response using
         JSONPath.
         """
-        result = self.json_api_call.execute(**context)
+        result = self.execution_call.execute(**context)
         result_for_eval = self._process_result_for_eval(result)
 
         resolved_return_value_test = self.return_value_test.with_resolved_context(
