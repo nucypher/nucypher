@@ -119,7 +119,7 @@ class CompoundAccessControlCondition(AccessControlCondition):
                 f"Maximum of {cls.MAX_OPERANDS} operands allowed for '{operator}' compound condition"
             )
 
-        # TODO nested operands
+        # TODO prevent nested compound condition operands
 
     class Schema(AccessControlCondition.Schema):
         condition_type = fields.Str(
@@ -232,7 +232,7 @@ _COMPARATOR_FUNCTIONS = {
 # }
 class ConditionVariable(_Serializable):
     class Schema(CamelCaseSchema):
-        var_name = fields.Str(required=True)
+        var_name = fields.Str(required=True)  # TODO: should this be required?
         condition = _ConditionField(required=True)
 
     def __init__(self, var_name: str, condition: AccessControlCondition):
