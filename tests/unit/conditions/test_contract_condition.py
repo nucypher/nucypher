@@ -63,11 +63,11 @@ class FakeExecutionContractCondition(ContractCondition):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _create_rpc_call(self, *args, **kwargs) -> ContractCall:
+    def _create_execution_call(self, *args, **kwargs) -> ContractCall:
         return self.FakeRPCCall(*args, **kwargs)
 
     def set_execution_return_value(self, value: Any):
-        self.rpc_call.set_execution_return_value(value)
+        self.execution_call.set_execution_return_value(value)
 
 
 @pytest.fixture(scope="function")

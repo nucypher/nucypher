@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import (
@@ -94,3 +95,8 @@ def erc721_evm_condition(test_registry):
         ]
     )
     return condition
+
+
+@pytest.fixture(scope="function")
+def mock_skip_schema_validation(mocker):
+    mocker.patch.object(AccessControlCondition.Schema, "validate", return_value=None)

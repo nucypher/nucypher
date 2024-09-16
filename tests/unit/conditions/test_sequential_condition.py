@@ -33,7 +33,8 @@ def mock_execution_variables(mocker):
     return var_1, var_2, var_3, var_4
 
 
-def test_invalid_sequential_condition(mock_execution_variables, rpc_condition):
+@pytest.mark.usefixtures("mock_skip_schema_validation")
+def test_invalid_sequential_condition(mock_execution_variables):
     # invalid condition type
     with pytest.raises(InvalidCondition, match=ConditionType.SEQUENTIAL.value):
         _ = SequentialAccessControlCondition(
@@ -62,7 +63,8 @@ def test_invalid_sequential_condition(mock_execution_variables, rpc_condition):
         )
 
 
-def test_sequential_condition(mocker, mock_execution_variables):
+@pytest.mark.usefixtures("mock_skip_schema_validation")
+def test_sequential_condition(mock_execution_variables):
     var_1, var_2, var_3, var_4 = mock_execution_variables
 
     var_1.condition.verify.return_value = (True, 1)
@@ -94,8 +96,9 @@ def test_sequential_condition(mocker, mock_execution_variables):
     assert len(original_context) == 0, "original context remains unchanged"
 
 
+@pytest.mark.usefixtures("mock_skip_schema_validation")
 def test_sequential_condition_all_prior_vars_passed_to_subsequent_calls(
-    mocker, mock_execution_variables
+    mock_execution_variables,
 ):
     var_1, var_2, var_3, var_4 = mock_execution_variables
 
@@ -140,7 +143,8 @@ def test_sequential_condition_all_prior_vars_passed_to_subsequent_calls(
     assert len(original_context) == 0, "original context remains unchanged"
 
 
-def test_sequential_condition_a_call_fails(mocker, mock_execution_variables):
+@pytest.mark.usefixtures("mock_skip_schema_validation")
+def test_sequential_condition_a_call_fails(mock_execution_variables):
     var_1, var_2, var_3, var_4 = mock_execution_variables
 
     var_4.condition.verify.side_effect = Web3Exception

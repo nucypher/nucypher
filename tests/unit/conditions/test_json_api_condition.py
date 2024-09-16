@@ -88,7 +88,7 @@ def test_json_api_condition_fetch(mocker):
         query="$.store.book[0].title",
         return_value_test=ReturnValueTest("==", "'Test Title'"),
     )
-    response = condition.json_api_call._fetch()
+    response = condition.execution_call._fetch()
     assert response.status_code == 200
     assert response.json() == {"store": {"book": [{"title": "Test Title"}]}}
 
@@ -104,7 +104,7 @@ def test_json_api_condition_fetch_failure(mocker):
         return_value_test=ReturnValueTest("==", 1),
     )
     with pytest.raises(InvalidCondition) as excinfo:
-        condition.json_api_call._fetch()
+        condition.execution_call._fetch()
     assert "Failed to fetch endpoint" in str(excinfo.value)
 
 

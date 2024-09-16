@@ -146,7 +146,8 @@ def test_compound_condition_schema_validation(operator, time_condition, rpc_cond
         CompoundAccessControlCondition.validate(compound_condition_dict)
 
 
-def test_and_condition_and_short_circuit(mock_conditions):
+@pytest.mark.usefixtures("mock_skip_schema_validation")
+def test_and_condition_and_short_circuit(mocker, mock_conditions):
     condition_1, condition_2, condition_3, condition_4 = mock_conditions
 
     and_condition = AndCompoundCondition(
@@ -180,6 +181,7 @@ def test_and_condition_and_short_circuit(mock_conditions):
     assert value == [1, 2, 3]
 
 
+@pytest.mark.usefixtures("mock_skip_schema_validation")
 def test_or_condition_and_short_circuit(mock_conditions):
     condition_1, condition_2, condition_3, condition_4 = mock_conditions
 
@@ -221,6 +223,7 @@ def test_or_condition_and_short_circuit(mock_conditions):
     assert value == [1, 2, 3, 4]
 
 
+@pytest.mark.usefixtures("mock_skip_schema_validation")
 def test_compound_condition(mock_conditions):
     condition_1, condition_2, condition_3, condition_4 = mock_conditions
 
@@ -277,6 +280,7 @@ def test_compound_condition(mock_conditions):
     ]  # or-condition short-circuited because condition_1 was True
 
 
+@pytest.mark.usefixtures("mock_skip_schema_validation")
 def test_nested_compound_condition(mock_conditions):
     condition_1, condition_2, condition_3, condition_4 = mock_conditions
 
@@ -322,6 +326,7 @@ def test_nested_compound_condition(mock_conditions):
     assert value == [[1, [2, 3]], 4]
 
 
+@pytest.mark.usefixtures("mock_skip_schema_validation")
 def test_not_compound_condition(mock_conditions):
     condition_1, condition_2, condition_3, condition_4 = mock_conditions
 
