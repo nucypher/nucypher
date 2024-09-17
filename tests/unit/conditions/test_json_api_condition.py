@@ -224,7 +224,7 @@ def test_json_api_condition_from_lingo_expression():
         },
     }
 
-    cls = ConditionLingo.resolve_condition_class(lingo_dict, version=1.0)
+    cls = ConditionLingo.resolve_condition_class(lingo_dict, version=1)
     assert cls == JsonApiCondition
 
     lingo_json = json.dumps(lingo_dict)

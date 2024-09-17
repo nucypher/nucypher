@@ -77,6 +77,7 @@ class ConditionType(Enum):
     def values(cls) -> List[str]:
         return [condition.value for condition in cls]
 
+
 # OPERATOR = AND | OR | NOT
 #
 # COMPOUND_CONDITION = {
