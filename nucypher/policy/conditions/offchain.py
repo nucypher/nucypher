@@ -151,19 +151,16 @@ class JsonApiCondition(AccessControlCondition):
     @staticmethod
     def _process_result_for_eval(result: Any):
         # strings that are not already quoted will cause a problem for literal_eval
-        if isinstance(result, str):
-            # check if already quoted; if not, quote it
-            if not (
-                (result.startswith("'") and result.endswith("'"))
-                or (result.startswith('"') and result.endswith('"'))
-            ):
-                # quote the string
-                if "'" in result:
-                    # use double quotes
-                    result = f'"{result}"'
-                else:
-                    # use single quotes
-                    result = f"'{result}'"
+        if not isinstance(result, str):
+            return result
+
+        # check if already quoted; if not, quote it
+        if not (
+            (result.startswith("'") and result.endswith("'"))
+            or (result.startswith('"') and result.endswith('"'))
+        ):
+            quote_type_to_use = '"' if "'" in result else "'"
+            result = f"{quote_type_to_use}{result}{quote_type_to_use}"
 
         return result
 
