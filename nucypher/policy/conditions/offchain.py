@@ -158,7 +158,12 @@ class JsonApiCondition(AccessControlCondition):
                 or (result.startswith('"') and result.endswith('"'))
             ):
                 # quote the string
-                result = f"'{result}'"
+                if "'" in result:
+                    # use double quotes
+                    result = f'"{result}"'
+                else:
+                    # use single quotes
+                    result = f"'{result}'"
 
         return result
 

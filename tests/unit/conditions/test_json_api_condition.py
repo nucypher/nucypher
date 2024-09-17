@@ -123,34 +123,32 @@ def test_json_api_condition_verify(mocker):
     assert value == 1
 
 
-def test_json_api_condition_verify_string_without_whitespace(mocker):
+@pytest.mark.parametrize(
+    "json_return, value_test",
+    (
+        ("Title", "'Title'"),  # no whitespace
+        ("Test Title", "'Test Title'"),  # whitespace
+        ('"Already double quoted"', "'Already double quoted'"),  # already quoted
+        ("'Already single quoted'", "'Already single quoted'"),  # already quoted
+        ("O'Sullivan", '"O\'Sullivan"'),  # single quote present
+        ('Hello, "World!"', "'Hello, \"World!\"'"),  # double quotes present
+    ),
+)
+def test_json_api_condition_verify_strings(json_return, value_test, mocker):
     mock_response = mocker.Mock(status_code=200)
-    mock_response.json.return_value = {"store": {"book": [{"title": "Title"}]}}
+    mock_response.json.return_value = json.loads(
+        json.dumps({"store": {"book": [{"text": f"{json_return}"}]}})
+    )
     mocker.patch("requests.get", return_value=mock_response)
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
-        query="$.store.book[0].title",
-        return_value_test=ReturnValueTest("==", "'Title'"),
+        query="$.store.book[0].text",
+        return_value_test=ReturnValueTest("==", f"{value_test}"),
     )
     result, value = condition.verify()
-    assert result is True
-    assert value == "Title"
-
-
-def test_json_api_condition_verify_string_with_whitespace(mocker):
-    mock_response = mocker.Mock(status_code=200)
-    mock_response.json.return_value = {"store": {"book": [{"title": "Test Title"}]}}
-    mocker.patch("requests.get", return_value=mock_response)
-
-    condition = JsonApiCondition(
-        endpoint="https://api.example.com/data",
-        query="$.store.book[0].title",
-        return_value_test=ReturnValueTest("==", "'Test Title'"),
-    )
-    result, value = condition.verify()
-    assert result is True
-    assert value == "Test Title"
+    assert result is True, f"{json_return} vs {value_test}"
+    assert value == json_return
 
 
 def test_json_api_condition_verify_invalid_json(mocker):
