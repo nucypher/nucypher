@@ -101,7 +101,7 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
     def _validate_operator_and_operands(
         cls,
         operator: str,
-        operands: List,
+        operands: List[Union[Dict, AccessControlCondition]],
         exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
     ):
         if operator not in cls.OPERATORS:
@@ -259,7 +259,7 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
     @classmethod
     def _validate_condition_variables(
         cls,
-        condition_variables: List[ConditionVariable],
+        condition_variables: List[Union[Dict, ConditionVariable]],
         exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
     ):
         num_condition_variables = len(condition_variables)
