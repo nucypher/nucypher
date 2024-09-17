@@ -9,8 +9,10 @@ from nucypher.policy.conditions.lingo import (
     AndCompoundCondition,
     CompoundAccessControlCondition,
     ConditionType,
+    ConditionVariable,
     NotCompoundCondition,
     OrCompoundCondition,
+    SequentialAccessControlCondition,
 )
 
 
@@ -92,7 +94,7 @@ def test_invalid_compound_condition(time_condition, rpc_condition):
 
     # exceeds max operands
     operands = list()
-    for i in range(CompoundAccessControlCondition.MAX_OPERANDS + 1):
+    for i in range(CompoundAccessControlCondition.MAX_NUM_CONDITIONS + 1):
         operands.append(rpc_condition)
     with pytest.raises(InvalidCondition):
         _ = CompoundAccessControlCondition(
@@ -285,11 +287,11 @@ def test_compound_condition(mock_conditions):
 
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
-def test_nested_compound_condition_too_many(mock_conditions):
+def test_nested_compound_condition_too_many_nested_levels(mock_conditions):
     condition_1, condition_2, condition_3, condition_4 = mock_conditions
 
     with pytest.raises(
-        InvalidCondition, match="nested levels of compound conditions allowed"
+        InvalidCondition, match="nested levels of multi-conditions are allowed"
     ):
         _ = AndCompoundCondition(
             operands=[
@@ -300,6 +302,31 @@ def test_nested_compound_condition_too_many(mock_conditions):
                             operands=[
                                 condition_2,
                                 condition_3,
+                            ]
+                        ),
+                    ]
+                ),
+                condition_4,
+            ]
+        )
+
+
+@pytest.mark.usefixtures("mock_skip_schema_validation")
+def test_nested_sequential_condition_too_many_nested_levels(mock_conditions):
+    condition_1, condition_2, condition_3, condition_4 = mock_conditions
+
+    with pytest.raises(
+        InvalidCondition, match="nested levels of multi-conditions are allowed"
+    ):
+        _ = AndCompoundCondition(
+            operands=[
+                OrCompoundCondition(
+                    operands=[
+                        condition_1,
+                        SequentialAccessControlCondition(
+                            condition_variables=[
+                                ConditionVariable("var2", condition_2),
+                                ConditionVariable("var3", condition_3),
                             ]
                         ),
                     ]

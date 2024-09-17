@@ -60,108 +60,102 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                     },
                     "returnValueTest": {"comparator": "==", "value": True},
                 },
+                # sequential condition
                 {
-                    "conditionType": ConditionType.COMPOUND.value,
-                    "operator": "or",
-                    "operands": [
-                        # sequential condition
+                    "conditionType": ConditionType.SEQUENTIAL.value,
+                    "conditionVariables": [
                         {
-                            "conditionType": ConditionType.SEQUENTIAL.value,
-                            "conditionVariables": [
-                                {
-                                    "varName": "timeValue",
-                                    "condition": {
-                                        # Time
-                                        "conditionType": ConditionType.TIME.value,
-                                        "method": "blocktime",
-                                        "chain": TESTERCHAIN_CHAIN_ID,
-                                        "returnValueTest": {
-                                            "value": 0,
-                                            "comparator": ">",
-                                        },
-                                    },
+                            "varName": "timeValue",
+                            "condition": {
+                                # Time
+                                "conditionType": ConditionType.TIME.value,
+                                "method": "blocktime",
+                                "chain": TESTERCHAIN_CHAIN_ID,
+                                "returnValueTest": {
+                                    "value": 0,
+                                    "comparator": ">",
                                 },
-                                {
-                                    "varName": "rpcValue",
-                                    "condition": {
-                                        # RPC
-                                        "conditionType": ConditionType.RPC.value,
-                                        "chain": TESTERCHAIN_CHAIN_ID,
-                                        "method": "eth_getBalance",
-                                        "parameters": [
-                                            get_random_checksum_address(),
-                                            "latest",
-                                        ],
-                                        "returnValueTest": {
-                                            "comparator": ">=",
-                                            "value": 10000000000000,
-                                        },
-                                    },
-                                },
-                                {
-                                    "varName": "contractValue",
-                                    "condition": {
-                                        # Contract
-                                        "conditionType": ConditionType.CONTRACT.value,
-                                        "chain": TESTERCHAIN_CHAIN_ID,
-                                        "method": "isPolicyActive",
-                                        "parameters": [":hrac"],
-                                        "contractAddress": get_random_checksum_address(),
-                                        "functionAbi": {
-                                            "type": "function",
-                                            "name": "isPolicyActive",
-                                            "stateMutability": "view",
-                                            "inputs": [
-                                                {
-                                                    "name": "_policyID",
-                                                    "type": "bytes16",
-                                                    "internalType": "bytes16",
-                                                }
-                                            ],
-                                            "outputs": [
-                                                {
-                                                    "name": "",
-                                                    "type": "bool",
-                                                    "internalType": "bool",
-                                                }
-                                            ],
-                                        },
-                                        "returnValueTest": {
-                                            "comparator": "==",
-                                            "value": True,
-                                        },
-                                    },
-                                },
-                                {
-                                    "varName": "jsonValue",
-                                    "condition": {
-                                        # JSON API
-                                        "conditionType": ConditionType.JSONAPI.value,
-                                        "endpoint": "https://api.example.com/data",
-                                        "query": "$.store.book[0].price",
-                                        "parameters": {
-                                            "ids": "ethereum",
-                                            "vs_currencies": "usd",
-                                        },
-                                        "returnValueTest": {
-                                            "comparator": "==",
-                                            "value": 2,
-                                        },
-                                    },
-                                },
-                            ],
+                            },
                         },
                         {
-                            "conditionType": ConditionType.RPC.value,
-                            "chain": TESTERCHAIN_CHAIN_ID,
-                            "method": "eth_getBalance",
-                            "parameters": [get_random_checksum_address(), "latest"],
-                            "returnValueTest": {
-                                "comparator": ">=",
-                                "value": 10000000000000,
+                            "varName": "rpcValue",
+                            "condition": {
+                                # RPC
+                                "conditionType": ConditionType.RPC.value,
+                                "chain": TESTERCHAIN_CHAIN_ID,
+                                "method": "eth_getBalance",
+                                "parameters": [
+                                    get_random_checksum_address(),
+                                    "latest",
+                                ],
+                                "returnValueTest": {
+                                    "comparator": ">=",
+                                    "value": 10000000000000,
+                                },
+                            },
+                        },
+                        {
+                            "varName": "contractValue",
+                            "condition": {
+                                # Contract
+                                "conditionType": ConditionType.CONTRACT.value,
+                                "chain": TESTERCHAIN_CHAIN_ID,
+                                "method": "isPolicyActive",
+                                "parameters": [":hrac"],
+                                "contractAddress": get_random_checksum_address(),
+                                "functionAbi": {
+                                    "type": "function",
+                                    "name": "isPolicyActive",
+                                    "stateMutability": "view",
+                                    "inputs": [
+                                        {
+                                            "name": "_policyID",
+                                            "type": "bytes16",
+                                            "internalType": "bytes16",
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "name": "",
+                                            "type": "bool",
+                                            "internalType": "bool",
+                                        }
+                                    ],
+                                },
+                                "returnValueTest": {
+                                    "comparator": "==",
+                                    "value": True,
+                                },
+                            },
+                        },
+                        {
+                            "varName": "jsonValue",
+                            "condition": {
+                                # JSON API
+                                "conditionType": ConditionType.JSONAPI.value,
+                                "endpoint": "https://api.example.com/data",
+                                "query": "$.store.book[0].price",
+                                "parameters": {
+                                    "ids": "ethereum",
+                                    "vs_currencies": "usd",
+                                },
+                                "returnValueTest": {
+                                    "comparator": "==",
+                                    "value": 2,
+                                },
                             },
                         },
                     ],
+                },
+                {
+                    "conditionType": ConditionType.RPC.value,
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                    "method": "eth_getBalance",
+                    "parameters": [get_random_checksum_address(), "latest"],
+                    "returnValueTest": {
+                        "comparator": ">=",
+                        "value": 10000000000000,
+                    },
                 },
                 {
                     "conditionType": ConditionType.COMPOUND.value,
