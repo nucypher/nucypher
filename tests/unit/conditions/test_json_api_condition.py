@@ -136,9 +136,9 @@ def test_json_api_condition_verify(mocker):
 )
 def test_json_api_condition_verify_strings(json_return, value_test, mocker):
     mock_response = mocker.Mock(status_code=200)
-    mock_response.json.return_value = json.loads(
-        json.dumps({"store": {"book": [{"text": f"{json_return}"}]}})
-    )
+    json_string = json.loads(json.dumps(json_return))
+    assert json_string == json_return, "valid json string used for test"
+    mock_response.json.return_value = {"store": {"book": [{"text": f"{json_return}"}]}}
     mocker.patch("requests.get", return_value=mock_response)
 
     condition = JsonApiCondition(
