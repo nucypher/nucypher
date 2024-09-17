@@ -263,8 +263,8 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
         exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
     ):
         num_condition_variables = len(condition_variables)
-        if num_condition_variables == 0:
-            raise exception_class("Must be at least one condition variable")
+        if num_condition_variables < 2:
+            raise exception_class("At least two conditions must be specified")
 
         if num_condition_variables > cls.MAX_NUM_CONDITIONS:
             raise exception_class(

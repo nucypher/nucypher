@@ -40,6 +40,8 @@ def mock_condition_variables(mocker):
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
 def test_invalid_sequential_condition(mock_condition_variables):
+    var_1, *others = mock_condition_variables
+
     # invalid condition type
     with pytest.raises(InvalidCondition, match=ConditionType.SEQUENTIAL.value):
         _ = SequentialAccessControlCondition(
@@ -48,17 +50,24 @@ def test_invalid_sequential_condition(mock_condition_variables):
         )
 
     # no variables
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidCondition, match="At least two conditions"):
         _ = SequentialAccessControlCondition(
             condition_type=ConditionType.TIME.value,
             condition_variables=[],
+        )
+
+    # only one variable
+    with pytest.raises(InvalidCondition, match="At least two conditions"):
+        _ = SequentialAccessControlCondition(
+            condition_type=ConditionType.TIME.value,
+            condition_variables=[var_1],
         )
 
     # too many variables
     too_many_variables = list(mock_condition_variables)
     too_many_variables.extend(mock_condition_variables)  # duplicate list length
     assert len(too_many_variables) > SequentialAccessControlCondition.MAX_NUM_CONDITIONS
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidCondition, match="Maximum of"):
         _ = SequentialAccessControlCondition(
             condition_type=ConditionType.TIME.value,
             condition_variables=too_many_variables,
