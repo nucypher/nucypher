@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from marshmallow import Schema, ValidationError, fields
 
@@ -105,3 +105,38 @@ class ExecutionCall(ABC):
     @abstractmethod
     def execute(self, *args, **kwargs) -> Any:
         raise NotImplementedError
+
+
+class MultiConditionAccessControl(AccessControlCondition):
+    MAX_NUM_CONDITIONS = 5
+    MAX_MULTI_CONDITION_NESTED_LEVEL = 2
+
+    @property
+    @abstractmethod
+    def conditions(self) -> List[AccessControlCondition]:
+        raise NotImplementedError
+
+    @classmethod
+    def _validate_multi_condition_nesting(
+        cls,
+        conditions: List[AccessControlCondition],
+        current_level: int = 1,
+    ):
+        if len(conditions) > cls.MAX_NUM_CONDITIONS:
+            raise InvalidCondition(
+                f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed"
+            )
+
+        for condition in conditions:
+            if not isinstance(condition, MultiConditionAccessControl):
+                continue
+
+            level = current_level + 1
+            if level > cls.MAX_MULTI_CONDITION_NESTED_LEVEL:
+                raise InvalidCondition(
+                    f"Only {cls.MAX_MULTI_CONDITION_NESTED_LEVEL} nested levels of multi-conditions are allowed"
+                )
+            cls._validate_multi_condition_nesting(
+                conditions=condition.conditions,
+                current_level=level,
+            )

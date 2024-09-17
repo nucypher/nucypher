@@ -25,6 +25,7 @@ from web3 import HTTPProvider
 from nucypher.policy.conditions.base import (
     AccessControlCondition,
     ExecutionCall,
+    MultiConditionAccessControl,
     _Serializable,
 )
 from nucypher.policy.conditions.context import (
@@ -84,7 +85,7 @@ class ConditionType(Enum):
 #     "operator": OPERATOR,
 #     "operands": [CONDITION*]
 # }
-class CompoundAccessControlCondition(AccessControlCondition):
+class CompoundAccessControlCondition(MultiConditionAccessControl):
     AND_OPERATOR = "and"
     OR_OPERATOR = "or"
     NOT_OPERATOR = "not"
@@ -92,7 +93,8 @@ class CompoundAccessControlCondition(AccessControlCondition):
     OPERATORS = (AND_OPERATOR, OR_OPERATOR, NOT_OPERATOR)
     CONDITION_TYPE = ConditionType.COMPOUND.value
 
-    MAX_OPERANDS = 5
+    MAX_NUM_CONDITIONS = 5
+    MAX_MULTI_CONDITION_NESTED_LEVEL = 2
 
     @classmethod
     def _validate_operator_and_operands(
@@ -114,12 +116,11 @@ class CompoundAccessControlCondition(AccessControlCondition):
             raise exception_class(
                 f"Minimum of 2 operand needed for '{operator}' compound condition"
             )
-        elif num_operands > cls.MAX_OPERANDS:
+        elif num_operands > cls.MAX_NUM_CONDITIONS:
             raise exception_class(
-                f"Maximum of {cls.MAX_OPERANDS} operands allowed for '{operator}' compound condition"
+                f"Maximum of {cls.MAX_NUM_CONDITIONS} operands allowed for '{operator}' compound condition"
             )
 
-        # TODO prevent nested compound condition operands
 
     class Schema(AccessControlCondition.Schema):
         condition_type = fields.Str(
@@ -158,6 +159,7 @@ class CompoundAccessControlCondition(AccessControlCondition):
         }
         """
         self._validate_operator_and_operands(operator, operands, InvalidCondition)
+        self._validate_multi_condition_nesting(conditions=operands)
 
         self.operator = operator
         self.operands = operands
@@ -191,6 +193,10 @@ class CompoundAccessControlCondition(AccessControlCondition):
                 return not current_result, current_value
 
         return overall_result, values
+
+    @property
+    def conditions(self):
+        return self.operands
 
 
 class OrCompoundCondition(CompoundAccessControlCondition):
@@ -235,14 +241,19 @@ class ConditionVariable(_Serializable):
         var_name = fields.Str(required=True)  # TODO: should this be required?
         condition = _ConditionField(required=True)
 
+        @post_load
+        def make(self, data, **kwargs):
+            return ConditionVariable(**data)
+
     def __init__(self, var_name: str, condition: AccessControlCondition):
         self.var_name = var_name
         self.condition = condition
 
 
-class SequentialAccessControlCondition(AccessControlCondition):
+class SequentialAccessControlCondition(MultiConditionAccessControl):
     CONDITION_TYPE = ConditionType.SEQUENTIAL.value
-    MAX_NUM_CONDITION_VARIABLES = 5
+    MAX_NUM_CONDITIONS = 5
+    MAX_MULTI_CONDITION_NESTED_LEVEL = 2
 
     @classmethod
     def _validate_condition_variables(
@@ -254,9 +265,9 @@ class SequentialAccessControlCondition(AccessControlCondition):
         if num_condition_variables == 0:
             raise exception_class("Must be at least one condition variable")
 
-        if num_condition_variables > cls.MAX_NUM_CONDITION_VARIABLES:
+        if num_condition_variables > cls.MAX_NUM_CONDITIONS:
             raise exception_class(
-                f"Maximum of {cls.MAX_NUM_CONDITION_VARIABLES} condition variables are allowed"
+                f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed"
             )
 
     class Schema(AccessControlCondition.Schema):
@@ -291,8 +302,14 @@ class SequentialAccessControlCondition(AccessControlCondition):
         self._validate_condition_variables(
             condition_variables=condition_variables, exception_class=InvalidCondition
         )
-        self.condition_variables = condition_variables
+        self._validate_multi_condition_nesting(
+            conditions=[
+                condition_variable.condition
+                for condition_variable in condition_variables
+            ]
+        )
 
+        self.condition_variables = condition_variables
         super().__init__(condition_type=condition_type, name=name)
 
     def __repr__(self):
@@ -320,6 +337,13 @@ class SequentialAccessControlCondition(AccessControlCondition):
             inner_context[f":{condition_variable.var_name}"] = result
 
         return latest_success, values
+
+    @property
+    def conditions(self):
+        return [
+            condition_variable.condition
+            for condition_variable in self.condition_variables
+        ]
 
 
 class ReturnValueTest:
