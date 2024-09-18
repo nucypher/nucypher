@@ -7,7 +7,6 @@ from marshmallow import ValidationError
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     InvalidCondition,
-    InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.offchain import (
@@ -56,7 +55,7 @@ def test_json_api_condition_invalid_type():
 
 
 def test_https_enforcement():
-    with pytest.raises(InvalidConditionLingo) as excinfo:
+    with pytest.raises(InvalidCondition) as excinfo:
         JsonApiCondition(
             endpoint="http://api.example.com/data",
             query="$.store.book[0].price",

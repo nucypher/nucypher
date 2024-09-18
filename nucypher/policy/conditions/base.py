@@ -70,15 +70,12 @@ class AccessControlCondition(_Serializable, ABC):
         self.name = name
 
         # validate inputs using marshmallow schema
-        schema = self.Schema()
-        errors = schema.validate(self.to_dict())
-        if errors:
-            raise InvalidConditionLingo(errors)
+        self.validate(self.to_dict())
 
     @abstractmethod
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         """Returns the boolean result of the evaluation and the returned value in a two-tuple."""
-        return NotImplemented
+        raise NotImplementedError
 
     @classmethod
     def validate(cls, data: Dict) -> None:
