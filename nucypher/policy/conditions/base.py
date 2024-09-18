@@ -87,14 +87,14 @@ class AccessControlCondition(_Serializable, ABC):
         try:
             return super().from_dict(data)
         except ValidationError as e:
-            raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
+            raise InvalidConditionLingo(f"Invalid condition grammar: {e}") from e
 
     @classmethod
     def from_json(cls, data) -> "AccessControlCondition":
         try:
             return super().from_json(data)
         except ValidationError as e:
-            raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
+            raise InvalidConditionLingo(f"Invalid condition grammar: {e}") from e
 
 
 class ExecutionCall(ABC):
