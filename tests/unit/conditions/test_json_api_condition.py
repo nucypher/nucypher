@@ -101,7 +101,7 @@ def test_json_api_condition_fetch_failure(mocker):
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
-        return_value_test=ReturnValueTest("==", "1"),
+        return_value_test=ReturnValueTest("==", 1),
     )
     with pytest.raises(InvalidCondition) as excinfo:
         condition.fetch()
@@ -110,17 +110,45 @@ def test_json_api_condition_fetch_failure(mocker):
 
 def test_json_api_condition_verify(mocker):
     mock_response = mocker.Mock(status_code=200)
-    mock_response.json.return_value = {"store": {"book": [{"price": "1"}]}}
+    mock_response.json.return_value = {"store": {"book": [{"price": 1}]}}
     mocker.patch("requests.get", return_value=mock_response)
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
-        return_value_test=ReturnValueTest("==", "1"),
+        return_value_test=ReturnValueTest("==", 1),
     )
     result, value = condition.verify()
     assert result is True
-    assert value == "1"
+    assert value == 1
+
+
+@pytest.mark.parametrize(
+    "json_return, value_test",
+    (
+        ("Title", "'Title'"),  # no whitespace
+        ("Test Title", "'Test Title'"),  # whitespace
+        ('"Already double quoted"', "'Already double quoted'"),  # already quoted
+        ("'Already single quoted'", "'Already single quoted'"),  # already quoted
+        ("O'Sullivan", '"O\'Sullivan"'),  # single quote present
+        ('Hello, "World!"', "'Hello, \"World!\"'"),  # double quotes present
+    ),
+)
+def test_json_api_condition_verify_strings(json_return, value_test, mocker):
+    mock_response = mocker.Mock(status_code=200)
+    json_string = json.loads(json.dumps(json_return))
+    assert json_string == json_return, "valid json string used for test"
+    mock_response.json.return_value = {"store": {"book": [{"text": f"{json_return}"}]}}
+    mocker.patch("requests.get", return_value=mock_response)
+
+    condition = JsonApiCondition(
+        endpoint="https://api.example.com/data",
+        query="$.store.book[0].text",
+        return_value_test=ReturnValueTest("==", f"{value_test}"),
+    )
+    result, value = condition.verify()
+    assert result is True, f"{json_return} vs {value_test}"
+    assert value == json_return
 
 
 def test_json_api_condition_verify_invalid_json(mocker):
@@ -131,7 +159,7 @@ def test_json_api_condition_verify_invalid_json(mocker):
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
-        return_value_test=ReturnValueTest("==", "2"),
+        return_value_test=ReturnValueTest("==", 2),
     )
     with pytest.raises(ConditionEvaluationFailed) as excinfo:
         condition.verify()
@@ -150,7 +178,7 @@ def test_non_json_response(mocker):
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
         query="$.store.book[0].price",
-        return_value_test=ReturnValueTest("==", "18"),
+        return_value_test=ReturnValueTest("==", 18),
     )
 
     with pytest.raises(ConditionEvaluationFailed) as excinfo:
