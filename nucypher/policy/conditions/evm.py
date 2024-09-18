@@ -254,7 +254,11 @@ class RPCCondition(ExecutionCallAccessControlCondition):
     ):
         super().__init__(condition_type=condition_type, *args, **kwargs)
 
+    def _validate(self):
         self._validate_expected_return_type()
+
+        # Make sure to call super
+        super()._validate()
 
     def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
         return RPCCall(*args, **kwargs)

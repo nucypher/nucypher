@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from marshmallow import Schema, ValidationError, fields
 
@@ -69,19 +69,18 @@ class AccessControlCondition(_Serializable, ABC):
         self.condition_type = condition_type
         self.name = name
 
-        # validate inputs using marshmallow schema
-        self.validate(self.to_dict())
+        self._validate()
 
     @abstractmethod
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         """Returns the boolean result of the evaluation and the returned value in a two-tuple."""
         raise NotImplementedError
 
-    @classmethod
-    def validate(cls, data: Dict) -> None:
-        errors = cls.Schema().validate(data=data)
+    def _validate(self):
+        # validate using marshmallow schema
+        errors = self.Schema().validate(data=self.to_dict())
         if errors:
-            raise InvalidCondition(f"Invalid {cls.__name__}: {errors}")
+            raise InvalidCondition(f"Invalid {self.__class__.__name__}: {errors}")
 
     @classmethod
     def from_dict(cls, data) -> "AccessControlCondition":
@@ -110,7 +109,11 @@ class MultiConditionAccessControl(AccessControlCondition):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def _validate(self):
         self._validate_multi_condition_nesting(conditions=self.conditions)
+
+        super()._validate()
 
     @property
     @abstractmethod

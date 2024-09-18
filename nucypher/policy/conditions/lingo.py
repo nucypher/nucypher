@@ -161,7 +161,6 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
             "operands": [CONDITION*]
         }
         """
-        self._validate_operator_and_operands(operator, operands, InvalidCondition)
 
         self.operator = operator
         self.operands = operands
@@ -170,6 +169,14 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         self.id = md5(bytes(self)).hexdigest()[:6]
 
         super().__init__(condition_type=condition_type, name=name)
+
+    def _validate(self):
+        self._validate_operator_and_operands(
+            self.operator, self.operands, InvalidCondition
+        )
+
+        # Make sure to call super
+        super()._validate()
 
     def __repr__(self):
         return f"Operator={self.operator} (NumOperands={len(self.operands)}), id={self.id})"
@@ -306,11 +313,17 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
-        self._validate_condition_variables(
-            condition_variables=condition_variables, exception_class=InvalidCondition
-        )
         self.condition_variables = condition_variables
         super().__init__(condition_type=condition_type, name=name)
+
+    def _validate(self):
+        self._validate_condition_variables(
+            condition_variables=self.condition_variables,
+            exception_class=InvalidCondition,
+        )
+
+        # Make sure to call super
+        super()._validate()
 
     def __repr__(self):
         r = f"{self.__class__.__name__}(num_condition_variables={len(self.condition_variables)})"
