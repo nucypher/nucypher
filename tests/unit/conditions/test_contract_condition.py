@@ -250,17 +250,17 @@ def test_contract_condition_schema_validation():
     condition_dict = contract_condition.to_dict()
 
     # no issues here
-    ContractCondition.validate(condition_dict)
+    ContractCondition.from_dict(condition_dict)
 
     # no issues with optional name
     condition_dict["name"] = "my_contract_condition"
-    ContractCondition.validate(condition_dict)
+    ContractCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # no contract address defined
         condition_dict = contract_condition.to_dict()
         del condition_dict["contractAddress"]
-        ContractCondition.validate(condition_dict)
+        ContractCondition.from_dict(condition_dict)
 
     balanceOf_abi = {
         "constant": True,
@@ -272,29 +272,29 @@ def test_contract_condition_schema_validation():
         "type": "function",
     }
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # no function abi or standard contract type
         condition_dict = contract_condition.to_dict()
         del condition_dict["standardContractType"]
-        ContractCondition.validate(condition_dict)
+        ContractCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # provide both function abi and standard contract type
         condition_dict = contract_condition.to_dict()
         condition_dict["functionAbi"] = balanceOf_abi
-        ContractCondition.validate(condition_dict)
+        ContractCondition.from_dict(condition_dict)
 
     # remove standardContractType but specify function abi; no issues with that
     condition_dict = contract_condition.to_dict()
     del condition_dict["standardContractType"]
     condition_dict["functionAbi"] = balanceOf_abi
-    ContractCondition.validate(condition_dict)
+    ContractCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # no returnValueTest defined
         condition_dict = contract_condition.to_dict()
         del condition_dict["returnValueTest"]
-        ContractCondition.validate(condition_dict)
+        ContractCondition.from_dict(condition_dict)
 
 
 def test_contract_condition_repr(contract_condition_dict):
