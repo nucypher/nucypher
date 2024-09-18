@@ -160,7 +160,6 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         }
         """
         self._validate_operator_and_operands(operator, operands, InvalidCondition)
-        self._validate_multi_condition_nesting(conditions=operands)
 
         self.operator = operator
         self.operands = operands
@@ -303,13 +302,6 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
         self._validate_condition_variables(
             condition_variables=condition_variables, exception_class=InvalidCondition
         )
-        self._validate_multi_condition_nesting(
-            conditions=[
-                condition_variable.condition
-                for condition_variable in condition_variables
-            ]
-        )
-
         self.condition_variables = condition_variables
         super().__init__(condition_type=condition_type, name=name)
 

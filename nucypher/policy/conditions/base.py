@@ -108,6 +108,10 @@ class MultiConditionAccessControl(AccessControlCondition):
     MAX_NUM_CONDITIONS = 5
     MAX_MULTI_CONDITION_NESTED_LEVEL = 2
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._validate_multi_condition_nesting(conditions=self.conditions)
+
     @property
     @abstractmethod
     def conditions(self) -> List[AccessControlCondition]:
