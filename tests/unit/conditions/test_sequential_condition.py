@@ -52,14 +52,12 @@ def test_invalid_sequential_condition(mock_condition_variables):
     # no variables
     with pytest.raises(InvalidCondition, match="At least two conditions"):
         _ = SequentialAccessControlCondition(
-            condition_type=ConditionType.TIME.value,
             condition_variables=[],
         )
 
     # only one variable
     with pytest.raises(InvalidCondition, match="At least two conditions"):
         _ = SequentialAccessControlCondition(
-            condition_type=ConditionType.TIME.value,
             condition_variables=[var_1],
         )
 
@@ -69,7 +67,6 @@ def test_invalid_sequential_condition(mock_condition_variables):
     assert len(too_many_variables) > SequentialAccessControlCondition.MAX_NUM_CONDITIONS
     with pytest.raises(InvalidCondition, match="Maximum of"):
         _ = SequentialAccessControlCondition(
-            condition_type=ConditionType.TIME.value,
             condition_variables=too_many_variables,
         )
 
