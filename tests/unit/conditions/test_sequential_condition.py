@@ -40,7 +40,7 @@ def mock_condition_variables(mocker):
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
 def test_invalid_sequential_condition(mock_condition_variables):
-    var_1, *_ = mock_condition_variables
+    var_1, var_2, var_3, var_4 = mock_condition_variables
 
     # invalid condition type
     with pytest.raises(InvalidCondition, match=ConditionType.SEQUENTIAL.value):
@@ -68,6 +68,13 @@ def test_invalid_sequential_condition(mock_condition_variables):
     with pytest.raises(InvalidCondition, match="Maximum of"):
         _ = SequentialAccessControlCondition(
             condition_variables=too_many_variables,
+        )
+
+    # duplicate var names
+    dupe_var = ConditionVariable(var_1.var_name, condition=var_4.condition)
+    with pytest.raises(InvalidCondition, match="Duplicate"):
+        _ = SequentialAccessControlCondition(
+            condition_variables=[var_1, var_2, var_3, dupe_var],
         )
 
 

@@ -272,7 +272,7 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
     @classmethod
     def _validate_condition_variables(
         cls,
-        condition_variables: List[Union[Dict, ConditionVariable]],
+        condition_variables: List[ConditionVariable],
         exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
     ):
         num_condition_variables = len(condition_variables)
@@ -283,6 +283,15 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
             raise exception_class(
                 f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed"
             )
+
+        # check for duplicate var names
+        var_names = set()
+        for condition_variable in condition_variables:
+            if condition_variable.var_name in var_names:
+                raise exception_class(
+                    f"Duplicate variable names are not allowed - {condition_variable.var_name}"
+                )
+            var_names.add(condition_variable.var_name)
 
     class Schema(AccessControlCondition.Schema):
         condition_type = fields.Str(
