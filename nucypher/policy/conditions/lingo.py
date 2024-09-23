@@ -143,6 +143,7 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
             CompoundAccessControlCondition._validate_operator_and_operands(
                 operator, operands, ValidationError
             )
+            CompoundAccessControlCondition._validate_multi_condition_nesting(conditions=operands, field_name="operands")
 
         @post_load
         def make(self, data, **kwargs):
@@ -305,11 +306,12 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
         class Meta:
             ordered = True
 
-        @validates_schema
-        def validate_condition_variables(self, data, **kwargs):
-            condition_variables = data["condition_variables"]
-            SequentialAccessControlCondition._validate_condition_variables(
-                condition_variables, ValidationError
+        @validates("condition_variables")
+        def validate_condition_variables(self,value):
+            SequentialAccessControlCondition._validate_condition_variables(value)
+            conditions = [cv.condition for cv in value]
+            SequentialAccessControlCondition._validate_multi_condition_nesting(
+                conditions=conditions, field_name="condition_variables"
             )
 
         @post_load

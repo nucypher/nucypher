@@ -124,11 +124,13 @@ class MultiConditionAccessControl(AccessControlCondition):
     def _validate_multi_condition_nesting(
         cls,
         conditions: List[AccessControlCondition],
+        field_name: str,
         current_level: int = 1,
     ):
         if len(conditions) > cls.MAX_NUM_CONDITIONS:
-            raise InvalidCondition(
-                f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed"
+            raise ValidationError(
+                field_name=field_name,
+                message=f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed"
             )
 
         for condition in conditions:
@@ -137,10 +139,12 @@ class MultiConditionAccessControl(AccessControlCondition):
 
             level = current_level + 1
             if level > cls.MAX_MULTI_CONDITION_NESTED_LEVEL:
-                raise InvalidCondition(
-                    f"Only {cls.MAX_MULTI_CONDITION_NESTED_LEVEL} nested levels of multi-conditions are allowed"
+                raise ValidationError(
+                    field_name=field_name,
+                    message=f"Only {cls.MAX_MULTI_CONDITION_NESTED_LEVEL} nested levels of multi-conditions are allowed"
                 )
             cls._validate_multi_condition_nesting(
                 conditions=condition.conditions,
+                field_name=field_name,
                 current_level=level,
             )
