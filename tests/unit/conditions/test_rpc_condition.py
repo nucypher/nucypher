@@ -48,7 +48,7 @@ def test_invalid_rpc_condition():
         )
 
     # unsupported chain id
-    with pytest.raises(InvalidCondition, match="is not a permitted blockchain"):
+    with pytest.raises(InvalidCondition, match="90210 is not a permitted blockchain"):
         _ = RPCCondition(
             method="eth_getBalance",
             chain=90210,  # Beverly Hills Chain :)
@@ -57,10 +57,10 @@ def test_invalid_rpc_condition():
         )
 
     # invalid chain type provided
-    with pytest.raises(ValueError, match="must be the integer chain ID"):
+    with pytest.raises(ValueError, match="invalid literal for int"):
         _ = RPCCondition(
             method="eth_getBalance",
-            chain=str(TESTERCHAIN_CHAIN_ID),  # should be int not str.
+            chain="chainId",  # should be int not str.
             return_value_test=ReturnValueTest("==", 0),
             parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
         )
