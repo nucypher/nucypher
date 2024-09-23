@@ -54,7 +54,7 @@ class TimeRPCCall(RPCCall):
 
 
 class TimeCondition(RPCCondition):
-    EXEC_CALL_TYPE = TimeRPCCall
+    EXECUTION_CALL_TYPE = TimeRPCCall
     CONDITION_TYPE = ConditionType.TIME.value
 
     class Schema(RPCCondition.Schema, TimeRPCCall.Schema):

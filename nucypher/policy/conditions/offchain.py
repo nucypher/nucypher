@@ -140,7 +140,7 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
     The response will be deserialized as JSON and parsed using jsonpath.
     """
 
-    EXEC_CALL_TYPE = JsonApiCall
+    EXECUTION_CALL_TYPE = JsonApiCall
     CONDITION_TYPE = ConditionType.JSONAPI.value
 
     class Schema(ExecutionCallAccessControlCondition.Schema, JsonApiCall.Schema):

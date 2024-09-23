@@ -590,7 +590,7 @@ class ExecutionCallAccessControlCondition(AccessControlCondition):
     Conditions that utilize underlying ExecutionCall objects.
     """
 
-    EXEC_CALL_TYPE = NotImplemented
+    EXECUTION_CALL_TYPE = NotImplemented
 
     class Schema(AccessControlCondition.Schema):
         return_value_test = fields.Nested(
@@ -608,7 +608,7 @@ class ExecutionCallAccessControlCondition(AccessControlCondition):
         self.return_value_test = return_value_test
 
         try:
-            self.execution_call = self.EXEC_CALL_TYPE(*args, **kwargs)
+            self.execution_call = self.EXECUTION_CALL_TYPE(*args, **kwargs)
         except ExecutionCall.InvalidExecutionCall as e:
             raise InvalidCondition(str(e)) from e
 

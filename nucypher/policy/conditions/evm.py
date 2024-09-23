@@ -204,7 +204,7 @@ class RPCCall(ExecutionCall):
 
 
 class RPCCondition(ExecutionCallAccessControlCondition):
-    EXEC_CALL_TYPE = RPCCall
+    EXECUTION_CALL_TYPE = RPCCall
     CONDITION_TYPE = ConditionType.RPC.value
 
     class Schema(ExecutionCallAccessControlCondition.Schema, RPCCall.Schema):
@@ -388,7 +388,7 @@ class ContractCall(RPCCall):
 
 
 class ContractCondition(RPCCondition):
-    EXEC_CALL_TYPE = ContractCall
+    EXECUTION_CALL_TYPE = ContractCall
     CONDITION_TYPE = ConditionType.CONTRACT.value
 
     class Schema(RPCCondition.Schema, ContractCall.Schema):

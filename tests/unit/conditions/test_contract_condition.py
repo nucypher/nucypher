@@ -55,7 +55,7 @@ class FakeExecutionContractCondition(ContractCondition):
         def execute(self, providers: Dict, **context) -> Any:
             return self.execution_return_value
 
-    EXEC_CALL_TYPE = FakeRPCCall
+    EXECUTION_CALL_TYPE = FakeRPCCall
 
     class Schema(ContractCondition.Schema):
         @post_load
