@@ -40,7 +40,7 @@ def mock_condition_variables(mocker):
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
 def test_invalid_sequential_condition(mock_condition_variables):
-    var_1, *others = mock_condition_variables
+    var_1, *_ = mock_condition_variables
 
     # invalid condition type
     with pytest.raises(InvalidCondition, match=ConditionType.SEQUENTIAL.value):

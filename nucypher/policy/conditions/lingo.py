@@ -99,9 +99,6 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
     OPERATORS = (AND_OPERATOR, OR_OPERATOR, NOT_OPERATOR)
     CONDITION_TYPE = ConditionType.COMPOUND.value
 
-    MAX_NUM_CONDITIONS = 5
-    MAX_MULTI_CONDITION_NESTED_LEVEL = 2
-
     @classmethod
     def _validate_operator_and_operands(
         cls,
@@ -264,8 +261,6 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
     """
 
     CONDITION_TYPE = ConditionType.SEQUENTIAL.value
-    MAX_NUM_CONDITIONS = 5
-    MAX_MULTI_CONDITION_NESTED_LEVEL = 2
 
     @classmethod
     def _validate_condition_variables(
