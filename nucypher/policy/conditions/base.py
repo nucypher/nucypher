@@ -57,7 +57,7 @@ class AccessControlCondition(_Serializable, ABC):
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
-        name = fields.Str(required=False)
+        name = fields.Str(required=False, allow_none=True)
         condition_type = NotImplemented
 
     def __init__(self, condition_type: str, name: Optional[str] = None):
@@ -103,23 +103,9 @@ class AccessControlCondition(_Serializable, ABC):
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}") from e
 
 
-class ExecutionCall(ABC):
-    @abstractmethod
-    def execute(self, *args, **kwargs) -> Any:
-        raise NotImplementedError
-
-
 class MultiConditionAccessControl(AccessControlCondition):
     MAX_NUM_CONDITIONS = 5
     MAX_MULTI_CONDITION_NESTED_LEVEL = 2
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def _validate(self):
-        self._validate_multi_condition_nesting(conditions=self.conditions)
-
-        super()._validate()
 
     @property
     @abstractmethod
@@ -154,3 +140,23 @@ class MultiConditionAccessControl(AccessControlCondition):
                 field_name=field_name,
                 current_level=level,
             )
+
+
+class ExecutionCall(_Serializable, ABC):
+    class InvalidExecutionCall(ValueError):
+        pass
+
+    class Schema(CamelCaseSchema):
+        pass
+
+    def __init__(self, *args, **kwargs):
+        # validate call using marshmallow schema before creating
+        errors = self.Schema().validate(data=self.to_dict())
+        if errors:
+            error_type = list(errors.keys())[0]
+            message = errors[error_type][0]
+            raise self.InvalidExecutionCall(f"'{error_type}' - {message}")
+
+    @abstractmethod
+    def execute(self, *args, **kwargs) -> Any:
+        raise NotImplementedError

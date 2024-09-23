@@ -1,17 +1,42 @@
 from typing import Any, List, Optional
 
-from marshmallow import fields, post_load, validate
-from marshmallow.validate import Equal
+from marshmallow import (
+    ValidationError,
+    fields,
+    post_load,
+    validate,
+    validates,
+    validates_schema,
+)
+from typing_extensions import override
 from web3 import Web3
 
-from nucypher.policy.conditions.base import ExecutionCall
 from nucypher.policy.conditions.evm import RPCCall, RPCCondition
-from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import ConditionType
 
 
 class TimeRPCCall(RPCCall):
     METHOD = "blocktime"
+
+    class Schema(RPCCall.Schema):
+        method = fields.Str(dump_default="blocktime", required=True)
+
+        @override
+        @validates("method")
+        def validate_method(self, value):
+            if value != TimeRPCCall.METHOD:
+                raise ValidationError(f"method name must be {TimeRPCCall.METHOD}.")
+
+        @validates("parameters")
+        def validate_no_parameters(self, value):
+            if value:
+                raise ValidationError(
+                    f"{TimeRPCCall.METHOD}' does not take any parameters"
+                )
+
+        @post_load
+        def make(self, data, **kwargs):
+            return TimeRPCCall(**data)
 
     def __init__(
         self,
@@ -19,17 +44,7 @@ class TimeRPCCall(RPCCall):
         method: str = METHOD,
         parameters: Optional[List[Any]] = None,
     ):
-        if parameters:
-            raise ValueError(f"{self.METHOD} does not take any parameters")
-
         super().__init__(chain=chain, method=method, parameters=parameters)
-
-    def _validate_method(self, method):
-        if method != self.METHOD:
-            raise ValueError(
-                f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
-            )
-        return method
 
     def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
         """Execute onchain read and return result."""
@@ -39,15 +54,23 @@ class TimeRPCCall(RPCCall):
 
 
 class TimeCondition(RPCCondition):
+    EXEC_CALL_TYPE = TimeRPCCall
     CONDITION_TYPE = ConditionType.TIME.value
 
-    class Schema(RPCCondition.Schema):
+    class Schema(RPCCondition.Schema, TimeRPCCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.TIME.value), required=True
         )
-        method = fields.Str(
-            dump_default="blocktime", required=True, validate=Equal("blocktime")
-        )
+
+        @validates_schema
+        def validate_expected_return_type(self, data, **kwargs):
+            return_value_test = data.get("return_value_test")
+            comparator_value = return_value_test.value
+            if not isinstance(comparator_value, int):
+                raise ValidationError(
+                    field_name="return_value_test",
+                    message=f"Invalid return value comparison type '{type(comparator_value)}'; must be an integer",
+                )
 
         @post_load
         def make(self, data, **kwargs):
@@ -71,16 +94,6 @@ class TimeCondition(RPCCondition):
             *args,
             **kwargs,
         )
-
-    def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
-        return TimeRPCCall(*args, **kwargs)
-
-    def _validate_expected_return_type(self):
-        comparator_value = self.return_value_test.value
-        if not isinstance(comparator_value, int):
-            raise InvalidCondition(
-                f"Invalid return value comparison type '{type(comparator_value)}'; must be an integer"
-            )
 
     @property
     def timestamp(self):

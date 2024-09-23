@@ -37,6 +37,15 @@ class JSONPathField(Field):
 class JsonApiCall(ExecutionCall):
     TIMEOUT = 5  # seconds
 
+    class Schema(ExecutionCall.Schema):
+        endpoint = Url(required=True, relative=False, schemes=["https"])
+        parameters = fields.Dict(required=False, allow_none=True)
+        query = JSONPathField(required=False, allow_none=True)
+
+        @post_load
+        def make(self, data, **kwargs):
+            return JsonApiCall(**data)
+
     def __init__(
         self,
         endpoint: str,
@@ -49,6 +58,8 @@ class JsonApiCall(ExecutionCall):
 
         self.timeout = self.TIMEOUT
         self.logger = Logger(__name__)
+
+        super().__init__()
 
     def execute(self, *args, **kwargs) -> Any:
         response = self._fetch()
@@ -129,15 +140,13 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
     The response will be deserialized as JSON and parsed using jsonpath.
     """
 
+    EXEC_CALL_TYPE = JsonApiCall
     CONDITION_TYPE = ConditionType.JSONAPI.value
 
-    class Schema(ExecutionCallAccessControlCondition.Schema):
+    class Schema(ExecutionCallAccessControlCondition.Schema, JsonApiCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
-        endpoint = Url(required=True, relative=False, schemes=["https"])
-        parameters = fields.Dict(required=False, allow_none=True)
-        query = JSONPathField(required=False, allow_none=True)
 
         @post_load
         def make(self, data, **kwargs):
@@ -150,9 +159,6 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
         **kwargs,
     ):
         super().__init__(condition_type=condition_type, *args, **kwargs)
-
-    def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
-        return JsonApiCall(*args, **kwargs)
 
     @property
     def endpoint(self):
