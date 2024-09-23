@@ -574,10 +574,11 @@ class ConditionLingo(_Serializable):
             )
 
 
-class BaseExecAccessControlCondition(AccessControlCondition):
+class ExecutionCallAccessControlCondition(AccessControlCondition):
     """
     Conditions that utilize underlying ExecutionCall objects.
     """
+
     class Schema(AccessControlCondition.Schema):
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True

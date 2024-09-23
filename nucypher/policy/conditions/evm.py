@@ -32,8 +32,8 @@ from nucypher.policy.conditions.exceptions import (
     RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import (
-    BaseExecAccessControlCondition,
     ConditionType,
+    ExecutionCallAccessControlCondition,
     ReturnValueTest,
 )
 from nucypher.policy.conditions.utils import camel_case_to_snake
@@ -225,10 +225,10 @@ class RPCCall(ExecutionCall):
         return rpc_result
 
 
-class RPCCondition(BaseExecAccessControlCondition):
+class RPCCondition(ExecutionCallAccessControlCondition):
     CONDITION_TYPE = ConditionType.RPC.value
 
-    class Schema(BaseExecAccessControlCondition.Schema):
+    class Schema(ExecutionCallAccessControlCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.RPC.value), required=True
         )
