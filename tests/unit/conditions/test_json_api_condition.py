@@ -7,7 +7,6 @@ from marshmallow import ValidationError
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     InvalidCondition,
-    InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.offchain import (
@@ -56,7 +55,7 @@ def test_json_api_condition_invalid_type():
 
 
 def test_https_enforcement():
-    with pytest.raises(InvalidConditionLingo) as excinfo:
+    with pytest.raises(InvalidCondition) as excinfo:
         JsonApiCondition(
             endpoint="http://api.example.com/data",
             query="$.store.book[0].price",
@@ -88,7 +87,7 @@ def test_json_api_condition_fetch(mocker):
         query="$.store.book[0].title",
         return_value_test=ReturnValueTest("==", "'Test Title'"),
     )
-    response = condition.fetch()
+    response = condition.execution_call._fetch()
     assert response.status_code == 200
     assert response.json() == {"store": {"book": [{"title": "Test Title"}]}}
 
@@ -104,7 +103,7 @@ def test_json_api_condition_fetch_failure(mocker):
         return_value_test=ReturnValueTest("==", 1),
     )
     with pytest.raises(InvalidCondition) as excinfo:
-        condition.fetch()
+        condition.execution_call._fetch()
     assert "Failed to fetch endpoint" in str(excinfo.value)
 
 
@@ -224,7 +223,7 @@ def test_json_api_condition_from_lingo_expression():
         },
     }
 
-    cls = ConditionLingo.resolve_condition_class(lingo_dict, version=1.0)
+    cls = ConditionLingo.resolve_condition_class(lingo_dict, version=1)
     assert cls == JsonApiCondition
 
     lingo_json = json.dumps(lingo_dict)

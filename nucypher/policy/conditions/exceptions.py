@@ -7,9 +7,9 @@ class InvalidConditionLingo(Exception):
 class NoConnectionToChain(RuntimeError):
     """Raised when a node does not have an associated provider for a chain."""
 
-    def __init__(self, chain: int):
+    def __init__(self, chain: int, message: str = None):
         self.chain = chain
-        message = f"No connection to chain ID {chain}"
+        message = message or f"No connection to chain ID {chain}"
         super().__init__(message)
 
 

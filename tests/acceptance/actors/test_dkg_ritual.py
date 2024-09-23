@@ -15,9 +15,11 @@ from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
+    ConditionVariable,
     NotCompoundCondition,
     OrCompoundCondition,
     ReturnValueTest,
+    SequentialAccessControlCondition,
 )
 from nucypher.policy.conditions.time import TimeCondition
 from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
@@ -93,7 +95,14 @@ def condition(test_registry):
     )
 
     not_not_condition = NotCompoundCondition(
-        operand=NotCompoundCondition(operand=and_condition)
+        operand=NotCompoundCondition(operand=rpc_condition)
+    )
+
+    sequential_condition = SequentialAccessControlCondition(
+        condition_variables=[
+            ConditionVariable("rpc", rpc_condition),
+            ConditionVariable("contract", contract_condition),
+        ]
     )
 
     conditions = [
@@ -103,6 +112,7 @@ def condition(test_registry):
         or_condition,
         and_condition,
         not_not_condition,
+        sequential_condition,
     ]
 
     condition_to_use = random.choice(conditions)

@@ -1,14 +1,15 @@
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from marshmallow import Schema, ValidationError
+from marshmallow import Schema, ValidationError, fields
 
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
 )
+from nucypher.policy.conditions.utils import CamelCaseSchema
 
 
 class _Serializable:
@@ -51,24 +52,30 @@ class _Serializable:
 
 
 class AccessControlCondition(_Serializable, ABC):
+    CONDITION_TYPE = NotImplemented
 
-    class Schema(Schema):
-        name = NotImplemented
+    class Schema(CamelCaseSchema):
+        SKIP_VALUES = (None,)
+        name = fields.Str(required=False)
+        condition_type = NotImplemented
 
-    def __init__(self):
-
+    def __init__(self, condition_type: str, name: Optional[str] = None):
         super().__init__()
 
+        if condition_type != self.CONDITION_TYPE:
+            raise InvalidCondition(
+                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
+            )
+        self.condition_type = condition_type
+        self.name = name
+
         # validate inputs using marshmallow schema
-        schema = self.Schema()
-        errors = schema.validate(self.to_dict())
-        if errors:
-            raise InvalidConditionLingo(errors)
+        self.validate(self.to_dict())
 
     @abstractmethod
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         """Returns the boolean result of the evaluation and the returned value in a two-tuple."""
-        return NotImplemented
+        raise NotImplementedError
 
     @classmethod
     def validate(cls, data: Dict) -> None:
@@ -89,3 +96,48 @@ class AccessControlCondition(_Serializable, ABC):
             return super().from_json(data)
         except ValidationError as e:
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
+
+
+class ExecutionCall(ABC):
+    @abstractmethod
+    def execute(self, *args, **kwargs) -> Any:
+        raise NotImplementedError
+
+
+class MultiConditionAccessControl(AccessControlCondition):
+    MAX_NUM_CONDITIONS = 5
+    MAX_MULTI_CONDITION_NESTED_LEVEL = 2
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._validate_multi_condition_nesting(conditions=self.conditions)
+
+    @property
+    @abstractmethod
+    def conditions(self) -> List[AccessControlCondition]:
+        raise NotImplementedError
+
+    @classmethod
+    def _validate_multi_condition_nesting(
+        cls,
+        conditions: List[AccessControlCondition],
+        current_level: int = 1,
+    ):
+        if len(conditions) > cls.MAX_NUM_CONDITIONS:
+            raise InvalidCondition(
+                f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed"
+            )
+
+        for condition in conditions:
+            if not isinstance(condition, MultiConditionAccessControl):
+                continue
+
+            level = current_level + 1
+            if level > cls.MAX_MULTI_CONDITION_NESTED_LEVEL:
+                raise InvalidCondition(
+                    f"Only {cls.MAX_MULTI_CONDITION_NESTED_LEVEL} nested levels of multi-conditions are allowed"
+                )
+            cls._validate_multi_condition_nesting(
+                conditions=condition.conditions,
+                current_level=level,
+            )

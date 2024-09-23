@@ -34,16 +34,20 @@ class ReturnValueTestDict(TypedDict):
     key: NotRequired[Union[str, int]]
 
 
+# Conditions
 class _AccessControlCondition(TypedDict):
     name: NotRequired[str]
-
-
-class RPCConditionDict(_AccessControlCondition):
     conditionType: str
+
+
+class BaseExecConditionDict(_AccessControlCondition):
+    returnValueTest: ReturnValueTestDict
+
+
+class RPCConditionDict(BaseExecConditionDict):
     chain: int
     method: str
     parameters: NotRequired[List[Any]]
-    returnValueTest: ReturnValueTestDict
 
 
 class TimeConditionDict(RPCConditionDict):
@@ -56,17 +60,43 @@ class ContractConditionDict(RPCConditionDict):
     functionAbi: NotRequired[ABIFunction]
 
 
+class JsonApiConditionDict(BaseExecConditionDict):
+    endpoint: str
+    query: NotRequired[str]
+    parameters: NotRequired[Dict]
+
 #
 # CompoundCondition represents:
 # {
-#     "operator": ["and" | "or"]
-#     "operands": List[AccessControlCondition | CompoundCondition]
+#     "operator": ["and" | "or" | "not"]
+#     "operands": List[AccessControlCondition]
+# }
 #
+class CompoundConditionDict(_AccessControlCondition):
+    operator: Literal["and", "or", "not"]
+    operands: List["ConditionDict"]
+
+
 #
-class CompoundConditionDict(TypedDict):
-    conditionType: str
-    operator: Literal["and", "or"]
-    operands: List["Lingo"]
+# ConditionVariable represents:
+# {
+#     varName: str
+#     condition: AccessControlCondition
+# }
+#
+class ConditionVariableDict(TypedDict):
+    varName: str
+    condition: "ConditionDict"
+
+
+#
+# SequentialCondition represents:
+# {
+#     "conditionVariables": List[ConditionVariable]
+# }
+#
+class SequentialConditionDict(_AccessControlCondition):
+    conditionVariables = List[ConditionVariableDict]
 
 
 #
@@ -75,8 +105,15 @@ class CompoundConditionDict(TypedDict):
 # - RPCCondition
 # - ContractCondition
 # - CompoundConditionDict
+# - JsonApiConditionDict
+# - SequentialConditionDict
 ConditionDict = Union[
-    TimeConditionDict, RPCConditionDict, ContractConditionDict, CompoundConditionDict
+    TimeConditionDict,
+    RPCConditionDict,
+    ContractConditionDict,
+    CompoundConditionDict,
+    JsonApiConditionDict,
+    SequentialConditionDict,
 ]
 
 

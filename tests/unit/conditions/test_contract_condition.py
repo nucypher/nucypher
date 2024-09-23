@@ -11,7 +11,7 @@ from hexbytes import HexBytes
 from marshmallow import post_load
 from web3.providers import BaseProvider
 
-from nucypher.policy.conditions.evm import ContractCondition
+from nucypher.policy.conditions.evm import ContractCall, ContractCondition
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
@@ -44,6 +44,17 @@ CONTRACT_CONDITION = {
 
 
 class FakeExecutionContractCondition(ContractCondition):
+    class FakeRPCCall(ContractCall):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.execution_return_value = None
+
+        def set_execution_return_value(self, value: Any):
+            self.execution_return_value = value
+
+        def execute(self, providers: Dict, **context) -> Any:
+            return self.execution_return_value
+
     class Schema(ContractCondition.Schema):
         @post_load
         def make(self, data, **kwargs):
@@ -51,16 +62,12 @@ class FakeExecutionContractCondition(ContractCondition):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.execution_return_value = None
+
+    def _create_execution_call(self, *args, **kwargs) -> ContractCall:
+        return self.FakeRPCCall(*args, **kwargs)
 
     def set_execution_return_value(self, value: Any):
-        self.execution_return_value = value
-
-    def _execute_call(self, parameters: List[Any]) -> Any:
-        return self.execution_return_value
-
-    def _configure_provider(self, provider: BaseProvider):
-        return
+        self.execution_call.set_execution_return_value(value)
 
 
 @pytest.fixture(scope="function")

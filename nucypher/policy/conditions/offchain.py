@@ -6,13 +6,15 @@ from jsonpath_ng.ext import parse
 from marshmallow import fields, post_load, validate
 from marshmallow.fields import Field, Url
 
-from nucypher.policy.conditions.base import AccessControlCondition
+from nucypher.policy.conditions.base import ExecutionCall
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     InvalidCondition,
 )
-from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
-from nucypher.policy.conditions.utils import CamelCaseSchema
+from nucypher.policy.conditions.lingo import (
+    ConditionType,
+    ExecutionCallAccessControlCondition,
+)
 from nucypher.utilities.logging import Logger
 
 
@@ -32,58 +34,29 @@ class JSONPathField(Field):
         return value
 
 
-class JsonApiCondition(AccessControlCondition):
-    """
-    A JSON API condition is a condition that can be evaluated by reading from a JSON
-    HTTPS endpoint. The response must return an HTTP 200 with valid JSON in the response body.
-    The response will be deserialized as JSON and parsed using jsonpath.
-    """
-
-    CONDITION_TYPE = ConditionType.JSONAPI.value
-    LOGGER = Logger("nucypher.policy.conditions.JsonApiCondition")
+class JsonApiCall(ExecutionCall):
     TIMEOUT = 5  # seconds
-
-    class Schema(CamelCaseSchema):
-
-        name = fields.Str(required=False)
-        condition_type = fields.Str(
-            validate=validate.Equal(ConditionType.JSONAPI.value), required=True
-        )
-        parameters = fields.Dict(required=False, allow_none=True)
-        endpoint = Url(required=True, relative=False, schemes=["https"])
-        query = JSONPathField(required=False, allow_none=True)
-        return_value_test = fields.Nested(
-            ReturnValueTest.ReturnValueTestSchema(), required=True
-        )
-
-        @post_load
-        def make(self, data, **kwargs):
-            return JsonApiCondition(**data)
 
     def __init__(
         self,
         endpoint: str,
-        return_value_test: ReturnValueTest,
-        query: Optional[str] = None,
         parameters: Optional[dict] = None,
-        condition_type: str = ConditionType.JSONAPI.value,
+        query: Optional[str] = None,
     ):
-        if condition_type != self.CONDITION_TYPE:
-            raise InvalidCondition(
-                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
-            )
-
-        self.condition_type = condition_type
         self.endpoint = endpoint
         self.parameters = parameters or {}
         self.query = query
-        self.return_value_test = return_value_test
+
         self.timeout = self.TIMEOUT
-        self.logger = self.LOGGER
+        self.logger = Logger(__name__)
 
-        super().__init__()
+    def execute(self, *args, **kwargs) -> Any:
+        response = self._fetch()
+        data = self._deserialize_response(response)
+        result = self._query_response(data)
+        return result
 
-    def fetch(self) -> requests.Response:
+    def _fetch(self) -> requests.Response:
         """Fetches data from the endpoint."""
         try:
             response = requests.get(
@@ -111,7 +84,7 @@ class JsonApiCondition(AccessControlCondition):
 
         return response
 
-    def deserialize_response(self, response: requests.Response) -> Any:
+    def _deserialize_response(self, response: requests.Response) -> Any:
         """Deserializes the JSON response from the endpoint."""
         try:
             data = response.json()
@@ -122,7 +95,7 @@ class JsonApiCondition(AccessControlCondition):
             )
         return data
 
-    def query_response(self, data: Any) -> Any:
+    def _query_response(self, data: Any) -> Any:
 
         if not self.query:
             return data  # primitive value
@@ -148,6 +121,55 @@ class JsonApiCondition(AccessControlCondition):
 
         return result
 
+
+class JsonApiCondition(ExecutionCallAccessControlCondition):
+    """
+    A JSON API condition is a condition that can be evaluated by reading from a JSON
+    HTTPS endpoint. The response must return an HTTP 200 with valid JSON in the response body.
+    The response will be deserialized as JSON and parsed using jsonpath.
+    """
+
+    CONDITION_TYPE = ConditionType.JSONAPI.value
+
+    class Schema(ExecutionCallAccessControlCondition.Schema):
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.JSONAPI.value), required=True
+        )
+        endpoint = Url(required=True, relative=False, schemes=["https"])
+        parameters = fields.Dict(required=False, allow_none=True)
+        query = JSONPathField(required=False, allow_none=True)
+
+        @post_load
+        def make(self, data, **kwargs):
+            return JsonApiCondition(**data)
+
+    def __init__(
+        self,
+        condition_type: str = ConditionType.JSONAPI.value,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(condition_type=condition_type, *args, **kwargs)
+
+    def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
+        return JsonApiCall(*args, **kwargs)
+
+    @property
+    def endpoint(self):
+        return self.execution_call.endpoint
+
+    @property
+    def query(self):
+        return self.execution_call.query
+
+    @property
+    def parameters(self):
+        return self.execution_call.parameters
+
+    @property
+    def timeout(self):
+        return self.execution_call.timeout
+
     @staticmethod
     def _process_result_for_eval(result: Any):
         # strings that are not already quoted will cause a problem for literal_eval
@@ -170,14 +192,11 @@ class JsonApiCondition(AccessControlCondition):
         and evaluating the return value test with the result. Parses the endpoint's JSON response using
         JSONPath.
         """
-        response = self.fetch()
-        data = self.deserialize_response(response)
-        result = self.query_response(data)
+        result = self.execution_call.execute(**context)
+        result_for_eval = self._process_result_for_eval(result)
 
         resolved_return_value_test = self.return_value_test.with_resolved_context(
             **context
         )
-
-        result_for_eval = self._process_result_for_eval(result)
         eval_result = resolved_return_value_test.eval(result_for_eval)  # test
         return eval_result, result
