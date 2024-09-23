@@ -156,7 +156,7 @@ def test_compound_condition_schema_validation(operator, time_condition, rpc_cond
 
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
-def test_and_condition_and_short_circuit(mocker, mock_conditions):
+def test_and_condition_and_short_circuit(mock_conditions):
     condition_1, condition_2, condition_3, condition_4 = mock_conditions
 
     and_condition = AndCompoundCondition(
@@ -289,10 +289,9 @@ def test_compound_condition(mock_conditions):
     ]  # or-condition short-circuited because condition_1 was True
 
 
-@pytest.mark.usefixtures("mock_skip_schema_validation")
-def test_nested_compound_condition_too_many_nested_levels(mock_conditions):
-    condition_1, condition_2, condition_3, condition_4 = mock_conditions
-
+def test_nested_compound_condition_too_many_nested_levels(
+    rpc_condition, time_condition
+):
     with pytest.raises(
         InvalidCondition, match="nested levels of multi-conditions are allowed"
     ):
@@ -300,24 +299,23 @@ def test_nested_compound_condition_too_many_nested_levels(mock_conditions):
             operands=[
                 OrCompoundCondition(
                     operands=[
-                        condition_1,
+                        rpc_condition,
                         AndCompoundCondition(
                             operands=[
-                                condition_2,
-                                condition_3,
+                                time_condition,
+                                rpc_condition,
                             ]
                         ),
                     ]
                 ),
-                condition_4,
+                time_condition,
             ]
         )
 
 
-@pytest.mark.usefixtures("mock_skip_schema_validation")
-def test_nested_sequential_condition_too_many_nested_levels(mock_conditions):
-    condition_1, condition_2, condition_3, condition_4 = mock_conditions
-
+def test_nested_sequential_condition_too_many_nested_levels(
+    rpc_condition, time_condition
+):
     with pytest.raises(
         InvalidCondition, match="nested levels of multi-conditions are allowed"
     ):
@@ -325,16 +323,16 @@ def test_nested_sequential_condition_too_many_nested_levels(mock_conditions):
             operands=[
                 OrCompoundCondition(
                     operands=[
-                        condition_1,
+                        rpc_condition,
                         SequentialAccessControlCondition(
                             condition_variables=[
-                                ConditionVariable("var2", condition_2),
-                                ConditionVariable("var3", condition_3),
+                                ConditionVariable("var2", time_condition),
+                                ConditionVariable("var3", rpc_condition),
                             ]
                         ),
                     ]
                 ),
-                condition_4,
+                time_condition,
             ]
         )
 
