@@ -78,15 +78,20 @@ class ConditionType(Enum):
         return [condition.value for condition in cls]
 
 
-# OPERATOR = AND | OR | NOT
-#
-# COMPOUND_CONDITION = {
-#     "name": ...  (Optional)
-#     "conditionType": "compound",
-#     "operator": OPERATOR,
-#     "operands": [CONDITION*]
-# }
 class CompoundAccessControlCondition(MultiConditionAccessControl):
+    """
+    A combination of two or more conditions connected by logical operators such as AND, OR, NOT.
+
+    CompoundCondition grammar:
+        OPERATOR = AND | OR | NOT
+
+        COMPOUND_CONDITION = {
+            "name": ...  (Optional)
+            "conditionType": "compound",
+            "operator": OPERATOR,
+            "operands": [CONDITION*]
+        }
+    """
     AND_OPERATOR = "and"
     OR_OPERATOR = "or"
     NOT_OPERATOR = "not"
@@ -224,18 +229,6 @@ _COMPARATOR_FUNCTIONS = {
 }
 
 
-# CONDITION_VARIABLE = {
-#     "varName": STR,
-#     "condition": {
-#         CONDITION
-#     }
-# }
-#
-# SEQUENTIAL_CONDITION = {
-#     "name": ...  (Optional)
-#     "conditionType": "sequential",
-#     "conditionVariables": [CONDITION_VARIABLE*]
-# }
 class ConditionVariable(_Serializable):
     class Schema(CamelCaseSchema):
         var_name = fields.Str(required=True)  # TODO: should this be required?
@@ -251,6 +244,25 @@ class ConditionVariable(_Serializable):
 
 
 class SequentialAccessControlCondition(MultiConditionAccessControl):
+    """
+    A series of conditions that are evaluated in a specific order, where the result of one
+    condition can be used in subsequent conditions.
+
+    SequentialCondition grammar:
+        CONDITION_VARIABLE = {
+            "varName": STR,
+            "condition": {
+                CONDITION
+            }
+        }
+
+        SEQUENTIAL_CONDITION = {
+            "name": ...  (Optional)
+            "conditionType": "sequential",
+            "conditionVariables": [CONDITION_VARIABLE*]
+        }
+    """
+
     CONDITION_TYPE = ConditionType.SEQUENTIAL.value
     MAX_NUM_CONDITIONS = 5
     MAX_MULTI_CONDITION_NESTED_LEVEL = 2
@@ -529,7 +541,7 @@ class ConditionLingo(_Serializable):
         cls, condition: ConditionDict, version: int = None
     ) -> Type[AccessControlCondition]:
         """
-        Inspects a given block of JSON and attempts to resolve it's intended  datatype within the
+        Inspects a given block of JSON and attempts to resolve it's intended datatype within the
         conditions expression framework.
         """
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
@@ -563,6 +575,9 @@ class ConditionLingo(_Serializable):
 
 
 class BaseExecAccessControlCondition(AccessControlCondition):
+    """
+    Conditions that utilize underlying ExecutionCall objects.
+    """
     class Schema(AccessControlCondition.Schema):
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
