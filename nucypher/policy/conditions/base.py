@@ -4,6 +4,7 @@ from base64 import b64decode, b64encode
 from typing import Any, List, Optional, Tuple
 
 from marshmallow import Schema, ValidationError, fields
+from marshmallow.exceptions import SCHEMA
 
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
@@ -80,7 +81,12 @@ class AccessControlCondition(_Serializable, ABC):
         # validate using marshmallow schema
         errors = self.Schema().validate(data=self.to_dict())
         if errors:
-            raise InvalidCondition(f"Invalid {self.__class__.__name__}: {errors}")
+            error_type = list(errors.keys())[0]
+            message = errors[error_type][0]
+            message_prefix = f"'{error_type}' field - " if error_type != SCHEMA else ""
+            raise InvalidCondition(
+                f"Invalid {self.__class__.__name__}: " f"{message_prefix}{message}"
+            )
 
     @classmethod
     def from_dict(cls, data) -> "AccessControlCondition":
