@@ -55,6 +55,8 @@ class FakeExecutionContractCondition(ContractCondition):
         def execute(self, providers: Dict, **context) -> Any:
             return self.execution_return_value
 
+    EXEC_CALL_TYPE = FakeRPCCall
+
     class Schema(ContractCondition.Schema):
         @post_load
         def make(self, data, **kwargs):
@@ -62,9 +64,6 @@ class FakeExecutionContractCondition(ContractCondition):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-    def _create_execution_call(self, *args, **kwargs) -> ContractCall:
-        return self.FakeRPCCall(*args, **kwargs)
 
     def set_execution_return_value(self, value: Any):
         self.execution_call.set_execution_return_value(value)
