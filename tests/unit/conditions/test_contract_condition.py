@@ -205,7 +205,9 @@ def test_invalid_contract_condition():
         )
 
     # method not in ABI
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(
+        InvalidCondition, match="Could not find any function with matching name"
+    ):
         _ = ContractCondition(
             contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
             method="getPolicy",
@@ -226,7 +228,48 @@ def test_invalid_contract_condition():
             method="balanceOf",
             chain=TESTERCHAIN_CHAIN_ID,
             standard_contract_type="ERC20",
-            function_abi={"rando": "ABI"},
+            function_abi={
+                "inputs": [
+                    {"internalType": "bytes16", "name": "_policyID", "type": "bytes16"}
+                ],
+                "name": "getPolicy",
+                "outputs": [
+                    {
+                        "components": [
+                            {
+                                "internalType": "address payable",
+                                "name": "sponsor",
+                                "type": "address",
+                            },
+                            {
+                                "internalType": "uint32",
+                                "name": "startTimestamp",
+                                "type": "uint32",
+                            },
+                            {
+                                "internalType": "uint32",
+                                "name": "endTimestamp",
+                                "type": "uint32",
+                            },
+                            {
+                                "internalType": "uint16",
+                                "name": "size",
+                                "type": "uint16",
+                            },
+                            {
+                                "internalType": "address",
+                                "name": "owner",
+                                "type": "address",
+                            },
+                        ],
+                        "internalType": "struct SubscriptionManager.Policy",
+                        "name": "",
+                        "type": "tuple",
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function",
+            },
             return_value_test=ReturnValueTest("!=", 0),
             parameters=[
                 ":hrac",
@@ -388,7 +431,9 @@ def test_abi_bool_output(contract_condition_dict):
     assert isinstance(contract_condition.return_value_test.value, bool)
 
     # invalid type fails
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["value"] = 23
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
@@ -418,7 +463,8 @@ def test_abi_bool_output(contract_condition_dict):
     )
 
     # test where context var has invalid expected type(s), so only detected at decryption time
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    # consequently this is not an invalid condition, but rather an incorrect context value
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=True,
@@ -437,7 +483,9 @@ def test_abi_uint_output(contract_condition_dict):
     assert isinstance(contract_condition.return_value_test.value, int)
 
     # invalid type fails
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["value"] = True
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
@@ -467,7 +515,8 @@ def test_abi_uint_output(contract_condition_dict):
     )
 
     # test where context var has invalid expected type(s), so only detected at decryption time
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    # consequently this is not an invalid condition, but rather an incorrect context value
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=123456789,
@@ -486,7 +535,9 @@ def test_abi_int_output(contract_condition_dict):
     assert isinstance(contract_condition.return_value_test.value, int)
 
     # invalid type fails
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["value"] = [1, 2, 3]
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
@@ -516,7 +567,8 @@ def test_abi_int_output(contract_condition_dict):
     )
 
     # test where context var has invalid expected type(s), so only detected at decryption time
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    # consequently this is not an invalid condition, but rather an incorrect context value
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=-123456789,
@@ -537,7 +589,9 @@ def test_abi_address_output(contract_condition_dict, get_random_checksum_address
     assert isinstance(contract_condition.return_value_test.value, str)
 
     # invalid type fails
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["value"] = 1.25
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
@@ -568,7 +622,8 @@ def test_abi_address_output(contract_condition_dict, get_random_checksum_address
     )
 
     # test where context var has invalid expected type(s), so only detected at decryption time
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    # consequently this is not an invalid condition, but rather an incorrect context value
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=checksum_address,
@@ -606,7 +661,9 @@ def test_abi_bytes_output(bytes_test_scenario, contract_condition_dict):
     assert isinstance(contract_condition.return_value_test.value, str)
 
     # invalid type fails
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["value"] = 1.25
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
@@ -636,7 +693,8 @@ def test_abi_bytes_output(bytes_test_scenario, contract_condition_dict):
     )
 
     # test where context var has invalid expected type(s), so only detected at decryption time
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    # consequently this is not an invalid condition, but rather an incorrect context value
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=call_result_in_bytes,
@@ -666,27 +724,37 @@ def test_abi_tuple_output(contract_condition_dict):
     assert isinstance(contract_condition.return_value_test.value, Sequence)
 
     # 1. invalid type
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["value"] = 1
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
     # 2. invalid number of values
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["value"] = [1, 2]
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
     # 3a. Unmatched type
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["value"] = [True, 2, 3]
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
     # 3b. Unmatched type
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["value"] = [1, False, 3]
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
     # 3c. Unmatched type
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["value"] = [1, 2, 3.14159]
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
@@ -724,7 +792,8 @@ def test_abi_tuple_output(contract_condition_dict):
     )
 
     # test where context var has invalid expected type(s) - boolean is unexpected in index 1
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    # consequently this is not an invalid condition, but rather an incorrect context value
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=(1, 2, 3, random_bytes),
@@ -793,7 +862,9 @@ def test_abi_tuple_output_with_index(
     assert isinstance(contract_condition.return_value_test.value, str)
 
     # invalid type at index
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         contract_condition_dict["returnValueTest"]["index"] = 0
         contract_condition_dict["returnValueTest"][
             "value"
@@ -826,7 +897,8 @@ def test_abi_tuple_output_with_index(
         )
 
     # using index, test where context var has invalid expected type - unexpected type in index 2
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    # consequently this is not an invalid condition, but rather an incorrect context value
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
@@ -962,7 +1034,8 @@ def test_abi_multiple_output_values(
         )
 
     # test where context var has invalid expected type
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    # consequently this is not an invalid condition, but rather an incorrect context value
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
@@ -997,8 +1070,9 @@ def test_abi_multiple_output_values(
     )
 
     # test where context var has invalid expected type
+    # consequently this is not an invalid condition, but rather an incorrect context value
     comparator_value[0][0] = True  # should be address but setting to bool
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
@@ -1091,7 +1165,9 @@ def test_abi_nested_tuples_output_values(
         [1],
         get_random_checksum_address(),  # missing tuple value
     ]
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
     contract_condition_dict["returnValueTest"]["value"] = [
@@ -1100,7 +1176,9 @@ def test_abi_nested_tuples_output_values(
         random_bytes_hex,
         get_random_checksum_address(),  # incorrect tuple value for Timeframe
     ]
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
     contract_condition_dict["returnValueTest"]["value"] = [
@@ -1108,7 +1186,9 @@ def test_abi_nested_tuples_output_values(
         [1, random_bytes_hex, 3],
         get_random_checksum_address(),  # too many values
     ]
-    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+    with pytest.raises(
+        InvalidConditionLingo, match="Invalid return value comparison type"
+    ):
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
     # process index 1 (bool)
@@ -1153,7 +1233,8 @@ def test_abi_nested_tuples_output_values(
         )
 
     # test where context var has invalid expected type
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    # consequently this is not an invalid condition, but rather an incorrect context value
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
@@ -1187,8 +1268,9 @@ def test_abi_nested_tuples_output_values(
     )
 
     # test where context var has invalid expected type
+    # consequently this is not an invalid condition, but rather an incorrect context value
     comparator_value[0][2] = 1.25  # should be an address
-    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+    with pytest.raises(ValueError, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
