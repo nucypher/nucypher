@@ -141,7 +141,7 @@ def test_invalid_contract_condition():
     # invalid condition type
     with pytest.raises(
         InvalidCondition,
-        match=f"must be instantiated with the {ConditionType.CONTRACT.value} type",
+        match=f"'condition_type' field - Must be equal to {ConditionType.CONTRACT.value}",
     ):
         _ = ContractCondition(
             condition_type=ConditionType.RPC.value,
@@ -166,7 +166,7 @@ def test_invalid_contract_condition():
 
     # no abi or contract type
     with pytest.raises(
-        InvalidCondition, match="Provide 'standardContractType' or 'functionAbi'"
+        InvalidCondition, match="Provide a standard contract type or function ABI"
     ):
         _ = ContractCondition(
             contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
@@ -221,7 +221,7 @@ def test_invalid_contract_condition():
 
     # standard contract type and function ABI
     with pytest.raises(
-        InvalidCondition, match="Provide 'standardContractType' or 'functionAbi'"
+        InvalidCondition, match="Provide a standard contract type or function ABI"
     ):
         _ = ContractCondition(
             contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
