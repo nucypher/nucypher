@@ -25,11 +25,11 @@ def test_jsonpath_field_valid():
 def test_jsonpath_field_invalid():
     field = JSONPathField()
     invalid_jsonpath = "invalid jsonpath"
-    with pytest.raises(ValidationError) as excinfo:
+    with pytest.raises(
+        ValidationError,
+        match=f"'{invalid_jsonpath}' is not a valid JSONPath expression",
+    ):
         field.deserialize(invalid_jsonpath)
-    assert f"'{invalid_jsonpath}' is not a valid JSONPath expression" in str(
-        excinfo.value
-    )
 
 
 def test_json_api_condition_initialization():
@@ -44,24 +44,23 @@ def test_json_api_condition_initialization():
 
 
 def test_json_api_condition_invalid_type():
-    with pytest.raises(InvalidCondition) as excinfo:
-        JsonApiCondition(
+    with pytest.raises(
+        InvalidCondition, match="'condition_type' field - Must be equal to json-api"
+    ):
+        _ = JsonApiCondition(
             endpoint="https://api.example.com/data",
             query="$.store.book[0].price",
             return_value_test=ReturnValueTest("==", 0),
             condition_type="INVALID_TYPE",
         )
-    assert "must be instantiated with the json-api type" in str(excinfo.value)
-
 
 def test_https_enforcement():
-    with pytest.raises(InvalidCondition) as excinfo:
-        JsonApiCondition(
+    with pytest.raises(InvalidCondition, match="Not a valid URL"):
+        _ = JsonApiCondition(
             endpoint="http://api.example.com/data",
             query="$.store.book[0].price",
             return_value_test=ReturnValueTest("==", 0),
         )
-    assert "Not a valid URL" in str(excinfo.value)
 
 
 def test_json_api_condition_with_primitive_response(mocker):
@@ -102,9 +101,8 @@ def test_json_api_condition_fetch_failure(mocker):
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 1),
     )
-    with pytest.raises(InvalidCondition) as excinfo:
+    with pytest.raises(InvalidCondition, match="Failed to fetch endpoint"):
         condition.execution_call._fetch()
-    assert "Failed to fetch endpoint" in str(excinfo.value)
 
 
 def test_json_api_condition_verify(mocker):
@@ -160,9 +158,10 @@ def test_json_api_condition_verify_invalid_json(mocker):
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 2),
     )
-    with pytest.raises(ConditionEvaluationFailed) as excinfo:
+    with pytest.raises(
+        ConditionEvaluationFailed, match="Failed to parse JSON response"
+    ):
         condition.verify()
-    assert "Failed to parse JSON response" in str(excinfo.value)
 
 
 def test_non_json_response(mocker):
@@ -180,10 +179,10 @@ def test_non_json_response(mocker):
         return_value_test=ReturnValueTest("==", 18),
     )
 
-    with pytest.raises(ConditionEvaluationFailed) as excinfo:
+    with pytest.raises(
+        ConditionEvaluationFailed, match="Failed to parse JSON response"
+    ):
         condition.verify()
-
-    assert "Failed to parse JSON response" in str(excinfo.value)
 
 
 def test_basic_json_api_condition_evaluation_with_parameters(mocker):
@@ -243,7 +242,5 @@ def test_ambiguous_json_path_multiple_results(mocker):
         return_value_test=ReturnValueTest("==", 1),
     )
 
-    with pytest.raises(ConditionEvaluationFailed) as excinfo:
+    with pytest.raises(ConditionEvaluationFailed, match="Ambiguous JSONPath query"):
         condition.verify()
-
-    assert "Ambiguous JSONPath query" in str(excinfo.value)
