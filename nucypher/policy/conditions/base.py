@@ -11,7 +11,7 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
-    extract_error_message_from_schema_errors,
+    extract_single_error_message_from_schema_errors,
 )
 
 
@@ -78,7 +78,7 @@ class AccessControlCondition(_Serializable, ABC):
     def _validate(self, **kwargs):
         errors = self.Schema().validate(data=self.to_dict())
         if errors:
-            error_message = extract_error_message_from_schema_errors(errors)
+            error_message = extract_single_error_message_from_schema_errors(errors)
             raise InvalidCondition(
                 f"Invalid {self.__class__.__name__}: {error_message}"
             )
@@ -148,7 +148,7 @@ class ExecutionCall(_Serializable, ABC):
         # validate call using marshmallow schema before creating
         errors = self.Schema().validate(data=self.to_dict())
         if errors:
-            error_message = extract_error_message_from_schema_errors(errors)
+            error_message = extract_single_error_message_from_schema_errors(errors)
             raise self.InvalidExecutionCall(f"{error_message}")
 
     @abstractmethod

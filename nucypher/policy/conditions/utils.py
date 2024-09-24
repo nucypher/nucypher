@@ -141,13 +141,15 @@ def evaluate_condition_lingo(
         raise error
 
 
-def extract_error_message_from_schema_errors(errors: Dict[str, List[str]]) -> str:
+def extract_single_error_message_from_schema_errors(
+    errors: Dict[str, List[str]]
+) -> str:
     """
-    Extract single error message from Schema().validate().
+    Extract single error message from Schema().validate() errors result.
 
-    The string is only for a single error type, and only the first message string.
-    If there are multiple error types, only one error is used; a field-specific (preferred) error is
-    prioritized over schema-specific error
+    The result is only for a single error type, and only the first message string for that type.
+    If there are multiple error types, only one error type is used; the first field-specific (@validates)
+    error type encountered is prioritized over any schema-level-specific (@validates_schema) error.
     """
     if not errors:
         raise ValueError("Validation errors must be provided")
