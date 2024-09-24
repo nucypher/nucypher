@@ -14,6 +14,7 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.policy.conditions.lingo import (
     ConditionType,
     ExecutionCallAccessControlCondition,
+    ReturnValueTest,
 )
 from nucypher.utilities.logging import Logger
 
@@ -154,11 +155,21 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
 
     def __init__(
         self,
+        endpoint: str,
+        return_value_test: ReturnValueTest,
+        query: Optional[str] = None,
+        parameters: Optional[dict] = None,
         condition_type: str = ConditionType.JSONAPI.value,
-        *args,
-        **kwargs,
+        name: Optional[str] = None,
     ):
-        super().__init__(condition_type=condition_type, *args, **kwargs)
+        super().__init__(
+            endpoint=endpoint,
+            return_value_test=return_value_test,
+            query=query,
+            parameters=parameters,
+            condition_type=condition_type,
+            name=name,
+        )
 
     @property
     def endpoint(self):

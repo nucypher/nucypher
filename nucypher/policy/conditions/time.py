@@ -12,7 +12,7 @@ from typing_extensions import override
 from web3 import Web3
 
 from nucypher.policy.conditions.evm import RPCCall, RPCCondition
-from nucypher.policy.conditions.lingo import ConditionType
+from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 
 
 class TimeRPCCall(RPCCall):
@@ -82,17 +82,19 @@ class TimeCondition(RPCCondition):
 
     def __init__(
         self,
+        return_value_test: ReturnValueTest,
+        chain: int,
         method: str = TimeRPCCall.METHOD,
-        condition_type: str = CONDITION_TYPE,
-        *args,
-        **kwargs,
+        condition_type: str = ConditionType.TIME.value,
+        name: Optional[str] = None,
     ):
         # call to super must be at the end for proper validation
         super().__init__(
-            condition_type=condition_type,
+            return_value_test=return_value_test,
+            chain=chain,
             method=method,
-            *args,
-            **kwargs,
+            condition_type=condition_type,
+            name=name,
         )
 
     @property

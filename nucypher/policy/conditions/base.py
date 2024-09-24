@@ -4,13 +4,15 @@ from base64 import b64decode, b64encode
 from typing import Any, List, Optional, Tuple
 
 from marshmallow import Schema, ValidationError, fields
-from marshmallow.exceptions import SCHEMA
 
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
 )
-from nucypher.policy.conditions.utils import CamelCaseSchema
+from nucypher.policy.conditions.utils import (
+    CamelCaseSchema,
+    extract_error_message_from_schema_errors,
+)
 
 
 class _Serializable:
@@ -63,10 +65,6 @@ class AccessControlCondition(_Serializable, ABC):
     def __init__(self, condition_type: str, name: Optional[str] = None):
         super().__init__()
 
-        if condition_type != self.CONDITION_TYPE:
-            raise InvalidCondition(
-                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
-            )
         self.condition_type = condition_type
         self.name = name
 
@@ -77,15 +75,12 @@ class AccessControlCondition(_Serializable, ABC):
         """Returns the boolean result of the evaluation and the returned value in a two-tuple."""
         raise NotImplementedError
 
-    def _validate(self):
-        # validate using marshmallow schema
+    def _validate(self, **kwargs):
         errors = self.Schema().validate(data=self.to_dict())
         if errors:
-            error_type = list(errors.keys())[0]
-            message = errors[error_type][0]
-            message_prefix = f"'{error_type}' field - " if error_type != SCHEMA else ""
+            error_message = extract_error_message_from_schema_errors(errors)
             raise InvalidCondition(
-                f"Invalid {self.__class__.__name__}: " f"{message_prefix}{message}"
+                f"Invalid {self.__class__.__name__}: {error_message}"
             )
 
     @classmethod
@@ -149,13 +144,12 @@ class ExecutionCall(_Serializable, ABC):
     class Schema(CamelCaseSchema):
         pass
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         # validate call using marshmallow schema before creating
         errors = self.Schema().validate(data=self.to_dict())
         if errors:
-            error_type = list(errors.keys())[0]
-            message = errors[error_type][0]
-            raise self.InvalidExecutionCall(f"'{error_type}' - {message}")
+            error_message = extract_error_message_from_schema_errors(errors)
+            raise self.InvalidExecutionCall(f"{error_message}")
 
     @abstractmethod
     def execute(self, *args, **kwargs) -> Any:

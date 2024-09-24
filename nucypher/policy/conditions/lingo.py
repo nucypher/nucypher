@@ -167,14 +167,15 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
             "operands": [CONDITION*]
         }
         """
-
         self.operator = operator
         self.operands = operands
-        self.condition_type = condition_type
-        self.name = name
-        self.id = md5(bytes(self)).hexdigest()[:6]
 
-        super().__init__(condition_type=condition_type, name=name)
+        super().__init__(
+            condition_type=condition_type,
+            name=name,
+        )
+
+        self.id = md5(bytes(self)).hexdigest()[:6]
 
     def __repr__(self):
         return f"Operator={self.operator} (NumOperands={len(self.operands)}), id={self.id})"
@@ -325,7 +326,10 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
         name: Optional[str] = None,
     ):
         self.condition_variables = condition_variables
-        super().__init__(condition_type=condition_type, name=name)
+        super().__init__(
+            condition_type=condition_type,
+            name=name,
+        )
 
     def __repr__(self):
         r = f"{self.__class__.__name__}(num_condition_variables={len(self.condition_variables)})"

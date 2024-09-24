@@ -239,11 +239,25 @@ class RPCCondition(ExecutionCallAccessControlCondition):
 
     def __init__(
         self,
-        condition_type: str = CONDITION_TYPE,
+        chain: int,
+        method: str,
+        return_value_test: ReturnValueTest,
+        condition_type: str = ConditionType.RPC.value,
+        name: Optional[str] = None,
+        parameters: Optional[List[Any]] = None,
         *args,
         **kwargs,
     ):
-        super().__init__(condition_type=condition_type, *args, **kwargs)
+        super().__init__(
+            chain=chain,
+            method=method,
+            return_value_test=return_value_test,
+            condition_type=condition_type,
+            name=name,
+            parameters=parameters,
+            *args,
+            **kwargs,
+        )
 
     @property
     def method(self):
@@ -328,10 +342,10 @@ class ContractCall(RPCCall):
             if not (bool(standard_contract_type) ^ bool(function_abi)):
                 raise ValidationError(
                     field_name="standard_contract_type",
-                    message=f"Provide 'standardContractType' or 'functionAbi'; got ({standard_contract_type}, {function_abi}).",
+                    message=f"Provide a standard contract type or function ABI; got ({standard_contract_type}, {function_abi}).",
                 )
 
-            # validate function abi
+            # validate function abi with method name (not available for field validation)
             if function_abi:
                 try:
                     validate_function_abi(function_abi, method_name=method)
@@ -398,8 +412,6 @@ class ContractCondition(RPCCondition):
 
         @validates_schema()
         def validate_expected_return_type(self, data, **kwargs):
-            return_value_test = data.get("return_value_test")
-
             # validate that contract function is correct
             try:
                 contract_function = get_unbound_contract_function(
@@ -412,6 +424,7 @@ class ContractCondition(RPCCondition):
                 raise ValidationError(str(e)) from e
 
             # validate return type based on contract function
+            return_value_test = data.get("return_value_test")
             try:
                 validate_contract_function_expected_return_type(
                     contract_function=contract_function,
@@ -429,12 +442,23 @@ class ContractCondition(RPCCondition):
 
     def __init__(
         self,
-        condition_type: str = CONDITION_TYPE,
+        method: str,
+        contract_address: ChecksumAddress,
+        condition_type: str = ConditionType.CONTRACT.value,
+        standard_contract_type: Optional[str] = None,
+        function_abi: Optional[ABIFunction] = None,
         *args,
         **kwargs,
     ):
-        # call to super must be at the end for proper validation
-        super().__init__(condition_type=condition_type, *args, **kwargs)
+        super().__init__(
+            method=method,
+            condition_type=condition_type,
+            contract_address=contract_address,
+            standard_contract_type=standard_contract_type,
+            function_abi=function_abi,
+            *args,
+            **kwargs,
+        )
 
     @property
     def function_abi(self):
