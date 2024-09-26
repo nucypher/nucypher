@@ -71,7 +71,7 @@ class ConditionType(Enum):
     JSONAPI = "json-api"
     COMPOUND = "compound"
     SEQUENTIAL = "sequential"
-    IF = "if"
+    IF_THEN_ELSE = "if-then-else"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -368,7 +368,7 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
 
 class _ElseConditionField(fields.Field):
     """
-    Serializes/Deserializes else conditions for IFCondition. This field represents either a
+    Serializes/Deserializes else conditions for IfThenElseCondition. This field represents either a
     Condition or a boolean value.
     """
 
@@ -394,11 +394,11 @@ class _ElseConditionField(fields.Field):
         return instance
 
 
-class IfCondition(MultiConditionAccessControl):
+class IfThenElseCondition(MultiConditionAccessControl):
     """
     A condition that represents simple if-then-else logic.
 
-    IF_CONDITION = {
+    IF_THEN_ELSE_CONDITION = {
         "conditionType": "if",
         "ifCondition": CONDITION,
         "thenCondition": CONDITION,
@@ -406,13 +406,13 @@ class IfCondition(MultiConditionAccessControl):
     }
     """
 
-    CONDITION_TYPE = ConditionType.IF.value
+    CONDITION_TYPE = ConditionType.IF_THEN_ELSE.value
 
     MAX_NUM_CONDITIONS = 3  # only ever max of 3 (if, then, else)
 
     class Schema(AccessControlCondition.Schema):
         condition_type = fields.Str(
-            validate=validate.Equal(ConditionType.IF.value), required=True
+            validate=validate.Equal(ConditionType.IF_THEN_ELSE.value), required=True
         )
         if_condition = _ConditionField(required=True)
         then_condition = _ConditionField(required=True)
@@ -424,7 +424,7 @@ class IfCondition(MultiConditionAccessControl):
 
         @post_load
         def make(self, data, **kwargs):
-            return IfCondition(**data)
+            return IfThenElseCondition(**data)
 
     def __init__(
         self,
@@ -689,7 +689,7 @@ class ConditionLingo(_Serializable):
             CompoundAccessControlCondition,
             JsonApiCondition,
             SequentialAccessControlCondition,
-            IfCondition,
+            IfThenElseCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition

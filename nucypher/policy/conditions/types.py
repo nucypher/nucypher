@@ -100,13 +100,13 @@ class SequentialConditionDict(_AccessControlCondition):
 
 
 #
-# IfCondition represents:
+# IfThenElseCondition represents:
 # {
 #     "ifCondition": AccessControlCondition
 #     "thenCondition": AccessControlCondition
 #     "elseCondition": [AccessControlCondition | bool]
 # }
-class IfConditionDict(_AccessControlCondition):
+class IfThenElseConditionDict(_AccessControlCondition):
     ifCondition: "ConditionDict"
     thenCondition: "ConditionDict"
     elseCondition: Union["ConditionDict", bool]
@@ -127,7 +127,7 @@ ConditionDict = Union[
     CompoundConditionDict,
     JsonApiConditionDict,
     SequentialConditionDict,
-    IfConditionDict,
+    IfThenElseConditionDict,
 ]
 
 
