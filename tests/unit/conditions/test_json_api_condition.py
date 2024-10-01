@@ -54,6 +54,7 @@ def test_json_api_condition_invalid_type():
             condition_type="INVALID_TYPE",
         )
 
+
 def test_https_enforcement():
     with pytest.raises(InvalidCondition, match="Not a valid URL"):
         _ = JsonApiCondition(
