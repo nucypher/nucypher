@@ -33,16 +33,15 @@ def lingo_with_compound_conditions(get_random_checksum_address):
             "operands": [
                 {
                     "conditionType": ConditionType.TIME.value,
-                    "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
+                    "returnValueTest": {"value": 0, "comparator": ">"},
                 },
                 {
                     "conditionType": ConditionType.CONTRACT.value,
                     "chain": TESTERCHAIN_CHAIN_ID,
                     "method": "isPolicyActive",
                     "parameters": [":hrac"],
-                    "returnValueTest": {"comparator": "==", "value": True},
                     "contractAddress": get_random_checksum_address(),
                     "functionAbi": {
                         "type": "function",
@@ -59,28 +58,104 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                             {"name": "", "type": "bool", "internalType": "bool"}
                         ],
                     },
+                    "returnValueTest": {"comparator": "==", "value": True},
                 },
+                # sequential condition
                 {
-                    "conditionType": ConditionType.COMPOUND.value,
-                    "operator": "or",
-                    "operands": [
+                    "conditionType": ConditionType.SEQUENTIAL.value,
+                    "conditionVariables": [
                         {
-                            "conditionType": ConditionType.TIME.value,
-                            "returnValueTest": {"value": 0, "comparator": ">"},
-                            "method": "blocktime",
-                            "chain": TESTERCHAIN_CHAIN_ID,
+                            "varName": "timeValue",
+                            "condition": {
+                                # Time
+                                "conditionType": ConditionType.TIME.value,
+                                "method": "blocktime",
+                                "chain": TESTERCHAIN_CHAIN_ID,
+                                "returnValueTest": {
+                                    "value": 0,
+                                    "comparator": ">",
+                                },
+                            },
                         },
                         {
-                            "conditionType": ConditionType.RPC.value,
-                            "chain": TESTERCHAIN_CHAIN_ID,
-                            "method": "eth_getBalance",
-                            "parameters": [get_random_checksum_address(), "latest"],
-                            "returnValueTest": {
-                                "comparator": ">=",
-                                "value": 10000000000000,
+                            "varName": "rpcValue",
+                            "condition": {
+                                # RPC
+                                "conditionType": ConditionType.RPC.value,
+                                "chain": TESTERCHAIN_CHAIN_ID,
+                                "method": "eth_getBalance",
+                                "parameters": [
+                                    get_random_checksum_address(),
+                                    "latest",
+                                ],
+                                "returnValueTest": {
+                                    "comparator": ">=",
+                                    "value": 10000000000000,
+                                },
+                            },
+                        },
+                        {
+                            "varName": "contractValue",
+                            "condition": {
+                                # Contract
+                                "conditionType": ConditionType.CONTRACT.value,
+                                "chain": TESTERCHAIN_CHAIN_ID,
+                                "method": "isPolicyActive",
+                                "parameters": [":hrac"],
+                                "contractAddress": get_random_checksum_address(),
+                                "functionAbi": {
+                                    "type": "function",
+                                    "name": "isPolicyActive",
+                                    "stateMutability": "view",
+                                    "inputs": [
+                                        {
+                                            "name": "_policyID",
+                                            "type": "bytes16",
+                                            "internalType": "bytes16",
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "name": "",
+                                            "type": "bool",
+                                            "internalType": "bool",
+                                        }
+                                    ],
+                                },
+                                "returnValueTest": {
+                                    "comparator": "==",
+                                    "value": True,
+                                },
+                            },
+                        },
+                        {
+                            "varName": "jsonValue",
+                            "condition": {
+                                # JSON API
+                                "conditionType": ConditionType.JSONAPI.value,
+                                "endpoint": "https://api.example.com/data",
+                                "query": "$.store.book[0].price",
+                                "parameters": {
+                                    "ids": "ethereum",
+                                    "vs_currencies": "usd",
+                                },
+                                "returnValueTest": {
+                                    "comparator": "==",
+                                    "value": 2,
+                                },
                             },
                         },
                     ],
+                },
+                {
+                    "conditionType": ConditionType.RPC.value,
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                    "method": "eth_getBalance",
+                    "parameters": [get_random_checksum_address(), "latest"],
+                    "returnValueTest": {
+                        "comparator": ">=",
+                        "value": 10000000000000,
+                    },
                 },
                 {
                     "conditionType": ConditionType.COMPOUND.value,
@@ -88,16 +163,15 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                     "operands": [
                         {
                             "conditionType": ConditionType.TIME.value,
-                            "returnValueTest": {"value": 0, "comparator": ">"},
                             "method": "blocktime",
                             "chain": TESTERCHAIN_CHAIN_ID,
+                            "returnValueTest": {"value": 0, "comparator": ">"},
                         },
                     ],
                 },
             ],
         },
     }
-
 
 def test_invalid_condition():
     # no version or condition
@@ -126,6 +200,9 @@ def test_invalid_condition():
 
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_json(json.dumps(data))
+
+
+def test_invalid_compound_condition():
 
     # invalid operator
     invalid_operator = {
@@ -275,7 +352,7 @@ def test_condition_lingo_to_from_json(lingo_with_compound_conditions):
     assert clingo_from_json.to_dict() == lingo_with_compound_conditions
 
 
-def test_condition_lingo_repr(lingo_with_compound_conditions):
+def test_compound_condition_lingo_repr(lingo_with_compound_conditions):
     clingo = ConditionLingo.from_dict(lingo_with_compound_conditions)
     clingo_string = f"{clingo}"
     assert f"{clingo.__class__.__name__}" in clingo_string

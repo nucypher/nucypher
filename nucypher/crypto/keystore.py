@@ -7,7 +7,7 @@ from json import JSONDecodeError
 from os.path import abspath
 from pathlib import Path
 from secrets import token_bytes
-from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 
 import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
@@ -253,12 +253,34 @@ class Keystore:
     class AuthenticationFailed(RuntimeError):
         pass
 
-    def __init__(self, keystore_path: Path):
-        self.keystore_path = keystore_path
-        self.__created, self.__id = _parse_path(keystore_path)
+    class InvalidMnemonic(ValueError):
+        pass
+
+    def __init__(self, keystore_path: Path = None):
         self.__secret = KEYSTORE_LOCKED
+        self.keystore_path = keystore_path
+        if self.keystore_path:
+            self.__created, self.__id = _parse_path(keystore_path)
+
+    @classmethod
+    def from_keystore_id(cls, filepath: Path) -> "Keystore":
+        instance = cls(keystore_path=filepath)
+        return instance
+
+    @classmethod
+    def from_mnemonic(cls, words: str) -> "Keystore":
+        __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
+        __secret = bytes(__mnemonic.to_entropy(words))
+        keystore = cls()
+        keystore.__secret = __secret
+        return keystore
 
     def __decrypt_keystore(self, path: Path, password: str) -> bool:
+        if not self.keystore_path:
+            raise Keystore.Invalid(
+                "Keystore path not set, initialize with a valid path."
+            )
+
         payload = _read_keystore(path, deserializer=_deserialize_keystore)
         __password_material = derive_key_material_from_password(password=password.encode(),
                                                                 salt=payload['password_salt'])
@@ -346,11 +368,31 @@ class Keystore:
     @classmethod
     def restore(cls, words: str, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
         """Restore a keystore from seed words"""
-        __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
-        __secret = bytes(__mnemonic.to_entropy(words))
+        mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
+        __secret = bytes(mnemonic.to_entropy(words))
         path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
         return keystore
+
+    def audit(self, words: str, password: str) -> bool:
+        """Check if a mnemonic phrase can derive the secret key for the local keystore"""
+        mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
+        try:
+            __expected_secret = bytes(mnemonic.to_entropy(words))
+        except ValueError as e:
+            raise self.InvalidMnemonic(str(e))
+        self.__decrypt_keystore(path=self.keystore_path, password=password)
+        return self.__secret == __expected_secret
+
+    def get_mnemonic(self) -> str:
+        """Return the mnemonic phrase for the keystore"""
+        if self.__secret is KEYSTORE_LOCKED:
+            raise Keystore.Locked(
+                f"{self.id} is locked and must be unlocked before use."
+            )
+        mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
+        __words = mnemonic.to_mnemonic(self.__secret)
+        return __words
 
     @classmethod
     def generate(
@@ -439,10 +481,9 @@ class Keystore:
     def unlock(self, password: str) -> None:
         self.__decrypt_keystore(path=self.keystore_path, password=password)
 
-    def derive_crypto_power(self,
-                            power_class: ClassVar[CryptoPowerUp],
-                            *power_args, **power_kwargs
-                            ) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
+    def derive_crypto_power(
+        self, power_class: Type[CryptoPowerUp], *power_args, **power_kwargs
+    ) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
 
         if not self.is_unlocked:
             raise Keystore.Locked(f"{self.id} is locked and must be unlocked before use.")

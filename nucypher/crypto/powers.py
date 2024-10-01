@@ -265,7 +265,7 @@ class RitualisticPower(KeyPairBasedPower):
     not_found_error = NoRitualisticPower
     provides = ("derive_decryption_share", "generate_transcript")
 
-    def derive_decryption_share(
+    def produce_decryption_share(
         self,
         checksum_address: ChecksumAddress,
         ritual_id: int,
@@ -277,7 +277,7 @@ class RitualisticPower(KeyPairBasedPower):
         aad: bytes,
         variant: FerveoVariant,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
-        decryption_share = dkg.derive_decryption_share(
+        decryption_share = dkg.produce_decryption_share(
             ritual_id=ritual_id,
             me=Validator(address=checksum_address, public_key=self.keypair.pubkey),
             shares=shares,
