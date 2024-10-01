@@ -59,7 +59,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | COMPOUND | SEQUENTIAL | IF_CONDITION
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -399,7 +399,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
     A condition that represents simple if-then-else logic.
 
     IF_THEN_ELSE_CONDITION = {
-        "conditionType": "if",
+        "conditionType": "if-then-else",
         "ifCondition": CONDITION,
         "thenCondition": CONDITION,
         "elseCondition": CONDITION | true | false,
@@ -460,24 +460,26 @@ class IfThenElseCondition(MultiConditionAccessControl):
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         values = []
 
+        # if
         if_result, if_value = self.if_condition.verify(*args, **kwargs)
         values.append(if_value)
+
+        # then
         if if_result:
             then_result, then_value = self.then_condition.verify(*args, **kwargs)
             values.append(then_value)
-            overall_result = then_result
+            return then_result, values
+
+        # else
+        if isinstance(self.else_condition, AccessControlCondition):
+            # actual condition
+            else_result, else_value = self.else_condition.verify(*args, **kwargs)
         else:
-            if isinstance(self.else_condition, AccessControlCondition):
-                # actual condition
-                else_result, else_value = self.else_condition.verify(*args, **kwargs)
-            else:
-                # boolean value
-                else_result, else_value = self.else_condition, self.else_condition
+            # boolean value
+            else_result, else_value = self.else_condition, self.else_condition
 
-            values.append(else_value)
-            overall_result = else_result
-
-        return overall_result, values
+        values.append(else_value)
+        return else_result, values
 
 
 class ReturnValueTest:
