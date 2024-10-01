@@ -38,15 +38,15 @@ def mock_condition_variables(mocker):
     return var_1, var_2, var_3, var_4
 
 
-@pytest.mark.usefixtures("mock_skip_schema_validation")
-def test_invalid_sequential_condition(mock_condition_variables):
-    var_1, *_ = mock_condition_variables
+def test_invalid_sequential_condition(rpc_condition, time_condition):
+    var_1 = ConditionVariable("var1", time_condition)
+    var_2 = ConditionVariable("var2", rpc_condition)
 
     # invalid condition type
     with pytest.raises(InvalidCondition, match=ConditionType.SEQUENTIAL.value):
         _ = SequentialAccessControlCondition(
             condition_type=ConditionType.TIME.value,
-            condition_variables=list(mock_condition_variables),
+            condition_variables=[var_1, var_2],
         )
 
     # no variables
@@ -62,18 +62,29 @@ def test_invalid_sequential_condition(mock_condition_variables):
         )
 
     # too many variables
-    too_many_variables = list(mock_condition_variables)
-    too_many_variables.extend(mock_condition_variables)  # duplicate list length
+    too_many_variables = [var_1, var_2, var_1, var_2]
+    too_many_variables.extend(too_many_variables)  # duplicate list length
     assert len(too_many_variables) > SequentialAccessControlCondition.MAX_NUM_CONDITIONS
     with pytest.raises(InvalidCondition, match="Maximum of"):
         _ = SequentialAccessControlCondition(
             condition_variables=too_many_variables,
         )
 
+    # duplicate var names
+    dupe_var = ConditionVariable(var_1.var_name, condition=var_2.condition)
+    with pytest.raises(InvalidCondition, match="Duplicate"):
+        _ = SequentialAccessControlCondition(
+            condition_variables=[var_1, var_2, dupe_var],
+        )
 
-@pytest.mark.usefixtures("mock_skip_schema_validation")
-def test_nested_sequential_condition_too_many_nested_levels(mock_condition_variables):
-    var_1, var_2, var_3, var_4 = mock_condition_variables
+
+def test_nested_sequential_condition_too_many_nested_levels(
+    rpc_condition, time_condition
+):
+    var_1 = ConditionVariable("var1", time_condition)
+    var_2 = ConditionVariable("var2", rpc_condition)
+    var_3 = ConditionVariable("var3", time_condition)
+    var_4 = ConditionVariable("var4", rpc_condition)
 
     with pytest.raises(
         InvalidCondition, match="nested levels of multi-conditions are allowed"
@@ -104,9 +115,13 @@ def test_nested_sequential_condition_too_many_nested_levels(mock_condition_varia
         )
 
 
-@pytest.mark.usefixtures("mock_skip_schema_validation")
-def test_nested_compound_condition_too_many_nested_levels(mock_condition_variables):
-    var_1, var_2, var_3, var_4 = mock_condition_variables
+def test_nested_compound_condition_too_many_nested_levels(
+    rpc_condition, time_condition
+):
+    var_1 = ConditionVariable("var1", time_condition)
+    var_2 = ConditionVariable("var2", rpc_condition)
+    var_3 = ConditionVariable("var3", time_condition)
+    var_4 = ConditionVariable("var4", rpc_condition)
 
     with pytest.raises(
         InvalidCondition, match="nested levels of multi-conditions are allowed"

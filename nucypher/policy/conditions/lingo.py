@@ -2,10 +2,9 @@ import ast
 import base64
 import json
 import operator as pyoperator
-from abc import abstractmethod
 from enum import Enum
 from hashlib import md5
-from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
 from hexbytes import HexBytes
 from marshmallow import (
@@ -103,25 +102,29 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
     def _validate_operator_and_operands(
         cls,
         operator: str,
-        operands: List[Union[Dict, AccessControlCondition]],
-        exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
+        operands: List[AccessControlCondition],
     ):
         if operator not in cls.OPERATORS:
-            raise exception_class(f"{operator} is not a valid operator")
+            raise ValidationError(
+                field_name="operator", message=f"{operator} is not a valid operator"
+            )
 
         num_operands = len(operands)
         if operator == cls.NOT_OPERATOR:
             if num_operands != 1:
-                raise exception_class(
-                    f"Only 1 operand permitted for '{operator}' compound condition"
+                raise ValidationError(
+                    field_name="operands",
+                    message=f"Only 1 operand permitted for '{operator}' compound condition",
                 )
         elif num_operands < 2:
-            raise exception_class(
-                f"Minimum of 2 operand needed for '{operator}' compound condition"
+            raise ValidationError(
+                field_name="operands",
+                message=f"Minimum of 2 operand needed for '{operator}' compound condition",
             )
         elif num_operands > cls.MAX_NUM_CONDITIONS:
-            raise exception_class(
-                f"Maximum of {cls.MAX_NUM_CONDITIONS} operands allowed for '{operator}' compound condition"
+            raise ValidationError(
+                field_name="operands",
+                message="Maximum of {cls.MAX_NUM_CONDITIONS} operands allowed for '{operator}' compound condition",
             )
 
 
@@ -141,7 +144,10 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
             operator = data["operator"]
             operands = data["operands"]
             CompoundAccessControlCondition._validate_operator_and_operands(
-                operator, operands, ValidationError
+                operator, operands
+            )
+            CompoundAccessControlCondition._validate_multi_condition_nesting(
+                conditions=operands, field_name="operands"
             )
 
         @post_load
@@ -161,15 +167,15 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
             "operands": [CONDITION*]
         }
         """
-        self._validate_operator_and_operands(operator, operands, InvalidCondition)
-
         self.operator = operator
         self.operands = operands
-        self.condition_type = condition_type
-        self.name = name
-        self.id = md5(bytes(self)).hexdigest()[:6]
 
-        super().__init__(condition_type=condition_type, name=name)
+        super().__init__(
+            condition_type=condition_type,
+            name=name,
+        )
+
+        self.id = md5(bytes(self)).hexdigest()[:6]
 
     def __repr__(self):
         return f"Operator={self.operator} (NumOperands={len(self.operands)}), id={self.id})"
@@ -265,17 +271,29 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
     @classmethod
     def _validate_condition_variables(
         cls,
-        condition_variables: List[Union[Dict, ConditionVariable]],
-        exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
+        condition_variables: List[ConditionVariable],
     ):
-        num_condition_variables = len(condition_variables)
-        if num_condition_variables < 2:
-            raise exception_class("At least two conditions must be specified")
-
-        if num_condition_variables > cls.MAX_NUM_CONDITIONS:
-            raise exception_class(
-                f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed"
+        if not condition_variables or len(condition_variables) < 2:
+            raise ValidationError(
+                field_name="condition_variables",
+                message="At least two conditions must be specified",
             )
+
+        if len(condition_variables) > cls.MAX_NUM_CONDITIONS:
+            raise ValidationError(
+                field_name="condition_variables",
+                message=f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed",
+            )
+
+        # check for duplicate var names
+        var_names = set()
+        for condition_variable in condition_variables:
+            if condition_variable.var_name in var_names:
+                raise ValidationError(
+                    field_name="condition_variables",
+                    message=f"Duplicate variable names are not allowed - {condition_variable.var_name}",
+                )
+            var_names.add(condition_variable.var_name)
 
     class Schema(AccessControlCondition.Schema):
         condition_type = fields.Str(
@@ -289,11 +307,12 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
         class Meta:
             ordered = True
 
-        @validates_schema
-        def validate_condition_variables(self, data, **kwargs):
-            condition_variables = data["condition_variables"]
-            SequentialAccessControlCondition._validate_condition_variables(
-                condition_variables, ValidationError
+        @validates("condition_variables")
+        def validate_condition_variables(self, value):
+            SequentialAccessControlCondition._validate_condition_variables(value)
+            conditions = [cv.condition for cv in value]
+            SequentialAccessControlCondition._validate_multi_condition_nesting(
+                conditions=conditions, field_name="condition_variables"
             )
 
         @post_load
@@ -306,11 +325,11 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
-        self._validate_condition_variables(
-            condition_variables=condition_variables, exception_class=InvalidCondition
-        )
         self.condition_variables = condition_variables
-        super().__init__(condition_type=condition_type, name=name)
+        super().__init__(
+            condition_type=condition_type,
+            name=name,
+        )
 
     def __repr__(self):
         r = f"{self.__class__.__name__}(num_condition_variables={len(self.condition_variables)})"
@@ -358,7 +377,9 @@ class ReturnValueTest:
         value = fields.Raw(
             allow_none=False, required=True
         )  # any valid type (excludes None)
-        index = fields.Int(strict=True, required=False, validate=Range(min=0))
+        index = fields.Int(
+            strict=True, required=False, validate=Range(min=0), allow_none=True
+        )
 
         @post_load
         def make(self, data, **kwargs):
@@ -574,6 +595,8 @@ class ExecutionCallAccessControlCondition(AccessControlCondition):
     Conditions that utilize underlying ExecutionCall objects.
     """
 
+    EXECUTION_CALL_TYPE = NotImplemented
+
     class Schema(AccessControlCondition.Schema):
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
@@ -588,19 +611,14 @@ class ExecutionCallAccessControlCondition(AccessControlCondition):
         **kwargs,
     ):
         self.return_value_test = return_value_test
+
         try:
-            self.execution_call = self._create_execution_call(*args, **kwargs)
-        except ValueError as e:
-            raise InvalidCondition(str(e))
+            self.execution_call = self.EXECUTION_CALL_TYPE(*args, **kwargs)
+        except ExecutionCall.InvalidExecutionCall as e:
+            raise InvalidCondition(str(e)) from e
 
         super().__init__(condition_type=condition_type, name=name)
 
-    @abstractmethod
-    def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
-        """
-        Returns the execution call that the condition executes.
-        """
-        raise NotImplementedError
 
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         """

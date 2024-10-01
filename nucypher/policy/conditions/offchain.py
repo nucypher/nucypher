@@ -14,6 +14,7 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.policy.conditions.lingo import (
     ConditionType,
     ExecutionCallAccessControlCondition,
+    ReturnValueTest,
 )
 from nucypher.utilities.logging import Logger
 
@@ -37,6 +38,15 @@ class JSONPathField(Field):
 class JsonApiCall(ExecutionCall):
     TIMEOUT = 5  # seconds
 
+    class Schema(ExecutionCall.Schema):
+        endpoint = Url(required=True, relative=False, schemes=["https"])
+        parameters = fields.Dict(required=False, allow_none=True)
+        query = JSONPathField(required=False, allow_none=True)
+
+        @post_load
+        def make(self, data, **kwargs):
+            return JsonApiCall(**data)
+
     def __init__(
         self,
         endpoint: str,
@@ -49,6 +59,8 @@ class JsonApiCall(ExecutionCall):
 
         self.timeout = self.TIMEOUT
         self.logger = Logger(__name__)
+
+        super().__init__()
 
     def execute(self, *args, **kwargs) -> Any:
         response = self._fetch()
@@ -129,15 +141,13 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
     The response will be deserialized as JSON and parsed using jsonpath.
     """
 
+    EXECUTION_CALL_TYPE = JsonApiCall
     CONDITION_TYPE = ConditionType.JSONAPI.value
 
-    class Schema(ExecutionCallAccessControlCondition.Schema):
+    class Schema(ExecutionCallAccessControlCondition.Schema, JsonApiCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
-        endpoint = Url(required=True, relative=False, schemes=["https"])
-        parameters = fields.Dict(required=False, allow_none=True)
-        query = JSONPathField(required=False, allow_none=True)
 
         @post_load
         def make(self, data, **kwargs):
@@ -145,14 +155,21 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
 
     def __init__(
         self,
+        endpoint: str,
+        return_value_test: ReturnValueTest,
+        query: Optional[str] = None,
+        parameters: Optional[dict] = None,
         condition_type: str = ConditionType.JSONAPI.value,
-        *args,
-        **kwargs,
+        name: Optional[str] = None,
     ):
-        super().__init__(condition_type=condition_type, *args, **kwargs)
-
-    def _create_execution_call(self, *args, **kwargs) -> ExecutionCall:
-        return JsonApiCall(*args, **kwargs)
+        super().__init__(
+            endpoint=endpoint,
+            return_value_test=return_value_test,
+            query=query,
+            parameters=parameters,
+            condition_type=condition_type,
+            name=name,
+        )
 
     @property
     def endpoint(self):

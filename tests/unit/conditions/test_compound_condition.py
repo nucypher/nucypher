@@ -4,7 +4,10 @@ from unittest.mock import Mock
 import pytest
 
 from nucypher.policy.conditions.base import AccessControlCondition
-from nucypher.policy.conditions.exceptions import InvalidCondition
+from nucypher.policy.conditions.exceptions import (
+    InvalidCondition,
+    InvalidConditionLingo,
+)
 from nucypher.policy.conditions.lingo import (
     AndCompoundCondition,
     CompoundAccessControlCondition,
@@ -121,39 +124,39 @@ def test_compound_condition_schema_validation(operator, time_condition, rpc_cond
     compound_condition_dict = compound_condition.to_dict()
 
     # no issues here
-    CompoundAccessControlCondition.validate(compound_condition_dict)
+    CompoundAccessControlCondition.from_dict(compound_condition_dict)
 
     # no issues with optional name
     compound_condition_dict["name"] = "my_contract_condition"
-    CompoundAccessControlCondition.validate(compound_condition_dict)
+    CompoundAccessControlCondition.from_dict(compound_condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # incorrect condition type
         compound_condition_dict = compound_condition.to_dict()
         compound_condition_dict["condition_type"] = ConditionType.RPC.value
-        CompoundAccessControlCondition.validate(compound_condition_dict)
+        CompoundAccessControlCondition.from_dict(compound_condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # invalid operator
         compound_condition_dict = compound_condition.to_dict()
         compound_condition_dict["operator"] = "5True"
-        CompoundAccessControlCondition.validate(compound_condition_dict)
+        CompoundAccessControlCondition.from_dict(compound_condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # no operator
         compound_condition_dict = compound_condition.to_dict()
         del compound_condition_dict["operator"]
-        CompoundAccessControlCondition.validate(compound_condition_dict)
+        CompoundAccessControlCondition.from_dict(compound_condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # no operands
         compound_condition_dict = compound_condition.to_dict()
         del compound_condition_dict["operands"]
-        CompoundAccessControlCondition.validate(compound_condition_dict)
+        CompoundAccessControlCondition.from_dict(compound_condition_dict)
 
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
-def test_and_condition_and_short_circuit(mocker, mock_conditions):
+def test_and_condition_and_short_circuit(mock_conditions):
     condition_1, condition_2, condition_3, condition_4 = mock_conditions
 
     and_condition = AndCompoundCondition(
@@ -286,10 +289,9 @@ def test_compound_condition(mock_conditions):
     ]  # or-condition short-circuited because condition_1 was True
 
 
-@pytest.mark.usefixtures("mock_skip_schema_validation")
-def test_nested_compound_condition_too_many_nested_levels(mock_conditions):
-    condition_1, condition_2, condition_3, condition_4 = mock_conditions
-
+def test_nested_compound_condition_too_many_nested_levels(
+    rpc_condition, time_condition
+):
     with pytest.raises(
         InvalidCondition, match="nested levels of multi-conditions are allowed"
     ):
@@ -297,24 +299,23 @@ def test_nested_compound_condition_too_many_nested_levels(mock_conditions):
             operands=[
                 OrCompoundCondition(
                     operands=[
-                        condition_1,
+                        rpc_condition,
                         AndCompoundCondition(
                             operands=[
-                                condition_2,
-                                condition_3,
+                                time_condition,
+                                rpc_condition,
                             ]
                         ),
                     ]
                 ),
-                condition_4,
+                time_condition,
             ]
         )
 
 
-@pytest.mark.usefixtures("mock_skip_schema_validation")
-def test_nested_sequential_condition_too_many_nested_levels(mock_conditions):
-    condition_1, condition_2, condition_3, condition_4 = mock_conditions
-
+def test_nested_sequential_condition_too_many_nested_levels(
+    rpc_condition, time_condition
+):
     with pytest.raises(
         InvalidCondition, match="nested levels of multi-conditions are allowed"
     ):
@@ -322,16 +323,16 @@ def test_nested_sequential_condition_too_many_nested_levels(mock_conditions):
             operands=[
                 OrCompoundCondition(
                     operands=[
-                        condition_1,
+                        rpc_condition,
                         SequentialAccessControlCondition(
                             condition_variables=[
-                                ConditionVariable("var2", condition_2),
-                                ConditionVariable("var3", condition_3),
+                                ConditionVariable("var2", time_condition),
+                                ConditionVariable("var3", rpc_condition),
                             ]
                         ),
                     ]
                 ),
-                condition_4,
+                time_condition,
             ]
         )
 
