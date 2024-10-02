@@ -422,6 +422,26 @@ class IfThenElseCondition(MultiConditionAccessControl):
         class Meta:
             ordered = True
 
+        @staticmethod
+        def _validate_nested_conditions(field_name, condition):
+            IfThenElseCondition._validate_multi_condition_nesting(
+                conditions=[condition],
+                field_name=field_name,
+            )
+
+        @validates("if_condition")
+        def validate_if_condition(self, value):
+            self._validate_nested_conditions("if_condition", value)
+
+        @validates("then_condition")
+        def validate_then_condition(self, value):
+            self._validate_nested_conditions("then_condition", value)
+
+        @validates("else_condition")
+        def validate_else_condition(self, value):
+            if isinstance(value, AccessControlCondition):
+                self._validate_nested_conditions("else_condition", value)
+
         @post_load
         def make(self, data, **kwargs):
             return IfThenElseCondition(**data)
