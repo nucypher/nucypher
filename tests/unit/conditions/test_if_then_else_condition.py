@@ -224,6 +224,65 @@ def test_if_then_else_condition_else_condition_is_boolean(mock_conditions):
 
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
+def test_nested_multi_conditions(mock_conditions):
+    cond_1, cond_2, cond_3 = mock_conditions
+
+    # set up to execute "then" condition
+    cond_1.verify.return_value = (False, 1)
+    cond_2.verify.return_value = (True, 2)
+    cond_3.verify.return_value = (True, 3)
+
+    if_then_else_condition = IfThenElseCondition(
+        if_condition=OrCompoundCondition(
+            operands=[
+                cond_1,
+                cond_2,
+            ]
+        ),
+        then_condition=SequentialAccessControlCondition(
+            condition_variables=[
+                ConditionVariable("var1", cond_2),
+                ConditionVariable("var2", cond_3),
+            ]
+        ),
+        else_condition=False,
+    )
+
+    result, value = if_then_else_condition.verify(providers={})
+    assert result is True
+    assert value == [[1, 2], [2, 3]]  # [[or result], [seq result]]
+
+    # set up to execute else condition
+    cond_1.verify.return_value = (False, 1)
+    cond_2.verify.return_value = (False, 2)
+    cond_3.verify.return_value = (True, 3)
+
+    if_then_else_condition = IfThenElseCondition(
+        if_condition=OrCompoundCondition(
+            operands=[
+                cond_1,
+                cond_2,
+            ]
+        ),
+        then_condition=SequentialAccessControlCondition(
+            condition_variables=[
+                ConditionVariable("var1", cond_2),
+                ConditionVariable("var2", cond_3),
+            ]
+        ),
+        else_condition=IfThenElseCondition(
+            if_condition=cond_3,
+            then_condition=cond_2,
+            else_condition=cond_1,
+        ),
+    )
+
+    result, value = if_then_else_condition.verify(providers={})
+    assert result is False
+    assert value == [[1, 2], [3, 2]]  # [[or result], [else if condition result]]
+
+
+@pytest.mark.usefixtures("mock_skip_schema_validation")
 def test_if_then_else_condition_call_fails(mock_conditions):
     cond_1, cond_2, cond_3 = mock_conditions
     if_then_else_condition = IfThenElseCondition(
