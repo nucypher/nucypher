@@ -24,149 +24,104 @@ def lingo_with_condition():
 
 
 @pytest.fixture(scope="module")
-def lingo_with_compound_conditions(get_random_checksum_address):
+def lingo_with_all_condition_types(get_random_checksum_address):
+    time_condition = {
+        "conditionType": ConditionType.TIME.value,
+        "method": "blocktime",
+        "chain": TESTERCHAIN_CHAIN_ID,
+        "returnValueTest": {"value": 0, "comparator": ">"},
+    }
+    contract_condition = {
+        "conditionType": ConditionType.CONTRACT.value,
+        "chain": TESTERCHAIN_CHAIN_ID,
+        "method": "isPolicyActive",
+        "parameters": [":hrac"],
+        "contractAddress": get_random_checksum_address(),
+        "functionAbi": {
+            "type": "function",
+            "name": "isPolicyActive",
+            "stateMutability": "view",
+            "inputs": [
+                {
+                    "name": "_policyID",
+                    "type": "bytes16",
+                    "internalType": "bytes16",
+                }
+            ],
+            "outputs": [{"name": "", "type": "bool", "internalType": "bool"}],
+        },
+        "returnValueTest": {"comparator": "==", "value": True},
+    }
+    rpc_condition = {
+        # RPC
+        "conditionType": ConditionType.RPC.value,
+        "chain": TESTERCHAIN_CHAIN_ID,
+        "method": "eth_getBalance",
+        "parameters": [
+            get_random_checksum_address(),
+            "latest",
+        ],
+        "returnValueTest": {
+            "comparator": ">=",
+            "value": 10000000000000,
+        },
+    }
+    json_api_condition = {
+        # JSON API
+        "conditionType": ConditionType.JSONAPI.value,
+        "endpoint": "https://api.example.com/data",
+        "query": "$.store.book[0].price",
+        "parameters": {
+            "ids": "ethereum",
+            "vs_currencies": "usd",
+        },
+        "returnValueTest": {
+            "comparator": "==",
+            "value": 2,
+        },
+    }
+    sequential_condition = {
+        "conditionType": ConditionType.SEQUENTIAL.value,
+        "conditionVariables": [
+            {
+                "varName": "timeValue",
+                "condition": time_condition,
+            },
+            {
+                "varName": "rpcValue",
+                "condition": rpc_condition,
+            },
+            {
+                "varName": "contractValue",
+                "condition": contract_condition,
+            },
+            {
+                "varName": "jsonValue",
+                "condition": json_api_condition,
+            },
+        ],
+    }
+    if_then_else_condition = {
+        "conditionType": ConditionType.IF_THEN_ELSE.value,
+        "ifCondition": rpc_condition,
+        "thenCondition": json_api_condition,
+        "elseCondition": time_condition,
+    }
     return {
         "version": ConditionLingo.VERSION,
         "condition": {
             "conditionType": ConditionType.COMPOUND.value,
             "operator": "and",
             "operands": [
-                {
-                    "conditionType": ConditionType.TIME.value,
-                    "method": "blocktime",
-                    "chain": TESTERCHAIN_CHAIN_ID,
-                    "returnValueTest": {"value": 0, "comparator": ">"},
-                },
-                {
-                    "conditionType": ConditionType.CONTRACT.value,
-                    "chain": TESTERCHAIN_CHAIN_ID,
-                    "method": "isPolicyActive",
-                    "parameters": [":hrac"],
-                    "contractAddress": get_random_checksum_address(),
-                    "functionAbi": {
-                        "type": "function",
-                        "name": "isPolicyActive",
-                        "stateMutability": "view",
-                        "inputs": [
-                            {
-                                "name": "_policyID",
-                                "type": "bytes16",
-                                "internalType": "bytes16",
-                            }
-                        ],
-                        "outputs": [
-                            {"name": "", "type": "bool", "internalType": "bool"}
-                        ],
-                    },
-                    "returnValueTest": {"comparator": "==", "value": True},
-                },
-                # sequential condition
-                {
-                    "conditionType": ConditionType.SEQUENTIAL.value,
-                    "conditionVariables": [
-                        {
-                            "varName": "timeValue",
-                            "condition": {
-                                # Time
-                                "conditionType": ConditionType.TIME.value,
-                                "method": "blocktime",
-                                "chain": TESTERCHAIN_CHAIN_ID,
-                                "returnValueTest": {
-                                    "value": 0,
-                                    "comparator": ">",
-                                },
-                            },
-                        },
-                        {
-                            "varName": "rpcValue",
-                            "condition": {
-                                # RPC
-                                "conditionType": ConditionType.RPC.value,
-                                "chain": TESTERCHAIN_CHAIN_ID,
-                                "method": "eth_getBalance",
-                                "parameters": [
-                                    get_random_checksum_address(),
-                                    "latest",
-                                ],
-                                "returnValueTest": {
-                                    "comparator": ">=",
-                                    "value": 10000000000000,
-                                },
-                            },
-                        },
-                        {
-                            "varName": "contractValue",
-                            "condition": {
-                                # Contract
-                                "conditionType": ConditionType.CONTRACT.value,
-                                "chain": TESTERCHAIN_CHAIN_ID,
-                                "method": "isPolicyActive",
-                                "parameters": [":hrac"],
-                                "contractAddress": get_random_checksum_address(),
-                                "functionAbi": {
-                                    "type": "function",
-                                    "name": "isPolicyActive",
-                                    "stateMutability": "view",
-                                    "inputs": [
-                                        {
-                                            "name": "_policyID",
-                                            "type": "bytes16",
-                                            "internalType": "bytes16",
-                                        }
-                                    ],
-                                    "outputs": [
-                                        {
-                                            "name": "",
-                                            "type": "bool",
-                                            "internalType": "bool",
-                                        }
-                                    ],
-                                },
-                                "returnValueTest": {
-                                    "comparator": "==",
-                                    "value": True,
-                                },
-                            },
-                        },
-                        {
-                            "varName": "jsonValue",
-                            "condition": {
-                                # JSON API
-                                "conditionType": ConditionType.JSONAPI.value,
-                                "endpoint": "https://api.example.com/data",
-                                "query": "$.store.book[0].price",
-                                "parameters": {
-                                    "ids": "ethereum",
-                                    "vs_currencies": "usd",
-                                },
-                                "returnValueTest": {
-                                    "comparator": "==",
-                                    "value": 2,
-                                },
-                            },
-                        },
-                    ],
-                },
-                {
-                    "conditionType": ConditionType.RPC.value,
-                    "chain": TESTERCHAIN_CHAIN_ID,
-                    "method": "eth_getBalance",
-                    "parameters": [get_random_checksum_address(), "latest"],
-                    "returnValueTest": {
-                        "comparator": ">=",
-                        "value": 10000000000000,
-                    },
-                },
+                contract_condition,
+                if_then_else_condition,
+                sequential_condition,
+                rpc_condition,
                 {
                     "conditionType": ConditionType.COMPOUND.value,
                     "operator": "not",
                     "operands": [
-                        {
-                            "conditionType": ConditionType.TIME.value,
-                            "method": "blocktime",
-                            "chain": TESTERCHAIN_CHAIN_ID,
-                            "returnValueTest": {"value": 0, "comparator": ">"},
-                        },
+                        time_condition,
                     ],
                 },
             ],
@@ -336,24 +291,24 @@ def test_invalid_condition_version(case):
         _ = ConditionLingo.from_json(json.dumps(lingo_dict))
 
 
-def test_condition_lingo_to_from_dict(lingo_with_compound_conditions):
-    clingo = ConditionLingo.from_dict(lingo_with_compound_conditions)
+def test_condition_lingo_to_from_dict(lingo_with_all_condition_types):
+    clingo = ConditionLingo.from_dict(lingo_with_all_condition_types)
     clingo_dict = clingo.to_dict()
-    assert clingo_dict == lingo_with_compound_conditions
+    assert clingo_dict == lingo_with_all_condition_types
 
 
-def test_condition_lingo_to_from_json(lingo_with_compound_conditions):
+def test_condition_lingo_to_from_json(lingo_with_all_condition_types):
     # A bit more convoluted because fields aren't
     # necessarily ordered - so string comparison is tricky
-    clingo_from_dict = ConditionLingo.from_dict(lingo_with_compound_conditions)
+    clingo_from_dict = ConditionLingo.from_dict(lingo_with_all_condition_types)
     lingo_json = clingo_from_dict.to_json()
 
     clingo_from_json = ConditionLingo.from_json(lingo_json)
-    assert clingo_from_json.to_dict() == lingo_with_compound_conditions
+    assert clingo_from_json.to_dict() == lingo_with_all_condition_types
 
 
-def test_compound_condition_lingo_repr(lingo_with_compound_conditions):
-    clingo = ConditionLingo.from_dict(lingo_with_compound_conditions)
+def test_compound_condition_lingo_repr(lingo_with_all_condition_types):
+    clingo = ConditionLingo.from_dict(lingo_with_all_condition_types)
     clingo_string = f"{clingo}"
     assert f"{clingo.__class__.__name__}" in clingo_string
     assert f"version={ConditionLingo.VERSION}" in clingo_string
