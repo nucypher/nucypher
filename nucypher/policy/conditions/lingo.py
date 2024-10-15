@@ -4,7 +4,7 @@ import json
 import operator as pyoperator
 from enum import Enum
 from hashlib import md5
-from typing import Any, Dict, List, Optional, Set, Tuple, Type
+from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
 from hexbytes import HexBytes
 from marshmallow import (
@@ -59,7 +59,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | COMPOUND | SEQUENTIAL
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -71,6 +71,7 @@ class ConditionType(Enum):
     JSONAPI = "json-api"
     COMPOUND = "compound"
     SEQUENTIAL = "sequential"
+    IF_THEN_ELSE = "if-then-else"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -365,6 +366,142 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
         ]
 
 
+class _ElseConditionField(fields.Field):
+    """
+    Serializes/Deserializes else conditions for IfThenElseCondition. This field represents either a
+    Condition or a boolean value.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, bool):
+            return value
+
+        return value.to_dict()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, bool):
+            return value
+
+        lingo_version = self.context.get("lingo_version")
+        condition_data = value
+        condition_class = ConditionLingo.resolve_condition_class(
+            condition=condition_data, version=lingo_version
+        )
+        instance = condition_class.from_dict(condition_data)
+        return instance
+
+
+class IfThenElseCondition(MultiConditionAccessControl):
+    """
+    A condition that represents simple if-then-else logic.
+
+    IF_THEN_ELSE_CONDITION = {
+        "conditionType": "if-then-else",
+        "ifCondition": CONDITION,
+        "thenCondition": CONDITION,
+        "elseCondition": CONDITION | true | false,
+    }
+    """
+
+    CONDITION_TYPE = ConditionType.IF_THEN_ELSE.value
+
+    MAX_NUM_CONDITIONS = 3  # only ever max of 3 (if, then, else)
+
+    class Schema(AccessControlCondition.Schema):
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.IF_THEN_ELSE.value), required=True
+        )
+        if_condition = _ConditionField(required=True)
+        then_condition = _ConditionField(required=True)
+        else_condition = _ElseConditionField(required=True)
+
+        # maintain field declaration ordering
+        class Meta:
+            ordered = True
+
+        @staticmethod
+        def _validate_nested_conditions(field_name, condition):
+            IfThenElseCondition._validate_multi_condition_nesting(
+                conditions=[condition],
+                field_name=field_name,
+            )
+
+        @validates("if_condition")
+        def validate_if_condition(self, value):
+            self._validate_nested_conditions("if_condition", value)
+
+        @validates("then_condition")
+        def validate_then_condition(self, value):
+            self._validate_nested_conditions("then_condition", value)
+
+        @validates("else_condition")
+        def validate_else_condition(self, value):
+            if isinstance(value, AccessControlCondition):
+                self._validate_nested_conditions("else_condition", value)
+
+        @post_load
+        def make(self, data, **kwargs):
+            return IfThenElseCondition(**data)
+
+    def __init__(
+        self,
+        if_condition: AccessControlCondition,
+        then_condition: AccessControlCondition,
+        else_condition: Union[AccessControlCondition, bool],
+        condition_type: str = CONDITION_TYPE,
+        name: Optional[str] = None,
+    ):
+        self.if_condition = if_condition
+        self.then_condition = then_condition
+        self.else_condition = else_condition
+        super().__init__(condition_type=condition_type, name=name)
+
+    def __repr__(self):
+        r = (
+            f"{self.__class__.__name__}("
+            f"if={self.if_condition.__class__.__name__}, "
+            f"then={self.then_condition.__class__.__name__}, "
+            f"else={self.else_condition.__class__.__name__}"
+            f")"
+        )
+        return r
+
+    @property
+    def conditions(self):
+        values = [self.if_condition, self.then_condition]
+        if isinstance(self.else_condition, AccessControlCondition):
+            values.append(self.else_condition)
+
+        return values
+
+    def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
+        values = []
+
+        # if
+        if_result, if_value = self.if_condition.verify(*args, **kwargs)
+        values.append(if_value)
+
+        # then
+        if if_result:
+            then_result, then_value = self.then_condition.verify(*args, **kwargs)
+            values.append(then_value)
+            return then_result, values
+
+        # else
+        if isinstance(self.else_condition, AccessControlCondition):
+            # actual condition
+            else_result, else_value = self.else_condition.verify(*args, **kwargs)
+        else:
+            # boolean value
+            else_result, else_value = self.else_condition, self.else_condition
+
+        values.append(else_value)
+        return else_result, values
+
+
 class ReturnValueTest:
     class InvalidExpression(ValueError):
         pass
@@ -574,6 +711,7 @@ class ConditionLingo(_Serializable):
             CompoundAccessControlCondition,
             JsonApiCondition,
             SequentialAccessControlCondition,
+            IfThenElseCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition
