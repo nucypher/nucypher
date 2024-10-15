@@ -48,9 +48,7 @@ Path to Logs:     {USER_LOG_DIR}
 
 - Never share secret keys with anyone! 
 - Backup your keystore! Character keys are required to interact with the protocol!
-- Remember your password! Without the password, it's impossible to decrypt the key!
-
-"""
+- Remember your password! Without the password, it's impossible to decrypt the key!"""
     )
 
     if character_name == 'ursula':

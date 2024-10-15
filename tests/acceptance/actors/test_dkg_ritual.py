@@ -15,9 +15,11 @@ from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
+    ConditionVariable,
     NotCompoundCondition,
     OrCompoundCondition,
     ReturnValueTest,
+    SequentialAccessControlCondition,
 )
 from nucypher.policy.conditions.time import TimeCondition
 from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
@@ -93,7 +95,14 @@ def condition(test_registry):
     )
 
     not_not_condition = NotCompoundCondition(
-        operand=NotCompoundCondition(operand=and_condition)
+        operand=NotCompoundCondition(operand=rpc_condition)
+    )
+
+    sequential_condition = SequentialAccessControlCondition(
+        condition_variables=[
+            ConditionVariable("rpc", rpc_condition),
+            ConditionVariable("contract", contract_condition),
+        ]
     )
 
     conditions = [
@@ -103,6 +112,7 @@ def condition(test_registry):
         or_condition,
         and_condition,
         not_not_condition,
+        sequential_condition,
     ]
 
     condition_to_use = random.choice(conditions)
@@ -137,6 +147,7 @@ def test_dkg_initiation(
     accounts,
     initiator,
     cohort,
+    fee_model,
     global_allow_list,
     testerchain,
     ritual_token,
@@ -147,16 +158,15 @@ def test_dkg_initiation(
     cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
 
     # Approve the ritual token for the coordinator agent to spend
-    amount = coordinator_agent.get_ritual_initiation_cost(
-        providers=cohort_staking_provider_addresses, duration=duration
-    )
+    amount = fee_model.getRitualCost(len(cohort_staking_provider_addresses), duration)
     ritual_token.approve(
-        coordinator_agent.contract_address,
+        fee_model.address,
         amount,
         sender=accounts[initiator.transacting_power.account],
     )
 
     receipt = coordinator_agent.initiate_ritual(
+        fee_model=fee_model.address,
         providers=cohort_staking_provider_addresses,
         authority=initiator.transacting_power.account,
         duration=duration,
@@ -243,8 +253,12 @@ def test_encrypt(
 
 
 @pytest_twisted.inlineCallbacks
-def test_unauthorized_decryption(bob, cohort, threshold_message_kit, ritual_id):
+def test_unauthorized_decryption(
+    bob, cohort, threshold_message_kit, ritual_id, signer, global_allow_list
+):
     print("======== DKG DECRYPTION (UNAUTHORIZED) ========")
+    assert not global_allow_list.isAddressAuthorized(ritual_id, signer.accounts[0])
+
     bob.start_learning_loop(now=True)
     with pytest.raises(
         Ursula.NotEnoughUrsulas,

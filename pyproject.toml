@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nucypher"
-version = "7.4.1"
+version = "7.5.0"
 authors = ["NuCypher"]
 description = "A threshold access control application to empower privacy in decentralized systems."
 
@@ -28,14 +28,15 @@ prometheus-client = '*'
 siwe = "^4.2.0"
 time-machine = "^2.13.0"
 twisted = "^24.2.0rc1"
+jsonpath-ng = "^1.6.1"
 
 [tool.poetry.dev-dependencies]
-pytest = '<7'
+pytest = '*'
 pytest-cov = '*'
 pytest-mock = '*'
 pytest-timeout = '*'
 pytest-twisted = '*'
-eth-ape = ">=0.7"
+eth-ape = ">=0.8"
 ape-solidity = '*'
 coverage = '^7.3.2'
 pre-commit = '^2.12.1'

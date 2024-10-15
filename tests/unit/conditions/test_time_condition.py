@@ -1,8 +1,11 @@
 import pytest
 
-from nucypher.policy.conditions.exceptions import InvalidCondition
+from nucypher.policy.conditions.exceptions import (
+    InvalidCondition,
+    InvalidConditionLingo,
+)
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
-from nucypher.policy.conditions.time import TimeCondition
+from nucypher.policy.conditions.time import TimeCondition, TimeRPCCall
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
@@ -13,7 +16,7 @@ def test_invalid_time_condition():
             condition_type=ConditionType.COMPOUND.value,
             return_value_test=ReturnValueTest(">", 0),
             chain=TESTERCHAIN_CHAIN_ID,
-            method=TimeCondition.METHOD,
+            method=TimeRPCCall.METHOD,
         )
 
     # invalid method
@@ -29,7 +32,7 @@ def test_invalid_time_condition():
         _ = TimeCondition(
             return_value_test=ReturnValueTest(">", 0),
             chain=90210,  # Beverly Hills Chain :)
-            method=TimeCondition.METHOD,
+            method=TimeRPCCall.METHOD,
         )
 
 
@@ -37,38 +40,38 @@ def test_time_condition_schema_validation(time_condition):
     condition_dict = time_condition.to_dict()
 
     # no issues here
-    TimeCondition.validate(condition_dict)
+    TimeCondition.from_dict(condition_dict)
 
     # no issues with optional name
     condition_dict["name"] = "my_time_machine"
-    TimeCondition.validate(condition_dict)
+    TimeCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # no method
         condition_dict = time_condition.to_dict()
         del condition_dict["method"]
-        TimeCondition.validate(condition_dict)
+        TimeCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # no returnValueTest defined
         condition_dict = time_condition.to_dict()
         del condition_dict["returnValueTest"]
-        TimeCondition.validate(condition_dict)
+        TimeCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # invalid method name
         condition_dict["method"] = "my_blocktime"
-        TimeCondition.validate(condition_dict)
+        TimeCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # chain id not an integer
         condition_dict["chain"] = str(TESTERCHAIN_CHAIN_ID)
-        TimeCondition.validate(condition_dict)
+        TimeCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # chain id not a permitted chain
         condition_dict["chain"] = 90210  # Beverly Hills Chain :)
-        TimeCondition.validate(condition_dict)
+        TimeCondition.from_dict(condition_dict)
 
 
 @pytest.mark.parametrize(

@@ -14,6 +14,7 @@ def test_ursula_dkg_rounds_fault_tolerance(
     ursulas,
     testerchain,
     ritual_token,
+    fee_model,
     global_allow_list,
     coordinator_agent,
     accounts,
@@ -30,6 +31,7 @@ def test_ursula_dkg_rounds_fault_tolerance(
         initiator,
         testerchain,
         ritual_token,
+        fee_model,
         global_allow_list,
         coordinator_agent,
         cohort_addresses,
@@ -61,21 +63,21 @@ def initiate_dkg(
     initiator,
     testerchain,
     ritual_token,
+    fee_model,
     global_allow_list,
     coordinator_agent,
     cohort_addresses,
 ):
     duration = 24 * 60 * 60
     # Approve the ritual token for the coordinator agent to spend
-    amount = coordinator_agent.get_ritual_initiation_cost(
-        providers=cohort_addresses, duration=duration
-    )
+    amount = fee_model.getRitualCost(len(cohort_addresses), duration)
     ritual_token.approve(
-        coordinator_agent.contract_address,
+        fee_model.address,
         amount,
         sender=accounts[initiator.transacting_power.account],
     )
     receipt = coordinator_agent.initiate_ritual(
+        fee_model=fee_model.address,
         providers=cohort_addresses,
         authority=initiator.transacting_power.account,
         duration=duration,

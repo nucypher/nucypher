@@ -1,8 +1,9 @@
 import re
 from http import HTTPStatus
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from marshmallow import Schema, post_dump
+from marshmallow.exceptions import SCHEMA
 from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.exceptions import (
@@ -138,3 +139,33 @@ def evaluate_condition_lingo(
     if error:
         log.info(error.message)  # log error message
         raise error
+
+
+def extract_single_error_message_from_schema_errors(
+    errors: Dict[str, List[str]]
+) -> str:
+    """
+    Extract single error message from Schema().validate() errors result.
+
+    The result is only for a single error type, and only the first message string for that type.
+    If there are multiple error types, only one error type is used; the first field-specific (@validates)
+    error type encountered is prioritized over any schema-level-specific (@validates_schema) error.
+    """
+    if not errors:
+        raise ValueError("Validation errors must be provided")
+
+    # extract error type - either field-specific (preferred) or schema-specific
+    error_key_to_use = None
+    for error_type in list(errors.keys()):
+        error_key_to_use = error_type
+        if error_key_to_use != SCHEMA:
+            # actual field
+            break
+
+    message = errors[error_key_to_use][0]
+    message_prefix = (
+        f"'{camel_case_to_snake(error_key_to_use)}' field - "
+        if error_key_to_use != SCHEMA
+        else ""
+    )
+    return f"{message_prefix}{message}"

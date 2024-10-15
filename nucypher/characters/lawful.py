@@ -1272,7 +1272,9 @@ class Ursula(Teacher, Character, Operator):
         decryption_request = self.decrypt_threshold_decryption_request(
             encrypted_decryption_request
         )
-        decryption_share = self._derive_decryption_share_for_request(decryption_request)
+        decryption_share = self._produce_decryption_share_for_request(
+            decryption_request
+        )
         encrypted_response = self._encrypt_decryption_share(
             decryption_share=decryption_share,
             ritual_id=decryption_request.ritual_id,

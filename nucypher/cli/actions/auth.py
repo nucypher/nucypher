@@ -11,7 +11,6 @@ from nucypher.cli.literature import (
     GENERIC_PASSWORD_PROMPT,
     PASSWORD_COLLECTION_NOTICE,
 )
-from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD
 from nucypher.crypto.keystore import _WORD_COUNT, Keystore
 from nucypher.utilities.emitters import StdoutEmitter
@@ -36,7 +35,7 @@ def get_client_password(checksum_address: str, envvar: str = None, confirm: bool
     return client_password
 
 
-def unlock_signer_account(config: CharacterConfiguration, json_ipc: bool) -> None:
+def unlock_signer_account(config, json_ipc: bool) -> None:
 
     # TODO: Remove this block after deprecating 'operator_address'
     from nucypher.config.characters import UrsulaConfiguration
@@ -67,7 +66,11 @@ def get_nucypher_password(emitter, confirm: bool = False, envvar=NUCYPHER_ENVVAR
     return keystore_password
 
 
-def unlock_nucypher_keystore(emitter: StdoutEmitter, password: str, character_configuration: CharacterConfiguration) -> bool:
+def unlock_nucypher_keystore(
+    emitter: StdoutEmitter,
+    password: str,
+    character_configuration,
+) -> bool:
     """Unlocks a nucypher keystore and attaches it to the supplied configuration if successful."""
     emitter.message(DECRYPTING_CHARACTER_KEYSTORE.format(name=character_configuration.NAME.capitalize()), color='yellow')
 
@@ -80,15 +83,27 @@ def unlock_nucypher_keystore(emitter: StdoutEmitter, password: str, character_co
     return True
 
 
-def recover_keystore(emitter) -> None:
+def collect_mnemonic(emitter: StdoutEmitter) -> str:
+    """Collect nucypher mnemonic seed words interactively."""
+    while True:
+        __words = click.prompt("Enter nucypher keystore seed words")
+        word_count = len(__words.split())
+        if word_count != _WORD_COUNT:
+            emitter.message(
+                f"Invalid mnemonic - Number of words must be {str(_WORD_COUNT)}, but only got {word_count}"
+            )
+            continue
+        break
+    return __words
+
+
+def recover_keystore(emitter) -> Keystore:
     emitter.message('This procedure will recover your nucypher keystore from mnemonic seed words. '
                     'You will need to provide the entire mnemonic (space seperated) in the correct '
                     'order and choose a new password.', color='cyan')
     click.confirm('Do you want to continue', abort=True)
-    __words = click.prompt("Enter nucypher keystore seed words")
-    word_count = len(__words.split())
-    if word_count != _WORD_COUNT:
-        emitter.message(f'Invalid mnemonic - Number of words must be {str(_WORD_COUNT)}, but only got {word_count}')
+    __words = collect_mnemonic(emitter)
     __password = get_nucypher_password(emitter=emitter, confirm=True)
     keystore = Keystore.restore(words=__words, password=__password)
     emitter.message(f'Recovered nucypher keystore {keystore.id} to \n {keystore.keystore_path}', color='green')
+    return keystore

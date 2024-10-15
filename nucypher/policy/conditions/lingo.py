@@ -4,7 +4,7 @@ import json
 import operator as pyoperator
 from enum import Enum
 from hashlib import md5
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
 from hexbytes import HexBytes
 from marshmallow import (
@@ -19,8 +19,14 @@ from marshmallow import (
 )
 from marshmallow.validate import OneOf, Range
 from packaging.version import parse as parse_version
+from web3 import HTTPProvider
 
-from nucypher.policy.conditions.base import AccessControlCondition, _Serializable
+from nucypher.policy.conditions.base import (
+    AccessControlCondition,
+    ExecutionCall,
+    MultiConditionAccessControl,
+    _Serializable,
+)
 from nucypher.policy.conditions.context import (
     _resolve_context_variable,
     is_context_variable,
@@ -52,19 +58,8 @@ class _ConditionField(fields.Dict):
         instance = condition_class.from_dict(condition_data)
         return instance
 
-#
-# CONDITION = BASE_CONDITION | COMPOUND_CONDITION
-#
-# BASE_CONDITION = {
-#     // ..
-# }
-#
-# COMPOUND_CONDITION = {
-#     "operator": OPERATOR,
-#     "operands": [CONDITION*]
-# }
 
-
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -73,14 +68,30 @@ class ConditionType(Enum):
     TIME = "time"
     CONTRACT = "contract"
     RPC = "rpc"
+    JSONAPI = "json-api"
     COMPOUND = "compound"
+    SEQUENTIAL = "sequential"
+    IF_THEN_ELSE = "if-then-else"
 
     @classmethod
     def values(cls) -> List[str]:
         return [condition.value for condition in cls]
 
 
-class CompoundAccessControlCondition(AccessControlCondition):
+class CompoundAccessControlCondition(MultiConditionAccessControl):
+    """
+    A combination of two or more conditions connected by logical operators such as AND, OR, NOT.
+
+    CompoundCondition grammar:
+        OPERATOR = AND | OR | NOT
+
+        COMPOUND_CONDITION = {
+            "name": ...  (Optional)
+            "conditionType": "compound",
+            "operator": OPERATOR,
+            "operands": [CONDITION*]
+        }
+    """
     AND_OPERATOR = "and"
     OR_OPERATOR = "or"
     NOT_OPERATOR = "not"
@@ -92,28 +103,35 @@ class CompoundAccessControlCondition(AccessControlCondition):
     def _validate_operator_and_operands(
         cls,
         operator: str,
-        operands: List,
-        exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
+        operands: List[AccessControlCondition],
     ):
         if operator not in cls.OPERATORS:
-            raise exception_class(f"{operator} is not a valid operator")
-
-        if operator == cls.NOT_OPERATOR:
-            if len(operands) != 1:
-                raise exception_class(
-                    f"Only 1 operand permitted for '{operator}' compound condition"
-                )
-        elif len(operands) < 2:
-            raise exception_class(
-                f"Minimum of 2 operand needed for '{operator}' compound condition"
+            raise ValidationError(
+                field_name="operator", message=f"{operator} is not a valid operator"
             )
 
-    class Schema(CamelCaseSchema):
-        SKIP_VALUES = (None,)
+        num_operands = len(operands)
+        if operator == cls.NOT_OPERATOR:
+            if num_operands != 1:
+                raise ValidationError(
+                    field_name="operands",
+                    message=f"Only 1 operand permitted for '{operator}' compound condition",
+                )
+        elif num_operands < 2:
+            raise ValidationError(
+                field_name="operands",
+                message=f"Minimum of 2 operand needed for '{operator}' compound condition",
+            )
+        elif num_operands > cls.MAX_NUM_CONDITIONS:
+            raise ValidationError(
+                field_name="operands",
+                message="Maximum of {cls.MAX_NUM_CONDITIONS} operands allowed for '{operator}' compound condition",
+            )
+
+    class Schema(AccessControlCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.COMPOUND.value), required=True
         )
-        name = fields.Str(required=False)
         operator = fields.Str(required=True)
         operands = fields.List(_ConditionField, required=True)
 
@@ -126,7 +144,10 @@ class CompoundAccessControlCondition(AccessControlCondition):
             operator = data["operator"]
             operands = data["operands"]
             CompoundAccessControlCondition._validate_operator_and_operands(
-                operator, operands, ValidationError
+                operator, operands
+            )
+            CompoundAccessControlCondition._validate_multi_condition_nesting(
+                conditions=operands, field_name="operands"
             )
 
         @post_load
@@ -146,18 +167,14 @@ class CompoundAccessControlCondition(AccessControlCondition):
             "operands": [CONDITION*]
         }
         """
-        if condition_type != self.CONDITION_TYPE:
-            raise InvalidCondition(
-                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
-            )
-
-        self._validate_operator_and_operands(operator, operands, InvalidCondition)
-
-        self.condition_type = condition_type
         self.operator = operator
         self.operands = operands
-        self.condition_type = condition_type
-        self.name = name
+
+        super().__init__(
+            condition_type=condition_type,
+            name=name,
+        )
+
         self.id = md5(bytes(self)).hexdigest()[:6]
 
     def __repr__(self):
@@ -185,6 +202,10 @@ class CompoundAccessControlCondition(AccessControlCondition):
 
         return overall_result, values
 
+    @property
+    def conditions(self):
+        return self.operands
+
 
 class OrCompoundCondition(CompoundAccessControlCondition):
     def __init__(self, operands: List[AccessControlCondition]):
@@ -211,6 +232,275 @@ _COMPARATOR_FUNCTIONS = {
 }
 
 
+class ConditionVariable(_Serializable):
+    class Schema(CamelCaseSchema):
+        var_name = fields.Str(required=True)  # TODO: should this be required?
+        condition = _ConditionField(required=True)
+
+        @post_load
+        def make(self, data, **kwargs):
+            return ConditionVariable(**data)
+
+    def __init__(self, var_name: str, condition: AccessControlCondition):
+        self.var_name = var_name
+        self.condition = condition
+
+
+class SequentialAccessControlCondition(MultiConditionAccessControl):
+    """
+    A series of conditions that are evaluated in a specific order, where the result of one
+    condition can be used in subsequent conditions.
+
+    SequentialCondition grammar:
+        CONDITION_VARIABLE = {
+            "varName": STR,
+            "condition": {
+                CONDITION
+            }
+        }
+
+        SEQUENTIAL_CONDITION = {
+            "name": ...  (Optional)
+            "conditionType": "sequential",
+            "conditionVariables": [CONDITION_VARIABLE*]
+        }
+    """
+
+    CONDITION_TYPE = ConditionType.SEQUENTIAL.value
+
+    @classmethod
+    def _validate_condition_variables(
+        cls,
+        condition_variables: List[ConditionVariable],
+    ):
+        if not condition_variables or len(condition_variables) < 2:
+            raise ValidationError(
+                field_name="condition_variables",
+                message="At least two conditions must be specified",
+            )
+
+        if len(condition_variables) > cls.MAX_NUM_CONDITIONS:
+            raise ValidationError(
+                field_name="condition_variables",
+                message=f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed",
+            )
+
+        # check for duplicate var names
+        var_names = set()
+        for condition_variable in condition_variables:
+            if condition_variable.var_name in var_names:
+                raise ValidationError(
+                    field_name="condition_variables",
+                    message=f"Duplicate variable names are not allowed - {condition_variable.var_name}",
+                )
+            var_names.add(condition_variable.var_name)
+
+    class Schema(AccessControlCondition.Schema):
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.SEQUENTIAL.value), required=True
+        )
+        condition_variables = fields.List(
+            fields.Nested(ConditionVariable.Schema(), required=True)
+        )
+
+        # maintain field declaration ordering
+        class Meta:
+            ordered = True
+
+        @validates("condition_variables")
+        def validate_condition_variables(self, value):
+            SequentialAccessControlCondition._validate_condition_variables(value)
+            conditions = [cv.condition for cv in value]
+            SequentialAccessControlCondition._validate_multi_condition_nesting(
+                conditions=conditions, field_name="condition_variables"
+            )
+
+        @post_load
+        def make(self, data, **kwargs):
+            return SequentialAccessControlCondition(**data)
+
+    def __init__(
+        self,
+        condition_variables: List[ConditionVariable],
+        condition_type: str = CONDITION_TYPE,
+        name: Optional[str] = None,
+    ):
+        self.condition_variables = condition_variables
+        super().__init__(
+            condition_type=condition_type,
+            name=name,
+        )
+
+    def __repr__(self):
+        r = f"{self.__class__.__name__}(num_condition_variables={len(self.condition_variables)})"
+        return r
+
+    # TODO - think about not dereferencing context but using a dict;
+    #  may allows more freedom for params
+    def verify(
+        self, providers: Dict[int, Set[HTTPProvider]], **context
+    ) -> Tuple[bool, Any]:
+        values = []
+        latest_success = False
+        inner_context = dict(context)  # don't modify passed in context - use a copy
+        # resolve variables
+        for condition_variable in self.condition_variables:
+            latest_success, result = condition_variable.condition.verify(
+                providers=providers, **inner_context
+            )
+            values.append(result)
+            if not latest_success:
+                # short circuit due to failed condition
+                break
+
+            inner_context[f":{condition_variable.var_name}"] = result
+
+        return latest_success, values
+
+    @property
+    def conditions(self):
+        return [
+            condition_variable.condition
+            for condition_variable in self.condition_variables
+        ]
+
+
+class _ElseConditionField(fields.Field):
+    """
+    Serializes/Deserializes else conditions for IfThenElseCondition. This field represents either a
+    Condition or a boolean value.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, bool):
+            return value
+
+        return value.to_dict()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, bool):
+            return value
+
+        lingo_version = self.context.get("lingo_version")
+        condition_data = value
+        condition_class = ConditionLingo.resolve_condition_class(
+            condition=condition_data, version=lingo_version
+        )
+        instance = condition_class.from_dict(condition_data)
+        return instance
+
+
+class IfThenElseCondition(MultiConditionAccessControl):
+    """
+    A condition that represents simple if-then-else logic.
+
+    IF_THEN_ELSE_CONDITION = {
+        "conditionType": "if-then-else",
+        "ifCondition": CONDITION,
+        "thenCondition": CONDITION,
+        "elseCondition": CONDITION | true | false,
+    }
+    """
+
+    CONDITION_TYPE = ConditionType.IF_THEN_ELSE.value
+
+    MAX_NUM_CONDITIONS = 3  # only ever max of 3 (if, then, else)
+
+    class Schema(AccessControlCondition.Schema):
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.IF_THEN_ELSE.value), required=True
+        )
+        if_condition = _ConditionField(required=True)
+        then_condition = _ConditionField(required=True)
+        else_condition = _ElseConditionField(required=True)
+
+        # maintain field declaration ordering
+        class Meta:
+            ordered = True
+
+        @staticmethod
+        def _validate_nested_conditions(field_name, condition):
+            IfThenElseCondition._validate_multi_condition_nesting(
+                conditions=[condition],
+                field_name=field_name,
+            )
+
+        @validates("if_condition")
+        def validate_if_condition(self, value):
+            self._validate_nested_conditions("if_condition", value)
+
+        @validates("then_condition")
+        def validate_then_condition(self, value):
+            self._validate_nested_conditions("then_condition", value)
+
+        @validates("else_condition")
+        def validate_else_condition(self, value):
+            if isinstance(value, AccessControlCondition):
+                self._validate_nested_conditions("else_condition", value)
+
+        @post_load
+        def make(self, data, **kwargs):
+            return IfThenElseCondition(**data)
+
+    def __init__(
+        self,
+        if_condition: AccessControlCondition,
+        then_condition: AccessControlCondition,
+        else_condition: Union[AccessControlCondition, bool],
+        condition_type: str = CONDITION_TYPE,
+        name: Optional[str] = None,
+    ):
+        self.if_condition = if_condition
+        self.then_condition = then_condition
+        self.else_condition = else_condition
+        super().__init__(condition_type=condition_type, name=name)
+
+    def __repr__(self):
+        r = (
+            f"{self.__class__.__name__}("
+            f"if={self.if_condition.__class__.__name__}, "
+            f"then={self.then_condition.__class__.__name__}, "
+            f"else={self.else_condition.__class__.__name__}"
+            f")"
+        )
+        return r
+
+    @property
+    def conditions(self):
+        values = [self.if_condition, self.then_condition]
+        if isinstance(self.else_condition, AccessControlCondition):
+            values.append(self.else_condition)
+
+        return values
+
+    def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
+        values = []
+
+        # if
+        if_result, if_value = self.if_condition.verify(*args, **kwargs)
+        values.append(if_value)
+
+        # then
+        if if_result:
+            then_result, then_value = self.then_condition.verify(*args, **kwargs)
+            values.append(then_value)
+            return then_result, values
+
+        # else
+        if isinstance(self.else_condition, AccessControlCondition):
+            # actual condition
+            else_result, else_value = self.else_condition.verify(*args, **kwargs)
+        else:
+            # boolean value
+            else_result, else_value = self.else_condition, self.else_condition
+
+        values.append(else_value)
+        return else_result, values
+
+
 class ReturnValueTest:
     class InvalidExpression(ValueError):
         pass
@@ -223,7 +513,9 @@ class ReturnValueTest:
         value = fields.Raw(
             allow_none=False, required=True
         )  # any valid type (excludes None)
-        index = fields.Int(strict=True, required=False, validate=Range(min=0))
+        index = fields.Int(
+            strict=True, required=False, validate=Range(min=0), allow_none=True
+        )
 
         @post_load
         def make(self, data, **kwargs):
@@ -356,16 +648,6 @@ class ConditionLingo(_Serializable):
     """
 
     def __init__(self, condition: AccessControlCondition, version: str = VERSION):
-        """
-        CONDITION = BASE_CONDITION | COMPOUND_CONDITION
-        BASE_CONDITION = {
-                // ..
-        }
-        COMPOUND_CONDITION = {
-                "operator": OPERATOR,
-                "operands": [CONDITION*]
-        }
-        """
         self.condition = condition
         self.check_version_compatibility(version)
         self.version = version
@@ -411,11 +693,11 @@ class ConditionLingo(_Serializable):
         cls, condition: ConditionDict, version: int = None
     ) -> Type[AccessControlCondition]:
         """
-        TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
-        Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
+        Inspects a given block of JSON and attempts to resolve it's intended datatype within the
         conditions expression framework.
         """
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
+        from nucypher.policy.conditions.offchain import JsonApiCondition
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
@@ -426,12 +708,15 @@ class ConditionLingo(_Serializable):
             ContractCondition,
             RPCCondition,
             CompoundAccessControlCondition,
+            JsonApiCondition,
+            SequentialAccessControlCondition,
+            IfThenElseCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition
 
         raise InvalidConditionLingo(
-            f"Cannot resolve condition lingo with condition type {condition_type}"
+            f"Cannot resolve condition lingo, {condition}, with condition type {condition_type}"
         )
 
     @classmethod
@@ -440,3 +725,46 @@ class ConditionLingo(_Serializable):
             raise InvalidConditionLingo(
                 f"Version provided, {version}, is incompatible with current version {cls.VERSION}"
             )
+
+
+class ExecutionCallAccessControlCondition(AccessControlCondition):
+    """
+    Conditions that utilize underlying ExecutionCall objects.
+    """
+
+    EXECUTION_CALL_TYPE = NotImplemented
+
+    class Schema(AccessControlCondition.Schema):
+        return_value_test = fields.Nested(
+            ReturnValueTest.ReturnValueTestSchema(), required=True
+        )
+
+    def __init__(
+        self,
+        condition_type: str,
+        return_value_test: ReturnValueTest,
+        name: Optional[str] = None,
+        *args,
+        **kwargs,
+    ):
+        self.return_value_test = return_value_test
+
+        try:
+            self.execution_call = self.EXECUTION_CALL_TYPE(*args, **kwargs)
+        except ExecutionCall.InvalidExecutionCall as e:
+            raise InvalidCondition(str(e)) from e
+
+        super().__init__(condition_type=condition_type, name=name)
+
+    def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
+        """
+        Verifies the condition is met by performing execution call and
+        evaluating the return value test.
+        """
+        result = self.execution_call.execute(*args, **kwargs)
+
+        resolved_return_value_test = self.return_value_test.with_resolved_context(
+            **kwargs
+        )
+        eval_result = resolved_return_value_test.eval(result)  # test
+        return eval_result, result

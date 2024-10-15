@@ -43,6 +43,7 @@ def test_mock_coordinator_initiation(
     mock_transacting_power = mocker.Mock()
     mock_transacting_power.account = random_address
     coordinator.initiate_ritual(
+        fee_model=get_random_checksum_address(),
         providers=list(nodes_transacting_powers.keys()),
         authority=mock_transacting_power.account,
         duration=1,

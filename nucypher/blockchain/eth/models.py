@@ -121,12 +121,14 @@ class Coordinator:
         init_timestamp: int
         end_timestamp: int
         threshold: int
+        fee_model: ChecksumAddress = None
         total_transcripts: int = 0
         total_aggregations: int = 0
         public_key: Ferveo.G1Point = None
         aggregation_mismatch: bool = False
         aggregated_transcript: bytes = bytes()
         participants: List = field(default_factory=list)
+
 
         @property
         def providers(self):

@@ -1,5 +1,3 @@
-import os
-
 import pytest
 import pytest_twisted
 from eth_utils import keccak
@@ -10,16 +8,12 @@ from twisted.internet.task import deferLater
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.crypto.powers import TransactingPower
+from tests.utils.dkg import generate_fake_ritual_transcript, threshold_from_shares
 
 
 @pytest.fixture(scope='module')
 def agent(coordinator_agent) -> CoordinatorAgent:
     return coordinator_agent
-
-
-@pytest.fixture(scope='module')
-def transcripts():
-    return [os.urandom(32), os.urandom(32)]
 
 
 @pytest.mark.usefixtures("ursulas")
@@ -62,6 +56,7 @@ def test_initiate_ritual(
     agent,
     cohort,
     get_random_checksum_address,
+    fee_model,
     global_allow_list,
     transacting_powers,
     ritual_token,
@@ -72,17 +67,18 @@ def test_initiate_ritual(
     assert number_of_rituals == 0
 
     duration = 60 * 60 * 24
-    amount = agent.get_ritual_initiation_cost(cohort, duration)
+    amount = fee_model.getRitualCost(len(cohort), duration)
 
     # Approve the ritual token for the coordinator agent to spend
     ritual_token.approve(
-        agent.contract_address,
+        fee_model.address,
         amount,
         sender=accounts[initiator.transacting_power.account],
     )
 
     authority = get_random_checksum_address()
     receipt = agent.initiate_ritual(
+        fee_model=fee_model.address,
         providers=cohort,
         authority=authority,
         duration=duration,
@@ -114,15 +110,20 @@ def test_initiate_ritual(
 
 @pytest_twisted.inlineCallbacks
 def test_post_transcript(
-    agent, transcripts, transacting_powers, testerchain, clock, mock_async_hooks
+    agent, transacting_powers, testerchain, clock, mock_async_hooks
 ):
     ritual_id = agent.number_of_rituals() - 1
+    dkg_size = len(transacting_powers)
+    threshold = threshold_from_shares(dkg_size)
 
     txs = []
-    for i, transacting_power in enumerate(transacting_powers):
+    transcripts = []
+    for transacting_power in transacting_powers:
+        transcript = generate_fake_ritual_transcript(dkg_size, threshold)
+        transcripts.append(transcript)
         async_tx = agent.post_transcript(
             ritual_id=ritual_id,
-            transcript=transcripts[i],
+            transcript=transcript,
             transacting_power=transacting_power,
             async_tx_hooks=mock_async_hooks,
         )
@@ -169,7 +170,6 @@ def test_post_transcript(
 @pytest_twisted.inlineCallbacks
 def test_post_aggregation(
     agent,
-    aggregated_transcript,
     dkg_public_key,
     transacting_powers,
     cohort,
@@ -183,7 +183,11 @@ def test_post_aggregation(
     txs = []
     participant_public_key = SessionStaticSecret.random().public_key()
 
-    for i, transacting_power in enumerate(transacting_powers):
+    dkg_size = len(transacting_powers)
+    threshold = threshold_from_shares(dkg_size)
+    aggregated_transcript = generate_fake_ritual_transcript(dkg_size, threshold)
+
+    for transacting_power in transacting_powers:
         async_tx = agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
