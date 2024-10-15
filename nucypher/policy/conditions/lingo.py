@@ -128,7 +128,6 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
                 message="Maximum of {cls.MAX_NUM_CONDITIONS} operands allowed for '{operator}' compound condition",
             )
 
-
     class Schema(AccessControlCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.COMPOUND.value), required=True
@@ -756,7 +755,6 @@ class ExecutionCallAccessControlCondition(AccessControlCondition):
             raise InvalidCondition(str(e)) from e
 
         super().__init__(condition_type=condition_type, name=name)
-
 
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         """

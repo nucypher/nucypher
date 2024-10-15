@@ -65,6 +65,7 @@ class JsonApiConditionDict(BaseExecConditionDict):
     query: NotRequired[str]
     parameters: NotRequired[Dict]
 
+
 #
 # CompoundCondition represents:
 # {
