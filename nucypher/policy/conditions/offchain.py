@@ -3,10 +3,14 @@ from typing import Any, Optional, Tuple
 import requests
 from jsonpath_ng.exceptions import JsonPathLexerError, JsonPathParserError
 from jsonpath_ng.ext import parse
-from marshmallow import fields, post_load, validate
+from marshmallow import ValidationError, fields, post_load, validate, validates
 from marshmallow.fields import Field, Url
 
 from nucypher.policy.conditions.base import ExecutionCall
+from nucypher.policy.conditions.context import (
+    is_context_variable,
+    resolve_context_variable,
+)
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     InvalidCondition,
@@ -42,37 +46,61 @@ class JsonApiCall(ExecutionCall):
         endpoint = Url(required=True, relative=False, schemes=["https"])
         parameters = fields.Dict(required=False, allow_none=True)
         query = JSONPathField(required=False, allow_none=True)
+        authorization_token = fields.Str(required=False, allow_none=True)
 
         @post_load
         def make(self, data, **kwargs):
             return JsonApiCall(**data)
+
+        @validates("authorization_token")
+        def validate_auth_token(self, value):
+            if value and not is_context_variable(value):
+                raise ValidationError(
+                    f"Invalid value for authorization token; expected a context variable, but got '{value}'"
+                )
 
     def __init__(
         self,
         endpoint: str,
         parameters: Optional[dict] = None,
         query: Optional[str] = None,
+        authorization_token: Optional[str] = None,
     ):
         self.endpoint = endpoint
         self.parameters = parameters or {}
         self.query = query
+        self.authorization_token = authorization_token
 
         self.timeout = self.TIMEOUT
         self.logger = Logger(__name__)
 
         super().__init__()
 
-    def execute(self, *args, **kwargs) -> Any:
-        response = self._fetch()
+    def execute(self, **context) -> Any:
+        resolved_authorization_token = None
+        if self.authorization_token:
+            resolved_authorization_token = resolve_context_variable(
+                self.authorization_token, **context
+            )
+
+        response = self._fetch(resolved_authorization_token)
         data = self._deserialize_response(response)
         result = self._query_response(data)
         return result
 
-    def _fetch(self) -> requests.Response:
+    def _fetch(self, authorization_token: str = None) -> requests.Response:
         """Fetches data from the endpoint."""
         try:
+            headers = None
+            if authorization_token:
+                headers = {"Authorization": f"Bearer {authorization_token}"}
+
+            # TODO what about 'post'? (eg. github graphql - https://docs.github.com/en/graphql/guides/forming-calls-with-graphql#communicating-with-graphql)
             response = requests.get(
-                self.endpoint, params=self.parameters, timeout=self.timeout
+                self.endpoint,
+                params=self.parameters,
+                timeout=self.timeout,
+                headers=headers,
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as http_error:
@@ -159,6 +187,7 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
         return_value_test: ReturnValueTest,
         query: Optional[str] = None,
         parameters: Optional[dict] = None,
+        authorization_token: Optional[str] = None,
         condition_type: str = ConditionType.JSONAPI.value,
         name: Optional[str] = None,
     ):
@@ -167,6 +196,7 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
             return_value_test=return_value_test,
             query=query,
             parameters=parameters,
+            authorization_token=authorization_token,
             condition_type=condition_type,
             name=name,
         )
@@ -186,6 +216,10 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
     @property
     def timeout(self):
         return self.execution_call.timeout
+
+    @property
+    def authorization_token(self):
+        return self.execution_call.authorization_token
 
     @staticmethod
     def _process_result_for_eval(result: Any):
