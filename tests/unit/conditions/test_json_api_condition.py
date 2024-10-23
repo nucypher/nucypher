@@ -64,6 +64,16 @@ def test_https_enforcement():
         )
 
 
+def test_invalid_authorization_token():
+    with pytest.raises(InvalidCondition, match="Invalid value for authorization token"):
+        _ = JsonApiCondition(
+            endpoint="https://api.example.com/data",
+            query="$.store.book[0].price",
+            authorization_token="1234",  # doesn't make sense hardcoding the token
+            return_value_test=ReturnValueTest("==", 0),
+        )
+
+
 def test_json_api_condition_with_primitive_response(mocker):
     mock_response = mocker.Mock(status_code=200)
     mock_response.json.return_value = 1
@@ -208,6 +218,33 @@ def test_basic_json_api_condition_evaluation_with_parameters(mocker):
     assert mocked_get.call_count == 1
 
 
+def test_basic_json_api_condition_evaluation_with_auth_token(mocker):
+    mocked_get = mocker.patch(
+        "requests.get",
+        return_value=mocker.Mock(
+            status_code=200, json=lambda: {"ethereum": {"usd": 0.0}}
+        ),
+    )
+
+    condition = JsonApiCondition(
+        endpoint="https://api.coingecko.com/api/v3/simple/price",
+        parameters={
+            "ids": "ethereum",
+            "vs_currencies": "usd",
+        },
+        authorization_token=":authToken",
+        query="ethereum.usd",
+        return_value_test=ReturnValueTest("==", 0.0),
+    )
+    assert condition.authorization_token == ":authToken"
+
+    auth_token = "1234567890"
+    context = {":authToken": f"{auth_token}"}
+    assert condition.verify(**context) == (True, 0.0)
+    assert mocked_get.call_count == 1
+    assert mocked_get.call_args[1]["headers"]["Authorization"] == f"Bearer {auth_token}"
+
+
 def test_json_api_condition_from_lingo_expression():
     lingo_dict = {
         "conditionType": "json-api",
@@ -217,6 +254,30 @@ def test_json_api_condition_from_lingo_expression():
             "ids": "ethereum",
             "vs_currencies": "usd",
         },
+        "returnValueTest": {
+            "comparator": "==",
+            "value": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+        },
+    }
+
+    cls = ConditionLingo.resolve_condition_class(lingo_dict, version=1)
+    assert cls == JsonApiCondition
+
+    lingo_json = json.dumps(lingo_dict)
+    condition = JsonApiCondition.from_json(lingo_json)
+    assert isinstance(condition, JsonApiCondition)
+
+
+def test_json_api_condition_from_lingo_expression_with_authorization():
+    lingo_dict = {
+        "conditionType": "json-api",
+        "endpoint": "https://api.example.com/data",
+        "query": "$.store.book[0].price",
+        "parameters": {
+            "ids": "ethereum",
+            "vs_currencies": "usd",
+        },
+        "authorizationToken": ":authorizationToken",
         "returnValueTest": {
             "comparator": "==",
             "value": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
