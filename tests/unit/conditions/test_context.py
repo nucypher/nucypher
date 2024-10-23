@@ -7,10 +7,10 @@ import pytest
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
     USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT,
-    _resolve_context_variable,
     _resolve_user_address,
     get_context_value,
     is_context_variable,
+    resolve_context_variable,
     resolve_parameter_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
@@ -76,7 +76,7 @@ def test_is_context_variable():
 
 def test_resolve_context_variable():
     for value, resolution in VALUES_WITH_RESOLUTION:
-        assert resolution == _resolve_context_variable(value, **CONTEXT)
+        assert resolution == resolve_context_variable(value, **CONTEXT)
 
 
 def test_resolve_any_context_variables():

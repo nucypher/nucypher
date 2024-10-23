@@ -116,9 +116,9 @@ def get_context_value(context_variable: str, **context) -> Any:
     return value
 
 
-def _resolve_context_variable(param: Union[Any, List[Any]], **context):
+def resolve_context_variable(param: Union[Any, List[Any]], **context):
     if isinstance(param, list):
-        return [_resolve_context_variable(item, **context) for item in param]
+        return [resolve_context_variable(item, **context) for item in param]
     elif is_context_variable(param):
         return get_context_value(context_variable=param, **context)
     else:
@@ -130,6 +130,6 @@ def resolve_parameter_context_variables(parameters: Optional[List[Any]], **conte
         processed_parameters = []  # produce empty list
     else:
         processed_parameters = [
-            _resolve_context_variable(param, **context) for param in parameters
+            resolve_context_variable(param, **context) for param in parameters
         ]
     return processed_parameters
