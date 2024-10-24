@@ -10,6 +10,7 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.offchain import (
+    JsonApiCall,
     JsonApiCondition,
     JSONPathField,
 )
@@ -35,6 +36,7 @@ def test_jsonpath_field_invalid():
 def test_json_api_condition_initialization():
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
+        method=JsonApiCall.HTTP_METHOD_GET,
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 0),
     )
@@ -48,10 +50,11 @@ def test_json_api_condition_invalid_type():
         InvalidCondition, match="'condition_type' field - Must be equal to json-api"
     ):
         _ = JsonApiCondition(
+            condition_type="INVALID_TYPE",
             endpoint="https://api.example.com/data",
+            method=JsonApiCall.HTTP_METHOD_GET,
             query="$.store.book[0].price",
             return_value_test=ReturnValueTest("==", 0),
-            condition_type="INVALID_TYPE",
         )
 
 
@@ -59,6 +62,17 @@ def test_https_enforcement():
     with pytest.raises(InvalidCondition, match="Not a valid URL"):
         _ = JsonApiCondition(
             endpoint="http://api.example.com/data",
+            method=JsonApiCall.HTTP_METHOD_GET,
+            query="$.store.book[0].price",
+            return_value_test=ReturnValueTest("==", 0),
+        )
+
+
+def test_https_method_enforcement():
+    with pytest.raises(InvalidCondition, match="Must be one of: get, post"):
+        _ = JsonApiCondition(
+            endpoint="https://api.example.com/data",
+            method="head",
             query="$.store.book[0].price",
             return_value_test=ReturnValueTest("==", 0),
         )
@@ -68,8 +82,9 @@ def test_invalid_authorization_token():
     with pytest.raises(InvalidCondition, match="Invalid value for authorization token"):
         _ = JsonApiCondition(
             endpoint="https://api.example.com/data",
-            query="$.store.book[0].price",
+            method=JsonApiCall.HTTP_METHOD_GET,
             authorization_token="1234",  # doesn't make sense hardcoding the token
+            query="$.store.book[0].price",
             return_value_test=ReturnValueTest("==", 0),
         )
 
@@ -81,6 +96,7 @@ def test_json_api_condition_with_primitive_response(mocker):
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
+        method=JsonApiCall.HTTP_METHOD_GET,
         return_value_test=ReturnValueTest("==", 1),
     )
     success, result = condition.verify()
@@ -94,6 +110,7 @@ def test_json_api_condition_fetch(mocker):
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
+        method=JsonApiCall.HTTP_METHOD_GET,
         query="$.store.book[0].title",
         return_value_test=ReturnValueTest("==", "'Test Title'"),
     )
@@ -109,6 +126,7 @@ def test_json_api_condition_fetch_failure(mocker):
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
+        method=JsonApiCall.HTTP_METHOD_GET,
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 1),
     )
@@ -116,19 +134,34 @@ def test_json_api_condition_fetch_failure(mocker):
         condition.execution_call._fetch()
 
 
-def test_json_api_condition_verify(mocker):
+@pytest.mark.parametrize("method_name", JsonApiCall.ALLOWED_METHODS)
+def test_json_api_condition_verify(mocker, method_name):
     mock_response = mocker.Mock(status_code=200)
     mock_response.json.return_value = {"store": {"book": [{"price": 1}]}}
-    mocker.patch("requests.get", return_value=mock_response)
+    mocked_method = mocker.patch(f"requests.{method_name}", return_value=mock_response)
+
+    inputs = {
+        "arg1": "val1",
+        "arg2": "val2",
+    }
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
+        inputs=inputs,
+        method=method_name,
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 1),
     )
     result, value = condition.verify()
     assert result is True
     assert value == 1
+
+    # check that appropriate kwarg used for respective http method
+    assert mocked_method.call_count == 1
+    if method_name == JsonApiCall.HTTP_METHOD_GET:
+        assert mocked_method.call_args.kwargs["params"] == inputs
+    else:
+        assert mocked_method.call_args.kwargs["data"] == inputs
 
 
 @pytest.mark.parametrize(
@@ -151,6 +184,7 @@ def test_json_api_condition_verify_strings(json_return, value_test, mocker):
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
+        method=JsonApiCall.HTTP_METHOD_GET,
         query="$.store.book[0].text",
         return_value_test=ReturnValueTest("==", f"{value_test}"),
     )
@@ -166,6 +200,7 @@ def test_json_api_condition_verify_invalid_json(mocker):
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
+        method=JsonApiCall.HTTP_METHOD_GET,
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 2),
     )
@@ -186,6 +221,7 @@ def test_non_json_response(mocker):
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
+        method=JsonApiCall.HTTP_METHOD_GET,
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 18),
     )
@@ -206,7 +242,8 @@ def test_basic_json_api_condition_evaluation_with_parameters(mocker):
 
     condition = JsonApiCondition(
         endpoint="https://api.coingecko.com/api/v3/simple/price",
-        parameters={
+        method=JsonApiCall.HTTP_METHOD_GET,
+        inputs={
             "ids": "ethereum",
             "vs_currencies": "usd",
         },
@@ -228,7 +265,8 @@ def test_basic_json_api_condition_evaluation_with_auth_token(mocker):
 
     condition = JsonApiCondition(
         endpoint="https://api.coingecko.com/api/v3/simple/price",
-        parameters={
+        method=JsonApiCall.HTTP_METHOD_GET,
+        inputs={
             "ids": "ethereum",
             "vs_currencies": "usd",
         },
@@ -242,18 +280,22 @@ def test_basic_json_api_condition_evaluation_with_auth_token(mocker):
     context = {":authToken": f"{auth_token}"}
     assert condition.verify(**context) == (True, 0.0)
     assert mocked_get.call_count == 1
-    assert mocked_get.call_args[1]["headers"]["Authorization"] == f"Bearer {auth_token}"
+    assert (
+        mocked_get.call_args.kwargs["headers"]["Authorization"]
+        == f"Bearer {auth_token}"
+    )
 
 
 def test_json_api_condition_from_lingo_expression():
     lingo_dict = {
         "conditionType": "json-api",
         "endpoint": "https://api.example.com/data",
-        "query": "$.store.book[0].price",
-        "parameters": {
+        "method": f"{JsonApiCall.HTTP_METHOD_GET}",
+        "inputs": {
             "ids": "ethereum",
             "vs_currencies": "usd",
         },
+        "query": "$.store.book[0].price",
         "returnValueTest": {
             "comparator": "==",
             "value": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
@@ -273,12 +315,13 @@ def test_json_api_condition_from_lingo_expression_with_authorization():
     lingo_dict = {
         "conditionType": "json-api",
         "endpoint": "https://api.example.com/data",
-        "query": "$.store.book[0].price",
-        "parameters": {
+        "method": f"{JsonApiCall.HTTP_METHOD_POST}",
+        "inputs": {
             "ids": "ethereum",
             "vs_currencies": "usd",
         },
         "authorizationToken": ":authorizationToken",
+        "query": "$.store.book[0].price",
         "returnValueTest": {
             "comparator": "==",
             "value": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
@@ -301,6 +344,7 @@ def test_ambiguous_json_path_multiple_results(mocker):
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
+        method=JsonApiCall.HTTP_METHOD_GET,
         query="$.store.book[*].price",
         return_value_test=ReturnValueTest("==", 1),
     )

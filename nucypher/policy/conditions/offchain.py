@@ -5,6 +5,7 @@ from jsonpath_ng.exceptions import JsonPathLexerError, JsonPathParserError
 from jsonpath_ng.ext import parse
 from marshmallow import ValidationError, fields, post_load, validate, validates
 from marshmallow.fields import Field, Url
+from marshmallow.validate import OneOf
 
 from nucypher.policy.conditions.base import ExecutionCall
 from nucypher.policy.conditions.context import (
@@ -41,10 +42,14 @@ class JSONPathField(Field):
 
 class JsonApiCall(ExecutionCall):
     TIMEOUT = 5  # seconds
+    HTTP_METHOD_GET = "get"
+    HTTP_METHOD_POST = "post"
+    ALLOWED_METHODS = {HTTP_METHOD_GET, HTTP_METHOD_POST}
 
     class Schema(ExecutionCall.Schema):
         endpoint = Url(required=True, relative=False, schemes=["https"])
-        parameters = fields.Dict(required=False, allow_none=True)
+        method = fields.Str(required=True, validate=OneOf(["get", "post"]))
+        inputs = fields.Dict(required=False, allow_none=True)
         query = JSONPathField(required=False, allow_none=True)
         authorization_token = fields.Str(required=False, allow_none=True)
 
@@ -62,12 +67,14 @@ class JsonApiCall(ExecutionCall):
     def __init__(
         self,
         endpoint: str,
-        parameters: Optional[dict] = None,
+        method: Optional[str] = HTTP_METHOD_GET,
+        inputs: Optional[dict] = None,
         query: Optional[str] = None,
         authorization_token: Optional[str] = None,
     ):
         self.endpoint = endpoint
-        self.parameters = parameters or {}
+        self.method = method
+        self.inputs = inputs or {}
         self.query = query
         self.authorization_token = authorization_token
 
@@ -95,13 +102,21 @@ class JsonApiCall(ExecutionCall):
             if authorization_token:
                 headers = {"Authorization": f"Bearer {authorization_token}"}
 
-            # TODO what about 'post'? (eg. github graphql - https://docs.github.com/en/graphql/guides/forming-calls-with-graphql#communicating-with-graphql)
-            response = requests.get(
-                self.endpoint,
-                params=self.parameters,
-                timeout=self.timeout,
-                headers=headers,
-            )
+            if self.method == self.HTTP_METHOD_GET:
+                response = requests.get(
+                    self.endpoint,
+                    params=self.inputs,
+                    timeout=self.timeout,
+                    headers=headers,
+                )
+            else:
+                response = requests.post(
+                    self.endpoint,
+                    data=self.inputs,
+                    timeout=self.timeout,
+                    headers=headers,
+                )
+
             response.raise_for_status()
         except requests.exceptions.HTTPError as http_error:
             self.logger.error(f"HTTP error occurred: {http_error}")
@@ -185,8 +200,9 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
         self,
         endpoint: str,
         return_value_test: ReturnValueTest,
+        method: Optional[str] = JsonApiCall.HTTP_METHOD_GET,
         query: Optional[str] = None,
-        parameters: Optional[dict] = None,
+        inputs: Optional[dict] = None,
         authorization_token: Optional[str] = None,
         condition_type: str = ConditionType.JSONAPI.value,
         name: Optional[str] = None,
@@ -194,8 +210,9 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
         super().__init__(
             endpoint=endpoint,
             return_value_test=return_value_test,
+            method=method,
             query=query,
-            parameters=parameters,
+            inputs=inputs,
             authorization_token=authorization_token,
             condition_type=condition_type,
             name=name,
@@ -206,12 +223,16 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
         return self.execution_call.endpoint
 
     @property
+    def method(self):
+        return self.execution_call.method
+
+    @property
     def query(self):
         return self.execution_call.query
 
     @property
-    def parameters(self):
-        return self.execution_call.parameters
+    def inputs(self):
+        return self.execution_call.inputs
 
     @property
     def timeout(self):
