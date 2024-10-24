@@ -266,6 +266,7 @@ def test_json_api_condition_from_lingo_expression():
     lingo_json = json.dumps(lingo_dict)
     condition = JsonApiCondition.from_json(lingo_json)
     assert isinstance(condition, JsonApiCondition)
+    assert condition.to_dict() == lingo_dict
 
 
 def test_json_api_condition_from_lingo_expression_with_authorization():
@@ -290,7 +291,7 @@ def test_json_api_condition_from_lingo_expression_with_authorization():
     lingo_json = json.dumps(lingo_dict)
     condition = JsonApiCondition.from_json(lingo_json)
     assert isinstance(condition, JsonApiCondition)
-
+    assert condition.to_dict() == lingo_dict
 
 def test_ambiguous_json_path_multiple_results(mocker):
     mock_response = mocker.Mock(status_code=200)
