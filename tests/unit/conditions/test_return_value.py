@@ -6,7 +6,7 @@ from typing import NamedTuple
 import pytest
 from hexbytes import HexBytes
 
-from nucypher.policy.conditions.context import resolve_context_variable
+from nucypher.policy.conditions.context import resolve_any_context_variables
 from nucypher.policy.conditions.exceptions import ReturnValueEvaluationError
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
@@ -150,14 +150,14 @@ def test_return_value_test_with_resolved_context():
     resolved = test.with_resolved_context(**context)
     assert resolved.comparator == test.comparator
     assert resolved.index == test.index
-    assert resolved.value == resolve_context_variable(test.value, **context)
+    assert resolved.value == resolve_any_context_variables(test.value, **context)
 
     test = ReturnValueTest(comparator="==", value=[42, ":foo"])
 
     resolved = test.with_resolved_context(**context)
     assert resolved.comparator == test.comparator
     assert resolved.index == test.index
-    assert resolved.value == resolve_context_variable(test.value, **context)
+    assert resolved.value == resolve_any_context_variables(test.value, **context)
 
 
 def test_return_value_test_integer():

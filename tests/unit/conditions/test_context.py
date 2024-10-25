@@ -1,6 +1,5 @@
 import copy
 import itertools
-import re
 
 import pytest
 
@@ -10,8 +9,7 @@ from nucypher.policy.conditions.context import (
     _resolve_user_address,
     get_context_value,
     is_context_variable,
-    resolve_context_variable,
-    resolve_parameter_context_variables,
+    resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
     ContextVariableVerificationFailed,
@@ -67,16 +65,12 @@ def test_is_context_variable():
         assert not is_context_variable(variable)
 
     for variable in INVALID_CONTEXT_PARAM_NAMES:
-        expected_message = re.escape(
-            f"Context variable name '{variable}' is not valid."
-        )
-        with pytest.raises(ValueError, match=expected_message):
-            _ = is_context_variable(variable)
+        assert not is_context_variable(variable)
 
 
 def test_resolve_context_variable():
     for value, resolution in VALUES_WITH_RESOLUTION:
-        assert resolution == resolve_context_variable(value, **CONTEXT)
+        assert resolution == resolve_any_context_variables(value, **CONTEXT)
 
 
 def test_resolve_any_context_variables():
@@ -86,13 +80,85 @@ def test_resolve_any_context_variables():
         params, resolved_params = params_with_resolution
         value, resolved_value = value_with_resolution
         return_value_test = ReturnValueTest(comparator="==", value=value)
-        resolved_parameters = resolve_parameter_context_variables([params], **CONTEXT)
+        resolved_parameters = resolve_any_context_variables([params], **CONTEXT)
         resolved_return_value = return_value_test.with_resolved_context(**CONTEXT)
         assert resolved_parameters == [resolved_params]
         assert resolved_return_value.comparator == return_value_test.comparator
         assert resolved_return_value.index == return_value_test.index
         assert resolved_return_value.value == resolved_value
 
+
+@pytest.mark.parametrize(
+    "value, expected_resolution",
+    [
+        (
+            "https://api.github.com/user/:foo/:bar",
+            "https://api.github.com/user/1234/BAR",
+        ),
+        (
+            "The cost of :bar is $:foo; $:foo is too expensive for :bar",
+            "The cost of BAR is $1234; $1234 is too expensive for BAR",
+        ),
+        # graphql query
+        (
+            """{
+        organization(login: ":bar") {
+          teams(first: :foo, userLogins: [":bar"]) {
+            totalCount
+            edges {
+              node {
+                id
+                name
+                description
+              }
+            }
+          }
+        }
+    }""",
+            """{
+        organization(login: "BAR") {
+          teams(first: 1234, userLogins: ["BAR"]) {
+            totalCount
+            edges {
+              node {
+                id
+                name
+                description
+              }
+            }
+          }
+        }
+    }""",
+        ),
+    ],
+)
+def test_resolve_context_variable_within_substring(value, expected_resolution):
+    context = {":foo": 1234, ":bar": "BAR"}
+    resolved_value = resolve_any_context_variables(value, **context)
+    assert expected_resolution == resolved_value
+
+
+@pytest.mark.parametrize(
+    "value, expected_resolution",
+    [
+        (
+            {
+                "book_name": ":bar",
+                "price": "$:foo",
+                "description": ":bar is a book about foo and bar.",
+            },
+            {
+                "book_name": "BAR",
+                "price": "$1234",
+                "description": "BAR is a book about foo and bar.",
+            },
+        )
+    ],
+)
+def test_resolve_context_variable_within_dictionary(value, expected_resolution):
+    context = {":foo": 1234, ":bar": "BAR"}
+    resolved_value = resolve_any_context_variables(value, **context)
+    assert expected_resolution == resolved_value
 
 @pytest.mark.parametrize("expected_entry", ["address", "signature", "typedData"])
 @pytest.mark.parametrize(

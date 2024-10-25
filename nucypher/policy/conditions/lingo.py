@@ -29,7 +29,7 @@ from nucypher.policy.conditions.base import (
 )
 from nucypher.policy.conditions.context import (
     is_context_variable,
-    resolve_context_variable,
+    resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
@@ -611,7 +611,7 @@ class ReturnValueTest:
         return result
 
     def with_resolved_context(self, **context):
-        value = resolve_context_variable(self.value, **context)
+        value = resolve_any_context_variables(self.value, **context)
         return ReturnValueTest(self.comparator, value=value, index=self.index)
 
 

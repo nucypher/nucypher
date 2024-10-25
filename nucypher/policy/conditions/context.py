@@ -1,6 +1,6 @@
 import re
 from functools import partial
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -90,12 +90,7 @@ _DIRECTIVES = {
 
 
 def is_context_variable(variable) -> bool:
-    if isinstance(variable, str) and variable.startswith(CONTEXT_PREFIX):
-        if CONTEXT_REGEX.fullmatch(variable):
-            return True
-        else:
-            raise ValueError(f"Context variable name '{variable}' is not valid.")
-    return False
+    return isinstance(variable, str) and CONTEXT_REGEX.fullmatch(variable)
 
 
 def get_context_value(context_variable: str, **context) -> Any:
@@ -116,20 +111,31 @@ def get_context_value(context_variable: str, **context) -> Any:
     return value
 
 
-def resolve_context_variable(param: Union[Any, List[Any]], **context):
+def resolve_any_context_variables(
+    param: Union[Any, List[Any], Dict[Any, Any]], **context
+):
     if isinstance(param, list):
-        return [resolve_context_variable(item, **context) for item in param]
-    elif is_context_variable(param):
-        return get_context_value(context_variable=param, **context)
+        return [resolve_any_context_variables(item, **context) for item in param]
+    elif isinstance(param, dict):
+        result = {}
+        for k, v in param.items():
+            result[k] = resolve_any_context_variables(v, **context)
+        return result
+    elif isinstance(param, str):
+        # either it is a context variable OR contains a context variable within it
+        # TODO separating the two cases for now out of concern of regex searching
+        #  within strings (case 2)
+        if is_context_variable(param):
+            return get_context_value(context_variable=param, **context)
+        else:
+            matches = re.findall(CONTEXT_REGEX, param)
+            for context_var in matches:
+                # checking out of concern for faulty regex search within string
+                if context_var in context:
+                    resolved_var = get_context_value(
+                        context_variable=context_var, **context
+                    )
+                    param = param.replace(context_var, str(resolved_var))
+            return param
     else:
         return param
-
-
-def resolve_parameter_context_variables(parameters: Optional[List[Any]], **context):
-    if not parameters:
-        processed_parameters = []  # produce empty list
-    else:
-        processed_parameters = [
-            resolve_context_variable(param, **context) for param in parameters
-        ]
-    return processed_parameters
