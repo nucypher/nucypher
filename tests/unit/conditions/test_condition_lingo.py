@@ -70,11 +70,11 @@ def lingo_with_all_condition_types(get_random_checksum_address):
         # JSON API
         "conditionType": ConditionType.JSONAPI.value,
         "endpoint": "https://api.example.com/data",
-        "method": "get",
-        "inputs": {
+        "parameters": {
             "ids": "ethereum",
             "vs_currencies": "usd",
         },
+        "authorizationToken": ":authToken",
         "query": "$.store.book[0].price",
         "returnValueTest": {
             "comparator": "==",
