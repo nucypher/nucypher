@@ -93,6 +93,13 @@ def is_context_variable(variable) -> bool:
     return isinstance(variable, str) and CONTEXT_REGEX.fullmatch(variable)
 
 
+def string_contains_context_variable(variable: str) -> bool:
+    matches = re.findall(CONTEXT_REGEX, variable)
+    if not matches:
+        return False
+    return True
+
+
 def get_context_value(context_variable: str, **context) -> Any:
     try:
         # DIRECTIVES are special context vars that will pre-processed by ursula

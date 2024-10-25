@@ -10,7 +10,8 @@ from marshmallow.validate import OneOf
 from nucypher.policy.conditions.base import ExecutionCall
 from nucypher.policy.conditions.context import (
     is_context_variable,
-    resolve_context_variable,
+    resolve_any_context_variables,
+    string_contains_context_variable,
 )
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
@@ -34,7 +35,8 @@ class JSONPathField(Field):
         if not isinstance(value, str):
             raise self.make_error("invalidType", value=type(value))
         try:
-            parse(value)
+            if not string_contains_context_variable(value):
+                parse(value)
         except (JsonPathLexerError, JsonPathParserError):
             raise self.make_error("invalid", value=value)
         return value
@@ -84,35 +86,37 @@ class JsonApiCall(ExecutionCall):
         super().__init__()
 
     def execute(self, **context) -> Any:
-        resolved_authorization_token = None
-        if self.authorization_token:
-            resolved_authorization_token = resolve_context_variable(
-                self.authorization_token, **context
-            )
-
-        response = self._fetch(resolved_authorization_token)
+        response = self._fetch(**context)
         data = self._deserialize_response(response)
-        result = self._query_response(data)
+        result = self._query_response(data, **context)
         return result
 
-    def _fetch(self, authorization_token: str = None) -> requests.Response:
+    def _fetch(self, **context) -> requests.Response:
         """Fetches data from the endpoint."""
+        resolved_endpoint = resolve_any_context_variables(self.endpoint, **context)
+
+        resolved_inputs = resolve_any_context_variables(self.inputs, **context)
+
+        headers = None
+        if self.authorization_token:
+            resolved_authorization_token = resolve_any_context_variables(
+                self.authorization_token, **context
+            )
+            headers = {"Authorization": f"Bearer {resolved_authorization_token}"}
+
         try:
-            headers = None
-            if authorization_token:
-                headers = {"Authorization": f"Bearer {authorization_token}"}
 
             if self.method == self.HTTP_METHOD_GET:
                 response = requests.get(
-                    self.endpoint,
-                    params=self.inputs,
+                    resolved_endpoint,
+                    params=resolved_inputs,
                     timeout=self.timeout,
                     headers=headers,
                 )
             else:
                 response = requests.post(
-                    self.endpoint,
-                    data=self.inputs,
+                    resolved_endpoint,
+                    data=resolved_inputs,
                     timeout=self.timeout,
                     headers=headers,
                 )
@@ -121,20 +125,20 @@ class JsonApiCall(ExecutionCall):
         except requests.exceptions.HTTPError as http_error:
             self.logger.error(f"HTTP error occurred: {http_error}")
             raise ConditionEvaluationFailed(
-                f"Failed to fetch endpoint {self.endpoint}: {http_error}"
+                f"Failed to fetch endpoint {resolved_endpoint}: {http_error}"
             )
         except requests.exceptions.RequestException as request_error:
             self.logger.error(f"Request exception occurred: {request_error}")
             raise InvalidCondition(
-                f"Failed to fetch endpoint {self.endpoint}: {request_error}"
+                f"Failed to fetch endpoint {resolved_endpoint}: {request_error}"
             )
 
         if response.status_code != 200:
             self.logger.error(
-                f"Failed to fetch endpoint {self.endpoint}: {response.status_code}"
+                f"Failed to fetch endpoint {resolved_endpoint}: {response.status_code}"
             )
             raise ConditionEvaluationFailed(
-                f"Failed to fetch endpoint {self.endpoint}: {response.status_code}"
+                f"Failed to fetch endpoint {resolved_endpoint}: {response.status_code}"
             )
 
         return response
@@ -150,16 +154,18 @@ class JsonApiCall(ExecutionCall):
             )
         return data
 
-    def _query_response(self, data: Any) -> Any:
+    def _query_response(self, data: Any, **context) -> Any:
 
         if not self.query:
             return data  # primitive value
 
+        resolved_query = resolve_any_context_variables(self.query, **context)
+
         try:
-            expression = parse(self.query)
+            expression = parse(resolved_query)
             matches = expression.find(data)
             if not matches:
-                message = f"No matches found for the JSONPath query: {self.query}"
+                message = f"No matches found for the JSONPath query: {resolved_query}"
                 self.logger.info(message)
                 raise ConditionEvaluationFailed(message)
         except (JsonPathLexerError, JsonPathParserError) as jsonpath_err:
@@ -167,9 +173,7 @@ class JsonApiCall(ExecutionCall):
             raise ConditionEvaluationFailed(f"JSONPath error: {jsonpath_err}")
 
         if len(matches) > 1:
-            message = (
-                f"Ambiguous JSONPath query - Multiple matches found for: {self.query}"
-            )
+            message = f"Ambiguous JSONPath query - Multiple matches found for: {resolved_query}"
             self.logger.info(message)
             raise ConditionEvaluationFailed(message)
         result = matches[0].value
