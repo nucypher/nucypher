@@ -47,6 +47,7 @@ DEFINITELY_NOT_CONTEXT_PARAM_NAMES = ["1234", "foo", "", 123]
 CONTEXT = {":foo": 1234, ":bar": "'BAR'"}
 
 VALUES_WITH_RESOLUTION = [
+    ([], []),
     (42, 42),
     (True, True),
     ("'bar'", "'bar'"),
@@ -102,33 +103,33 @@ def test_resolve_any_context_variables():
         # graphql query
         (
             """{
-        organization(login: ":bar") {
-          teams(first: :foo, userLogins: [":bar"]) {
-            totalCount
-            edges {
-              node {
-                id
-                name
-                description
-              }
-            }
-          }
-        }
-    }""",
+                organization(login: ":bar") {
+                  teams(first: :foo, userLogins: [":bar"]) {
+                    totalCount
+                    edges {
+                      node {
+                        id
+                        name
+                        description
+                      }
+                    }
+                  }
+                }
+            }""",
             """{
-        organization(login: "BAR") {
-          teams(first: 1234, userLogins: ["BAR"]) {
-            totalCount
-            edges {
-              node {
-                id
-                name
-                description
-              }
-            }
-          }
-        }
-    }""",
+                organization(login: "BAR") {
+                  teams(first: 1234, userLogins: ["BAR"]) {
+                    totalCount
+                    edges {
+                      node {
+                        id
+                        name
+                        description
+                      }
+                    }
+                  }
+                }
+            }""",
         ),
     ],
 )
