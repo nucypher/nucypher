@@ -304,6 +304,12 @@ def test_contract_condition_schema_validation():
         del condition_dict["contractAddress"]
         ContractCondition.from_dict(condition_dict)
 
+    with pytest.raises(InvalidConditionLingo):
+        # invalid contract address
+        contract_dict = contract_condition.to_dict()
+        contract_dict["contractAddress"] = "0xABCD"
+        ContractCondition.from_dict(condition_dict)
+
     balanceOf_abi = {
         "constant": True,
         "inputs": [{"name": "_owner", "type": "address"}],

@@ -48,10 +48,10 @@ def test_json_api_condition_invalid_type():
         InvalidCondition, match="'condition_type' field - Must be equal to json-api"
     ):
         _ = JsonApiCondition(
+            condition_type="INVALID_TYPE",
             endpoint="https://api.example.com/data",
             query="$.store.book[0].price",
             return_value_test=ReturnValueTest("==", 0),
-            condition_type="INVALID_TYPE",
         )
 
 
@@ -59,6 +59,16 @@ def test_https_enforcement():
     with pytest.raises(InvalidCondition, match="Not a valid URL"):
         _ = JsonApiCondition(
             endpoint="http://api.example.com/data",
+            query="$.store.book[0].price",
+            return_value_test=ReturnValueTest("==", 0),
+        )
+
+
+def test_invalid_authorization_token():
+    with pytest.raises(InvalidCondition, match="Invalid value for authorization token"):
+        _ = JsonApiCondition(
+            endpoint="https://api.example.com/data",
+            authorization_token="1234",  # doesn't make sense hardcoding the token
             query="$.store.book[0].price",
             return_value_test=ReturnValueTest("==", 0),
         )
@@ -109,16 +119,26 @@ def test_json_api_condition_fetch_failure(mocker):
 def test_json_api_condition_verify(mocker):
     mock_response = mocker.Mock(status_code=200)
     mock_response.json.return_value = {"store": {"book": [{"price": 1}]}}
-    mocker.patch("requests.get", return_value=mock_response)
+    mocked_method = mocker.patch("requests.get", return_value=mock_response)
+
+    parameters = {
+        "arg1": "val1",
+        "arg2": "val2",
+    }
 
     condition = JsonApiCondition(
         endpoint="https://api.example.com/data",
+        parameters=parameters,
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 1),
     )
     result, value = condition.verify()
     assert result is True
     assert value == 1
+
+    # check that appropriate kwarg used for respective http method
+    assert mocked_method.call_count == 1
+    assert mocked_method.call_args.kwargs["params"] == parameters
 
 
 @pytest.mark.parametrize(
@@ -208,18 +228,90 @@ def test_basic_json_api_condition_evaluation_with_parameters(mocker):
     assert mocked_get.call_count == 1
 
 
+def test_json_api_condition_evaluation_with_auth_token(mocker):
+    mocked_get = mocker.patch(
+        "requests.get",
+        return_value=mocker.Mock(
+            status_code=200, json=lambda: {"ethereum": {"usd": 0.0}}
+        ),
+    )
+
+    condition = JsonApiCondition(
+        endpoint="https://api.coingecko.com/api/v3/simple/price",
+        parameters={
+            "ids": "ethereum",
+            "vs_currencies": "usd",
+        },
+        authorization_token=":authToken",
+        query="ethereum.usd",
+        return_value_test=ReturnValueTest("==", 0.0),
+    )
+    assert condition.authorization_token == ":authToken"
+
+    auth_token = "1234567890"
+    context = {":authToken": f"{auth_token}"}
+    assert condition.verify(**context) == (True, 0.0)
+    assert mocked_get.call_count == 1
+    assert (
+        mocked_get.call_args.kwargs["headers"]["Authorization"]
+        == f"Bearer {auth_token}"
+    )
+
+
+def test_json_api_condition_evaluation_with_various_context_variables(mocker):
+    mocked_get = mocker.patch(
+        "requests.get",
+        return_value=mocker.Mock(
+            status_code=200, json=lambda: {"ethereum": {"cad": 0.0}}
+        ),
+    )
+
+    condition = JsonApiCondition(
+        endpoint="https://api.coingecko.com/api/:version/simple/:endpointPath",
+        parameters={
+            "ids": "ethereum",
+            "vs_currencies": ":vsCurrency",
+        },
+        authorization_token=":authToken",
+        query="ethereum.:vsCurrency",
+        return_value_test=ReturnValueTest("==", ":expectedPrice"),
+    )
+    assert condition.authorization_token == ":authToken"
+
+    auth_token = "1234567890"
+    context = {
+        ":endpointPath": "price",
+        ":version": "v3",
+        ":vsCurrency": "cad",
+        ":authToken": f"{auth_token}",
+        ":expectedPrice": 0.0,
+    }
+    assert condition.verify(**context) == (True, 0.0)
+    assert mocked_get.call_count == 1
+
+    call_args = mocked_get.call_args
+    assert call_args.args == (
+        f"https://api.coingecko.com/api/{context[':version']}/simple/{context[':endpointPath']}",
+    )
+    assert call_args.kwargs["headers"]["Authorization"] == f"Bearer {auth_token}"
+    assert call_args.kwargs["params"] == {
+        "ids": "ethereum",
+        "vs_currencies": context[":vsCurrency"],
+    }
+
+
 def test_json_api_condition_from_lingo_expression():
     lingo_dict = {
         "conditionType": "json-api",
         "endpoint": "https://api.example.com/data",
-        "query": "$.store.book[0].price",
         "parameters": {
             "ids": "ethereum",
             "vs_currencies": "usd",
         },
+        "query": "$.store.book[0].price",
         "returnValueTest": {
             "comparator": "==",
-            "value": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+            "value": 1.0,
         },
     }
 
@@ -229,6 +321,32 @@ def test_json_api_condition_from_lingo_expression():
     lingo_json = json.dumps(lingo_dict)
     condition = JsonApiCondition.from_json(lingo_json)
     assert isinstance(condition, JsonApiCondition)
+    assert condition.to_dict() == lingo_dict
+
+
+def test_json_api_condition_from_lingo_expression_with_authorization():
+    lingo_dict = {
+        "conditionType": "json-api",
+        "endpoint": "https://api.example.com/data",
+        "parameters": {
+            "ids": "ethereum",
+            "vs_currencies": "usd",
+        },
+        "authorizationToken": ":authorizationToken",
+        "query": "$.store.book[0].price",
+        "returnValueTest": {
+            "comparator": "==",
+            "value": 1.0,
+        },
+    }
+
+    cls = ConditionLingo.resolve_condition_class(lingo_dict, version=1)
+    assert cls == JsonApiCondition
+
+    lingo_json = json.dumps(lingo_dict)
+    condition = JsonApiCondition.from_json(lingo_json)
+    assert isinstance(condition, JsonApiCondition)
+    assert condition.to_dict() == lingo_dict
 
 
 def test_ambiguous_json_path_multiple_results(mocker):

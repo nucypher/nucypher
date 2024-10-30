@@ -31,7 +31,7 @@ from nucypher.policy.conditions.base import (
 )
 from nucypher.policy.conditions.context import (
     is_context_variable,
-    resolve_parameter_context_variables,
+    resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
     NoConnectionToChain,
@@ -169,9 +169,11 @@ class RPCCall(ExecutionCall):
             yield provider
 
     def execute(self, providers: Dict[int, Set[HTTPProvider]], **context) -> Any:
-        resolved_parameters = resolve_parameter_context_variables(
-            self.parameters, **context
-        )
+        resolved_parameters = []
+        if self.parameters:
+            resolved_parameters = resolve_any_context_variables(
+                self.parameters, **context
+            )
 
         endpoints = self._next_endpoint(providers=providers)
         latest_error = ""
