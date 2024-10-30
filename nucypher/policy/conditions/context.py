@@ -95,9 +95,7 @@ def is_context_variable(variable) -> bool:
 
 def string_contains_context_variable(variable: str) -> bool:
     matches = re.findall(CONTEXT_REGEX, variable)
-    if not matches:
-        return False
-    return True
+    return bool(matches)
 
 
 def get_context_value(context_variable: str, **context) -> Any:
@@ -124,10 +122,9 @@ def resolve_any_context_variables(
     if isinstance(param, list):
         return [resolve_any_context_variables(item, **context) for item in param]
     elif isinstance(param, dict):
-        result = {}
-        for k, v in param.items():
-            result[k] = resolve_any_context_variables(v, **context)
-        return result
+        return {
+            k: resolve_any_context_variables(v, **context) for k, v in param.items()
+        }
     elif isinstance(param, str):
         # either it is a context variable OR contains a context variable within it
         # TODO separating the two cases for now out of concern of regex searching
