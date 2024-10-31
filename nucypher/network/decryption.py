@@ -1,6 +1,5 @@
 import math
 from http import HTTPStatus
-from random import shuffle
 from typing import Dict, List, Tuple
 
 from eth_typing import ChecksumAddress
@@ -81,14 +80,17 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
             raise self.ThresholdDecryptionRequestFailed(message)
 
         # TODO: Find a better request order, perhaps based on latency data obtained from discovery loop - #3395
-        requests = list(encrypted_requests)
-        shuffle(requests)
+        ursulas_sorted_by_latency = (
+            self._learner.node_latency_collector.order_addresses_by_latency(
+                list(encrypted_requests)
+            )
+        )
         # Discussion about WorkerPool parameters:
         # "https://github.com/nucypher/nucypher/pull/3393#discussion_r1456307991"
         worker_pool = WorkerPool(
             worker=worker,
             value_factory=self.ThresholdDecryptionRequestFactory(
-                ursulas_to_contact=requests,
+                ursulas_to_contact=ursulas_sorted_by_latency,
                 batch_size=math.ceil(threshold * 1.25),
                 threshold=threshold,
             ),
