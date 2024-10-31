@@ -79,7 +79,6 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
             self.log.warn(message)
             raise self.ThresholdDecryptionRequestFailed(message)
 
-        # TODO: Find a better request order, perhaps based on latency data obtained from discovery loop - #3395
         ursulas_sorted_by_latency = (
             self._learner.node_latency_collector.order_addresses_by_latency(
                 list(encrypted_requests)
