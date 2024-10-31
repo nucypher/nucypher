@@ -1,6 +1,6 @@
 import os
 import random
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pytest
 import pytest_twisted
@@ -12,6 +12,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
@@ -313,6 +314,7 @@ def check_decrypt_without_any_cached_values(
 
 @pytest_twisted.inlineCallbacks
 def test_authorized_decryption(
+    mocker,
     bob,
     global_allow_list,
     accounts,
@@ -321,6 +323,7 @@ def test_authorized_decryption(
     signer,
     initiator,
     ritual_id,
+    cohort,
     plaintext,
 ):
     print("==================== DKG DECRYPTION (AUTHORIZED) ====================")
@@ -331,12 +334,38 @@ def test_authorized_decryption(
         sender=accounts[initiator.transacting_power.account],
     )
 
+    # fake some latency stats
+    latency_stats = {}
+    for ursula in cohort:
+        # reset all stats
+        bob.node_latency_collector.reset_stats(ursula.checksum_address)
+        # add a single data point for each ursula: some time between 0.1 and 4
+        mock_latency = random.uniform(0.1, 4)
+        bob.node_latency_collector.update_stats(ursula.checksum_address, mock_latency)
+        latency_stats[ursula.checksum_address] = mock_latency
+
+    expected_ursula_request_ordering = sorted(
+        list(latency_stats.keys()),
+        key=lambda ursula_checksum: latency_stats[ursula_checksum],
+    )
+    value_factory_spy = mocker.spy(
+        ThresholdDecryptionClient.ThresholdDecryptionRequestFactory, "__init__"
+    )
+
     # ritual_id, ciphertext, conditions are obtained from the side channel
     bob.start_learning_loop(now=True)
     cleartext = yield bob.threshold_decrypt(
         threshold_message_kit=threshold_message_kit,
     )
     assert bytes(cleartext) == plaintext.encode()
+
+    # check that proper ordering of ursulas used for worker pool factory for requests
+    value_factory_spy.assert_called_once_with(
+        ANY,
+        ursulas_to_contact=expected_ursula_request_ordering,
+        batch_size=ANY,
+        threshold=ANY,
+    )
 
     # check prometheus metric for decryption requests
     # since all running on the same machine - the value is not per-ursula but rather all
