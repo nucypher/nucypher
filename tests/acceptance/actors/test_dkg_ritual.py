@@ -276,42 +276,6 @@ def test_unauthorized_decryption(
     yield
 
 
-def check_decrypt_without_any_cached_values(
-    threshold_message_kit, ritual_id, cohort, bob, coordinator_agent, plaintext
-):
-    print("==================== DKG DECRYPTION NO CACHE ====================")
-    original_validators = cohort[0].dkg_storage.get_validators(ritual_id)
-
-    for ursula in cohort:
-        ursula.dkg_storage.clear(ritual_id)
-        assert ursula.dkg_storage.get_validators(ritual_id) is None
-        assert ursula.dkg_storage.get_active_ritual(ritual_id) is None
-
-    bob.start_learning_loop(now=True)
-    cleartext = bob.threshold_decrypt(
-        threshold_message_kit=threshold_message_kit,
-    )
-    assert bytes(cleartext) == plaintext.encode()
-
-    ritual = coordinator_agent.get_ritual(ritual_id)
-    num_used_ursulas = 0
-    for ursula_index, ursula in enumerate(cohort):
-        stored_ritual = ursula.dkg_storage.get_active_ritual(ritual_id)
-        if not stored_ritual:
-            # this ursula was not used for threshold decryption; skip
-            continue
-        assert stored_ritual == ritual
-
-        stored_validators = ursula.dkg_storage.get_validators(ritual_id)
-        num_used_ursulas += 1
-        for v_index, v in enumerate(stored_validators):
-            assert v.address == original_validators[v_index].address
-            assert v.public_key == original_validators[v_index].public_key
-
-    assert num_used_ursulas >= ritual.threshold
-    print("===================== DECRYPTION SUCCESSFUL =====================")
-
-
 @pytest_twisted.inlineCallbacks
 def test_authorized_decryption(
     mocker,
@@ -376,6 +340,45 @@ def test_authorized_decryption(
     ritual = coordinator_agent.get_ritual(ritual_id)
     # at least a threshold of ursulas were successful (concurrency)
     assert int(num_successes) >= ritual.threshold
+    print("===================== DECRYPTION SUCCESSFUL =====================")
+    yield
+
+
+@pytest_twisted.inlineCallbacks
+def test_decrypt_without_any_cached_values(
+    threshold_message_kit, ritual_id, cohort, bob, coordinator_agent, plaintext
+):
+    print("==================== DKG DECRYPTION NO CACHE ====================")
+    original_validators = cohort[0].dkg_storage.get_validators(ritual_id)
+    for ursula in cohort:
+        ursula.dkg_storage.clear(ritual_id)
+        assert ursula.dkg_storage.get_validators(ritual_id) is None
+        assert ursula.dkg_storage.get_active_ritual(ritual_id) is None
+
+    # perform threshold decryption
+    bob.start_learning_loop(now=True)
+    cleartext = yield bob.threshold_decrypt(
+        threshold_message_kit=threshold_message_kit,
+    )
+    assert bytes(cleartext) == plaintext.encode()
+
+    ritual = coordinator_agent.get_ritual(ritual_id)
+    num_used_ursulas = 0
+    for ursula_index, ursula in enumerate(cohort):
+        stored_ritual = ursula.dkg_storage.get_active_ritual(ritual_id)
+        if not stored_ritual:
+            # this ursula was not used for threshold decryption; skip
+            continue
+        assert stored_ritual == ritual
+
+        stored_validators = ursula.dkg_storage.get_validators(ritual_id)
+        num_used_ursulas += 1
+        for v_index, v in enumerate(stored_validators):
+            assert v.address == original_validators[v_index].address
+            assert v.public_key == original_validators[v_index].public_key
+
+    assert num_used_ursulas >= ritual.threshold
+    print("===================== DECRYPTION NO CACHE SUCCESSFUL =====================")
     yield
 
 
