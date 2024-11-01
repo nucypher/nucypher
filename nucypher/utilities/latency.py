@@ -8,12 +8,12 @@ from eth_typing import ChecksumAddress
 
 class NodeLatencyStatsCollector:
     """
-    Track latency statistics related to communication with other nodes.
+    Thread-safe utility that tracks latency statistics related to P2P connections with other nodes.
     """
 
-    TOTAL_TIME = "total_time"
+    CURRENT_AVERAGE = "current_avg"
     COUNT = "count"
-    MAX_LATENCY = 2**32 - 1  # just need a large number
+    MAX_LATENCY = float(2**16)  # just need a large number for sorting
 
     class NodeLatencyContextManager:
         def __init__(
@@ -40,17 +40,25 @@ class NodeLatencyStatsCollector:
 
     def __init__(self):
         # staker_address -> { "total_time": <float>, "count": <integer> }
-        self._node_stats = defaultdict(lambda: {self.TOTAL_TIME: 0.0, self.COUNT: 0})
+        self._node_stats = defaultdict(
+            lambda: {self.CURRENT_AVERAGE: 0.0, self.COUNT: 0}
+        )
         self._lock = Lock()
 
     def update_stats(self, staking_address: ChecksumAddress, latest_time_taken: float):
         with self._lock:
-            self._node_stats[staking_address][self.TOTAL_TIME] += latest_time_taken
-            self._node_stats[staking_address][self.COUNT] += 1
+            old_avg = self._node_stats[staking_address][self.CURRENT_AVERAGE]
+            old_count = self._node_stats[staking_address][self.COUNT]
+
+            updated_count = old_count + 1
+            updated_avg = ((old_avg * old_count) + latest_time_taken) / updated_count
+
+            self._node_stats[staking_address][self.CURRENT_AVERAGE] = updated_avg
+            self._node_stats[staking_address][self.COUNT] = updated_count
 
     def reset_stats(self, staking_address: ChecksumAddress):
         with self._lock:
-            self._node_stats[staking_address][self.TOTAL_TIME] = 0
+            self._node_stats[staking_address][self.CURRENT_AVERAGE] = 0
             self._node_stats[staking_address][self.COUNT] = 0
 
     def get_latency_tracker(
@@ -62,13 +70,9 @@ class NodeLatencyStatsCollector:
 
     def get_average_latency_time(self, staking_address: ChecksumAddress) -> float:
         with self._lock:
-            count = self._node_stats[staking_address][self.COUNT]
+            current_avg = self._node_stats[staking_address][self.CURRENT_AVERAGE]
             # just need a large number > 0
-            return (
-                self.MAX_LATENCY
-                if count == 0
-                else self._node_stats[staking_address][self.TOTAL_TIME] / count
-            )
+            return self.MAX_LATENCY if current_avg == 0 else current_avg
 
     def order_addresses_by_latency(
         self, staking_addresses: List[ChecksumAddress]
