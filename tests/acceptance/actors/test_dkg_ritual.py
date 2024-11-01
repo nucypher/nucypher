@@ -305,7 +305,7 @@ def test_authorized_decryption(
         bob.node_latency_collector.reset_stats(ursula.checksum_address)
         # add a single data point for each ursula: some time between 0.1 and 4
         mock_latency = random.uniform(0.1, 4)
-        bob.node_latency_collector.update_stats(ursula.checksum_address, mock_latency)
+        bob.node_latency_collector._update_stats(ursula.checksum_address, mock_latency)
         latency_stats[ursula.checksum_address] = mock_latency
 
     expected_ursula_request_ordering = sorted(

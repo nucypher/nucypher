@@ -76,7 +76,7 @@ def test_collector_stats_obtained(execution_data):
     # update stats for all nodes
     for node, execution_times in executions.items():
         for i, exec_time in enumerate(execution_times):
-            node_latency_collector.update_stats(node, exec_time)
+            node_latency_collector._update_stats(node, exec_time)
 
             # check ongoing average
             subset_of_times = execution_times[: (i + 1)]
@@ -110,7 +110,7 @@ def test_collector_stats_reset(execution_data):
     # update stats for all nodes
     for node, execution_times in executions.items():
         for exec_time in execution_times:
-            node_latency_collector.update_stats(node, exec_time)
+            node_latency_collector._update_stats(node, exec_time)
 
         assert floats_sufficiently_equal(
             node_latency_collector.get_average_latency_time(node),
@@ -179,7 +179,7 @@ def test_collector_simple_concurrency(execution_data):
         for exec_time in execution_times:
             # add some delay for better concurrency
             time.sleep(0.1)
-            node_latency_collector.update_stats(node_address, exec_time)
+            node_latency_collector._update_stats(node_address, exec_time)
 
     # use thread pool
     n_threads = len(executions)

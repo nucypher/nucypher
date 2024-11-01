@@ -36,7 +36,7 @@ class NodeLatencyStatsCollector:
                 # no exception
                 end_time = time.perf_counter()
                 execution_time = end_time - self.start_time
-                self._stats_collector.update_stats(self.staker_address, execution_time)
+                self._stats_collector._update_stats(self.staker_address, execution_time)
 
     def __init__(self):
         # staker_address -> { "total_time": <float>, "count": <integer> }
@@ -45,7 +45,7 @@ class NodeLatencyStatsCollector:
         )
         self._lock = Lock()
 
-    def update_stats(self, staking_address: ChecksumAddress, latest_time_taken: float):
+    def _update_stats(self, staking_address: ChecksumAddress, latest_time_taken: float):
         with self._lock:
             old_avg = self._node_stats[staking_address][self.CURRENT_AVERAGE]
             old_count = self._node_stats[staking_address][self.COUNT]
