@@ -26,7 +26,7 @@ def execution_data(get_random_checksum_address):
     executions[node_3] = node_3_exec_times
 
     node_4 = get_random_checksum_address()
-    node_4_exec_times = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+    node_4_exec_times = [0.1, 0.2, 0.3, 0.4, 0.5]
     executions[node_4] = node_4_exec_times
 
     sorted_order = sorted(
@@ -101,6 +101,40 @@ def test_collector_stats_obtained(execution_data):
             node_latency_collector.order_addresses_by_latency(node_addresses)
             == expected_node_sorted_order
         )
+
+
+@pytest.mark.parametrize(
+    "max_window", [NodeLatencyStatsCollector.MAX_MOVING_AVERAGE_WINDOW, 3, 7, 15]
+)
+def test_collector_moving_average_window(max_window, get_random_checksum_address):
+    node_collector_stats = NodeLatencyStatsCollector(
+        max_moving_average_window=max_window
+    )
+    node = get_random_checksum_address()
+    exec_times = []
+
+    # <= moving average window
+    for i in range(max_window):
+        value = random.uniform(0, 40)
+        exec_times.append(value)
+        node_collector_stats._update_stats(node, value)
+        # all values available used
+        assert floats_sufficiently_equal(
+            node_collector_stats.get_average_latency_time(node),
+            sum(exec_times) / len(exec_times),
+        )
+
+    # > moving average window
+    for i in range(max_window * 2):
+        value = random.uniform(0, 40)
+        exec_times.append(value)
+        node_collector_stats._update_stats(node, value)
+
+    # only the latest "max_window" values are used for the average, even though additional values were collected
+    assert floats_sufficiently_equal(
+        node_collector_stats.get_average_latency_time(node),
+        sum(exec_times[-max_window:]) / len(exec_times[-max_window:]),
+    )
 
 
 def test_collector_stats_reset(execution_data):
