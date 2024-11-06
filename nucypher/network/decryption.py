@@ -79,17 +79,20 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
             self.log.warn(message)
             raise self.ThresholdDecryptionRequestFailed(message)
 
-        ursulas_sorted_by_latency = (
+        ursulas_to_contact = (
             self._learner.node_latency_collector.order_addresses_by_latency(
                 list(encrypted_requests)
             )
+            if self._learner.node_latency_collector
+            else list(encrypted_requests)
         )
+
         # Discussion about WorkerPool parameters:
         # "https://github.com/nucypher/nucypher/pull/3393#discussion_r1456307991"
         worker_pool = WorkerPool(
             worker=worker,
             value_factory=self.ThresholdDecryptionRequestFactory(
-                ursulas_to_contact=ursulas_sorted_by_latency,
+                ursulas_to_contact=ursulas_to_contact,
                 batch_size=math.ceil(threshold * 1.25),
                 threshold=threshold,
             ),

@@ -1,3 +1,4 @@
+import contextlib
 import time
 from collections import deque
 from contextlib import suppress
@@ -219,6 +220,8 @@ class Learner:
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 10
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
+    _TRACK_NODE_LATENCY_STATS = False
+
     _crashed = (
         False  # moved from Character - why was this in Character and not Learner before
     )
@@ -262,7 +265,9 @@ class Learner:
         self.log = Logger("learning-loop")  # type: Logger
         self.domain = domain
 
-        self.node_latency_collector = NodeLatencyStatsCollector()
+        self.node_latency_collector = (
+            NodeLatencyStatsCollector() if self._TRACK_NODE_LATENCY_STATS else None
+        )
 
         self.learning_deferred = Deferred()
         default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(
@@ -830,9 +835,14 @@ class Learner:
             return RELAX
 
         try:
-            with self.node_latency_collector.get_latency_tracker(
-                current_teacher.checksum_address
-            ):
+            optional_latency_context_manager = (
+                self.node_latency_collector.get_latency_tracker(
+                    current_teacher.checksum_address
+                )
+                if self.node_latency_collector
+                else contextlib.nullcontext()
+            )
+            with optional_latency_context_manager:
                 response = self.network_middleware.get_nodes_via_rest(
                     node=current_teacher,
                     announce_nodes=announce_nodes,
