@@ -1,3 +1,4 @@
+import math
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, wait
@@ -43,13 +44,6 @@ def execution_data(get_random_checksum_address):
     return executions, sorted_order
 
 
-def floats_sufficiently_equal(a: float, b: float):
-    if abs(a - b) < 1e-9:
-        return True
-
-    return False
-
-
 def test_collector_initialization_no_data_collected(get_random_checksum_address):
     node_latency_collector = NodeLatencyStatsCollector()
 
@@ -81,14 +75,14 @@ def test_collector_stats_obtained(execution_data):
             # check ongoing average
             subset_of_times = execution_times[: (i + 1)]
             # floating point arithmetic makes an exact check tricky
-            assert floats_sufficiently_equal(
+            assert math.isclose(
                 node_latency_collector.get_average_latency_time(node),
                 sum(subset_of_times) / len(subset_of_times),
             )
 
         # check final average
         # floating point arithmetic makes an exact check tricky
-        assert floats_sufficiently_equal(
+        assert math.isclose(
             node_latency_collector.get_average_latency_time(node),
             sum(execution_times) / len(execution_times),
         )
@@ -119,7 +113,7 @@ def test_collector_moving_average_window(max_window, get_random_checksum_address
         exec_times.append(value)
         node_collector_stats._update_stats(node, value)
         # all values available used
-        assert floats_sufficiently_equal(
+        assert math.isclose(
             node_collector_stats.get_average_latency_time(node),
             sum(exec_times) / len(exec_times),
         )
@@ -131,7 +125,7 @@ def test_collector_moving_average_window(max_window, get_random_checksum_address
         node_collector_stats._update_stats(node, value)
 
     # only the latest "max_window" values are used for the average, even though additional values were collected
-    assert floats_sufficiently_equal(
+    assert math.isclose(
         node_collector_stats.get_average_latency_time(node),
         sum(exec_times[-max_window:]) / len(exec_times[-max_window:]),
     )
@@ -146,7 +140,7 @@ def test_collector_stats_reset(execution_data):
         for exec_time in execution_times:
             node_latency_collector._update_stats(node, exec_time)
 
-        assert floats_sufficiently_equal(
+        assert math.isclose(
             node_latency_collector.get_average_latency_time(node),
             sum(execution_times) / len(execution_times),
         )
@@ -245,7 +239,7 @@ def test_collector_tracker_no_exception(execution_data):
                     time.sleep(0)
 
         # floating point arithmetic makes an exact check tricky
-        assert floats_sufficiently_equal(
+        assert math.isclose(
             node_latency_collector.get_average_latency_time(node),
             sum(execution_times) / len(execution_times),
         )
@@ -289,7 +283,7 @@ def test_collector_tracker_exception(execution_data):
             )
         else:
             # floating point arithmetic makes an exact check tricky
-            assert floats_sufficiently_equal(
+            assert math.isclose(
                 node_latency_collector.get_average_latency_time(node_not_to_raise),
                 sum(execution_times) / len(execution_times),
             )
