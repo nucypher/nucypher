@@ -258,6 +258,24 @@ def test_json_api_condition_evaluation_with_auth_token(mocker):
     )
 
 
+def test_json_api_condition_evaluation_with_user_address_context_variable(mocker):
+    mocked_get = mocker.patch(
+        "requests.get",
+        return_value=mocker.Mock(status_code=200, json=lambda: 0.0),
+    )
+    condition = JsonApiCondition(
+        endpoint="https://randomapi.com/api/v3/:userAddress",
+        return_value_test=ReturnValueTest("==", 0.0),
+    )
+    assert condition.verify() == (True, 0.0)
+    assert mocked_get.call_count == 1
+    call_args = mocked_get.call_args
+    assert (
+        call_args.args[0]
+        == "https://randomapi.com/api/v3/0x1234567890123456789012345678901234567890"
+    )
+
+
 def test_json_api_condition_evaluation_with_various_context_variables(mocker):
     mocked_get = mocker.patch(
         "requests.get",
