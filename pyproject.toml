@@ -36,7 +36,7 @@ pytest-cov = '*'
 pytest-mock = '*'
 pytest-timeout = '*'
 pytest-twisted = '*'
-eth-ape = ">=0.8"
+eth-ape = ">=0.8,<=0.8.12"  # limit due to pytest not supporting newer version of eth-utils - also observed here: https://github.com/oceanprotocol/pdr-backend/issues/899
 ape-solidity = '*'
 coverage = '^7.3.2'
 pre-commit = '^2.12.1'
