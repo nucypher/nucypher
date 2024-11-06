@@ -387,6 +387,8 @@ class Alice(Character, actors.PolicyAuthor):
 
 
 class Bob(Character):
+    _TRACK_NODE_LATENCY_STATS = True
+
     banner = BOB_BANNER
     _default_dkg_variant = FerveoVariant.Simple
     _default_crypto_powerups = [SigningPower, DecryptingPower]

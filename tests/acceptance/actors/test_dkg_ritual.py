@@ -1,6 +1,6 @@
 import os
 import random
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pytest
 import pytest_twisted
@@ -12,6 +12,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
@@ -275,19 +276,88 @@ def test_unauthorized_decryption(
     yield
 
 
-def check_decrypt_without_any_cached_values(
+@pytest_twisted.inlineCallbacks
+def test_authorized_decryption(
+    mocker,
+    bob,
+    global_allow_list,
+    accounts,
+    coordinator_agent,
+    threshold_message_kit,
+    signer,
+    initiator,
+    ritual_id,
+    cohort,
+    plaintext,
+):
+    print("==================== DKG DECRYPTION (AUTHORIZED) ====================")
+    # authorize Enrico to encrypt for ritual
+    global_allow_list.authorize(
+        ritual_id,
+        [signer.accounts[0]],
+        sender=accounts[initiator.transacting_power.account],
+    )
+
+    # fake some latency stats
+    latency_stats = {}
+    for ursula in cohort:
+        # reset all stats
+        bob.node_latency_collector.reset_stats(ursula.checksum_address)
+        # add a single data point for each ursula: some time between 0.1 and 4
+        mock_latency = random.uniform(0.1, 4)
+        bob.node_latency_collector._update_stats(ursula.checksum_address, mock_latency)
+        latency_stats[ursula.checksum_address] = mock_latency
+
+    expected_ursula_request_ordering = sorted(
+        list(latency_stats.keys()),
+        key=lambda ursula_checksum: latency_stats[ursula_checksum],
+    )
+    value_factory_spy = mocker.spy(
+        ThresholdDecryptionClient.ThresholdDecryptionRequestFactory, "__init__"
+    )
+
+    # ritual_id, ciphertext, conditions are obtained from the side channel
+    bob.start_learning_loop(now=True)
+    cleartext = yield bob.threshold_decrypt(
+        threshold_message_kit=threshold_message_kit,
+    )
+    assert bytes(cleartext) == plaintext.encode()
+
+    # check that proper ordering of ursulas used for worker pool factory for requests
+    value_factory_spy.assert_called_once_with(
+        ANY,
+        ursulas_to_contact=expected_ursula_request_ordering,
+        batch_size=ANY,
+        threshold=ANY,
+    )
+
+    # check prometheus metric for decryption requests
+    # since all running on the same machine - the value is not per-ursula but rather all
+    num_successes = REGISTRY.get_sample_value(
+        "threshold_decryption_num_successes_total"
+    )
+
+    ritual = coordinator_agent.get_ritual(ritual_id)
+    # at least a threshold of ursulas were successful (concurrency)
+    assert int(num_successes) >= ritual.threshold
+    print("===================== DECRYPTION SUCCESSFUL =====================")
+    yield
+
+
+@pytest_twisted.inlineCallbacks
+def test_decrypt_without_any_cached_values(
     threshold_message_kit, ritual_id, cohort, bob, coordinator_agent, plaintext
 ):
     print("==================== DKG DECRYPTION NO CACHE ====================")
     original_validators = cohort[0].dkg_storage.get_validators(ritual_id)
-
     for ursula in cohort:
         ursula.dkg_storage.clear(ritual_id)
         assert ursula.dkg_storage.get_validators(ritual_id) is None
         assert ursula.dkg_storage.get_active_ritual(ritual_id) is None
 
+    # perform threshold decryption
     bob.start_learning_loop(now=True)
-    cleartext = bob.threshold_decrypt(
+    cleartext = yield bob.threshold_decrypt(
         threshold_message_kit=threshold_message_kit,
     )
     assert bytes(cleartext) == plaintext.encode()
@@ -308,45 +378,7 @@ def check_decrypt_without_any_cached_values(
             assert v.public_key == original_validators[v_index].public_key
 
     assert num_used_ursulas >= ritual.threshold
-    print("===================== DECRYPTION SUCCESSFUL =====================")
-
-
-@pytest_twisted.inlineCallbacks
-def test_authorized_decryption(
-    bob,
-    global_allow_list,
-    accounts,
-    coordinator_agent,
-    threshold_message_kit,
-    signer,
-    initiator,
-    ritual_id,
-    plaintext,
-):
-    print("==================== DKG DECRYPTION (AUTHORIZED) ====================")
-    # authorize Enrico to encrypt for ritual
-    global_allow_list.authorize(
-        ritual_id,
-        [signer.accounts[0]],
-        sender=accounts[initiator.transacting_power.account],
-    )
-
-    # ritual_id, ciphertext, conditions are obtained from the side channel
-    bob.start_learning_loop(now=True)
-    cleartext = yield bob.threshold_decrypt(
-        threshold_message_kit=threshold_message_kit,
-    )
-    assert bytes(cleartext) == plaintext.encode()
-
-    # check prometheus metric for decryption requests
-    # since all running on the same machine - the value is not per-ursula but rather all
-    num_successes = REGISTRY.get_sample_value(
-        "threshold_decryption_num_successes_total"
-    )
-
-    ritual = coordinator_agent.get_ritual(ritual_id)
-    # at least a threshold of ursulas were successful (concurrency)
-    assert int(num_successes) >= ritual.threshold
+    print("===================== DECRYPTION NO CACHE SUCCESSFUL =====================")
     yield
 
 
