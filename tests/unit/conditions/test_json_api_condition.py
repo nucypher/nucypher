@@ -259,7 +259,7 @@ def test_json_api_condition_evaluation_with_auth_token(mocker):
 
 
 def test_json_api_condition_evaluation_with_user_address_context_variable(
-    mocker, valid_eip712_auth_message
+    mocker, valid_eip4361_auth_message
 ):
     mocked_get = mocker.patch(
         "requests.get",
@@ -269,7 +269,7 @@ def test_json_api_condition_evaluation_with_user_address_context_variable(
         endpoint="https://randomapi.com/api/v3/:userAddress",
         return_value_test=ReturnValueTest("==", 0.0),
     )
-    auth_message = valid_eip712_auth_message
+    auth_message = valid_eip4361_auth_message
     context = {":userAddress": auth_message}
     assert condition.verify(**context) == (True, 0.0)
     assert mocked_get.call_count == 1
