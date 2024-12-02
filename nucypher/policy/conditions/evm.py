@@ -112,10 +112,12 @@ class RPCCall(ExecutionCall):
         chain: int,
         method: str,
         parameters: Optional[List[Any]] = None,
+        rpc_endpoint: Optional[str] = None,
     ):
         self.chain = chain
         self.method = method
         self.parameters = parameters
+        self.rpc_endpoint = rpc_endpoint
         super().__init__()
 
     def _get_web3_py_function(self, w3: Web3, rpc_method: str):
