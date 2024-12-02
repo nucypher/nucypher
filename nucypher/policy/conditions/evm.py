@@ -87,7 +87,7 @@ class RPCCall(ExecutionCall):
         parameters = fields.List(
             fields.Field, attribute="parameters", required=False, allow_none=True
         )
-        endpoint = fields.Url(required=False, relative=False)
+        rpc_endpoint = fields.Url(required=False, relative=False)
 
         @validates("chain")
         def validate_chain(self, value):
@@ -181,9 +181,9 @@ class RPCCall(ExecutionCall):
                 self.parameters, **context
             )
 
-        if self.endpoint:
+        if self.rpc_endpoint:
             result, error = self._execute_with_provider(
-                HTTPProvider(self.endpoint), resolved_parameters, check_chain=False
+                HTTPProvider(self.rpc_endpoint), resolved_parameters, check_chain=False
             )
             if error:
                 raise RPCExecutionFailed(error)
