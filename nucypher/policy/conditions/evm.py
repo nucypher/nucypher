@@ -87,6 +87,7 @@ class RPCCall(ExecutionCall):
         parameters = fields.List(
             fields.Field, attribute="parameters", required=False, allow_none=True
         )
+        endpoint = fields.Url(required=False, relative=False)
 
         @validates("chain")
         def validate_chain(self, value):
@@ -144,12 +145,6 @@ class RPCCall(ExecutionCall):
                 f"connection is to chain ID {provider_chain}",
             )
 
-    def _configure_provider(self, provider: BaseProvider):
-        """Binds the condition's contract function to a blockchain provider for evaluation"""
-        w3 = self._configure_w3(provider=provider)
-        self._check_chain_id(w3)
-        return w3
-
     def _next_endpoint(
         self, providers: Dict[int, Set[HTTPProvider]]
     ) -> Iterator[HTTPProvider]:
@@ -168,6 +163,17 @@ class RPCCall(ExecutionCall):
             # each endpoint here to see if it's alive and only yield it if it is.
             yield provider
 
+    def _execute_with_provider(
+        self,
+        provider: HTTPProvider,
+        resolved_parameters: List[Any],
+        check_chain: bool = True,
+    ) -> Any:
+        w3 = self._configure_w3(provider)
+        if check_chain:
+            self._check_chain_id(w3)
+        return self._execute(w3, resolved_parameters)
+
     def execute(self, providers: Dict[int, Set[HTTPProvider]], **context) -> Any:
         resolved_parameters = []
         if self.parameters:
@@ -175,34 +181,40 @@ class RPCCall(ExecutionCall):
                 self.parameters, **context
             )
 
-        endpoints = self._next_endpoint(providers=providers)
-        latest_error = ""
-        for provider in endpoints:
-            w3 = self._configure_provider(provider)
-            try:
-                result = self._execute(w3, resolved_parameters)
-                break
-            except RequiredContextVariable:
-                raise
-            except Exception as e:
-                latest_error = f"RPC call '{self.method}' failed: {e}"
-                self.LOG.warn(f"{latest_error}, attempting to try next endpoint.")
-                # Something went wrong. Try the next endpoint.
-                continue
-        else:
-            # Fuck.
-            raise RPCExecutionFailed(
-                f"RPC call '{self.method}' failed; latest error - {latest_error}"
+        if self.endpoint:
+            result, error = self._execute_with_provider(
+                HTTPProvider(self.endpoint), resolved_parameters, check_chain=False
             )
+            if error:
+                raise RPCExecutionFailed(error)
+            return result
 
-        return result
+        latest_error = ""
+        for provider in self._next_endpoint(providers=providers):
+            result, error = self._execute_with_provider(provider, resolved_parameters)
+            if result:
+                return result
+            latest_error = error
 
-    def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
-        """Execute onchain read and return result."""
-        rpc_endpoint_, rpc_method = self.method.split("_", 1)
-        rpc_function = self._get_web3_py_function(w3, rpc_method)
-        rpc_result = rpc_function(*resolved_parameters)  # RPC read
-        return rpc_result
+        raise RPCExecutionFailed(
+            f"RPC call '{self.method}' failed; latest error - {latest_error}"
+        )
+
+    def _execute(
+        self, w3: Web3, resolved_parameters: List[Any]
+    ) -> Tuple[Optional[Any], Optional[str]]:
+        """Execute onchain read and return result and error if any."""
+        try:
+            rpc_endpoint_, rpc_method = self.method.split("_", 1)
+            rpc_function = self._get_web3_py_function(w3, rpc_method)
+            rpc_result = rpc_function(*resolved_parameters)  # RPC read
+            return rpc_result, None
+        except RequiredContextVariable:
+            raise
+        except Exception as e:
+            error = f"RPC call '{self.method}' failed: {e}"
+            self.LOG.warn(error)
+            return None, error
 
 
 class RPCCondition(ExecutionCallAccessControlCondition):
