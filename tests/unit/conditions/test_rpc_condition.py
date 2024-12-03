@@ -1,6 +1,6 @@
 import pytest
 
-from nucypher.policy.conditions.evm import RPCCondition
+from nucypher.policy.conditions.evm import RPCCall, RPCCondition
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
@@ -133,3 +133,43 @@ def test_rpc_condition_invalid_comparator_value_type(invalid_value, rpc_conditio
                 value=invalid_value,
             ),
         )
+
+
+def test_rpc_condition_uses_provided_endpoint(mocker):
+    # Mock HTTPProvider
+    mock_provider = mocker.Mock()
+    mock_http_provider = mocker.patch(
+        "nucypher.policy.conditions.evm.HTTPProvider", return_value=mock_provider
+    )
+
+    # Mock eth module
+    mock_eth = mocker.Mock()
+    mock_eth.get_balance.return_value = 0
+    mock_eth.chain_id = TESTERCHAIN_CHAIN_ID
+
+    # Create Web3 mock with required attributes
+    mock_w3 = mocker.Mock()
+    mock_w3.eth = mock_eth
+    mock_w3.middleware_onion = mocker.Mock()
+
+    # Patch Web3 constructor
+    mocker.patch("web3.Web3.__new__", return_value=mock_w3)
+
+    # Mock _next_endpoint method
+    _ = mocker.patch.object(RPCCall, "_next_endpoint")
+
+    rpc_endpoint = "https://eth-mainnet.example.com"
+    condition = RPCCondition(
+        method="eth_getBalance",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", 0),
+        parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
+        rpc_endpoint=rpc_endpoint,
+    )
+
+    providers = {}
+    condition.verify(providers=providers)
+
+    # Verify the endpoint was used
+    mock_http_provider.assert_called_once_with(rpc_endpoint)
+    assert not condition.execution_call._next_endpoint.called
