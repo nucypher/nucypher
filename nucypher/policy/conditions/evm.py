@@ -87,7 +87,7 @@ class RPCCall(ExecutionCall):
         parameters = fields.List(
             fields.Field, attribute="parameters", required=False, allow_none=True
         )
-        rpc_endpoint = fields.Url(required=False, relative=False)
+        rpc_endpoint = fields.Url(required=False, relative=False, allow_none=True)
 
         @validates("chain")
         def validate_chain(self, value):
@@ -261,6 +261,7 @@ class RPCCondition(ExecutionCallAccessControlCondition):
         condition_type: str = ConditionType.RPC.value,
         name: Optional[str] = None,
         parameters: Optional[List[Any]] = None,
+        rpc_endpoint: Optional[str] = None,
         *args,
         **kwargs,
     ):
@@ -271,6 +272,7 @@ class RPCCondition(ExecutionCallAccessControlCondition):
             condition_type=condition_type,
             name=name,
             parameters=parameters,
+            rpc_endpoint=rpc_endpoint,
             *args,
             **kwargs,
         )

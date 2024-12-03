@@ -43,8 +43,11 @@ class TimeRPCCall(RPCCall):
         chain: int,
         method: str = METHOD,
         parameters: Optional[List[Any]] = None,
+        rpc_endpoint: Optional[str] = None,
     ):
-        super().__init__(chain=chain, method=method, parameters=parameters)
+        super().__init__(
+            chain=chain, method=method, parameters=parameters, rpc_endpoint=rpc_endpoint
+        )
 
     def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
         """Execute onchain read and return result."""
