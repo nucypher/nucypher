@@ -183,6 +183,21 @@ class RPCCall(ExecutionCall):
                 self.parameters, **context
             )
 
+        # use local rpc endpoint if available
+        if self.chain in providers:
+            latest_error = ""
+            for provider in self._next_endpoint(providers=providers):
+                result, error = self._execute_with_provider(
+                    provider, resolved_parameters
+                )
+                if result:
+                    return result
+                latest_error = error
+
+            raise RPCExecutionFailed(
+                f"RPC call '{self.method}' failed; latest error - {latest_error}"
+            )
+
         if self.rpc_endpoint:
             result, error = self._execute_with_provider(
                 HTTPProvider(self.rpc_endpoint), resolved_parameters, check_chain=False
@@ -191,16 +206,7 @@ class RPCCall(ExecutionCall):
                 raise RPCExecutionFailed(error)
             return result
 
-        latest_error = ""
-        for provider in self._next_endpoint(providers=providers):
-            result, error = self._execute_with_provider(provider, resolved_parameters)
-            if result:
-                return result
-            latest_error = error
-
-        raise RPCExecutionFailed(
-            f"RPC call '{self.method}' failed; latest error - {latest_error}"
-        )
+        raise NoConnectionToChain(chain=self.chain)
 
     def _execute(
         self, w3: Web3, resolved_parameters: List[Any]
