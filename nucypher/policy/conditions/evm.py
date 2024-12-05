@@ -87,13 +87,17 @@ class RPCCall(ExecutionCall):
         parameters = fields.List(
             fields.Field, attribute="parameters", required=False, allow_none=True
         )
-        rpc_endpoint = fields.Url(required=False, relative=False, allow_none=True)
+        rpc_endpoint = fields.Url(
+            attribute="rpc_endpoint", required=False, relative=False, allow_none=True
+        )
 
-        @validates("chain")
-        def validate_chain(self, value):
-            if value not in _CONDITION_CHAINS:
+        @validates_schema
+        def validate_chain(self, data, **kwargs):
+            chain = data.get("chain")
+            rpc_endpoint = data.get("rpc_endpoint")
+            if not rpc_endpoint and chain not in _CONDITION_CHAINS:
                 raise ValidationError(
-                    f"chain ID {value} is not a permitted blockchain for condition evaluation"
+                    f"chain ID {chain} is not a permitted blockchain for condition evaluation"
                 )
 
         @validates("method")
@@ -294,6 +298,10 @@ class RPCCondition(ExecutionCallAccessControlCondition):
     @property
     def parameters(self):
         return self.execution_call.parameters
+
+    @property
+    def rpc_endpoint(self):
+        return self.execution_call.rpc_endpoint
 
     def _align_comparator_value_with_abi(
         self, return_value_test: ReturnValueTest
