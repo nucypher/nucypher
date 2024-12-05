@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 import pytest
 from web3 import HTTPProvider
 
@@ -138,10 +140,7 @@ def test_rpc_condition_invalid_comparator_value_type(invalid_value, rpc_conditio
 
 def test_rpc_condition_uses_provided_endpoint(mocker):
     # Mock HTTPProvider
-    mock_provider = mocker.Mock()
-    mock_http_provider = mocker.patch(
-        "nucypher.policy.conditions.evm.HTTPProvider", return_value=mock_provider
-    )
+    mock_http_provider_spy = mocker.spy(HTTPProvider, "__init__")
 
     # Mock eth module
     mock_eth = mocker.Mock()
@@ -154,10 +153,12 @@ def test_rpc_condition_uses_provided_endpoint(mocker):
     mock_w3.middleware_onion = mocker.Mock()
 
     # Patch Web3 constructor
-    mocker.patch("web3.Web3.__new__", return_value=mock_w3)
+    mocker.patch(
+        "nucypher.policy.conditions.evm.RPCCall._configure_w3", return_value=mock_w3
+    )
 
     # Mock _next_endpoint method
-    _ = mocker.patch.object(RPCCall, "_next_endpoint")
+    next_endpoint_spy = mocker.spy(RPCCall, "_next_endpoint")
 
     rpc_endpoint = "https://base.example.com"
     condition = RPCCondition(
@@ -172,16 +173,13 @@ def test_rpc_condition_uses_provided_endpoint(mocker):
     condition.verify(providers=providers)
 
     # Verify the endpoint was used
-    mock_http_provider.assert_called_once_with(rpc_endpoint)
-    assert not condition.execution_call._next_endpoint.called
+    mock_http_provider_spy.assert_called_once_with(ANY, rpc_endpoint)
+    next_endpoint_spy.assert_not_called()
 
 
 def test_rpc_condition_execution_priority(mocker):
     # Mock HTTPProvider
-    mock_provider = mocker.Mock()
-    mock_http_provider = mocker.patch(
-        "nucypher.policy.conditions.evm.HTTPProvider", return_value=mock_provider
-    )
+    mock_http_provider_spy = mocker.spy(HTTPProvider, "__init__")
 
     # Mock eth module with successful response
     mock_eth = mocker.Mock()
@@ -207,7 +205,10 @@ def test_rpc_condition_execution_priority(mocker):
     )
 
     condition.verify(providers=providers)
-    mock_http_provider.assert_not_called()  # Fallback endpoint not used
+    mock_http_provider_spy.assert_called_once_with(
+        ANY, "https://local-provider.example.com"
+    )
+    mock_http_provider_spy.reset_mock()
 
     # Test Case 2: Unsupported chain - should use rpc_endpoint
     unsupported_chain = 99999  # Chain not in _CONDITION_CHAINS
@@ -220,9 +221,9 @@ def test_rpc_condition_execution_priority(mocker):
     )
 
     condition.verify(providers={})
-    mock_http_provider.assert_called_once_with("https://fallback.example.com")
+    mock_http_provider_spy.assert_called_once_with(ANY, "https://fallback.example.com")
 
-    # Test Case 3: Unsupported chain with no rpc_endpoint - should raise errorq
+    # Test Case 3: Unsupported chain with no rpc_endpoint - should raise error
     with pytest.raises(InvalidCondition):
         condition = RPCCondition(
             method="eth_getBalance",
