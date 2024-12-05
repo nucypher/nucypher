@@ -425,12 +425,17 @@ class ContractCall(RPCCall):
 
     def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
         """Execute onchain read and return result."""
-        self.contract_function.w3 = w3
-        bound_contract_function = self.contract_function(
-            *resolved_parameters
-        )  # bind contract function
-        contract_result = bound_contract_function.call()  # onchain read
-        return contract_result
+        try:
+            self.contract_function.w3 = w3
+            bound_contract_function = self.contract_function(
+                *resolved_parameters
+            )  # bind contract function
+            contract_result = bound_contract_function.call()  # onchain read
+            return contract_result, None
+        except Exception as e:
+            error = f"RPC call '{self.method}' failed: {e}"
+            self.LOG.warn(error)
+            return None, error
 
 
 class ContractCondition(RPCCondition):

@@ -1,4 +1,5 @@
 import pytest
+from web3 import HTTPProvider
 
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
@@ -86,3 +87,29 @@ def test_time_condition_invalid_comparator_value_type(invalid_value, time_condit
                 value=invalid_value,
             ),
         )
+
+
+def test_time_condition_verify(mocker):
+    # Set up Web3 with mocked responses
+    mock_block = mocker.Mock()
+    mock_block.timestamp = 1000  # Set a fixed timestamp
+
+    w3 = mocker.Mock()
+    w3.eth.get_block.return_value = mock_block
+    w3.eth.chain_id = TESTERCHAIN_CHAIN_ID
+    w3.middleware_onion = mocker.Mock()
+
+    # Patch Web3 configuration
+    mocker.patch(
+        "nucypher.policy.conditions.time.TimeRPCCall._configure_w3", return_value=w3
+    )
+
+    # Test case 1: Current time is greater than condition time
+    condition = TimeCondition(
+        return_value_test=ReturnValueTest(">", 500),  # Should pass as 1000 > 500
+        chain=TESTERCHAIN_CHAIN_ID,
+        method=TimeRPCCall.METHOD,
+    )
+    local_provider = HTTPProvider("https://local-provider.example.com")
+    providers = {TESTERCHAIN_CHAIN_ID: {local_provider}}
+    assert condition.verify(providers=providers)[0]
