@@ -1,11 +1,13 @@
 import time
 from decimal import Decimal
 from typing import Dict, List, Union
+from urllib.parse import urlparse
 
 import requests
+from cytoolz import memoize
 from eth_typing import ChecksumAddress
 from requests import RequestException
-from web3 import Web3
+from web3 import HTTPProvider, Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
 from web3.types import TxParams
 
@@ -179,3 +181,57 @@ def get_healthy_default_rpc_endpoints(chain_id: int) -> List[str]:
         )
 
     return healthy
+
+
+@memoize
+def _fetch_public_rpc_endpoints_from_chainlist():
+    chainid_network = "https://chainid.network/chains.json"
+
+    LOGGER.debug(f"Fetching public RPC endpoints from {chainid_network}")
+
+    try:
+        response = requests.get(chainid_network)
+    except RequestException:
+        LOGGER.warn("Failed to fetch public RPC endpoints: network error")
+        return {}
+
+    if response.status_code != 200:
+        LOGGER.error(
+            f"Failed to fetch default RPC endpoints: {response.status_code} | {response.text}"
+        )
+        return {}
+
+    result = response.json()
+    return result
+
+
+def fetch_public_rpc_endpoints_for_chain(chain_id: int) -> List[HTTPProvider]:
+    result = _fetch_public_rpc_endpoints_from_chainlist()
+    if not result:
+        return result
+
+    rpc_endpoints = []
+    for entry in result:
+        if entry["chainId"] != chain_id:
+            continue
+
+        if entry.get("status", None) == "deprecated":
+            break
+
+        endpoints = entry.get("rpc", [])
+        for endpoint in endpoints:
+            # ensure no infura key
+            if "${" in endpoint:
+                # filter out urls like:
+                # - https://mainnet.infura.io/v3/${INFURA_API_KEY},
+                # - https://mainnet.infura.io/v3/${ALCHEMY_API_KEY}
+                continue
+
+            # only use https endpoints
+            url_components = urlparse(endpoint)
+            if url_components.scheme != "https":
+                continue
+
+            rpc_endpoints.append(HTTPProvider(endpoint))
+
+    return rpc_endpoints
