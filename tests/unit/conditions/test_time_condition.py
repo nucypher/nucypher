@@ -60,16 +60,19 @@ def test_time_condition_schema_validation(time_condition):
 
     with pytest.raises(InvalidConditionLingo):
         # invalid method name
+        condition_dict = time_condition.to_dict()
         condition_dict["method"] = "my_blocktime"
         TimeCondition.from_dict(condition_dict)
 
     with pytest.raises(InvalidConditionLingo):
         # chain id not an integer
+        condition_dict = time_condition.to_dict()
         condition_dict["chain"] = str(TESTERCHAIN_CHAIN_ID)
         TimeCondition.from_dict(condition_dict)
 
     with pytest.raises(InvalidConditionLingo):
         # chain id not a permitted chain
+        condition_dict = time_condition.to_dict()
         condition_dict["chain"] = 90210  # Beverly Hills Chain :)
         TimeCondition.from_dict(condition_dict)
 

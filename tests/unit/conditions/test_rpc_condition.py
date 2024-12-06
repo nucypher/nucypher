@@ -101,11 +101,13 @@ def test_rpc_condition_schema_validation(rpc_condition):
 
     with pytest.raises(InvalidConditionLingo):
         # chain id not an integer
+        condition_dict = rpc_condition.to_dict()
         condition_dict["chain"] = str(TESTERCHAIN_CHAIN_ID)
         RPCCondition.from_dict(condition_dict)
 
     with pytest.raises(InvalidConditionLingo):
         # chain id not a permitted chain
+        condition_dict = rpc_condition.to_dict()
         condition_dict["chain"] = 90210  # Beverly Hills Chain :)
         RPCCondition.from_dict(condition_dict)
 
