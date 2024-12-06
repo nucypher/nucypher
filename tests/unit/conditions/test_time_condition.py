@@ -97,7 +97,6 @@ def test_time_condition_verify(mocker):
     w3 = mocker.Mock()
     w3.eth.get_block.return_value = mock_block
     w3.eth.chain_id = TESTERCHAIN_CHAIN_ID
-    w3.middleware_onion = mocker.Mock()
 
     # Patch Web3 configuration
     mocker.patch(

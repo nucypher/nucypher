@@ -139,20 +139,15 @@ def test_rpc_condition_invalid_comparator_value_type(invalid_value, rpc_conditio
 
 
 def test_rpc_condition_uses_provided_endpoint(mocker):
-    # Mock HTTPProvider
+    # Spy HTTPProvider
     mock_http_provider_spy = mocker.spy(HTTPProvider, "__init__")
 
     # Mock eth module
-    mock_eth = mocker.Mock()
-    mock_eth.get_balance.return_value = 0
-    mock_eth.chain_id = 8453
-
-    # Create Web3 mock with required attributes
     mock_w3 = mocker.Mock()
-    mock_w3.eth = mock_eth
-    mock_w3.middleware_onion = mocker.Mock()
+    mock_w3.eth.get_balance.return_value = 0
+    mock_w3.eth.chain_id = 8453
 
-    # Patch Web3 constructor
+    # Patch RPCCall._configure_w3 method
     mocker.patch(
         "nucypher.policy.conditions.evm.RPCCall._configure_w3", return_value=mock_w3
     )
@@ -220,7 +215,7 @@ def test_rpc_condition_execution_priority(mocker):
         rpc_endpoint="https://fallback.example.com",
     )
 
-    condition.verify(providers={})
+    condition.verify(providers=providers)
     mock_http_provider_spy.assert_called_once_with(ANY, "https://fallback.example.com")
 
     # Test Case 3: Unsupported chain with no rpc_endpoint - should raise error
