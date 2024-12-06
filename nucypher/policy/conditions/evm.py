@@ -25,6 +25,7 @@ from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
+from nucypher.blockchain.eth.utils import fetch_public_rpc_endpoints_for_chain
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES
 from nucypher.policy.conditions.base import (
     ExecutionCall,
@@ -154,15 +155,17 @@ class RPCCall(ExecutionCall):
         self, providers: Dict[int, Set[HTTPProvider]]
     ) -> Iterator[HTTPProvider]:
         """Yields the next web3 provider to try for a given chain ID"""
-        try:
-            rpc_providers = providers[self.chain]
-
-        # if there are no entries for the chain ID, there
-        # is no connection to that chain available.
-        except KeyError:
-            raise NoConnectionToChain(chain=self.chain)
+        rpc_providers = providers.get(self.chain, None)
         if not rpc_providers:
-            raise NoConnectionToChain(chain=self.chain)  # TODO: unreachable?
+            # only use when no connection available
+            public_rpc_providers = fetch_public_rpc_endpoints_for_chain(
+                chain_id=self.chain
+            )
+            if not public_rpc_providers:
+                # indeed no connection possible
+                raise NoConnectionToChain(chain=self.chain)
+            rpc_providers = public_rpc_providers
+
         for provider in rpc_providers:
             # Someday, we might make this whole function async, and then we can knock on
             # each endpoint here to see if it's alive and only yield it if it is.
