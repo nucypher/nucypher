@@ -145,7 +145,7 @@ def test_rpc_condition_uses_provided_endpoint(mocker):
     # Mock eth module
     mock_w3 = mocker.Mock()
     mock_w3.eth.get_balance.return_value = 0
-    mock_w3.eth.chain_id = 8453
+    mock_w3.eth.chain_id = TESTERCHAIN_CHAIN_ID
 
     # Patch RPCCall._configure_w3 method
     mocker.patch(
@@ -206,7 +206,8 @@ def test_rpc_condition_execution_priority(mocker):
     mock_http_provider_spy.reset_mock()
 
     # Test Case 2: Unsupported chain - should use rpc_endpoint
-    unsupported_chain = 99999  # Chain not in _CONDITION_CHAINS
+    unsupported_chain = 8453
+    mock_eth.chain_id = unsupported_chain
     condition = RPCCondition(
         method="eth_getBalance",
         chain=unsupported_chain,

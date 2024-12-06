@@ -173,11 +173,9 @@ class RPCCall(ExecutionCall):
         self,
         provider: HTTPProvider,
         resolved_parameters: List[Any],
-        check_chain: bool = True,
     ) -> Any:
         w3 = self._configure_w3(provider)
-        if check_chain:
-            self._check_chain_id(w3)
+        self._check_chain_id(w3)
         return self._execute(w3, resolved_parameters)
 
     def execute(self, providers: Dict[int, Set[HTTPProvider]], **context) -> Any:
@@ -204,7 +202,7 @@ class RPCCall(ExecutionCall):
 
         if self.rpc_endpoint:
             result, error = self._execute_with_provider(
-                HTTPProvider(self.rpc_endpoint), resolved_parameters, check_chain=False
+                HTTPProvider(self.rpc_endpoint), resolved_parameters
             )
             if error:
                 raise RPCExecutionFailed(error)
