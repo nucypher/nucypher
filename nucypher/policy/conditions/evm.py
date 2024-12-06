@@ -35,7 +35,6 @@ from nucypher.policy.conditions.context import (
 )
 from nucypher.policy.conditions.exceptions import (
     NoConnectionToChain,
-    RequiredContextVariable,
     RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import (
@@ -185,46 +184,44 @@ class RPCCall(ExecutionCall):
                 self.parameters, **context
             )
 
+        latest_error = None
         # use local rpc endpoint if available
         if self.chain in providers:
-            latest_error = ""
             for provider in self._next_endpoint(providers=providers):
-                result, error = self._execute_with_provider(
-                    provider, resolved_parameters
-                )
-                if result:
+                try:
+                    result = self._execute_with_provider(provider, resolved_parameters)
                     return result
-                latest_error = error
+                except Exception as e:
+                    latest_error = str(e)
+                    continue
 
             raise RPCExecutionFailed(
                 f"RPC call '{self.method}' failed; latest error - {latest_error}"
             )
 
+        # Try custom RPC endpoint if provided
         if self.rpc_endpoint:
-            result, error = self._execute_with_provider(
-                HTTPProvider(self.rpc_endpoint), resolved_parameters
-            )
-            if error:
-                raise RPCExecutionFailed(error)
-            return result
+            try:
+                result = self._execute_with_provider(
+                    HTTPProvider(self.rpc_endpoint), resolved_parameters
+                )
+                return result
+            except Exception as e:
+                latest_error = str(e)
 
+        # If we get here, all attempts failed
+        if latest_error:
+            raise RPCExecutionFailed(
+                f"RPC call '{self.method}' failed; latest error - {latest_error}"
+            )
         raise NoConnectionToChain(chain=self.chain)
 
-    def _execute(
-        self, w3: Web3, resolved_parameters: List[Any]
-    ) -> Tuple[Optional[Any], Optional[str]]:
+    def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
         """Execute onchain read and return result and error if any."""
-        try:
-            rpc_endpoint_, rpc_method = self.method.split("_", 1)
-            rpc_function = self._get_web3_py_function(w3, rpc_method)
-            rpc_result = rpc_function(*resolved_parameters)  # RPC read
-            return rpc_result, None
-        except RequiredContextVariable:
-            raise
-        except Exception as e:
-            error = f"RPC call '{self.method}' failed: {e}"
-            self.LOG.warn(error)
-            return None, error
+        rpc_endpoint_, rpc_method = self.method.split("_", 1)
+        rpc_function = self._get_web3_py_function(w3, rpc_method)
+        rpc_result = rpc_function(*resolved_parameters)  # RPC read
+        return rpc_result
 
 
 class RPCCondition(ExecutionCallAccessControlCondition):
@@ -423,17 +420,12 @@ class ContractCall(RPCCall):
 
     def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
         """Execute onchain read and return result."""
-        try:
-            self.contract_function.w3 = w3
-            bound_contract_function = self.contract_function(
-                *resolved_parameters
-            )  # bind contract function
-            contract_result = bound_contract_function.call()  # onchain read
-            return contract_result, None
-        except Exception as e:
-            error = f"RPC call '{self.method}' failed: {e}"
-            self.LOG.warn(error)
-            return None, error
+        self.contract_function.w3 = w3
+        bound_contract_function = self.contract_function(
+            *resolved_parameters
+        )  # bind contract function
+        contract_result = bound_contract_function.call()  # onchain read
+        return contract_result
 
 
 class ContractCondition(RPCCondition):

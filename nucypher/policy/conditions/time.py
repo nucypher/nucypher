@@ -52,11 +52,8 @@ class TimeRPCCall(RPCCall):
     def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
         """Execute onchain read and return result."""
         # TODO may need to rethink as part of #3051 (multicall work).
-        try:
-            latest_block = w3.eth.get_block("latest")
-            return latest_block.timestamp, None
-        except Exception as e:
-            return None, f"RPC call '{self.method}' failed: {e}"
+        latest_block = w3.eth.get_block("latest")
+        return latest_block.timestamp
 
 
 class TimeCondition(RPCCondition):
