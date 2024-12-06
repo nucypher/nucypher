@@ -1,6 +1,6 @@
 import math
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Tuple
 from unittest.mock import MagicMock, Mock
 
@@ -112,12 +112,14 @@ def test_get_block_timestamp():
 
     now = time.time()
     web3.eth.get_block.return_value = {"timestamp": now}
-    assert scanner.get_block_timestamp(block_num=0) == datetime.utcfromtimestamp(now)
+    assert scanner.get_block_timestamp(block_num=0) == datetime.fromtimestamp(
+        now, tz=timezone.utc
+    )
 
     other_time = time.time() - 1231231
     web3.eth.get_block.return_value = {"timestamp": other_time}
-    assert scanner.get_block_timestamp(block_num=21) == datetime.utcfromtimestamp(
-        other_time
+    assert scanner.get_block_timestamp(block_num=21) == datetime.fromtimestamp(
+        other_time, tz=timezone.utc
     )
 
 

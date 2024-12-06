@@ -2,7 +2,7 @@
 
 import functools
 import inspect
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, Optional, TypeVar, Union
 
 import eth_utils
@@ -111,7 +111,7 @@ def save_receipt(actor_method) -> Callable:  # TODO: rename to "save_result"?
     @functools.wraps(actor_method)
     def wrapped(self, *args, **kwargs) -> dict:
         receipt_or_txhash = actor_method(self, *args, **kwargs)
-        self._saved_receipts.append((datetime.utcnow(), receipt_or_txhash))
+        self._saved_receipts.append((datetime.now(timezone.utc), receipt_or_txhash))
         return receipt_or_txhash
     return wrapped
 

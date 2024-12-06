@@ -188,7 +188,7 @@ class EventScanner:
             # minor chain reorganisation?
             return None
         last_time = block_info["timestamp"]
-        return datetime.datetime.utcfromtimestamp(last_time)
+        return datetime.datetime.fromtimestamp(last_time, tz=datetime.timezone.utc)
 
     def get_suggested_scan_start_block(self):
         """Get where we should start to scan for new token events.
