@@ -89,12 +89,12 @@ class RPCCall(ExecutionCall):
             fields.Field, attribute="parameters", required=False, allow_none=True
         )
 
-        @validates("chain")
-        def validate_chain(self, value):
-            if value not in _CONDITION_CHAINS:
-                raise ValidationError(
-                    f"chain ID {value} is not a permitted blockchain for condition evaluation"
-                )
+        # @validates("chain")
+        # def validate_chain(self, value):
+        #    if value not in _CONDITION_CHAINS:
+        #        raise ValidationError(
+        #            f"chain ID {value} is not a permitted blockchain for condition evaluation"
+        #        )
 
         @validates("method")
         def validate_method(self, value):
