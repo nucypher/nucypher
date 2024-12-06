@@ -83,12 +83,8 @@ class RPCCall(ExecutionCall):
                 "null": "Undefined method name",
             },
         )
-        parameters = fields.List(
-            fields.Field, attribute="parameters", required=False, allow_none=True
-        )
-        rpc_endpoint = fields.Url(
-            attribute="rpc_endpoint", required=False, relative=False, allow_none=True
-        )
+        parameters = fields.List(fields.Field, required=False, allow_none=True)
+        rpc_endpoint = fields.Url(required=False, relative=False, allow_none=True)
 
         @validates_schema
         def validate_chain(self, data, **kwargs):
