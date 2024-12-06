@@ -35,7 +35,6 @@ from nucypher.policy.conditions.context import (
 )
 from nucypher.policy.conditions.exceptions import (
     NoConnectionToChain,
-    RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import (
     ConditionType,
@@ -188,12 +187,8 @@ class RPCCall(ExecutionCall):
                     result = self._execute_with_provider(provider, resolved_parameters)
                     return result
                 except Exception as e:
-                    latest_error = str(e)
+                    latest_error = e
                     continue
-
-            raise RPCExecutionFailed(
-                f"RPC call '{self.method}' failed; latest error - {latest_error}"
-            )
 
         # Try custom RPC endpoint if provided
         if self.rpc_endpoint:
@@ -203,13 +198,11 @@ class RPCCall(ExecutionCall):
                 )
                 return result
             except Exception as e:
-                latest_error = str(e)
+                latest_error = e
 
         # If we get here, all attempts failed
         if latest_error:
-            raise RPCExecutionFailed(
-                f"RPC call '{self.method}' failed; latest error - {latest_error}"
-            )
+            raise latest_error
         raise NoConnectionToChain(chain=self.chain)
 
     def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
