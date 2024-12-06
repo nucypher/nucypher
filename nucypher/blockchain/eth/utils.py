@@ -1,3 +1,4 @@
+import random
 import time
 from decimal import Decimal
 from typing import Dict, List, Union
@@ -234,4 +235,5 @@ def fetch_public_rpc_endpoints_for_chain(chain_id: int) -> List[HTTPProvider]:
 
             rpc_endpoints.append(HTTPProvider(endpoint))
 
+    random.shuffle(rpc_endpoints)
     return rpc_endpoints
