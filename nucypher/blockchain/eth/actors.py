@@ -65,7 +65,6 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.datastore.dkg import DKGStorage
-from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.policy.payment import ContractPayment
 from nucypher.types import PhaseId
@@ -266,10 +265,6 @@ class Operator(BaseActor):
             return receipt
 
     @staticmethod
-    def _is_permitted_condition_chain(chain_id: int) -> bool:
-        return int(chain_id) in [int(cid) for cid in _CONDITION_CHAINS.keys()]
-
-    @staticmethod
     def _make_condition_provider(uri: str) -> HTTPProvider:
         provider = HTTPProvider(endpoint_uri=uri)
         return provider
@@ -279,22 +274,11 @@ class Operator(BaseActor):
     ) -> DefaultDict[int, List[HTTPProvider]]:
         providers = defaultdict(list)  # use list to maintain order
 
-        # check that we have endpoints for all condition chains
-        if set(self.domain.condition_chain_ids) != set(endpoints):
-            raise self.ActorError(
-                f"Missing blockchain endpoints for chains: "
-                f"{set(self.domain.condition_chain_ids) - set(endpoints)}"
-            )
-
         # ensure that no endpoint uri for a specific chain is repeated
         duplicated_endpoint_check = defaultdict(set)
 
         # User-defined endpoints for chains
         for chain_id, endpoints in endpoints.items():
-            if not self._is_permitted_condition_chain(chain_id):
-                raise NotImplementedError(
-                    f"Chain ID {chain_id} is not supported for condition evaluation by this operator."
-                )
 
             # connect to each endpoint and check that they are on the correct chain
             for uri in endpoints:
@@ -318,9 +302,10 @@ class Operator(BaseActor):
                 duplicated_endpoint_check[chain_id].add(uri)
 
         # Ingest default/fallback RPC providers for each chain
-        for chain_id in self.domain.condition_chain_ids:
-            default_endpoints = get_healthy_default_rpc_endpoints(chain_id)
-            for uri in default_endpoints:
+        # for chain_id in self.domain.condition_chain_ids:
+        default_endpoints = get_healthy_default_rpc_endpoints(self.domain.name)
+        for chain_id in default_endpoints:
+            for uri in default_endpoints[chain_id]:
                 if uri in duplicated_endpoint_check[chain_id]:
                     self.log.warn(
                         f"Duplicated fallback blockchain uri, {uri}, for condition evaluation on chain {chain_id}; skipping"
@@ -330,12 +315,9 @@ class Operator(BaseActor):
                 providers[chain_id].append(provider)
                 duplicated_endpoint_check[chain_id].add(uri)
 
-        humanized_chain_ids = ", ".join(
-            _CONDITION_CHAINS[chain_id] for chain_id in providers
-        )
         self.log.info(
             f"Connected to {sum(len(v) for v in providers.values())} RPC endpoints for condition "
-            f"checking on chain IDs {humanized_chain_ids}"
+            f"checking on chain IDs {providers.keys()}"
         )
 
         return providers
