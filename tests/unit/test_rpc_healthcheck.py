@@ -47,11 +47,11 @@ def test_get_default_rpc_endpoints(mocker):
         1: ["http://endpoint1", "http://endpoint2"],
         2: ["http://endpoint3", "http://endpoint4"],
     }
-    assert get_default_rpc_endpoints() == expected_result
+    assert get_default_rpc_endpoints("domain") == expected_result
 
     # Mock a failed response
     mock_get.return_value.status_code = 500
-    assert get_default_rpc_endpoints() == {}
+    assert get_default_rpc_endpoints("bad_domain") == {}
 
 
 def test_get_healthy_default_rpc_endpoints(mocker):
@@ -71,14 +71,5 @@ def test_get_healthy_default_rpc_endpoints(mocker):
         or endpoint == "http://endpoint3"
     )
 
-    # Test chain ID 1
-    healthy_endpoints = get_healthy_default_rpc_endpoints(1)
-    assert healthy_endpoints == ["http://endpoint1"]
-
-    # Test chain ID 2
-    healthy_endpoints = get_healthy_default_rpc_endpoints(2)
-    assert healthy_endpoints == ["http://endpoint3"]
-
-    # Test chain ID with no healthy endpoints
-    healthy_endpoints = get_healthy_default_rpc_endpoints(3)
-    assert healthy_endpoints == []
+    healthy_endpoints = get_healthy_default_rpc_endpoints("mainnet")
+    assert healthy_endpoints == {1: ["http://endpoint1"], 2: ["http://endpoint3"]}
