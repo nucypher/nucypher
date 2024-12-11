@@ -140,7 +140,7 @@ def get_default_rpc_endpoints(domain) -> Dict[int, List[str]]:
     Fetches the default RPC endpoints for various chains
     from the nucypher/chainlist repository.
     """
-    url = CHAINLIST_URL + domain + ".json"
+    url = CHAINLIST_URL.format(domain=domain)
     LOGGER.debug(f"Fetching default RPC endpoints from remote chainlist {url}")
 
     try:
