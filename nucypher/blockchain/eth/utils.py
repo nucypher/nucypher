@@ -168,6 +168,8 @@ def get_healthy_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]
 
     if not domain.is_testnet:
         # iterate over all chains and filter out unhealthy endpoints
+        # only performed for mainnet for now since it would be inefficient 
+        #  on testnet where many more chains are/will be allowed
         healthy = {
             chain_id: [
                 endpoint
