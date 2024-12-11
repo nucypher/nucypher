@@ -1,5 +1,6 @@
 import requests
 
+from nucypher.blockchain.eth.domains import EthChain, PolygonChain, TACoDomain
 from nucypher.blockchain.eth.utils import (
     get_default_rpc_endpoints,
     get_healthy_default_rpc_endpoints,
@@ -43,15 +44,27 @@ def test_get_default_rpc_endpoints(mocker):
     }
     mock_get.return_value = mock_response
 
+    test_domain = TACoDomain(
+        name="test",
+        eth_chain=EthChain.SEPOLIA,
+        polygon_chain=PolygonChain.AMOY,
+    )
+
+    bad_domain = TACoDomain(
+        name="bad_domain",
+        eth_chain=EthChain.SEPOLIA,
+        polygon_chain=PolygonChain.AMOY,
+    )
+
     expected_result = {
         1: ["http://endpoint1", "http://endpoint2"],
         2: ["http://endpoint3", "http://endpoint4"],
     }
-    assert get_default_rpc_endpoints("domain") == expected_result
+    assert get_default_rpc_endpoints(test_domain) == expected_result
 
     # Mock a failed response
     mock_get.return_value.status_code = 500
-    assert get_default_rpc_endpoints("bad_domain") == {}
+    assert get_default_rpc_endpoints(bad_domain) == {}
 
 
 def test_get_healthy_default_rpc_endpoints(mocker):
@@ -71,5 +84,11 @@ def test_get_healthy_default_rpc_endpoints(mocker):
         or endpoint == "http://endpoint3"
     )
 
-    healthy_endpoints = get_healthy_default_rpc_endpoints("mainnet")
+    test_domain = TACoDomain(
+        name="mainnet",
+        eth_chain=EthChain.MAINNET,
+        polygon_chain=PolygonChain.MAINNET,
+    )
+
+    healthy_endpoints = get_healthy_default_rpc_endpoints(test_domain)
     assert healthy_endpoints == {1: ["http://endpoint1"], 2: ["http://endpoint3"]}

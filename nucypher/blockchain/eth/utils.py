@@ -11,6 +11,7 @@ from web3.contract.contract import ContractConstructor, ContractFunction
 from web3.types import TxParams
 
 from nucypher.blockchain.eth.constants import CHAINLIST_URL
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.utilities.logging import Logger
 
 LOGGER = Logger("utility")
@@ -135,12 +136,12 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
 
 
 @memoize
-def get_default_rpc_endpoints(domain) -> Dict[int, List[str]]:
+def get_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
     """
     Fetches the default RPC endpoints for various chains
     from the nucypher/chainlist repository.
     """
-    url = CHAINLIST_URL.format(domain=domain)
+    url = CHAINLIST_URL.format(domain=domain.name)
     LOGGER.debug(f"Fetching default RPC endpoints from remote chainlist {url}")
 
     try:
@@ -160,12 +161,12 @@ def get_default_rpc_endpoints(domain) -> Dict[int, List[str]]:
         return {}
 
 
-def get_healthy_default_rpc_endpoints(domain: str) -> Dict[int, List[str]]:
+def get_healthy_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
     """Returns a list of healthy RPC endpoints for a given chain ID."""
 
     endpoints = get_default_rpc_endpoints(domain)
 
-    if domain == "mainnet":
+    if not domain.is_testnet:
         # iterate over all chains and filter out unhealthy endpoints
         healthy = {
             chain_id: [
