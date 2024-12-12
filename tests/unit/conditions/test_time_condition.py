@@ -27,14 +27,6 @@ def test_invalid_time_condition():
             method="time_after_time",
         )
 
-    # chain id not permitted
-    # with pytest.raises(InvalidCondition):
-    #     _ = TimeCondition(
-    #         return_value_test=ReturnValueTest(">", 0),
-    #         chain=90210,  # Beverly Hills Chain :)
-    #         method=TimeRPCCall.METHOD,
-    #     )
-
 
 def test_time_condition_schema_validation(time_condition):
     condition_dict = time_condition.to_dict()
@@ -69,12 +61,6 @@ def test_time_condition_schema_validation(time_condition):
         condition_dict = time_condition.to_dict()
         condition_dict["chain"] = str(TESTERCHAIN_CHAIN_ID)
         TimeCondition.from_dict(condition_dict)
-
-    # with pytest.raises(InvalidConditionLingo):
-    #     # chain id not a permitted chain
-    #     condition_dict = time_condition.to_dict()
-    #     condition_dict["chain"] = 90210  # Beverly Hills Chain :)
-    #     TimeCondition.from_dict(condition_dict)
 
 
 @pytest.mark.parametrize(

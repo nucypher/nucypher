@@ -47,15 +47,6 @@ def test_invalid_rpc_condition():
             parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
         )
 
-    # # unsupported chain id
-    # with pytest.raises(InvalidCondition, match="90210 is not a permitted blockchain"):
-    #     _ = RPCCondition(
-    #         method="eth_getBalance",
-    #         chain=90210,  # Beverly Hills Chain :)
-    #         return_value_test=ReturnValueTest("==", 0),
-    #         parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
-    #     )
-
     # invalid chain type provided
     with pytest.raises(ValueError, match="invalid literal for int"):
         _ = RPCCondition(
@@ -104,12 +95,6 @@ def test_rpc_condition_schema_validation(rpc_condition):
         condition_dict = rpc_condition.to_dict()
         condition_dict["chain"] = str(TESTERCHAIN_CHAIN_ID)
         RPCCondition.from_dict(condition_dict)
-
-    # with pytest.raises(InvalidConditionLingo):
-    #     # chain id not a permitted chain
-    #     condition_dict = rpc_condition.to_dict()
-    #     condition_dict["chain"] = 90210  # Beverly Hills Chain :)
-    #     RPCCondition.from_dict(condition_dict)
 
 
 def test_rpc_condition_repr(rpc_condition):
