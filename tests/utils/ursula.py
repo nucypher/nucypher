@@ -11,7 +11,6 @@ from web3 import HTTPProvider
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.utils.blockchain import ReservedTestAccountManager
 
@@ -167,7 +166,6 @@ def mock_permitted_multichain_connections(mocker) -> List[int]:
         TESTERCHAIN_CHAIN_ID + 2,
         123456789,
     ]
-    mocker.patch.dict(_CONDITION_CHAINS, {cid: "fakechain/mainnet" for cid in ids})
     return ids
 
 

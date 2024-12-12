@@ -25,7 +25,6 @@ from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
-from nucypher.blockchain.eth.utils import fetch_public_rpc_endpoints_for_chain
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES
 from nucypher.policy.conditions.base import (
     ExecutionCall,
@@ -57,16 +56,6 @@ from nucypher.policy.conditions.validation import (
 # Permitted blockchains for condition evaluation
 from nucypher.utilities import logging
 
-_CONDITION_CHAINS = {
-    1: "ethereum/mainnet",
-    11155111: "ethereum/sepolia",
-    137: "polygon/mainnet",
-    80002: "polygon/amoy",
-    # TODO: Permit support for these chains
-    # 100: "gnosis/mainnet",
-    # 10200: "gnosis/chiado",
-}
-
 
 class RPCCall(ExecutionCall):
     LOG = logging.Logger(__name__)
@@ -88,13 +77,6 @@ class RPCCall(ExecutionCall):
         parameters = fields.List(
             fields.Field, attribute="parameters", required=False, allow_none=True
         )
-
-        # @validates("chain")
-        # def validate_chain(self, value):
-        #    if value not in _CONDITION_CHAINS:
-        #        raise ValidationError(
-        #            f"chain ID {value} is not a permitted blockchain for condition evaluation"
-        #        )
 
         @validates("method")
         def validate_method(self, value):
@@ -157,14 +139,7 @@ class RPCCall(ExecutionCall):
         """Yields the next web3 provider to try for a given chain ID"""
         rpc_providers = providers.get(self.chain, None)
         if not rpc_providers:
-            # only use when no connection available
-            public_rpc_providers = fetch_public_rpc_endpoints_for_chain(
-                chain_id=self.chain
-            )
-            if not public_rpc_providers:
-                # indeed no connection possible
-                raise NoConnectionToChain(chain=self.chain)
-            rpc_providers = public_rpc_providers
+            raise NoConnectionToChain(chain=self.chain)
 
         for provider in rpc_providers:
             # Someday, we might make this whole function async, and then we can knock on

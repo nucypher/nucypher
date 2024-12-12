@@ -272,14 +272,6 @@ def monkeypatch_get_staking_provider_from_operator(monkeymodule):
     )
 
 
-@pytest.fixture(scope="module", autouse=True)
-def mock_condition_blockchains(module_mocker):
-    """adds testerchain's chain ID to permitted conditional chains"""
-    module_mocker.patch.dict(
-        "nucypher.policy.conditions.evm._CONDITION_CHAINS",
-        {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
-    )
-
 
 @pytest.fixture(scope="module")
 def multichain_ids(module_mocker):
@@ -291,6 +283,20 @@ def multichain_ids(module_mocker):
 def multichain_ursulas(ursulas, multichain_ids):
     setup_multichain_ursulas(ursulas=ursulas, chain_ids=multichain_ids)
     return ursulas
+
+
+@pytest.fixture(scope="module", autouse=True)
+def mock_rpc_endpoints(module_mocker):
+    """Mock RPC endpoints for integration tests"""
+
+    def mock_get_default_endpoints(domain):
+        # Return test endpoints for the testerchain
+        return {TESTERCHAIN_CHAIN_ID: ["http://localhost:8545"]}
+
+    module_mocker.patch(
+        "nucypher.blockchain.eth.utils.get_default_rpc_endpoints",
+        side_effect=mock_get_default_endpoints,
+    )
 
 
 @pytest.fixture(scope="module")
