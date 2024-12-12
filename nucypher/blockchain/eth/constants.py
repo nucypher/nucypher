@@ -54,4 +54,6 @@ POA_CHAINS = {
     80002,  # "Polygon/Amoy"
 }
 
-CHAINLIST_URL = "https://raw.githubusercontent.com/nucypher/chainlist/main/{domain}.json"
+CHAINLIST_URL = (
+    "https://raw.githubusercontent.com/nucypher/chainlist/main/{domain}.json"
+)
