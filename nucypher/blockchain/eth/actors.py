@@ -278,10 +278,10 @@ class Operator(BaseActor):
         duplicated_endpoint_check = defaultdict(set)
 
         # User-defined endpoints for chains
-        for chain_id, endpoints in endpoints.items():
+        for chain_id, endpoint_list in endpoints.items():
 
             # connect to each endpoint and check that they are on the correct chain
-            for uri in endpoints:
+            for uri in endpoint_list:
                 if uri in duplicated_endpoint_check[chain_id]:
                     self.log.warn(
                         f"Duplicated user-supplied blockchain uri, {uri}, for condition evaluation on chain {chain_id}; skipping"
@@ -303,9 +303,11 @@ class Operator(BaseActor):
 
         # Ingest default/fallback RPC providers for each chain
         # for chain_id in self.domain.condition_chain_ids:
-        default_endpoints = get_healthy_default_rpc_endpoints(self.domain.name)
-        for chain_id in default_endpoints:
-            for uri in default_endpoints[chain_id]:
+        default_endpoints = get_healthy_default_rpc_endpoints(self.domain)
+        for chain_id, chain_endpoints in default_endpoints.items():
+            # randomize list so that the same fallback RPC endpoints aren't always used by all nodes
+            random.shuffle(chain_endpoints)
+            for uri in chain_endpoints:
                 if uri in duplicated_endpoint_check[chain_id]:
                     self.log.warn(
                         f"Duplicated fallback blockchain uri, {uri}, for condition evaluation on chain {chain_id}; skipping"
