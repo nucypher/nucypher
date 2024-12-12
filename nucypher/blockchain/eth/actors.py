@@ -270,16 +270,31 @@ class Operator(BaseActor):
         return provider
 
     def connect_condition_providers(
-        self, endpoints: Dict[int, List[str]]
+        self, user_defined_endpoints: Dict[int, List[str]]
     ) -> DefaultDict[int, List[HTTPProvider]]:
+
+        # check that we have mandatory user configured endpoints
+        mandatory_user_configured_chains = {
+            self.domain.eth_chain.id,
+            self.domain.polygon_chain.id,
+        }
+        if mandatory_user_configured_chains != set(user_defined_endpoints):
+            raise self.ActorError(
+                f"User supplied endpoints for chains don't match mandatory chains: "
+                f"{set(user_defined_endpoints)} vs expected {mandatory_user_configured_chains}"
+            )
+
         providers = defaultdict(list)  # use list to maintain order
 
         # ensure that no endpoint uri for a specific chain is repeated
         duplicated_endpoint_check = defaultdict(set)
 
         # User-defined endpoints for chains
-        for chain_id, endpoint_list in endpoints.items():
-
+        for chain_id, endpoint_list in user_defined_endpoints.items():
+            if not endpoint_list:
+                raise self.ActorError(
+                    f"No mandatory user endpoint configured for chain {chain_id}"
+                )
             # connect to each endpoint and check that they are on the correct chain
             for uri in endpoint_list:
                 if uri in duplicated_endpoint_check[chain_id]:
