@@ -162,7 +162,7 @@ def get_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
 
 
 def get_healthy_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
-    """Returns a list of healthy RPC endpoints for a given chain ID."""
+    """Returns a mapping of chain id to healthy RPC endpoints for a given domain."""
 
     endpoints = get_default_rpc_endpoints(domain)
 
