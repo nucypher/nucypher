@@ -50,21 +50,16 @@ def test_get_default_rpc_endpoints(mocker):
         polygon_chain=PolygonChain.AMOY,
     )
 
-    bad_domain = TACoDomain(
-        name="bad_domain",
-        eth_chain=EthChain.SEPOLIA,
-        polygon_chain=PolygonChain.AMOY,
-    )
-
     expected_result = {
         1: ["http://endpoint1", "http://endpoint2"],
         2: ["http://endpoint3", "http://endpoint4"],
     }
     assert get_default_rpc_endpoints(test_domain) == expected_result
+    get_default_rpc_endpoints.cache_clear()
 
     # Mock a failed response
     mock_get.return_value.status_code = 500
-    assert get_default_rpc_endpoints(bad_domain) == {}
+    assert get_default_rpc_endpoints(test_domain) == {}
 
 
 def test_get_healthy_default_rpc_endpoints(mocker):

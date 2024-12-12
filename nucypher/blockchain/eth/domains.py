@@ -1,7 +1,6 @@
 from enum import Enum
+from functools import cache
 from typing import Any, Dict, NamedTuple
-
-from cytoolz.functoolz import memoize
 
 
 class UnrecognizedTacoDomain(Exception):
@@ -90,7 +89,7 @@ SUPPORTED_DOMAINS: Dict[str, TACoDomain] = {
 }
 
 
-@memoize
+@cache
 def get_domain(d: Any) -> TACoDomain:
     if not isinstance(d, str):
         raise TypeError(f"domain must be a string, not {type(d)}")

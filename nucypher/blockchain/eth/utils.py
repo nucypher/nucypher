@@ -1,9 +1,9 @@
 import time
 from decimal import Decimal
+from functools import cache
 from typing import Dict, List, Union
 
 import requests
-from cytoolz import memoize
 from eth_typing import ChecksumAddress
 from requests import RequestException
 from web3 import Web3
@@ -135,7 +135,7 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
     return True  # finally!
 
 
-@memoize
+@cache
 def get_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
     """
     Fetches the default RPC endpoints for various chains
