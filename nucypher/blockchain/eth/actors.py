@@ -317,7 +317,6 @@ class Operator(BaseActor):
                 duplicated_endpoint_check[chain_id].add(uri)
 
         # Ingest default/fallback RPC providers for each chain
-        # for chain_id in self.domain.condition_chain_ids:
         default_endpoints = get_healthy_default_rpc_endpoints(self.domain)
         for chain_id, chain_endpoints in default_endpoints.items():
             # randomize list so that the same fallback RPC endpoints aren't always used by all nodes
