@@ -105,7 +105,7 @@ class JsonEndpointRPCCall(BaseJsonRPCCall):
         return super()._execute(endpoint=self.endpoint, **context)
 
 
-class JsonRPRCCondition(ExecutionCallAccessControlCondition):
+class JsonRpcCondition(ExecutionCallAccessControlCondition):
     EXECUTION_CALL_TYPE = JsonEndpointRPCCall
     CONDITION_TYPE = ConditionType.JSONRPC.value
 
@@ -118,7 +118,7 @@ class JsonRPRCCondition(ExecutionCallAccessControlCondition):
 
         @post_load
         def make(self, data, **kwargs):
-            return JsonRPRCCondition(**data)
+            return JsonRpcCondition(**data)
 
     def __init__(
         self,
