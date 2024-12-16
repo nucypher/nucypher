@@ -270,18 +270,18 @@ class Operator(BaseActor):
         return provider
 
     def connect_condition_providers(
-        self, user_defined_endpoints: Dict[int, List[str]]
+        self, operator_configured_endpoints: Dict[int, List[str]]
     ) -> DefaultDict[int, List[HTTPProvider]]:
 
         # check that we have mandatory user configured endpoints
-        mandatory_user_configured_chains = {
+        mandatory_configured_chains = {
             self.domain.eth_chain.id,
             self.domain.polygon_chain.id,
         }
-        if mandatory_user_configured_chains != set(user_defined_endpoints):
+        if mandatory_configured_chains != set(operator_configured_endpoints):
             raise self.ActorError(
-                f"User supplied endpoints for chains don't match mandatory chains: "
-                f"{set(user_defined_endpoints)} vs expected {mandatory_user_configured_chains}"
+                f"Operator-configured condition endpoints for chains don't match mandatory chains: "
+                f"{set(operator_configured_endpoints)} vs expected {mandatory_configured_chains}"
             )
 
         providers = defaultdict(list)  # use list to maintain order
@@ -289,42 +289,42 @@ class Operator(BaseActor):
         # ensure that no endpoint uri for a specific chain is repeated
         duplicated_endpoint_check = defaultdict(set)
 
-        # User-defined endpoints for chains
-        for chain_id, endpoint_list in user_defined_endpoints.items():
-            if not endpoint_list:
+        # Operator-configured endpoints for chains
+        for chain_id, chain_rpc_endpoints in operator_configured_endpoints.items():
+            if not chain_rpc_endpoints:
                 raise self.ActorError(
-                    f"No mandatory user endpoint configured for chain {chain_id}"
+                    f"Operator-configured condition endpoint is missing for the required chain {chain_id}"
                 )
             # connect to each endpoint and check that they are on the correct chain
-            for uri in endpoint_list:
+            for uri in chain_rpc_endpoints:
                 if uri in duplicated_endpoint_check[chain_id]:
                     self.log.warn(
-                        f"Duplicated user-supplied blockchain uri, {uri}, for condition evaluation on chain {chain_id}; skipping"
+                        f"Operator-configured condition endpoint {uri} is duplicated for condition evaluation on chain {chain_id}; skipping."
                     )
                     continue
 
                 provider = self._make_condition_provider(uri)
                 if int(Web3(provider).eth.chain_id) != int(chain_id):
                     raise self.ActorError(
-                        f"Condition blockchain endpoint {uri} is not on chain {chain_id}"
+                        f"Operator-configured RPC condition endpoint {uri} does not belong to chain {chain_id}"
                     )
                 healthy = rpc_endpoint_health_check(endpoint=uri)
                 if not healthy:
                     self.log.warn(
-                        f"user-supplied condition RPC endpoint {uri} is unhealthy"
+                        f"Operator-configured RPC condition endpoint {uri} is unhealthy"
                     )
                 providers[int(chain_id)].append(provider)
                 duplicated_endpoint_check[chain_id].add(uri)
 
         # Ingest default/fallback RPC providers for each chain
         default_endpoints = get_healthy_default_rpc_endpoints(self.domain)
-        for chain_id, chain_endpoints in default_endpoints.items():
+        for chain_id, chain_rpc_endpoints in default_endpoints.items():
             # randomize list so that the same fallback RPC endpoints aren't always used by all nodes
-            random.shuffle(chain_endpoints)
-            for uri in chain_endpoints:
+            random.shuffle(chain_rpc_endpoints)
+            for uri in chain_rpc_endpoints:
                 if uri in duplicated_endpoint_check[chain_id]:
                     self.log.warn(
-                        f"Duplicated fallback blockchain uri, {uri}, for condition evaluation on chain {chain_id}; skipping"
+                        f"Fallback blockchain endpoint, {uri}, is duplicated for condition evaluation on chain {chain_id}; skipping"
                     )
                     continue
                 provider = self._make_condition_provider(uri)
