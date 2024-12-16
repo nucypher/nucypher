@@ -5,14 +5,12 @@ import requests
 from marshmallow import ValidationError
 
 from nucypher.policy.conditions.exceptions import (
-    ConditionEvaluationFailed,
     InvalidCondition,
+    JsonRequestException,
 )
+from nucypher.policy.conditions.json.api import JsonApiCondition
+from nucypher.policy.conditions.json.base import JSONPathField
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
-from nucypher.policy.conditions.offchain import (
-    JsonApiCondition,
-    JSONPathField,
-)
 
 
 def test_jsonpath_field_valid():
@@ -97,9 +95,8 @@ def test_json_api_condition_fetch(mocker):
         query="$.store.book[0].title",
         return_value_test=ReturnValueTest("==", "'Test Title'"),
     )
-    response = condition.execution_call._fetch()
-    assert response.status_code == 200
-    assert response.json() == {"store": {"book": [{"title": "Test Title"}]}}
+    data = condition.execution_call._fetch(condition.endpoint)
+    assert data == {"store": {"book": [{"title": "Test Title"}]}}
 
 
 def test_json_api_condition_fetch_failure(mocker):
@@ -112,8 +109,8 @@ def test_json_api_condition_fetch_failure(mocker):
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 1),
     )
-    with pytest.raises(InvalidCondition, match="Failed to fetch endpoint"):
-        condition.execution_call._fetch()
+    with pytest.raises(JsonRequestException, match="Failed to fetch from endpoint"):
+        condition.execution_call._fetch(condition.endpoint)
 
 
 def test_json_api_condition_verify(mocker):
@@ -179,9 +176,7 @@ def test_json_api_condition_verify_invalid_json(mocker):
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 2),
     )
-    with pytest.raises(
-        ConditionEvaluationFailed, match="Failed to parse JSON response"
-    ):
+    with pytest.raises(JsonRequestException, match="Failed to extract JSON response"):
         condition.verify()
 
 
@@ -200,9 +195,7 @@ def test_non_json_response(mocker):
         return_value_test=ReturnValueTest("==", 18),
     )
 
-    with pytest.raises(
-        ConditionEvaluationFailed, match="Failed to parse JSON response"
-    ):
+    with pytest.raises(JsonRequestException, match="Failed to extract JSON response"):
         condition.verify()
 
 
@@ -382,5 +375,5 @@ def test_ambiguous_json_path_multiple_results(mocker):
         return_value_test=ReturnValueTest("==", 1),
     )
 
-    with pytest.raises(ConditionEvaluationFailed, match="Ambiguous JSONPath query"):
+    with pytest.raises(JsonRequestException, match="Ambiguous JSONPath query"):
         condition.verify()
