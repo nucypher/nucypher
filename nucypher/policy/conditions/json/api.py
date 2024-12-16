@@ -1,11 +1,15 @@
-from http import HTTPMethod
-from typing import Any, Optional, Tuple, override
+from typing import Any, Optional, Tuple
 
 from marshmallow import ValidationError, fields, post_load, validate, validates
 from marshmallow.fields import Url
+from typing_extensions import override
 
 from nucypher.policy.conditions.context import is_context_variable
-from nucypher.policy.conditions.json.base import JSONPathField, JsonRequestCall
+from nucypher.policy.conditions.json.base import (
+    HTTPMethod,
+    JSONPathField,
+    JsonRequestCall,
+)
 from nucypher.policy.conditions.json.utils import process_result_for_condition_eval
 from nucypher.policy.conditions.lingo import (
     ConditionType,

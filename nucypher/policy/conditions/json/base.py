@@ -1,6 +1,7 @@
 import json
 from abc import ABC
-from http import HTTPMethod, HTTPStatus
+from enum import Enum
+from http import HTTPStatus
 from typing import Any, Optional
 
 import requests
@@ -15,6 +16,11 @@ from nucypher.policy.conditions.context import (
 )
 from nucypher.policy.conditions.exceptions import JsonRequestException
 from nucypher.utilities.logging import Logger
+
+
+class HTTPMethod(Enum):
+    GET = "GET"
+    POST = "POST"
 
 
 class JsonRequestCall(ExecutionCall, ABC):
@@ -62,15 +68,14 @@ class JsonRequestCall(ExecutionCall, ABC):
                     timeout=self.timeout,
                     headers=headers,
                 )
-            elif self.http_method == HTTPMethod.POST:
+            else:
+                # POST
                 response = requests.post(
                     resolved_endpoint,
                     data=json.dumps(resolved_parameters),
                     timeout=self.timeout,
                     headers=headers,
                 )
-            else:
-                raise RuntimeError(f"Unsupported http method: {self.http_method}")
 
             response.raise_for_status()
             if response.status_code != HTTPStatus.OK:
