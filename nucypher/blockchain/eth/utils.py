@@ -10,7 +10,7 @@ from web3 import Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
 from web3.types import TxParams
 
-from nucypher.blockchain.eth.constants import CHAINLIST_URL
+from nucypher.blockchain.eth.constants import CHAINLIST_URL_TEMPLATE
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.utilities.logging import Logger
 
@@ -141,7 +141,7 @@ def get_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
     Fetches the default RPC endpoints for various chains
     from the nucypher/chainlist repository.
     """
-    url = CHAINLIST_URL.format(domain=domain.name)
+    url = CHAINLIST_URL_TEMPLATE.format(domain=domain.name)
     LOGGER.debug(f"Fetching default RPC endpoints from remote chainlist {url}")
 
     try:
