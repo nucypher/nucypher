@@ -67,7 +67,7 @@ class BaseJsonRPCCall(JsonRequestCall, ABC):
         error = data.get("error", None)
         if error:
             raise JsonRequestException(
-                f"JSON RPC Request failed with error in response: {error}"
+                f"JSON RPC Request failed with error in response: code={error['code']}, msg={error['message']}"
             )
 
         # obtain result first then perform query
