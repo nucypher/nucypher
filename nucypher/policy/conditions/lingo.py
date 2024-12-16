@@ -69,6 +69,8 @@ class ConditionType(Enum):
     CONTRACT = "contract"
     RPC = "rpc"
     JSONAPI = "json-api"
+    JSONRPC = "json-rpc"
+    NON_EVM_JSON_RPC = "non-evm-json-rpc"
     COMPOUND = "compound"
     SEQUENTIAL = "sequential"
     IF_THEN_ELSE = "if-then-else"
@@ -698,6 +700,10 @@ class ConditionLingo(_Serializable):
         """
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
         from nucypher.policy.conditions.json.api import JsonApiCondition
+        from nucypher.policy.conditions.json.rpc import (
+            JsonRPRCCondition,
+            NonEvmJsonRPCCondition,
+        )
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
@@ -709,6 +715,8 @@ class ConditionLingo(_Serializable):
             RPCCondition,
             CompoundAccessControlCondition,
             JsonApiCondition,
+            JsonRPRCCondition,
+            NonEvmJsonRPCCondition,
             SequentialAccessControlCondition,
             IfThenElseCondition,
         ):
