@@ -83,7 +83,7 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
         query: Optional[str] = None,
         parameters: Optional[dict] = None,
         authorization_token: Optional[str] = None,
-        condition_type: str = ConditionType.JSONAPI.value,
+        condition_type: Optional[str] = ConditionType.JSONAPI.value,
         name: Optional[str] = None,
     ):
         super().__init__(
