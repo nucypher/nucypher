@@ -81,6 +81,18 @@ def lingo_with_all_condition_types(get_random_checksum_address):
             "value": 2,
         },
     }
+    json_rpc_condition = {
+        # JSON RPC
+        "conditionType": "json-rpc",
+        "endpoint": "https://math.example.com/",
+        "method": "subtract",
+        "params": [42, 23],
+        "query": "$.mathresult",
+        "returnValueTest": {
+            "comparator": "==",
+            "value": 19,
+        },
+    }
     sequential_condition = {
         "conditionType": ConditionType.SEQUENTIAL.value,
         "conditionVariables": [
@@ -106,7 +118,7 @@ def lingo_with_all_condition_types(get_random_checksum_address):
         "conditionType": ConditionType.IF_THEN_ELSE.value,
         "ifCondition": rpc_condition,
         "thenCondition": json_api_condition,
-        "elseCondition": time_condition,
+        "elseCondition": json_rpc_condition,
     }
     return {
         "version": ConditionLingo.VERSION,
