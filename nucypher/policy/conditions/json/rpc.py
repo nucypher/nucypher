@@ -131,7 +131,6 @@ class JsonRpcCondition(ExecutionCallAccessControlCondition):
         condition_type: Optional[str] = ConditionType.JSONRPC.value,
         name: Optional[str] = None,
     ):
-        self.endpoint = endpoint
         super().__init__(
             endpoint=endpoint,
             method=method,
@@ -142,6 +141,10 @@ class JsonRpcCondition(ExecutionCallAccessControlCondition):
             condition_type=condition_type,
             name=name,
         )
+
+    @property
+    def endpoint(self):
+        return self.execution_call.endpoint
 
     @property
     def method(self):
