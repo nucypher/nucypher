@@ -1,0 +1,1 @@
+Support for conditions based on APIs provided by offchain JSON RPC 2.0 endpoints.
