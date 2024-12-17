@@ -1,4 +1,3 @@
-import json
 from abc import ABC
 from enum import Enum
 from http import HTTPStatus
@@ -72,7 +71,7 @@ class JsonRequestCall(ExecutionCall, ABC):
                 # POST
                 response = requests.post(
                     resolved_endpoint,
-                    data=json.dumps(resolved_parameters),
+                    json=resolved_parameters,
                     timeout=self.timeout,
                     headers=headers,
                 )

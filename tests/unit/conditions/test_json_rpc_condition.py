@@ -81,7 +81,7 @@ def test_json_rpc_condition_verify(mocker):
     assert result == 19
 
     assert mocked_method.call_count == 1
-    assert json.loads(mocked_method.call_args.kwargs["data"]) == {
+    assert mocked_method.call_args.kwargs["json"] == {
         "jsonrpc": "2.0",
         "id": 1,
         "method": condition.method,
@@ -108,7 +108,7 @@ def test_json_rpc_condition_verify_params_as_dict(mocker):
     assert result == 19
 
     assert mocked_method.call_count == 1
-    assert json.loads(mocked_method.call_args.kwargs["data"]) == {
+    assert mocked_method.call_args.kwargs["json"] == {
         "jsonrpc": "2.0",
         "id": 1,
         "method": condition.method,
@@ -176,7 +176,7 @@ def test_json_rpc_condition_evaluation_with_auth_token(mocker):
     assert result == 19
 
     assert mocked_method.call_count == 1
-    assert json.loads(mocked_method.call_args.kwargs["data"]) == {
+    assert mocked_method.call_args.kwargs["json"] == {
         "jsonrpc": "2.0",
         "id": 1,
         "method": condition.method,
@@ -222,7 +222,7 @@ def test_json_rpc_condition_evaluation_with_various_context_variables(mocker):
     call_args = mocked_post.call_args
     assert call_args.args == (f"https://math.example.com/{context[':version']}/simple",)
     assert call_args.kwargs["headers"]["Authorization"] == f"Bearer {auth_token}"
-    assert json.loads(call_args.kwargs["data"]) == {
+    assert call_args.kwargs["json"] == {
         "jsonrpc": "2.0",
         "id": 1,
         "method": context[":methodContextVar"],
