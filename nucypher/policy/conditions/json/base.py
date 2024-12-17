@@ -13,7 +13,10 @@ from nucypher.policy.conditions.context import (
     resolve_any_context_variables,
     string_contains_context_variable,
 )
-from nucypher.policy.conditions.exceptions import JsonRequestException
+from nucypher.policy.conditions.exceptions import (
+    ConditionEvaluationFailed,
+    JsonRequestException,
+)
 from nucypher.utilities.logging import Logger
 
 
@@ -105,10 +108,11 @@ class JsonRequestCall(ExecutionCall, ABC):
             matches = expression.find(response_json)
             if not matches:
                 message = f"No matches found for the JSONPath query: {resolved_query}"
-                raise JsonRequestException(message)
-        except JsonRequestException as jsonpath_err:
+                self.logger.info(message)
+                raise ConditionEvaluationFailed(message)
+        except (JsonPathLexerError, JsonPathParserError) as jsonpath_err:
             self.logger.error(f"JSONPath error occurred: {jsonpath_err}")
-            raise JsonRequestException(
+            raise ConditionEvaluationFailed(
                 f"JSONPath error: {jsonpath_err}"
             ) from jsonpath_err
 
@@ -116,6 +120,7 @@ class JsonRequestCall(ExecutionCall, ABC):
             message = f"Ambiguous JSONPath query - multiple matches found for: {resolved_query}"
             self.logger.info(message)
             raise JsonRequestException(message)
+
         result = matches[0].value
         return result
 
