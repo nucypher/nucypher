@@ -11,11 +11,17 @@ def test_jsonpath_field_valid():
     assert result == valid_jsonpath
 
 
-def test_jsonpath_field_invalid():
+@pytest.mark.parametrize(
+    "invalid_jsonpath",
+    [
+        "invalid jsonpath",
+        "}{[]$%",
+        12,
+        12.25,
+        True,
+    ],
+)
+def test_jsonpath_field_invalid(invalid_jsonpath):
     field = JSONPathField()
-    invalid_jsonpath = "invalid jsonpath"
-    with pytest.raises(
-        ValidationError,
-        match=f"'{invalid_jsonpath}' is not a valid JSONPath expression",
-    ):
+    with pytest.raises(ValidationError):
         field.deserialize(invalid_jsonpath)

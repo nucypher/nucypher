@@ -28,6 +28,7 @@ def test_json_rpc_condition_initialization():
     assert condition.method == "subtract"
     assert condition.query == "$.mathresult"
     assert condition.return_value_test.eval(19)
+    assert condition.timeout == JsonRpcCondition.EXECUTION_CALL_TYPE.TIMEOUT
 
 
 def test_json_rpc_condition_invalid_type():
@@ -114,6 +115,23 @@ def test_json_rpc_condition_verify_params_as_dict(mocker):
         "method": condition.method,
         "params": condition.params,
     }
+
+
+def test_json_rpc_non_200_status(mocker):
+    # Mock the requests.get method to return a response with non-JSON content
+    mock_response = mocker.Mock()
+    mock_response.status_code = 400
+    mocker.patch("requests.post", return_value=mock_response)
+
+    condition = JsonRpcCondition(
+        endpoint="https://math.example.com/",
+        method="subtract",
+        params=[42, 23],
+        return_value_test=ReturnValueTest("==", 19),
+    )
+
+    with pytest.raises(JsonRequestException, match="Failed to fetch from endpoint"):
+        condition.verify()
 
 
 def test_json_rpc_condition_verify_error(mocker):
