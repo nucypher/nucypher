@@ -138,7 +138,7 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
 @cache
 def get_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
     """
-    Fetches the default RPC endpoints for various chains
+    For a given domain, fetches the default RPC endpoints for various chains
     from the nucypher/chainlist repository.
     """
     url = CHAINLIST_URL_TEMPLATE.format(domain=domain.name)
@@ -163,7 +163,6 @@ def get_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
 
 def get_healthy_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
     """Returns a mapping of chain id to healthy RPC endpoints for a given domain."""
-
     endpoints = get_default_rpc_endpoints(domain)
 
     if not domain.is_testnet:
