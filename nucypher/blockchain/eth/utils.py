@@ -1,5 +1,6 @@
 import time
 from decimal import Decimal
+from functools import cache
 from typing import Dict, List, Union
 
 import requests
@@ -9,7 +10,8 @@ from web3 import Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
 from web3.types import TxParams
 
-from nucypher.blockchain.eth.constants import CHAINLIST_URL
+from nucypher.blockchain.eth.constants import CHAINLIST_URL_TEMPLATE
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.utilities.logging import Logger
 
 LOGGER = Logger("utility")
@@ -133,17 +135,17 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
     return True  # finally!
 
 
-def get_default_rpc_endpoints() -> Dict[int, List[str]]:
+@cache
+def get_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
     """
-    Fetches the default RPC endpoints for various chains
+    For a given domain, fetches the default RPC endpoints for various chains
     from the nucypher/chainlist repository.
     """
-    LOGGER.debug(
-        f"Fetching default RPC endpoints from remote chainlist {CHAINLIST_URL}"
-    )
+    url = CHAINLIST_URL_TEMPLATE.format(domain=domain.name)
+    LOGGER.debug(f"Fetching default RPC endpoints from remote chainlist {url}")
 
     try:
-        response = requests.get(CHAINLIST_URL)
+        response = requests.get(url)
     except RequestException:
         LOGGER.warn("Failed to fetch default RPC endpoints: network error")
         return {}
@@ -159,23 +161,21 @@ def get_default_rpc_endpoints() -> Dict[int, List[str]]:
         return {}
 
 
-def get_healthy_default_rpc_endpoints(chain_id: int) -> List[str]:
-    """Returns a list of healthy RPC endpoints for a given chain ID."""
+def get_healthy_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
+    """Returns a mapping of chain id to healthy RPC endpoints for a given domain."""
+    endpoints = get_default_rpc_endpoints(domain)
 
-    endpoints = get_default_rpc_endpoints()
-    chain_endpoints = endpoints.get(chain_id)
-
-    if not chain_endpoints:
-        LOGGER.error(f"No default RPC endpoints found for chain ID {chain_id}")
-        return list()
-
-    healthy = [
-        endpoint for endpoint in chain_endpoints if rpc_endpoint_health_check(endpoint)
-    ]
-    LOGGER.info(f"Healthy default RPC endpoints for chain ID {chain_id}: {healthy}")
-    if not healthy:
-        LOGGER.warn(
-            f"No healthy default RPC endpoints available for chain ID {chain_id}"
-        )
+    if not domain.is_testnet:
+        # iterate over all chains and filter out unhealthy endpoints
+        healthy = {
+            chain_id: [
+                endpoint
+                for endpoint in endpoints[chain_id]
+                if rpc_endpoint_health_check(endpoint)
+            ]
+            for chain_id in endpoints
+        }
+    else:
+        healthy = endpoints
 
     return healthy

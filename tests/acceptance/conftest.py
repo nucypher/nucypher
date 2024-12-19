@@ -21,7 +21,6 @@ from tests.constants import (
     MIN_OPERATOR_SECONDS,
     TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID,
 )
 from tests.utils.blockchain import ReservedTestAccountManager, TesterBlockchain
 from tests.utils.registry import ApeRegistrySource
@@ -452,10 +451,6 @@ def multichain_ursulas(ursulas, multichain_ids, mock_rpc_condition):
 @pytest.fixture(scope="module", autouse=True)
 def mock_condition_blockchains(module_mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
-    module_mocker.patch.dict(
-        "nucypher.policy.conditions.evm._CONDITION_CHAINS",
-        {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
-    )
 
     module_mocker.patch(
         "nucypher.blockchain.eth.domains.get_domain", return_value=TEMPORARY_DOMAIN

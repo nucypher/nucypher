@@ -9,7 +9,6 @@ from nucypher.network.nodes import Learner
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import (
     MOCK_IP_ADDRESS,
-    TESTERCHAIN_CHAIN_ID,
 )
 
 # Don't re-lock accounts in the background while making commitments
@@ -135,14 +134,6 @@ def disable_check_grant_requirements(session_mocker):
     target = 'nucypher.characters.lawful.Alice._check_grant_requirements'
     session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)
 
-
-@pytest.fixture(scope="module", autouse=True)
-def mock_condition_blockchains(module_mocker):
-    """adds testerchain's chain ID to permitted conditional chains"""
-    module_mocker.patch.dict(
-        "nucypher.policy.conditions.evm._CONDITION_CHAINS",
-        {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
-    )
 
 
 @pytest.fixture(scope="module", autouse=True)

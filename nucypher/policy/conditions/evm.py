@@ -56,16 +56,6 @@ from nucypher.policy.conditions.validation import (
 # Permitted blockchains for condition evaluation
 from nucypher.utilities import logging
 
-_CONDITION_CHAINS = {
-    1: "ethereum/mainnet",
-    11155111: "ethereum/sepolia",
-    137: "polygon/mainnet",
-    80002: "polygon/amoy",
-    # TODO: Permit support for these chains
-    # 100: "gnosis/mainnet",
-    # 10200: "gnosis/chiado",
-}
-
 
 class RPCCall(ExecutionCall):
     LOG = logging.Logger(__name__)
@@ -87,13 +77,6 @@ class RPCCall(ExecutionCall):
         parameters = fields.List(
             fields.Field, attribute="parameters", required=False, allow_none=True
         )
-
-        @validates("chain")
-        def validate_chain(self, value):
-            if value not in _CONDITION_CHAINS:
-                raise ValidationError(
-                    f"chain ID {value} is not a permitted blockchain for condition evaluation"
-                )
 
         @validates("method")
         def validate_method(self, value):
@@ -154,15 +137,10 @@ class RPCCall(ExecutionCall):
         self, providers: Dict[int, Set[HTTPProvider]]
     ) -> Iterator[HTTPProvider]:
         """Yields the next web3 provider to try for a given chain ID"""
-        try:
-            rpc_providers = providers[self.chain]
-
-        # if there are no entries for the chain ID, there
-        # is no connection to that chain available.
-        except KeyError:
-            raise NoConnectionToChain(chain=self.chain)
+        rpc_providers = providers.get(self.chain, None)
         if not rpc_providers:
-            raise NoConnectionToChain(chain=self.chain)  # TODO: unreachable?
+            raise NoConnectionToChain(chain=self.chain)
+
         for provider in rpc_providers:
             # Someday, we might make this whole function async, and then we can knock on
             # each endpoint here to see if it's alive and only yield it if it is.

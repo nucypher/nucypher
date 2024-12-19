@@ -53,26 +53,18 @@ def test_polygon_chains(poly_chain_test):
             "mainnet",
             EthChain.MAINNET,
             PolygonChain.MAINNET,
-            (EthChain.MAINNET, PolygonChain.MAINNET),
         ),
         (
             domains.LYNX,
             "lynx",
             EthChain.SEPOLIA,
             PolygonChain.AMOY,
-            (
-                EthChain.MAINNET,
-                EthChain.SEPOLIA,
-                PolygonChain.AMOY,
-                PolygonChain.MAINNET,
-            ),
         ),
         (
             domains.TAPIR,
             "tapir",
             EthChain.SEPOLIA,
             PolygonChain.AMOY,
-            (EthChain.SEPOLIA, PolygonChain.AMOY),
         ),
     ),
 )
@@ -82,12 +74,10 @@ def test_taco_domain_info(taco_domain_test):
         expected_name,
         expected_eth_chain,
         expected_polygon_chain,
-        expected_condition_chains,
     ) = taco_domain_test
     assert domain_info.name == expected_name
     assert domain_info.eth_chain == expected_eth_chain
     assert domain_info.polygon_chain == expected_polygon_chain
-    assert domain_info.condition_chains == expected_condition_chains
 
     assert domain_info.is_testnet == (expected_name != "mainnet")
 
