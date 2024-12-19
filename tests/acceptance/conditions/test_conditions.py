@@ -26,6 +26,7 @@ from nucypher.policy.conditions.exceptions import (
     RequiredContextVariable,
     RPCExecutionFailed,
 )
+from nucypher.policy.conditions.json.rpc import JsonRpcCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
     ConditionType,
@@ -893,3 +894,35 @@ def test_contract_condition_using_overloaded_function(
     )
     with pytest.raises(RPCExecutionFailed):
         _ = condition.verify(providers=condition_providers, **context)
+
+
+@pytest.mark.xfail(reason="This test uses a public rpc endpoint")
+def test_json_rpc_condition_non_evm_prototyping_example():
+    condition = JsonRpcCondition(
+        endpoint="https://api.mainnet-beta.solana.com",
+        method="getBlockTime",
+        params=[308103883],
+        return_value_test=ReturnValueTest(">=", 1734461499),
+    )
+    success, _ = condition.verify()
+    assert success
+
+    condition = JsonRpcCondition(
+        endpoint="https://api.mainnet-beta.solana.com",
+        method="getBalance",
+        params=["83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri"],
+        query="$.value",
+        return_value_test=ReturnValueTest(">=", 0),
+    )
+    success, _ = condition.verify()
+    assert success
+
+    condition = JsonRpcCondition(
+        endpoint="https://bitcoin.drpc.org",
+        method="getblock",
+        params=["00000000000000000001ed4d40e6b602d7f09b9d47d5e046d52339cc6673a486"],
+        query="$.time",
+        return_value_test=ReturnValueTest(">=", 1734461294),
+    )
+    success, _ = condition.verify()
+    assert success
