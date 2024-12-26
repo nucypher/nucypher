@@ -93,3 +93,16 @@ def test_jwt_condition_verify():
     success, result = condition.verify(**context)
     assert success
     assert result is not None
+
+
+def test_jwt_condition_verify_of_jwt_with_custom_claims():
+    token = jwt_token(claims={"foo": "bar"})
+    condition = JWTCondition(
+        jwt_token=":anotherContextVariableForJWTs",
+        public_key=TEST_ECDSA_PUBLIC_KEY,
+    )
+
+    context = {":anotherContextVariableForJWTs": token}
+    success, result = condition.verify(**context)
+    assert success
+    assert result is not None
