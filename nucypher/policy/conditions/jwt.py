@@ -25,10 +25,12 @@ class JWTVerificationCall(ExecutionCall):
 
     class Schema(ExecutionCall.Schema):
         jwt_token = fields.Str(required=True)  # TODO: validate jwt encoded format
+        # TODO: See #3572 for a discussion about deprecating this in favour of the expected issuer
         public_key = fields.Str(
             required=True
         )  # required? maybe a valid PK certificate passed by requester?
         expected_issuer = fields.Str(required=False, allow_none=True)
+        # TODO: StringOrURI as per the spec.
         # subject = fields.Str(required=False)
         # expiration_window = fields.Int(
         #     strict=True, required=False, validate=validate.Range(min=0), allow_none=True
