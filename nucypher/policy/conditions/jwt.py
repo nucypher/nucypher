@@ -77,9 +77,18 @@ class JWTVerificationCall(ExecutionCall):
 
         # header = jwt.get_unverified_header(self.jwt_token)
         # algorithm = header['alg']
+
+        require = []
+        if self.expected_issuer:
+            require.append("iss")
+
         try:
             payload = jwt.decode(
-                jwt_token, self.public_key, algorithms=self._valid_jwt_algorithms
+                jwt=jwt_token,
+                key=self.public_key,
+                algorithms=self._valid_jwt_algorithms,
+                options=dict(require=require),
+                issuer=self.expected_issuer,
             )
         except jwt.exceptions.InvalidAlgorithmError:
             raise  # TODO: raise something specific
