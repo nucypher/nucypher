@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from marshmallow import ValidationError, fields, post_load, validate, validates
 from marshmallow.fields import Url
@@ -6,11 +6,11 @@ from typing_extensions import override
 
 from nucypher.policy.conditions.context import is_context_variable
 from nucypher.policy.conditions.json.base import (
+    BaseJsonRequestCondition,
     HTTPMethod,
     JSONPathField,
     JsonRequestCall,
 )
-from nucypher.policy.conditions.json.utils import process_result_for_condition_eval
 from nucypher.policy.conditions.lingo import (
     ConditionType,
     ExecutionCallAccessControlCondition,
@@ -61,9 +61,9 @@ class JsonApiCall(JsonRequestCall):
         return super()._execute(endpoint=self.endpoint, **context)
 
 
-class JsonApiCondition(ExecutionCallAccessControlCondition):
+class JsonApiCondition(BaseJsonRequestCondition):
     """
-    A JSON API condition is a condition that can be evaluated by reading from a JSON
+    A JSON API condition is a condition that can be evaluated by performing a GET on a JSON
     HTTPS endpoint. The response must return an HTTP 200 with valid JSON in the response body.
     The response will be deserialized as JSON and parsed using jsonpath.
     """
@@ -119,18 +119,3 @@ class JsonApiCondition(ExecutionCallAccessControlCondition):
     @property
     def authorization_token(self):
         return self.execution_call.authorization_token
-
-    def verify(self, **context) -> Tuple[bool, Any]:
-        """
-        Verifies the offchain condition is met by performing a read operation on the endpoint
-        and evaluating the return value test with the result. Parses the endpoint's JSON response using
-        JSONPath.
-        """
-        result = self.execution_call.execute(**context)
-        result_for_eval = process_result_for_condition_eval(result)
-
-        resolved_return_value_test = self.return_value_test.with_resolved_context(
-            **context
-        )
-        eval_result = resolved_return_value_test.eval(result_for_eval)  # test
-        return eval_result, result

@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from marshmallow import ValidationError, fields, post_load, validate, validates
 from marshmallow.fields import Url
@@ -10,11 +10,11 @@ from nucypher.policy.conditions.exceptions import (
     JsonRequestException,
 )
 from nucypher.policy.conditions.json.base import (
+    BaseJsonRequestCondition,
     HTTPMethod,
     JSONPathField,
     JsonRequestCall,
 )
-from nucypher.policy.conditions.json.utils import process_result_for_condition_eval
 from nucypher.policy.conditions.lingo import (
     ConditionType,
     ExecutionCallAccessControlCondition,
@@ -109,7 +109,13 @@ class JsonEndpointRPCCall(BaseJsonRPCCall):
         return super()._execute(endpoint=self.endpoint, **context)
 
 
-class JsonRpcCondition(ExecutionCallAccessControlCondition):
+class JsonRpcCondition(BaseJsonRequestCondition):
+    """
+    A JSON RPC condition is a condition that can be evaluated by performing a POST on a JSON
+    HTTPS endpoint. The response must return an HTTP 200 with valid JSON RPC 2.0 response.
+    The response will be deserialized as JSON and parsed using jsonpath.
+    """
+
     EXECUTION_CALL_TYPE = JsonEndpointRPCCall
     CONDITION_TYPE = ConditionType.JSONRPC.value
 
@@ -169,13 +175,3 @@ class JsonRpcCondition(ExecutionCallAccessControlCondition):
     @property
     def timeout(self):
         return self.execution_call.timeout
-
-    def verify(self, **context) -> Tuple[bool, Any]:
-        result = self.execution_call.execute(**context)
-        result_for_eval = process_result_for_condition_eval(result)
-
-        resolved_return_value_test = self.return_value_test.with_resolved_context(
-            **context
-        )
-        eval_result = resolved_return_value_test.eval(result_for_eval)  # test
-        return eval_result, result

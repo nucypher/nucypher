@@ -1,7 +1,7 @@
 from abc import ABC
 from enum import Enum
 from http import HTTPStatus
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 import requests
 from jsonpath_ng.exceptions import JsonPathLexerError, JsonPathParserError
@@ -17,6 +17,8 @@ from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     JsonRequestException,
 )
+from nucypher.policy.conditions.json.utils import process_result_for_condition_eval
+from nucypher.policy.conditions.lingo import ExecutionCallAccessControlCondition
 from nucypher.utilities.logging import Logger
 
 
@@ -140,3 +142,18 @@ class JSONPathField(Field):
         except (JsonPathLexerError, JsonPathParserError):
             raise self.make_error("invalid", value=value)
         return value
+
+
+class BaseJsonRequestCondition(ExecutionCallAccessControlCondition, ABC):
+    def verify(self, **context) -> Tuple[bool, Any]:
+        """
+        Verifies the JSON condition.
+        """
+        result = self.execution_call.execute(**context)
+        result_for_eval = process_result_for_condition_eval(result)
+
+        resolved_return_value_test = self.return_value_test.with_resolved_context(
+            **context
+        )
+        eval_result = resolved_return_value_test.eval(result_for_eval)  # test
+        return eval_result, result
