@@ -64,14 +64,18 @@ class BaseJsonRPCCall(JsonRequestCall, ABC):
         data = self._fetch(endpoint, **context)
 
         # response contains a value for either "result" or "error"
-        error = data.get("error", None)
+        error = data.get("error")
         if error:
             raise JsonRequestException(
                 f"JSON RPC Request failed with error in response: code={error['code']}, msg={error['message']}"
             )
 
         # obtain result first then perform query
-        result = data["result"]
+        result = data.get("result")
+        if not result:
+            raise JsonRequestException(
+                f"Malformed JSON RPC response, no 'result' field - data={data}"
+            )
         query_result = self._query_response(result, **context)
         return query_result
 
