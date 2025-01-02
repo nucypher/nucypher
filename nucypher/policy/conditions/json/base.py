@@ -62,7 +62,7 @@ class JsonRequestCall(ExecutionCall, ABC):
             resolved_authorization_token = resolve_any_context_variables(
                 self.authorization_token, **context
             )
-            headers = {"Authorization": f"Bearer {resolved_authorization_token}"}
+            headers["Authorization"] = f"Bearer {resolved_authorization_token}"
 
         try:
             if self.http_method == HTTPMethod.GET:
@@ -139,8 +139,8 @@ class JSONPathField(Field):
         try:
             if not string_contains_context_variable(value):
                 parse(value)
-        except (JsonPathLexerError, JsonPathParserError):
-            raise self.make_error("invalid", value=value)
+        except (JsonPathLexerError, JsonPathParserError) as e:
+            raise self.make_error("invalid", value=value) from e
         return value
 
 

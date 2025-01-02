@@ -1,5 +1,6 @@
 from abc import ABC
 from typing import Any, Optional
+from uuid import uuid4
 
 from marshmallow import ValidationError, fields, post_load, validate, validates
 from marshmallow.fields import Url
@@ -50,7 +51,7 @@ class BaseJsonRPCCall(JsonRequestCall, ABC):
             "jsonrpc": "2.0",
             "method": self.method,
             "params": self.params,
-            "id": 1,  # any id will do
+            "id": str(uuid4()),  # any random id will do
         }
         super().__init__(
             http_method=HTTPMethod.POST,
@@ -67,7 +68,7 @@ class BaseJsonRPCCall(JsonRequestCall, ABC):
         error = data.get("error")
         if error:
             raise JsonRequestException(
-                f"JSON RPC Request failed with error in response: code={error['code']}, msg={error['message']}"
+                f"JSON RPC Request failed with error in response: code={error.get('code')}, msg={error.get('message')}"
             )
 
         # obtain result first then perform query

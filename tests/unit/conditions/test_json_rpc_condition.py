@@ -1,4 +1,5 @@
 import json
+import uuid
 
 import pytest
 import requests
@@ -13,6 +14,14 @@ from nucypher.policy.conditions.lingo import (
     ConditionType,
     ReturnValueTest,
 )
+
+UUID4_STR = "b192fdd2-1529-4fe9-a671-e5386453aa9c"
+
+
+@pytest.fixture(scope="function", autouse=True)
+def mock_uuid4(mocker):
+    u = uuid.UUID(UUID4_STR, version=4)
+    mocker.patch("nucypher.policy.conditions.json.rpc.uuid4", return_value=u)
 
 
 def test_json_rpc_condition_initialization():
@@ -84,7 +93,7 @@ def test_json_rpc_condition_verify(mocker):
     assert mocked_method.call_count == 1
     assert mocked_method.call_args.kwargs["json"] == {
         "jsonrpc": "2.0",
-        "id": 1,
+        "id": UUID4_STR,
         "method": condition.method,
         "params": condition.params,
     }
@@ -111,7 +120,7 @@ def test_json_rpc_condition_verify_params_as_dict(mocker):
     assert mocked_method.call_count == 1
     assert mocked_method.call_args.kwargs["json"] == {
         "jsonrpc": "2.0",
-        "id": 1,
+        "id": UUID4_STR,
         "method": condition.method,
         "params": condition.params,
     }
@@ -196,7 +205,7 @@ def test_json_rpc_condition_evaluation_with_auth_token(mocker):
     assert mocked_method.call_count == 1
     assert mocked_method.call_args.kwargs["json"] == {
         "jsonrpc": "2.0",
-        "id": 1,
+        "id": UUID4_STR,
         "method": condition.method,
         "params": condition.params,
     }
@@ -242,7 +251,7 @@ def test_json_rpc_condition_evaluation_with_various_context_variables(mocker):
     assert call_args.kwargs["headers"]["Authorization"] == f"Bearer {auth_token}"
     assert call_args.kwargs["json"] == {
         "jsonrpc": "2.0",
-        "id": 1,
+        "id": UUID4_STR,
         "method": context[":methodContextVar"],
         "params": [42, 23],
     }
