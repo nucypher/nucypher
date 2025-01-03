@@ -24,21 +24,13 @@ class JWTVerificationCall(ExecutionCall):
     )  # https://datatracker.ietf.org/doc/html/rfc7518#section-3.1
 
     class Schema(ExecutionCall.Schema):
-        jwt_token = fields.Str(required=True)  # TODO: validate jwt encoded format
+        jwt_token = fields.Str(required=True)
         # TODO: See #3572 for a discussion about deprecating this in favour of the expected issuer
         public_key = fields.Str(
             required=True
         )  # required? maybe a valid PK certificate passed by requester?
         expected_issuer = fields.Str(required=False, allow_none=True)
         # TODO: StringOrURI as per the spec.
-        # subject = fields.Str(required=False)
-        # expiration_window = fields.Int(
-        #     strict=True, required=False, validate=validate.Range(min=0), allow_none=True
-        # )
-        # issued_window = fields.Int(
-        #     strict=True, required=False, validate=validate.Range(min=0), allow_none=True
-        # )
-        # # todo: kid (https://www.rfc-editor.org/rfc/rfc7515#section-4.1.4), x5u, etc
 
         @post_load
         def make(self, data, **kwargs):
@@ -56,27 +48,17 @@ class JWTVerificationCall(ExecutionCall):
         jwt_token: Optional[str] = None,
         public_key: Optional[str] = None,
         expected_issuer: Optional[str] = None,
-        # subject: Optional[str] = None,
-        # expiration_window: Optional[int] = None,
-        # issued_window: Optional[int] = None,
     ):
         self.jwt_token = jwt_token
         self.public_key = public_key
         self.expected_issuer = expected_issuer
-        # self.subject = subject
-        # self.expiration = expiration_window
-        # self.issued_window = issued_window
 
         self.logger = Logger(__name__)
 
         super().__init__()
 
     def execute(self, **context) -> Any:
-
         jwt_token = resolve_any_context_variables(self.jwt_token, **context)
-
-        # header = jwt.get_unverified_header(self.jwt_token)
-        # algorithm = header['alg']
 
         require = []
         if self.expected_issuer:
@@ -114,17 +96,6 @@ class JWTCondition(ExecutionCallAccessControlCondition):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JWT.value), required=True
         )
-        # jwt_token = fields.Str(required=True)  # TODO: validate jwt encoded format
-        # public_key = fields.Str(required=True)  # required? maybe a valid PK certificate passed by requester?
-        # expected_issuer = fields.Str(required=False)
-        # subject = fields.Str(required=False)
-        # expiration_window = fields.Int(
-        #     strict=True, required=False, validate=validate.Range(min=0), allow_none=True
-        # )
-        # issued_window = fields.Int(
-        #     strict=True, required=False, validate=validate.Range(min=0), allow_none=True
-        # )
-        # todo: kid (https://www.rfc-editor.org/rfc/rfc7515#section-4.1.4), x5u, etc
 
         @post_load
         def make(self, data, **kwargs):
@@ -137,17 +108,11 @@ class JWTCondition(ExecutionCallAccessControlCondition):
         jwt_token: Optional[str] = None,
         public_key: Optional[str] = None,
         expected_issuer: Optional[str] = None,
-        # subject: Optional[str] = None,
-        # expiration_window: Optional[int] = None,
-        # issued_window: Optional[int] = None,
     ):
         super().__init__(
             jwt_token=jwt_token,
             public_key=public_key,
             expected_issuer=expected_issuer,
-            # subject=subject,
-            # expiration=expiration_window,
-            # issued_window=issued_window,
             condition_type=condition_type,
             name=name,
             return_value_test=ReturnValueTest(
@@ -167,7 +132,6 @@ class JWTCondition(ExecutionCallAccessControlCondition):
     def expected_issuer(self):
         return self.execution_call.expected_issuer
 
-    #
     def verify(self, **context) -> Tuple[bool, Any]:
         try:
             payload = self.execution_call.execute(**context)
