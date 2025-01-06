@@ -702,6 +702,7 @@ class ConditionLingo(_Serializable):
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
         from nucypher.policy.conditions.json.api import JsonApiCondition
         from nucypher.policy.conditions.json.rpc import JsonRpcCondition
+        from nucypher.policy.conditions.jwt import JWTCondition
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
@@ -714,6 +715,7 @@ class ConditionLingo(_Serializable):
             CompoundAccessControlCondition,
             JsonApiCondition,
             JsonRpcCondition,
+            JWTCondition,
             SequentialAccessControlCondition,
             IfThenElseCondition,
         ):
