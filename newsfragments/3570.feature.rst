@@ -1,1 +1,1 @@
-Support for conditions based on JWT tokens.
+Support for conditions based on verification of JWT tokens.
