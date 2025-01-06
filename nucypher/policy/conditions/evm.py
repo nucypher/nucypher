@@ -74,9 +74,7 @@ class RPCCall(ExecutionCall):
                 "null": "Undefined method name",
             },
         )
-        parameters = fields.List(
-            fields.Field, attribute="parameters", required=False, allow_none=True
-        )
+        parameters = fields.List(fields.Field, required=False, allow_none=True)
 
         @validates("method")
         def validate_method(self, value):

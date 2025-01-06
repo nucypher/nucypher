@@ -2,34 +2,13 @@ import json
 
 import pytest
 import requests
-from marshmallow import ValidationError
 
 from nucypher.policy.conditions.exceptions import (
-    ConditionEvaluationFailed,
     InvalidCondition,
+    JsonRequestException,
 )
+from nucypher.policy.conditions.json.api import JsonApiCondition
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
-from nucypher.policy.conditions.offchain import (
-    JsonApiCondition,
-    JSONPathField,
-)
-
-
-def test_jsonpath_field_valid():
-    field = JSONPathField()
-    valid_jsonpath = "$.store.book[0].price"
-    result = field.deserialize(valid_jsonpath)
-    assert result == valid_jsonpath
-
-
-def test_jsonpath_field_invalid():
-    field = JSONPathField()
-    invalid_jsonpath = "invalid jsonpath"
-    with pytest.raises(
-        ValidationError,
-        match=f"'{invalid_jsonpath}' is not a valid JSONPath expression",
-    ):
-        field.deserialize(invalid_jsonpath)
 
 
 def test_json_api_condition_initialization():
@@ -41,6 +20,7 @@ def test_json_api_condition_initialization():
     assert condition.endpoint == "https://api.example.com/data"
     assert condition.query == "$.store.book[0].price"
     assert condition.return_value_test.eval(0)
+    assert condition.timeout == JsonApiCondition.EXECUTION_CALL_TYPE.TIMEOUT
 
 
 def test_json_api_condition_invalid_type():
@@ -55,7 +35,7 @@ def test_json_api_condition_invalid_type():
         )
 
 
-def test_https_enforcement():
+def test_json_api_https_enforcement():
     with pytest.raises(InvalidCondition, match="Not a valid URL"):
         _ = JsonApiCondition(
             endpoint="http://api.example.com/data",
@@ -64,7 +44,7 @@ def test_https_enforcement():
         )
 
 
-def test_invalid_authorization_token():
+def test_json_api_invalid_authorization_token():
     with pytest.raises(InvalidCondition, match="Invalid value for authorization token"):
         _ = JsonApiCondition(
             endpoint="https://api.example.com/data",
@@ -97,9 +77,8 @@ def test_json_api_condition_fetch(mocker):
         query="$.store.book[0].title",
         return_value_test=ReturnValueTest("==", "'Test Title'"),
     )
-    response = condition.execution_call._fetch()
-    assert response.status_code == 200
-    assert response.json() == {"store": {"book": [{"title": "Test Title"}]}}
+    data = condition.execution_call._fetch(condition.endpoint)
+    assert data == {"store": {"book": [{"title": "Test Title"}]}}
 
 
 def test_json_api_condition_fetch_failure(mocker):
@@ -112,8 +91,8 @@ def test_json_api_condition_fetch_failure(mocker):
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 1),
     )
-    with pytest.raises(InvalidCondition, match="Failed to fetch endpoint"):
-        condition.execution_call._fetch()
+    with pytest.raises(JsonRequestException, match="Failed to fetch from endpoint"):
+        condition.execution_call._fetch(condition.endpoint)
 
 
 def test_json_api_condition_verify(mocker):
@@ -179,13 +158,27 @@ def test_json_api_condition_verify_invalid_json(mocker):
         query="$.store.book[0].price",
         return_value_test=ReturnValueTest("==", 2),
     )
-    with pytest.raises(
-        ConditionEvaluationFailed, match="Failed to parse JSON response"
-    ):
+    with pytest.raises(JsonRequestException, match="Failed to extract JSON response"):
         condition.verify()
 
 
-def test_non_json_response(mocker):
+def test_json_api_non_200_status(mocker):
+    # Mock the requests.get method to return a response with non-JSON content
+    mock_response = mocker.Mock()
+    mock_response.status_code = 400
+    mocker.patch("requests.get", return_value=mock_response)
+
+    condition = JsonApiCondition(
+        endpoint="https://api.example.com/data",
+        query="$.store.book[0].price",
+        return_value_test=ReturnValueTest("==", 18),
+    )
+
+    with pytest.raises(JsonRequestException, match="Failed to fetch from endpoint"):
+        condition.verify()
+
+
+def test_json_api_non_json_response(mocker):
     # Mock the requests.get method to return a response with non-JSON content
     mock_response = mocker.Mock()
     mock_response.status_code = 200
@@ -200,9 +193,7 @@ def test_non_json_response(mocker):
         return_value_test=ReturnValueTest("==", 18),
     )
 
-    with pytest.raises(
-        ConditionEvaluationFailed, match="Failed to parse JSON response"
-    ):
+    with pytest.raises(JsonRequestException, match="Failed to extract JSON response"):
         condition.verify()
 
 
@@ -382,5 +373,5 @@ def test_ambiguous_json_path_multiple_results(mocker):
         return_value_test=ReturnValueTest("==", 1),
     )
 
-    with pytest.raises(ConditionEvaluationFailed, match="Ambiguous JSONPath query"):
+    with pytest.raises(JsonRequestException, match="Ambiguous JSONPath query"):
         condition.verify()

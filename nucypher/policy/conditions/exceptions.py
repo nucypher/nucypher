@@ -45,3 +45,7 @@ class ConditionEvaluationFailed(Exception):
 
 class RPCExecutionFailed(ConditionEvaluationFailed):
     """Raised when an exception is raised from an RPC call."""
+
+
+class JsonRequestException(ConditionEvaluationFailed):
+    """Raised when an exception is raised from a JSON request."""
