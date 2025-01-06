@@ -38,7 +38,7 @@ class JWTVerificationCall(ExecutionCall):
 
         @validates("jwt_token")
         def validate_jwt_token(self, value):
-            if value and not is_context_variable(value):
+            if not is_context_variable(value):
                 raise ValidationError(
                     f"Invalid value for JWT token; expected a context variable, but got '{value}'"
                 )
