@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from marshmallow import validates
 
 from nucypher.policy.conditions.base import ExecutionCall
-from nucypher.policy.conditions.exceptions import InvalidCondition
+from nucypher.policy.conditions.exceptions import InvalidCondition, JWTException
 from nucypher.policy.conditions.jwt import JWTCondition, JWTVerificationCall
 
 TEST_ECDSA_PRIVATE_KEY_RAW_B64 = (
@@ -194,7 +194,7 @@ def test_jwt_condition_verify_with_correct_issuer():
     assert result == {"iss": "Isabel"}
 
 
-def test_jwt_condition_verify_with_incorrect_issuer():
+def test_jwt_condition_verify_with_invalid_issuer():
     token = jwt_token(with_iat=False, claims={"iss": "Isabel"})
     condition = JWTCondition(
         jwt_token=":anotherContextVariableForJWTs",
@@ -203,9 +203,8 @@ def test_jwt_condition_verify_with_incorrect_issuer():
     )
 
     context = {":anotherContextVariableForJWTs": token}
-    success, result = condition.verify(**context)
-    assert not success
-    assert result is None
+    with pytest.raises(JWTException, match="Invalid issuer"):
+        _ = condition.verify(**context)
 
 
 def test_jwt_condition_verify_expired_token():
@@ -218,9 +217,8 @@ def test_jwt_condition_verify_expired_token():
     )
 
     context = {":contextVar": expired_token}
-    success, result = condition.verify(**context)
-    assert not success
-    assert result is None
+    with pytest.raises(JWTException, match="Signature has expired"):
+        _ = condition.verify(**context)
 
 
 def test_jwt_condition_verify_valid_token_with_expiration():

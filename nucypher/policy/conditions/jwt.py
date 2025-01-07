@@ -11,6 +11,7 @@ from nucypher.policy.conditions.context import (
     is_context_variable,
     resolve_any_context_variables,
 )
+from nucypher.policy.conditions.exceptions import JWTException
 from nucypher.policy.conditions.lingo import (
     ConditionType,
     ExecutionCallAccessControlCondition,
@@ -97,9 +98,9 @@ class JWTVerificationCall(ExecutionCall):
                 issuer=self.expected_issuer,
             )
         except jwt.exceptions.InvalidAlgorithmError:
-            raise  # TODO: raise something specific
-        except jwt.exceptions.DecodeError:
-            raise
+            raise JWTException(f"valid algorithms: {self._valid_jwt_algorithms}")
+        except jwt.exceptions.InvalidTokenError as e:
+            raise JWTException(e)
 
         return payload
 
@@ -157,11 +158,6 @@ class JWTCondition(ExecutionCallAccessControlCondition):
         return self.execution_call.expected_issuer
 
     def verify(self, **context) -> Tuple[bool, Any]:
-        try:
-            payload = self.execution_call.execute(**context)
-            result = True  # TODO: Additional condition checks
-        except Exception:  # TODO: specific exceptions
-            payload = None
-            result = False
-
+        payload = self.execution_call.execute(**context)
+        result = True
         return result, payload

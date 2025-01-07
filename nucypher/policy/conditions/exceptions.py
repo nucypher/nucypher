@@ -62,3 +62,7 @@ class RPCExecutionFailed(ConditionEvaluationFailed):
 
 class JsonRequestException(ConditionEvaluationFailed):
     """Raised when an exception is raised from a JSON request."""
+
+
+class JWTException(ConditionEvaluationFailed):
+    """Raised when an exception is raised when validating a JWT token"""
