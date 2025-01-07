@@ -107,14 +107,16 @@ def test_jwt_condition_missing_jwt_token():
     with pytest.raises(
         InvalidCondition, match="'jwt_token' field - Field may not be null."
     ):
-        _ = JWTCondition()
+        _ = JWTCondition(jwt_token=None, public_key=None)
 
 
 def test_jwt_condition_missing_public_key():
     with pytest.raises(
         InvalidCondition, match="'public_key' field - Field may not be null."
     ):
-        _ = JWTCondition(jwt_token=":ok_ok_this_is_a_variable_for_a_jwt")
+        _ = JWTCondition(
+            jwt_token=":ok_ok_this_is_a_variable_for_a_jwt", public_key=None
+        )
 
 
 def test_jwt_condition_invalid_public_key():

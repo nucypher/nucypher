@@ -69,8 +69,8 @@ class JWTVerificationCall(ExecutionCall):
 
     def __init__(
         self,
-        jwt_token: Optional[str] = None,
-        public_key: Optional[str] = None,
+        jwt_token: str,
+        public_key: str,
         expected_issuer: Optional[str] = None,
     ):
         self.jwt_token = jwt_token
@@ -127,10 +127,10 @@ class JWTCondition(ExecutionCallAccessControlCondition):
 
     def __init__(
         self,
+        jwt_token: str,
+        public_key: str,
         condition_type: str = ConditionType.JWT.value,
         name: Optional[str] = None,
-        jwt_token: Optional[str] = None,
-        public_key: Optional[str] = None,
         expected_issuer: Optional[str] = None,
     ):
         super().__init__(
