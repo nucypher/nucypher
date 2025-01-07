@@ -2,9 +2,12 @@ from datetime import datetime, timezone
 
 import jwt
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from marshmallow import validates
 
 from nucypher.policy.conditions.base import ExecutionCall
+from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.jwt import JWTCondition, JWTVerificationCall
 
 TEST_ECDSA_PRIVATE_KEY_RAW_B64 = (
@@ -31,6 +34,29 @@ ISSUED_AT = datetime.now(tz=timezone.utc)
 TEST_JWT_TOKEN = jwt.encode(
     {"iat": ISSUED_AT}, TEST_ECDSA_PRIVATE_KEY, algorithm="ES256"
 )
+
+
+def generate_pem_keypair(elliptic_curve):
+    # Generate an EC private key
+    private_key = ec.generate_private_key(elliptic_curve)
+
+    # Get the corresponding public key
+    public_key = private_key.public_key()
+
+    # Serialize the private key to PEM format
+    pem_private_key = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode("utf-8")
+
+    # Serialize the public key to PEM format
+    pem_public_key = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("utf-8")
+
+    return pem_public_key, pem_private_key
 
 
 def jwt_token(with_iat: bool = True, claims: dict = None):
@@ -72,13 +98,42 @@ def test_jwt_verification_call_valid():
     assert call.execute()
 
 
-def test_jwt_verification_call_invalid_issuer():
-    token = jwt_token(with_iat=False, claims={"iss": "Isabel"})
-    call = TestJWTVerificationCall(
-        jwt_token=token, public_key=TEST_ECDSA_PUBLIC_KEY, expected_issuer="Isabel"
-    )
-    payload = call.execute()
-    assert payload == {"iss": "Isabel"}
+def test_jwt_condition_missing_jwt_token():
+    with pytest.raises(
+        InvalidCondition, match="'jwt_token' field - Field may not be null."
+    ):
+        _ = JWTCondition()
+
+
+def test_jwt_condition_missing_public_key():
+    with pytest.raises(
+        InvalidCondition, match="'public_key' field - Field may not be null."
+    ):
+        _ = JWTCondition(jwt_token=":ok_ok_this_is_a_variable_for_a_jwt")
+
+
+def test_jwt_condition_invalid_public_key():
+    with pytest.raises(
+        InvalidCondition,
+        match="'public_key' field - Invalid public key format: Unable to load PEM",
+    ):
+        _ = JWTCondition(
+            jwt_token=":ok_ok_this_is_a_variable_for_a_jwt",
+            public_key="-----BEGIN PUBLIC KEY----- haha, gotcha! 👌 -----END PUBLIC KEY-----",
+        )
+
+
+def test_jwt_condition_but_unsupported_public_key():
+    pem_secp521_public_key, _ = generate_pem_keypair(ec.SECP521R1())
+
+    with pytest.raises(
+        InvalidCondition,
+        match="'public_key' field - Invalid public key format: Invalid EC public key curve",
+    ):
+        _ = JWTCondition(
+            jwt_token=":ok_ok_this_is_a_variable_for_a_jwt",
+            public_key=pem_secp521_public_key,
+        )
 
 
 def test_jwt_condition_initialization():

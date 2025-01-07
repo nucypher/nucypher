@@ -1,6 +1,9 @@
 from typing import Any, Optional, Tuple
 
 import jwt
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from marshmallow import ValidationError, fields, post_load, validate, validates
 
 from nucypher.policy.conditions.base import ExecutionCall
@@ -23,6 +26,8 @@ class JWTVerificationCall(ExecutionCall):
         "RS256",
     )  # https://datatracker.ietf.org/doc/html/rfc7518#section-3.1
 
+    SECP_CURVE_FOR_ES256 = "secp256r1"
+
     class Schema(ExecutionCall.Schema):
         jwt_token = fields.Str(required=True)
         # TODO: See #3572 for a discussion about deprecating this in favour of the expected issuer
@@ -42,6 +47,25 @@ class JWTVerificationCall(ExecutionCall):
                 raise ValidationError(
                     f"Invalid value for JWT token; expected a context variable, but got '{value}'"
                 )
+
+        @validates("public_key")
+        def validate_public_key(self, value):
+            try:
+                public_key = load_pem_public_key(
+                    value.encode(), backend=default_backend()
+                )
+                if isinstance(public_key, rsa.RSAPublicKey):
+                    return value
+                elif isinstance(public_key, ec.EllipticCurvePublicKey):
+                    curve = public_key.curve
+                    if curve.name != JWTVerificationCall.SECP_CURVE_FOR_ES256:
+                        raise ValidationError(
+                            f"Invalid EC public key curve: {curve.name}"
+                        )
+            except Exception as e:
+                raise ValidationError(f"Invalid public key format: {str(e)}")
+
+            return value
 
     def __init__(
         self,
