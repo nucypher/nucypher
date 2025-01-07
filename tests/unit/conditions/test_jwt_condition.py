@@ -1,3 +1,4 @@
+import calendar
 from datetime import datetime, timezone
 
 import jwt
@@ -29,7 +30,7 @@ TEST_ECDSA_PUBLIC_KEY = (
     "KEY-----"
 )
 
-ISSUED_AT = datetime.now(tz=timezone.utc)
+ISSUED_AT = calendar.timegm(datetime.now(tz=timezone.utc).utctimetuple())
 
 TEST_JWT_TOKEN = jwt.encode(
     {"iat": ISSUED_AT}, TEST_ECDSA_PRIVATE_KEY, algorithm="ES256"
@@ -59,10 +60,14 @@ def generate_pem_keypair(elliptic_curve):
     return pem_public_key, pem_private_key
 
 
-def jwt_token(with_iat: bool = True, claims: dict = None):
+def jwt_token(
+    with_iat: bool = True, claims: dict = None, expiration_offset: int = None
+):
     claims = claims or dict()
     if with_iat:
         claims["iat"] = ISSUED_AT
+    if expiration_offset is not None:
+        claims["exp"] = ISSUED_AT + expiration_offset
 
     return jwt.encode(claims, TEST_ECDSA_PRIVATE_KEY, algorithm="ES256")
 
@@ -199,3 +204,33 @@ def test_jwt_condition_verify_with_incorrect_issuer():
     success, result = condition.verify(**context)
     assert not success
     assert result is None
+
+
+def test_jwt_condition_verify_expired_token():
+    # Create a token that expired 100 seconds
+    expired_token = jwt_token(with_iat=True, expiration_offset=-100)
+
+    condition = JWTCondition(
+        jwt_token=":contextVar",
+        public_key=TEST_ECDSA_PUBLIC_KEY,
+    )
+
+    context = {":contextVar": expired_token}
+    success, result = condition.verify(**context)
+    assert not success
+    assert result is None
+
+
+def test_jwt_condition_verify_valid_token_with_expiration():
+    # Create a token that will expire in 999 seconds
+    expired_token = jwt_token(with_iat=False, expiration_offset=999)
+
+    condition = JWTCondition(
+        jwt_token=":contextVar",
+        public_key=TEST_ECDSA_PUBLIC_KEY,
+    )
+
+    context = {":contextVar": expired_token}
+    success, result = condition.verify(**context)
+    assert success
+    assert result == {"exp": ISSUED_AT + 999}
