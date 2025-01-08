@@ -6,17 +6,13 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from marshmallow import ValidationError, fields, post_load, validate, validates
 
-from nucypher.policy.conditions.base import ExecutionCall
+from nucypher.policy.conditions.base import AccessControlCondition, ExecutionCall
 from nucypher.policy.conditions.context import (
     is_context_variable,
     resolve_any_context_variables,
 )
-from nucypher.policy.conditions.exceptions import JWTException
-from nucypher.policy.conditions.lingo import (
-    ConditionType,
-    ExecutionCallAccessControlCondition,
-    ReturnValueTest,
-)
+from nucypher.policy.conditions.exceptions import InvalidCondition, JWTException
+from nucypher.policy.conditions.lingo import ConditionType
 from nucypher.utilities.logging import Logger
 
 
@@ -105,19 +101,16 @@ class JWTVerificationCall(ExecutionCall):
         return payload
 
 
-class JWTCondition(ExecutionCallAccessControlCondition):
+class JWTCondition(AccessControlCondition):
     """
     A JWT condition can be satisfied by presenting a valid JWT token, which not only is
     required to be cryptographically verifiable, but also must fulfill certain additional
     restrictions defined in the condition.
     """
 
-    EXECUTION_CALL_TYPE = JWTVerificationCall
     CONDITION_TYPE = ConditionType.JWT.value
 
-    class Schema(
-        ExecutionCallAccessControlCondition.Schema, JWTVerificationCall.Schema
-    ):
+    class Schema(AccessControlCondition.Schema, JWTVerificationCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JWT.value), required=True
         )
@@ -134,16 +127,16 @@ class JWTCondition(ExecutionCallAccessControlCondition):
         name: Optional[str] = None,
         expected_issuer: Optional[str] = None,
     ):
-        super().__init__(
-            jwt_token=jwt_token,
-            public_key=public_key,
-            expected_issuer=expected_issuer,
-            condition_type=condition_type,
-            name=name,
-            return_value_test=ReturnValueTest(
-                comparator="==", value=True
-            ),  # TODO: Workaround for now
-        )
+        try:
+            self.execution_call = JWTVerificationCall(
+                jwt_token=jwt_token,
+                public_key=public_key,
+                expected_issuer=expected_issuer,
+            )
+        except ExecutionCall.InvalidExecutionCall as e:
+            raise InvalidCondition(str(e)) from e
+
+        super().__init__(condition_type=condition_type, name=name)
 
     @property
     def jwt_token(self):
