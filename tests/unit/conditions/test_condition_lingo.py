@@ -83,7 +83,7 @@ def lingo_with_all_condition_types(get_random_checksum_address):
     }
     json_rpc_condition = {
         # JSON RPC
-        "conditionType": "json-rpc",
+        "conditionType": ConditionType.JSONRPC.value,
         "endpoint": "https://math.example.com/",
         "method": "subtract",
         "params": [42, 23],
@@ -92,6 +92,12 @@ def lingo_with_all_condition_types(get_random_checksum_address):
             "comparator": "==",
             "value": 19,
         },
+    }
+    jwt_condition = {
+        # JWT
+        "conditionType": ConditionType.JWT.value,
+        "jwtToken": ":token",
+        "publicKey": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXHVxB7s5SR7I9cWwry/JkECIReka\nCwG3uOLCYbw5gVzn4dRmwMyYUJFcQWuFSfECRK+uQOOXD0YSEucBq0p5tA==\n-----END PUBLIC KEY-----",
     }
     sequential_condition = {
         "conditionType": ConditionType.SEQUENTIAL.value,
@@ -111,6 +117,10 @@ def lingo_with_all_condition_types(get_random_checksum_address):
             {
                 "varName": "jsonValue",
                 "condition": json_api_condition,
+            },
+            {
+                "varName": "jwtValue",
+                "condition": jwt_condition,
             },
         ],
     }
@@ -140,6 +150,7 @@ def lingo_with_all_condition_types(get_random_checksum_address):
             ],
         },
     }
+
 
 def test_invalid_condition():
     # no version or condition
