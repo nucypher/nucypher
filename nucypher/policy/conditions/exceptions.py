@@ -13,6 +13,19 @@ class NoConnectionToChain(RuntimeError):
         super().__init__(message)
 
 
+class InvalidConnectionToChain(RuntimeError):
+    """Raised when a node does not have a valid provider for a chain."""
+
+    def __init__(self, expected_chain: int, actual_chain: int, message: str = None):
+        self.expected_chain = expected_chain
+        self.actual_chain = actual_chain
+        message = (
+            message
+            or f"Invalid blockchain connection; expected chain ID {expected_chain}, but detected {actual_chain}"
+        )
+        super().__init__(message)
+
+
 class ReturnValueEvaluationError(Exception):
     """Issue with Return Value and Key"""
 

@@ -1,9 +1,11 @@
 import re
 from http import HTTPStatus
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Set, Tuple
 
 from marshmallow import Schema, post_dump
 from marshmallow.exceptions import SCHEMA
+from web3 import HTTPProvider, Web3
+from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.exceptions import (
@@ -11,6 +13,7 @@ from nucypher.policy.conditions.exceptions import (
     ContextVariableVerificationFailed,
     InvalidCondition,
     InvalidConditionLingo,
+    InvalidConnectionToChain,
     InvalidContextVariableData,
     NoConnectionToChain,
     RequiredContextVariable,
@@ -20,6 +23,42 @@ from nucypher.policy.conditions.types import ContextDict, Lingo
 from nucypher.utilities.logging import Logger
 
 __LOGGER = Logger("condition-eval")
+
+
+class ConditionProviderManager:
+    def __init__(self, providers: Dict[int, List[HTTPProvider]]):
+        self.providers = providers
+
+    def web3_endpoints(self, chain_id: int) -> Iterator[Web3]:
+        rpc_providers = self.providers.get(chain_id, None)
+        if not rpc_providers:
+            raise NoConnectionToChain(chain=chain_id)
+
+        for provider in rpc_providers:
+            w3 = self._configure_w3(provider=provider)
+            self._check_chain_id(chain_id, w3)
+            yield w3
+
+    @staticmethod
+    def _configure_w3(provider: BaseProvider) -> Web3:
+        # Instantiate a local web3 instance
+        w3 = Web3(provider)
+        # inject web3 middleware to handle POA chain extra_data field.
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
+        return w3
+
+    @staticmethod
+    def _check_chain_id(chain_id: int, w3: Web3) -> None:
+        """
+        Validates that the actual web3 provider is *actually*
+        connected to the condition's chain ID by reading its RPC endpoint.
+        """
+        provider_chain = w3.eth.chain_id
+        if provider_chain != chain_id:
+            raise InvalidConnectionToChain(
+                expected_chain=chain_id,
+                actual_chain=provider_chain,
+            )
 
 
 class ConditionEvalError(Exception):

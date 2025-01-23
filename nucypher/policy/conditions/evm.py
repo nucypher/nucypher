@@ -34,6 +34,7 @@ from nucypher.policy.conditions.context import (
     resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
+    InvalidConnectionToChain,
     NoConnectionToChain,
     RequiredContextVariable,
     RPCExecutionFailed,
@@ -119,8 +120,9 @@ class RPCCall(ExecutionCall):
         """
         provider_chain = w3.eth.chain_id
         if provider_chain != self.chain:
-            raise NoConnectionToChain(
-                chain=self.chain,
+            raise InvalidConnectionToChain(
+                expected_chain=self.chain,
+                actual_chain=provider_chain,
                 message=f"This rpc call can only be evaluated on chain ID {self.chain} but the provider's "
                 f"connection is to chain ID {provider_chain}",
             )
@@ -154,8 +156,8 @@ class RPCCall(ExecutionCall):
         endpoints = self._next_endpoint(providers=providers)
         latest_error = ""
         for provider in endpoints:
-            w3 = self._configure_provider(provider)
             try:
+                w3 = self._configure_provider(provider)
                 result = self._execute(w3, resolved_parameters)
                 break
             except RequiredContextVariable:
