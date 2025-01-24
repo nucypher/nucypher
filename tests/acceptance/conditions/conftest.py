@@ -11,12 +11,15 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     ReturnValueTest,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 
 @pytest.fixture()
 def condition_providers(testerchain):
-    providers = {testerchain.client.chain_id: {testerchain.provider}}
+    providers = ConditionProviderManager(
+        {testerchain.client.chain_id: {testerchain.provider}}
+    )
     return providers
 
 @pytest.fixture()

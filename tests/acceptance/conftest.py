@@ -14,7 +14,6 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
-from nucypher.policy.conditions.evm import RPCCall
 from nucypher.utilities.logging import Logger
 from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
@@ -419,21 +418,13 @@ def taco_child_application_agent(testerchain, test_registry):
 #
 
 @pytest.fixture(scope="module")
-def mock_rpc_condition(testerchain, monkeymodule):
-    def configure_mock(*args, **kwargs):
-        return testerchain.w3
-
-    monkeymodule.setattr(RPCCall, "_configure_provider", configure_mock)
-
-
-@pytest.fixture(scope="module")
 def multichain_ids(module_mocker):
     ids = mock_permitted_multichain_connections(mocker=module_mocker)
     return ids
 
 
 @pytest.fixture(scope="module")
-def multichain_ursulas(ursulas, multichain_ids, mock_rpc_condition):
+def multichain_ursulas(ursulas, multichain_ids):
     setup_multichain_ursulas(ursulas=ursulas, chain_ids=multichain_ids)
     return ursulas
 

@@ -37,6 +37,7 @@ from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     ConditionEvalError,
+    ConditionProviderManager,
     camel_case_to_snake,
     evaluate_condition_lingo,
     to_camelcase,
@@ -102,7 +103,9 @@ def test_evaluate_condition_eval_returns_false():
         with pytest.raises(ConditionEvalError) as eval_error:
             evaluate_condition_lingo(
                 condition_lingo=condition_lingo,
-                providers={1: Mock(spec=BaseProvider)},  # fake provider
+                providers=ConditionProviderManager(
+                    {1: Mock(spec=BaseProvider)}
+                ),  # fake provider
                 context={"key": "value"},  # fake context
             )
         assert eval_error.value.status_code == HTTPStatus.FORBIDDEN
@@ -119,10 +122,12 @@ def test_evaluate_condition_eval_returns_true():
 
         evaluate_condition_lingo(
             condition_lingo=condition_lingo,
-            providers={
-                1: Mock(spec=BaseProvider),
-                2: Mock(spec=BaseProvider),
-            },  # multiple fake provider
+            providers=ConditionProviderManager(
+                {
+                    1: Mock(spec=BaseProvider),
+                    2: Mock(spec=BaseProvider),
+                }
+            ),
             context={
                 "key1": "value1",
                 "key2": "value2",

@@ -33,6 +33,7 @@ from nucypher.policy.conditions.lingo import (
     NotCompoundCondition,
     ReturnValueTest,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from tests.constants import (
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
@@ -67,11 +68,12 @@ def test_rpc_condition_evaluation_no_providers(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
     with pytest.raises(NoConnectionToChain):
-        _ = rpc_condition.verify(providers={}, **context)
+        _ = rpc_condition.verify(providers=ConditionProviderManager({}), **context)
 
     with pytest.raises(NoConnectionToChain):
         _ = rpc_condition.verify(
-            providers={testerchain.client.chain_id: set()}, **context
+            providers=ConditionProviderManager({testerchain.client.chain_id: list()}),
+            **context,
         )
 
 
@@ -85,9 +87,10 @@ def test_rpc_condition_evaluation_invalid_provider_for_chain(
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
     new_chain = 23
     rpc_condition.execution_call.chain = new_chain
-    condition_providers = {new_chain: {testerchain.provider}}
+    condition_providers = ConditionProviderManager({new_chain: [testerchain.provider]})
     with pytest.raises(
-        NoConnectionToChain, match=f"can only be evaluated on chain ID {new_chain}"
+        NoConnectionToChain,
+        match=f"Problematic provider connections for chain ID {new_chain}",
     ):
         _ = rpc_condition.verify(providers=condition_providers, **context)
 
@@ -118,13 +121,15 @@ def test_rpc_condition_evaluation_multiple_chain_providers(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
 
-    condition_providers = {
-        "1": {"fake1a", "fake1b"},
-        "2": {"fake2"},
-        "3": {"fake3"},
-        "4": {"fake4"},
-        TESTERCHAIN_CHAIN_ID: {testerchain.provider},
-    }
+    condition_providers = ConditionProviderManager(
+        {
+            "1": ["fake1a", "fake1b"],
+            "2": ["fake2"],
+            "3": ["fake3"],
+            "4": ["fake4"],
+            TESTERCHAIN_CHAIN_ID: [testerchain.provider],
+        }
+    )
 
     condition_result, call_result = rpc_condition.verify(
         providers=condition_providers, **context
@@ -144,20 +149,17 @@ def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
 
-    def my_configure_w3(provider: BaseProvider):
-        return Web3(provider)
-
-    condition_providers = {
-        TESTERCHAIN_CHAIN_ID: {
-            mocker.Mock(spec=BaseProvider),
-            mocker.Mock(spec=BaseProvider),
-            mocker.Mock(spec=BaseProvider),
+    condition_providers = ConditionProviderManager(
+        {
+            TESTERCHAIN_CHAIN_ID: [
+                mocker.Mock(spec=BaseProvider),
+                mocker.Mock(spec=BaseProvider),
+                mocker.Mock(spec=BaseProvider),
+            ]
         }
-    }
-
-    mocker.patch.object(
-        rpc_condition.execution_call, "_configure_provider", my_configure_w3
     )
+
+    mocker.patch.object(condition_providers, "_check_chain_id", return_value=None)
     with pytest.raises(RPCExecutionFailed):
         _ = rpc_condition.verify(providers=condition_providers, **context)
 
@@ -171,21 +173,18 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
 
-    def my_configure_w3(provider: BaseProvider):
-        return Web3(provider)
-
-    condition_providers = {
-        TESTERCHAIN_CHAIN_ID: {
-            mocker.Mock(spec=BaseProvider),
-            mocker.Mock(spec=BaseProvider),
-            mocker.Mock(spec=BaseProvider),
-            testerchain.provider,
+    condition_providers = ConditionProviderManager(
+        {
+            TESTERCHAIN_CHAIN_ID: [
+                mocker.Mock(spec=BaseProvider),
+                mocker.Mock(spec=BaseProvider),
+                mocker.Mock(spec=BaseProvider),
+                testerchain.provider,
+            ]
         }
-    }
-
-    mocker.patch.object(
-        rpc_condition.execution_call, "_configure_provider", my_configure_w3
     )
+
+    mocker.patch.object(condition_providers, "_check_chain_id", return_value=None)
 
     condition_result, call_result = rpc_condition.verify(
         providers=condition_providers, **context
@@ -208,10 +207,12 @@ def test_rpc_condition_evaluation_no_connection_to_chain(
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
 
     # condition providers for other unrelated chains
-    providers = {
-        1: mock.Mock(),  # mainnet
-        11155111: mock.Mock(),  # Sepolia
-    }
+    providers = ConditionProviderManager(
+        {
+            1: [mock.Mock()],  # mainnet
+            11155111: [mock.Mock()],  # Sepolia
+        }
+    )
 
     with pytest.raises(NoConnectionToChain):
         rpc_condition.verify(providers=providers, **context)
@@ -250,7 +251,10 @@ def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
     invalid_balance = balance + 1
     context[":balanceContextVar"] = invalid_balance
     condition_result, call_result = rpc_condition.verify(
-        providers={testerchain.client.chain_id: [testerchain.provider]}, **context
+        providers=ConditionProviderManager(
+            {testerchain.client.chain_id: [testerchain.provider]}
+        ),
+        **context,
     )
     assert condition_result is False
     assert call_result != invalid_balance

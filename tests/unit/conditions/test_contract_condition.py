@@ -17,6 +17,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 CHAIN_ID = 137
@@ -52,7 +53,7 @@ class FakeExecutionContractCondition(ContractCondition):
         def set_execution_return_value(self, value: Any):
             self.execution_return_value = value
 
-        def execute(self, providers: Dict, **context) -> Any:
+        def execute(self, providers: ConditionProviderManager, **context) -> Any:
             return self.execution_return_value
 
     EXECUTION_CALL_TYPE = FakeRPCCall
@@ -125,7 +126,7 @@ def _check_execution_logic(
             json.dumps(condition_dict)
         )
         fake_execution_contract_condition.set_execution_return_value(execution_result)
-        fake_providers = {CHAIN_ID: {Mock(BaseProvider)}}
+        fake_providers = ConditionProviderManager({CHAIN_ID: {Mock(BaseProvider)}})
         condition_result, call_result = fake_execution_contract_condition.verify(
             fake_providers, **context
         )

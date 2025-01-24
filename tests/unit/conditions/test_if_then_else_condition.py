@@ -12,6 +12,7 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     SequentialAccessControlCondition,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
 
 
 @pytest.fixture(scope="function")
@@ -248,7 +249,9 @@ def test_nested_multi_conditions(mock_conditions):
         else_condition=False,
     )
 
-    result, value = if_then_else_condition.verify(providers={})
+    result, value = if_then_else_condition.verify(
+        providers=ConditionProviderManager({})
+    )
     assert result is True
     assert value == [[1, 2], [2, 3]]  # [[or result], [seq result]]
 
@@ -277,7 +280,9 @@ def test_nested_multi_conditions(mock_conditions):
         ),
     )
 
-    result, value = if_then_else_condition.verify(providers={})
+    result, value = if_then_else_condition.verify(
+        providers=ConditionProviderManager({})
+    )
     assert result is False
     assert value == [[1, 2], [3, 2]]  # [[or result], [else if condition result]]
 
