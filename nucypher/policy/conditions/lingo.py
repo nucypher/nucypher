@@ -610,8 +610,10 @@ class ReturnValueTest:
         result = _COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
         return result
 
-    def with_resolved_context(self, **context):
-        value = resolve_any_context_variables(self.value, **context)
+    def with_resolved_context(
+        self, providers: Optional[ConditionProviderManager] = None, **context
+    ):
+        value = resolve_any_context_variables(self.value, providers, **context)
         return ReturnValueTest(self.comparator, value=value, index=self.index)
 
 

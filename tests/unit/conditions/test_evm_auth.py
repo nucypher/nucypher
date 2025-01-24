@@ -3,14 +3,23 @@ import pytest
 from siwe import SiweMessage
 
 from nucypher.blockchain.eth.signers import InMemorySigner
-from nucypher.policy.conditions.auth.evm import EIP712Auth, EIP4361Auth, EvmAuth
+from nucypher.policy.conditions.auth.evm import (
+    EIP712Auth,
+    EIP1271Auth,
+    EIP4361Auth,
+    EvmAuth,
+)
 
 
 def test_auth_scheme():
+    expected_schemes = {
+        EvmAuth.AuthScheme.EIP712: EIP712Auth,
+        EvmAuth.AuthScheme.EIP4361: EIP4361Auth,
+        EvmAuth.AuthScheme.EIP1271: EIP1271Auth,
+    }
+
     for scheme in EvmAuth.AuthScheme:
-        expected_scheme = (
-            EIP712Auth if scheme == EvmAuth.AuthScheme.EIP712 else EIP4361Auth
-        )
+        expected_scheme = expected_schemes.get(scheme)
         assert EvmAuth.from_scheme(scheme=scheme.value) == expected_scheme
 
     # non-existent scheme

@@ -106,7 +106,7 @@ class RPCCall(ExecutionCall):
         resolved_parameters = []
         if self.parameters:
             resolved_parameters = resolve_any_context_variables(
-                self.parameters, **context
+                param=self.parameters, providers=providers, **context
             )
 
         endpoints = providers.web3_endpoints(self.chain)
@@ -216,7 +216,7 @@ class RPCCondition(ExecutionCallAccessControlCondition):
         self, providers: ConditionProviderManager, **context
     ) -> Tuple[bool, Any]:
         resolved_return_value_test = self.return_value_test.with_resolved_context(
-            **context
+            providers=providers, **context
         )
         return_value_test = self._align_comparator_value_with_abi(
             resolved_return_value_test

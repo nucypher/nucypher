@@ -1,16 +1,20 @@
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 import maya
 from eth_account.account import Account
 from eth_account.messages import HexBytes, encode_typed_data
+from eth_typing import ChecksumAddress
 from siwe import SiweMessage, VerificationError
+
+from nucypher.policy.conditions.utils import ConditionProviderManager
 
 
 class EvmAuth:
     class AuthScheme(Enum):
         EIP712 = "EIP712"
         EIP4361 = "EIP4361"
+        EIP1271 = "EIP1271"
 
         @classmethod
         def values(cls) -> List[str]:
@@ -26,7 +30,13 @@ class EvmAuth:
         """The message is too old."""
 
     @classmethod
-    def authenticate(cls, data, signature, expected_address):
+    def authenticate(
+        cls,
+        data,
+        signature: str,
+        expected_address: str,
+        providers: Optional[ConditionProviderManager] = None,
+    ):
         raise NotImplementedError
 
     @classmethod
@@ -35,13 +45,21 @@ class EvmAuth:
             return EIP712Auth
         elif scheme == cls.AuthScheme.EIP4361.value:
             return EIP4361Auth
+        elif scheme == cls.AuthScheme.EIP1271.value:
+            return EIP1271Auth
 
         raise ValueError(f"Invalid authentication scheme: {scheme}")
 
 
 class EIP712Auth(EvmAuth):
     @classmethod
-    def authenticate(cls, data, signature, expected_address):
+    def authenticate(
+        cls,
+        data,
+        signature: str,
+        expected_address: str,
+        providers: Optional[ConditionProviderManager] = None,
+    ):
         try:
             # convert hex data for byte fields - bytes are expected by underlying library
             # 1. salt
@@ -72,7 +90,13 @@ class EIP4361Auth(EvmAuth):
     FRESHNESS_IN_HOURS = 2
 
     @classmethod
-    def authenticate(cls, data, signature, expected_address):
+    def authenticate(
+        cls,
+        data,
+        signature: str,
+        expected_address: str,
+        providers: Optional[ConditionProviderManager] = None,
+    ):
         try:
             siwe_message = SiweMessage.from_message(message=data)
         except Exception as e:
@@ -105,4 +129,71 @@ class EIP4361Auth(EvmAuth):
             # verification failed - addresses don't match
             raise cls.AuthenticationFailed(
                 f"Invalid EIP4361 signature; signature not valid for expected address, {expected_address}"
+            )
+
+
+class EIP1271Auth(EvmAuth):
+    EIP1271_ABI = """[
+        {
+            "inputs":[
+                {
+                    "internalType":"bytes32",
+                    "name":"_hash",
+                    "type":"bytes32"
+                },
+                {
+                    "internalType":"bytes",
+                    "name":"_signature",
+                    "type":"bytes"
+                }
+            ],
+            "name":"isValidSignature",
+            "outputs":[
+                {
+                    "internalType":"bytes4",
+                    "name":"",
+                    "type":"bytes4"
+                }
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        }
+    ]"""
+    MAGIC_VALUE_BYTES = bytes(HexBytes("0x1626ba7e"))
+
+    @classmethod
+    def authenticate(
+        cls,
+        data,
+        signature: str,
+        expected_address: ChecksumAddress,
+        providers: Optional[ConditionProviderManager] = None,
+    ):
+        result = None
+        try:
+            data_hash = bytes(HexBytes(data["dataHash"]))
+            chain_id = data["chain_id"]
+            signature_bytes = bytes(HexBytes(signature))
+
+            w3_instances = providers.web3_endpoints(chain_id=chain_id)
+
+            for w3 in w3_instances:
+                eip1271_contract = w3.eth.contract(
+                    address=expected_address, abi=cls.EIP1271_ABI
+                )
+                result = eip1271_contract.functions.isValidSignature(
+                    data_hash,
+                    signature_bytes,
+                ).call()
+
+                break
+        except Exception as e:
+            # data could not be processed
+            raise cls.InvalidData(
+                f"Invalid EIP1271 message: {str(e) or e.__class__.__name__}"
+            )
+
+        if result != cls.MAGIC_VALUE_BYTES:
+            raise cls.AuthenticationFailed(
+                f"EIP1271 verification failed; signature not valid for contract address, {expected_address}"
             )
