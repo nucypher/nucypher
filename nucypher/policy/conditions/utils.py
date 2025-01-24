@@ -1,6 +1,6 @@
 import re
 from http import HTTPStatus
-from typing import Dict, Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
 from marshmallow import Schema, post_dump
 from marshmallow.exceptions import SCHEMA
@@ -28,16 +28,33 @@ __LOGGER = Logger("condition-eval")
 class ConditionProviderManager:
     def __init__(self, providers: Dict[int, List[HTTPProvider]]):
         self.providers = providers
+        self.logger = Logger(__name__)
 
     def web3_endpoints(self, chain_id: int) -> Iterator[Web3]:
         rpc_providers = self.providers.get(chain_id, None)
         if not rpc_providers:
             raise NoConnectionToChain(chain=chain_id)
 
+        iterator_returned_at_least_one = False
         for provider in rpc_providers:
-            w3 = self._configure_w3(provider=provider)
-            self._check_chain_id(chain_id, w3)
-            yield w3
+            try:
+                w3 = self._configure_w3(provider=provider)
+                self._check_chain_id(chain_id, w3)
+                yield w3
+                iterator_returned_at_least_one = True
+            except InvalidConnectionToChain as e:
+                # don't expect to happen but must account
+                # for any misconfigurations of public endpoints
+                self.logger.warn(
+                    f"Invalid blockchain connection; expected chain ID {e.expected_chain}, but detected {e.actual_chain}"
+                )
+
+        # if we get here, it is because there were endpoints, but issue with configuring them
+        if not iterator_returned_at_least_one:
+            raise NoConnectionToChain(
+                chain=chain_id,
+                message=f"Problematic provider connections for chain ID {chain_id}",
+            )
 
     @staticmethod
     def _configure_w3(provider: BaseProvider) -> Web3:
@@ -97,7 +114,7 @@ class CamelCaseSchema(Schema):
 
 def evaluate_condition_lingo(
     condition_lingo: Lingo,
-    providers: Optional[Dict[int, Set[BaseProvider]]] = None,
+    providers: Optional[ConditionProviderManager] = None,
     context: Optional[ContextDict] = None,
     log: Logger = __LOGGER,
 ):
@@ -113,7 +130,7 @@ def evaluate_condition_lingo(
 
     # Setup (don't use mutable defaults)
     context = context or dict()
-    providers = providers or dict()
+    providers = providers or ConditionProviderManager(providers=dict())
     error = None
 
     # Evaluate

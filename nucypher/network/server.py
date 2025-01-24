@@ -260,7 +260,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 try:
                     evaluate_condition_lingo(
                         condition_lingo=condition_lingo,
-                        providers=this_node.condition_providers,
+                        providers=this_node.condition_provider_manager,
                         context=context,
                     )
                 except ConditionEvalError as error:

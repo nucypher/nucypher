@@ -1,10 +1,7 @@
 from typing import (
     Any,
-    Dict,
-    Iterator,
     List,
     Optional,
-    Set,
     Tuple,
 )
 
@@ -20,9 +17,7 @@ from marshmallow import (
 )
 from marshmallow.validate import OneOf
 from typing_extensions import override
-from web3 import HTTPProvider, Web3
-from web3.middleware import geth_poa_middleware
-from web3.providers import BaseProvider
+from web3 import Web3
 from web3.types import ABIFunction
 
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES
@@ -34,8 +29,6 @@ from nucypher.policy.conditions.context import (
     resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
-    InvalidConnectionToChain,
-    NoConnectionToChain,
     RequiredContextVariable,
     RPCExecutionFailed,
 )
@@ -44,7 +37,10 @@ from nucypher.policy.conditions.lingo import (
     ExecutionCallAccessControlCondition,
     ReturnValueTest,
 )
-from nucypher.policy.conditions.utils import camel_case_to_snake
+from nucypher.policy.conditions.utils import (
+    ConditionProviderManager,
+    camel_case_to_snake,
+)
 from nucypher.policy.conditions.validation import (
     align_comparator_value_with_abi,
     get_unbound_contract_function,
@@ -106,58 +102,18 @@ class RPCCall(ExecutionCall):
         )  # bind contract function (only exposes the eth API)
         return rpc_function
 
-    def _configure_w3(self, provider: BaseProvider) -> Web3:
-        # Instantiate a local web3 instance
-        w3 = Web3(provider)
-        # inject web3 middleware to handle POA chain extra_data field.
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
-        return w3
-
-    def _check_chain_id(self, w3: Web3) -> None:
-        """
-        Validates that the actual web3 provider is *actually*
-        connected to the condition's chain ID by reading its RPC endpoint.
-        """
-        provider_chain = w3.eth.chain_id
-        if provider_chain != self.chain:
-            raise InvalidConnectionToChain(
-                expected_chain=self.chain,
-                actual_chain=provider_chain,
-                message=f"This rpc call can only be evaluated on chain ID {self.chain} but the provider's "
-                f"connection is to chain ID {provider_chain}",
-            )
-
-    def _configure_provider(self, provider: BaseProvider):
-        """Binds the condition's contract function to a blockchain provider for evaluation"""
-        w3 = self._configure_w3(provider=provider)
-        self._check_chain_id(w3)
-        return w3
-
-    def _next_endpoint(
-        self, providers: Dict[int, Set[HTTPProvider]]
-    ) -> Iterator[HTTPProvider]:
-        """Yields the next web3 provider to try for a given chain ID"""
-        rpc_providers = providers.get(self.chain, None)
-        if not rpc_providers:
-            raise NoConnectionToChain(chain=self.chain)
-
-        for provider in rpc_providers:
-            # Someday, we might make this whole function async, and then we can knock on
-            # each endpoint here to see if it's alive and only yield it if it is.
-            yield provider
-
-    def execute(self, providers: Dict[int, Set[HTTPProvider]], **context) -> Any:
+    def execute(self, providers: ConditionProviderManager, **context) -> Any:
         resolved_parameters = []
         if self.parameters:
             resolved_parameters = resolve_any_context_variables(
                 self.parameters, **context
             )
 
-        endpoints = self._next_endpoint(providers=providers)
+        endpoints = providers.web3_endpoints(self.chain)
+
         latest_error = ""
-        for provider in endpoints:
+        for w3 in endpoints:
             try:
-                w3 = self._configure_provider(provider)
                 result = self._execute(w3, resolved_parameters)
                 break
             except RequiredContextVariable:
@@ -257,7 +213,7 @@ class RPCCondition(ExecutionCallAccessControlCondition):
         return return_value_test
 
     def verify(
-        self, providers: Dict[int, Set[HTTPProvider]], **context
+        self, providers: ConditionProviderManager, **context
     ) -> Tuple[bool, Any]:
         resolved_return_value_test = self.return_value_test.with_resolved_context(
             **context
