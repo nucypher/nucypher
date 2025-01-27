@@ -155,7 +155,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # TODO: When non-evm chains are supported, bump the version.
         #  this can return a list of chain names or other verifiable identifiers.
 
-        payload = {"version": 1.0, "evm": list(this_node.condition_providers)}
+        payload = {"version": 1.0, "evm": list(this_node.condition_providers.providers)}
         return Response(json.dumps(payload), mimetype="application/json")
 
     @rest_app.route('/decrypt', methods=["POST"])
