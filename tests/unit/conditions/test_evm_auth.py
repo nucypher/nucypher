@@ -341,6 +341,9 @@ def test_authenticate_eip1271(mocker, get_random_checksum_address):
     EIP1271Auth.authenticate(
         typedData, valid_message_signature, eip1271_mock_contract.address, providers
     )
+    w3.eth.contract.assert_called_once_with(
+        address=eip1271_mock_contract.address, abi=EIP1271Auth.EIP1271_ABI
+    )
 
     # invalid typed data - no chain id
     with pytest.raises(EvmAuth.InvalidData):
