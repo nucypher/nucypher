@@ -7,7 +7,9 @@ from eth_account.messages import HexBytes, encode_typed_data
 from eth_typing import ChecksumAddress
 from siwe import SiweMessage, VerificationError
 
+from nucypher.policy.conditions.exceptions import NoConnectionToChain
 from nucypher.policy.conditions.utils import ConditionProviderManager
+from nucypher.utilities.logging import Logger
 
 
 class EvmAuth:
@@ -160,6 +162,7 @@ class EIP1271Auth(EvmAuth):
         }
     ]"""
     MAGIC_VALUE_BYTES = bytes(HexBytes("0x1626ba7e"))
+    LOG = Logger("EIP1271Auth")
 
     @classmethod
     def authenticate(
@@ -169,31 +172,46 @@ class EIP1271Auth(EvmAuth):
         expected_address: ChecksumAddress,
         providers: Optional[ConditionProviderManager] = None,
     ):
-        result = None
         try:
             data_hash = bytes(HexBytes(data["dataHash"]))
-            chain_id = data["chain_id"]
+            chain = data["chain"]
             signature_bytes = bytes(HexBytes(signature))
+            w3_instances = providers.web3_endpoints(chain_id=chain)
 
-            w3_instances = providers.web3_endpoints(chain_id=chain_id)
-
+            latest_error = ""
             for w3 in w3_instances:
-                eip1271_contract = w3.eth.contract(
-                    address=expected_address, abi=cls.EIP1271_ABI
+                try:
+                    eip1271_contract = w3.eth.contract(
+                        address=expected_address, abi=cls.EIP1271_ABI
+                    )
+                    result = eip1271_contract.functions.isValidSignature(
+                        data_hash,
+                        signature_bytes,
+                    ).call()
+                    if result == cls.MAGIC_VALUE_BYTES:
+                        return  # Authentication successful
+                    break
+                except Exception as e:
+                    latest_error = (
+                        f"EIP1271 contract call failed ({expected_address}): {e}"
+                    )
+                    cls.LOG.warn(f"{latest_error}; attempting next provider")
+            else:
+                raise cls.AuthenticationFailed(
+                    f"EIP1271 verification failed; {latest_error}"
                 )
-                result = eip1271_contract.functions.isValidSignature(
-                    data_hash,
-                    signature_bytes,
-                ).call()
-
-                break
+        except NoConnectionToChain:
+            raise cls.AuthenticationFailed(
+                f"EIP1271 verification failed; No connection to chain ID {data['chain']}"
+            )
+        except cls.AuthenticationFailed:
+            raise
         except Exception as e:
             # data could not be processed
             raise cls.InvalidData(
-                f"Invalid EIP1271 message: {str(e) or e.__class__.__name__}"
+                f"Invalid EIP1271 authentication data: {str(e) or e.__class__.__name__}"
             )
 
-        if result != cls.MAGIC_VALUE_BYTES:
-            raise cls.AuthenticationFailed(
-                f"EIP1271 verification failed; signature not valid for contract address, {expected_address}"
-            )
+        raise cls.AuthenticationFailed(
+            f"EIP1271 verification failed; signature not valid for contract address, {expected_address}"
+        )
