@@ -3,6 +3,7 @@ import os
 from unittest import mock
 
 import pytest
+from eth_account.messages import defunct_hash_message, encode_defunct
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.providers import BaseProvider
@@ -13,6 +14,7 @@ from nucypher.blockchain.eth.agents import (
     SubscriptionManagerAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
     get_context_value,
@@ -930,3 +932,56 @@ def test_json_rpc_condition_non_evm_prototyping_example():
     )
     success, _ = condition.verify()
     assert success
+
+
+def test_rpc_condition_using_eip1271(
+    testerchain, deployer_account, eip1271_contract_wallet, condition_providers
+):
+    # send some ETH to the smart contract wallet
+    eth_amount = Web3.to_wei(2.25, "ether")
+
+    encoded_deposit_function = eip1271_contract_wallet.deposit.encode_input().hex()
+    deployer_account.transfer(
+        account=eip1271_contract_wallet.address,
+        value=eth_amount,
+        data=encoded_deposit_function,
+    )
+
+    rpc_condition = RPCCondition(
+        method="eth_getBalance",
+        chain=TESTERCHAIN_CHAIN_ID,
+        parameters=[USER_ADDRESS_CONTEXT],
+        return_value_test=ReturnValueTest("==", eth_amount),
+    )
+
+    data = f"I'm the owner of the smart contract wallet address {eip1271_contract_wallet.address}"
+    signable_message = encode_defunct(text=data)
+    hash = defunct_hash_message(text=data)
+    message_signature = deployer_account.sign_message(signable_message)
+    hex_signature = HexBytes(message_signature.encode_rsv()).hex()
+
+    typedData = {"chain": TESTERCHAIN_CHAIN_ID, "dataHash": hash.hex()}
+    auth_message = {
+        "signature": f"{hex_signature}",
+        "address": f"{eip1271_contract_wallet.address}",
+        "scheme": EvmAuth.AuthScheme.EIP1271.value,
+        "typedData": typedData,
+    }
+    context = {
+        USER_ADDRESS_CONTEXT: auth_message,
+    }
+    condition_result, call_result = rpc_condition.verify(
+        providers=condition_providers, **context
+    )
+    assert condition_result is True
+    assert call_result == eth_amount
+
+    # withdraw some ETH and check condition again
+    withdraw_amount = Web3.to_wei(1, "ether")
+    eip1271_contract_wallet.withdraw(withdraw_amount, sender=deployer_account)
+    condition_result, call_result = rpc_condition.verify(
+        providers=condition_providers, **context
+    )
+    assert condition_result is False
+    assert call_result != eth_amount
+    assert call_result == (eth_amount - withdraw_amount)
