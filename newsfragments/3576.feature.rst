@@ -1,0 +1,1 @@
+Add support for EIP1271 signature verification for smart contract wallets.
