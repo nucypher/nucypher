@@ -16,7 +16,9 @@ secrets management and dynamic access control.*
 TACo is end-to-end encrypted data sharing and communication, without the requirement of
 trusting a centralized authority, who might unilaterally deny service or even decrypt private user data. It is the only
 access control layer available to Web3 developers that can offer a decentralized service, through a live,
-well-collateralized and battle-tested network.  See more here: [https://docs.threshold.network/applications/threshold-access-control](https://docs.threshold.network/applications/threshold-access-control)
+well-collateralized and battle-tested network.
+
+See more in the [TACo docs](https://docs.taco.build/).
 
 # Getting Involved
 
