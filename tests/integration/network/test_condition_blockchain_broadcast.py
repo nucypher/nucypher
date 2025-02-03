@@ -18,5 +18,5 @@ def test_condition_chains_endpoint_multichain(
 ):
     response = client.get("/condition_chains")
     assert response.status_code == 200
-    expected_payload = {"version": 1.0, "evm": multichain_ids}
+    expected_payload = {"version": 1.0, "evm": sorted(multichain_ids)}
     assert response.get_json() == expected_payload
