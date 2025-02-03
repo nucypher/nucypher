@@ -53,7 +53,7 @@ class ConditionProviderManager:
         if not iterator_returned_at_least_one:
             raise NoConnectionToChain(
                 chain=chain_id,
-                message=f"Problematic provider connections for chain ID {chain_id}",
+                message=f"Problematic provider endpoints for chain ID {chain_id}",
             )
 
     @staticmethod

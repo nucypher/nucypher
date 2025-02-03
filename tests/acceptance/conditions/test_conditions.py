@@ -92,7 +92,7 @@ def test_rpc_condition_evaluation_invalid_provider_for_chain(
     condition_providers = ConditionProviderManager({new_chain: [testerchain.provider]})
     with pytest.raises(
         NoConnectionToChain,
-        match=f"Problematic provider connections for chain ID {new_chain}",
+        match=f"Problematic provider endpoints for chain ID {new_chain}",
     ):
         _ = rpc_condition.verify(providers=condition_providers, **context)
 
