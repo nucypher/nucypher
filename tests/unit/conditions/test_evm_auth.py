@@ -345,6 +345,12 @@ def test_authenticate_eip1271(mocker, get_random_checksum_address):
         address=eip1271_mock_contract.address, abi=EIP1271Auth.EIP1271_ABI
     )
 
+    # no providers
+    with pytest.raises(EvmAuth.AuthenticationFailed, match="no endpoints provided"):
+        EIP1271Auth.authenticate(
+            typedData, valid_message_signature, eip1271_mock_contract.address, None
+        )
+
     # invalid typed data - no chain id
     with pytest.raises(EvmAuth.InvalidData):
         EIP1271Auth.authenticate(
