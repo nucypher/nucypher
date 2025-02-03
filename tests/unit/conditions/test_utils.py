@@ -171,3 +171,48 @@ def test_camel_case_schema():
 
     reloaded_function = schema.load(output)
     assert reloaded_function == {"field_name_with_underscores": f"{value}"}
+
+
+def test_condition_provider_manager(mocker):
+    # no condition to chain
+    with pytest.raises(NoConnectionToChain, match="No connection to chain ID"):
+        manager = ConditionProviderManager(
+            providers={2: [mocker.Mock(spec=BaseProvider)]}
+        )
+        _ = list(manager.web3_endpoints(chain_id=1))
+
+    # invalid provider chain
+    manager = ConditionProviderManager(providers={2: [mocker.Mock(spec=BaseProvider)]})
+    w3 = mocker.Mock()
+    w3.eth.chain_id = (
+        1  # make w3 instance created from provider have incorrect chain id
+    )
+    with patch.object(manager, "_configure_w3", return_value=w3):
+        with pytest.raises(
+            NoConnectionToChain, match="Problematic provider endpoints for chain ID"
+        ):
+            _ = list(manager.web3_endpoints(chain_id=2))
+
+    # valid provider chain
+    manager = ConditionProviderManager(providers={2: [mocker.Mock(spec=BaseProvider)]})
+    with patch.object(manager, "_check_chain_id", return_value=None):
+        assert len(list(manager.web3_endpoints(chain_id=2))) == 1
+
+    # multiple providers
+    manager = ConditionProviderManager(
+        providers={2: [mocker.Mock(spec=BaseProvider), mocker.Mock(spec=BaseProvider)]}
+    )
+    with patch.object(manager, "_check_chain_id", return_value=None):
+        w3_instances = list(manager.web3_endpoints(chain_id=2))
+        assert len(w3_instances) == 2
+        for w3_instance in w3_instances:
+            assert w3_instance  # actual object returned
+            assert w3_instance.middleware_onion.get("poa")  # poa middleware injected
+
+    # specific w3 instances
+    w3_1 = mocker.Mock()
+    w3_1.eth.chain_id = 2
+    w3_2 = mocker.Mock()
+    w3_2.eth.chain_id = 2
+    with patch.object(manager, "_configure_w3", side_effect=[w3_1, w3_2]):
+        assert list(manager.web3_endpoints(chain_id=2)) == [w3_1, w3_2]
