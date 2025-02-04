@@ -186,7 +186,7 @@ def setup_multichain_ursulas(chain_ids: List[int], ursulas: List[Ursula]) -> Non
         }
     )
     for ursula in ursulas:
-        ursula.condition_providers = mocked_condition_providers
+        ursula.condition_provider_manager = mocked_condition_providers
 
 
 MOCK_KNOWN_URSULAS_CACHE = dict()
