@@ -64,7 +64,15 @@ class JsonApiConditionDict(BaseExecConditionDict):
     endpoint: str
     query: NotRequired[str]
     parameters: NotRequired[Dict]
+    authorizationToken: NotRequired[str]
 
+
+class JsonRpcConditionDict(BaseExecConditionDict):
+    endpoint: str
+    method: str
+    params: NotRequired[Any]
+    query: NotRequired[str]
+    authorizationToken: NotRequired[str]
 
 #
 # CompoundCondition represents:
@@ -118,15 +126,18 @@ class IfThenElseConditionDict(_AccessControlCondition):
 # - TimeCondition
 # - RPCCondition
 # - ContractCondition
-# - CompoundConditionDict
-# - JsonApiConditionDict
-# - SequentialConditionDict
+# - CompoundCondition
+# - JsonApiCondition
+# - JsonRpcCondition
+# - SequentialCondition
+# - IfThenElseCondition
 ConditionDict = Union[
     TimeConditionDict,
     RPCConditionDict,
     ContractConditionDict,
     CompoundConditionDict,
     JsonApiConditionDict,
+    JsonRpcConditionDict,
     SequentialConditionDict,
     IfThenElseConditionDict,
 ]
