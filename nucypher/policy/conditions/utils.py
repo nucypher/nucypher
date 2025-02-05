@@ -198,7 +198,7 @@ def evaluate_condition_lingo(
 
 
 def extract_single_error_message_from_schema_errors(
-    errors: Dict[str, List[str]]
+    errors: Dict[str, List[str]],
 ) -> str:
     """
     Extract single error message from Schema().validate() errors result.
