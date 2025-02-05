@@ -139,14 +139,6 @@ def t_token(nucypher_dependency, deployer_account):
 
 
 @pytest.fixture(scope="module")
-def nu_token(nucypher_dependency, deployer_account):
-    _nu_token = deployer_account.deploy(
-        nucypher_dependency.NuCypherToken, NU_TOTAL_SUPPLY
-    )
-    return _nu_token
-
-
-@pytest.fixture(scope="module")
 def threshold_staking(nucypher_dependency, deployer_account):
     _threshold_staking = deployer_account.deploy(
         nucypher_dependency.TestnetThresholdStaking
@@ -299,7 +291,6 @@ def subscription_manager(nucypher_dependency, deployer_account):
 def deployed_contracts(
     ritual_token,
     t_token,
-    nu_token,
     threshold_staking,
     taco_application,
     taco_child_application,
@@ -312,7 +303,6 @@ def deployed_contracts(
     deployments = [
         ritual_token,
         t_token,
-        nu_token,
         threshold_staking,
         taco_application,
         taco_child_application,

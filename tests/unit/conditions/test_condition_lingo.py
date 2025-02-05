@@ -359,3 +359,9 @@ def test_lingo_rejects_invalid_condition_type(lingo_with_condition):
         lingo_with_condition["conditionType"] = condition_type
         with pytest.raises(InvalidConditionLingo):
             ConditionLingo.resolve_condition_class(lingo_with_condition)
+
+
+def test_lingo_data(conditions_test_data):
+    for name, condition_dict in conditions_test_data.items():
+        condition_class = ConditionLingo.resolve_condition_class(condition_dict)
+        _ = condition_class.from_dict(condition_dict)

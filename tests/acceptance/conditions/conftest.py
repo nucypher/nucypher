@@ -2,7 +2,6 @@ import pytest
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
-    NucypherTokenAgent,
     SubscriptionManagerAgent,
 )
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
@@ -42,14 +41,9 @@ def compound_lingo(
 
 
 @pytest.fixture()
-def erc20_evm_condition_balanceof(testerchain, test_registry):
-    token = ContractAgency.get_agent(
-        NucypherTokenAgent,
-        registry=test_registry,
-        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
-    )
+def erc20_evm_condition_balanceof(testerchain, test_registry, ritual_token):
     condition = ContractCondition(
-        contract_address=token.contract.address,
+        contract_address=ritual_token.address,
         method="balanceOf",
         standard_contract_type="ERC20",
         chain=TESTERCHAIN_CHAIN_ID,
@@ -146,15 +140,10 @@ def subscription_manager_is_active_policy_condition(testerchain, test_registry):
 
 @pytest.fixture
 def custom_context_variable_erc20_condition(
-    test_registry, testerchain, mock_condition_blockchains
+    test_registry, testerchain, mock_condition_blockchains, ritual_token
 ):
-    token = ContractAgency.get_agent(
-        NucypherTokenAgent,
-        registry=test_registry,
-        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
-    )
     condition = ContractCondition(
-        contract_address=token.contract.address,
+        contract_address=ritual_token.address,
         method="balanceOf",
         standard_contract_type="ERC20",
         chain=TESTERCHAIN_CHAIN_ID,
