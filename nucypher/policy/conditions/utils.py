@@ -45,9 +45,7 @@ class ConditionProviderManager:
             except InvalidConnectionToChain as e:
                 # don't expect to happen but must account
                 # for any misconfigurations of public endpoints
-                self.logger.warn(
-                    f"Invalid blockchain connection; expected chain ID {e.expected_chain}, but detected {e.actual_chain}"
-                )
+                self.logger.warn(str(e))
 
         # if we get here, it is because there were endpoints, but issue with configuring them
         if not iterator_returned_at_least_one:
