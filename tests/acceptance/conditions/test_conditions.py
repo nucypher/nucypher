@@ -935,7 +935,7 @@ def test_json_rpc_condition_non_evm_prototyping_example():
 
 
 def test_rpc_condition_using_eip1271(
-    testerchain, deployer_account, eip1271_contract_wallet, condition_providers
+    deployer_account, eip1271_contract_wallet, condition_providers
 ):
     # send some ETH to the smart contract wallet
     eth_amount = Web3.to_wei(2.25, "ether")
