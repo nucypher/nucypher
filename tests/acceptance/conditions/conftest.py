@@ -11,12 +11,15 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     ReturnValueTest,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 
 @pytest.fixture()
 def condition_providers(testerchain):
-    providers = {testerchain.client.chain_id: {testerchain.provider}}
+    providers = ConditionProviderManager(
+        {testerchain.client.chain_id: {testerchain.provider}}
+    )
     return providers
 
 @pytest.fixture()
@@ -54,14 +57,12 @@ def erc20_evm_condition_balanceof(testerchain, test_registry, ritual_token):
 
 
 @pytest.fixture
-def erc721_contract(accounts, project):
-    account = accounts[0]
-
+def erc721_contract(project, deployer_account):
     # deploy contract
-    deployed_contract = project.ConditionNFT.deploy(sender=account)
+    deployed_contract = project.ConditionNFT.deploy(sender=deployer_account)
 
     # mint nft with token id = 1
-    deployed_contract.mint(account.address, 1, sender=account)
+    deployed_contract.mint(deployer_account.address, 1, sender=deployer_account)
     return deployed_contract
 
 
@@ -151,3 +152,11 @@ def custom_context_variable_erc20_condition(
         parameters=[":addressToUse"],
     )
     return condition
+
+
+@pytest.fixture
+def eip1271_contract_wallet(project, deployer_account):
+    _eip1271_contract_wallet = deployer_account.deploy(
+        project.SmartContractWallet, deployer_account.address
+    )
+    return _eip1271_contract_wallet

@@ -74,6 +74,7 @@ class JsonRpcConditionDict(BaseExecConditionDict):
     query: NotRequired[str]
     authorizationToken: NotRequired[str]
 
+
 #
 # CompoundCondition represents:
 # {

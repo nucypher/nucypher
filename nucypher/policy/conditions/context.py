@@ -1,6 +1,6 @@
 import re
 from functools import partial
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -11,6 +11,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidContextVariableData,
     RequiredContextVariable,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
 
 USER_ADDRESS_CONTEXT = ":userAddress"
 USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT = ":userAddressExternalEIP4361"
@@ -19,7 +20,7 @@ CONTEXT_PREFIX = ":"
 CONTEXT_REGEX = re.compile(":[a-zA-Z_][a-zA-Z0-9_]*")
 
 USER_ADDRESS_SCHEMES = {
-    USER_ADDRESS_CONTEXT: None,  # allow any scheme (EIP4361, EIP712) for now; eventually EIP712 will be deprecated
+    USER_ADDRESS_CONTEXT: None,  # allow any scheme (EIP4361, EIP1271, EIP712) for now; eventually EIP712 will be deprecated
     USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT: EvmAuth.AuthScheme.EIP4361.value,
 }
 
@@ -28,7 +29,11 @@ class UnexpectedScheme(Exception):
     pass
 
 
-def _resolve_user_address(user_address_context_variable, **context) -> ChecksumAddress:
+def _resolve_user_address(
+    user_address_context_variable: str,
+    providers: Optional[ConditionProviderManager] = None,
+    **context,
+) -> ChecksumAddress:
     """
     Recovers a checksum address from a signed message.
 
@@ -38,7 +43,7 @@ def _resolve_user_address(user_address_context_variable, **context) -> ChecksumA
             {
                 "signature": "<signature>",
                 "address": "<address>",
-                "scheme": "EIP4361" | ...
+                "scheme": "EIP4361" | "EIP1271" | ...
                 "typedData": ...
             }
     }
@@ -59,7 +64,10 @@ def _resolve_user_address(user_address_context_variable, **context) -> ChecksumA
 
         auth = EvmAuth.from_scheme(scheme)
         auth.authenticate(
-            data=typed_data, signature=signature, expected_address=expected_address
+            data=typed_data,
+            signature=signature,
+            expected_address=expected_address,
+            providers=providers,
         )
     except EvmAuth.InvalidData as e:
         raise InvalidContextVariableData(
@@ -98,7 +106,11 @@ def string_contains_context_variable(variable: str) -> bool:
     return bool(matches)
 
 
-def get_context_value(context_variable: str, **context) -> Any:
+def get_context_value(
+    context_variable: str,
+    providers: Optional[ConditionProviderManager] = None,
+    **context,
+) -> Any:
     try:
         # DIRECTIVES are special context vars that will pre-processed by ursula
         func = _DIRECTIVES[context_variable]
@@ -111,33 +123,40 @@ def get_context_value(context_variable: str, **context) -> Any:
                 f'No value provided for unrecognized context variable "{context_variable}"'
             )
     else:
-        value = func(**context)  # required inputs here
+        value = func(providers=providers, **context)  # required inputs here
 
     return value
 
 
 def resolve_any_context_variables(
-    param: Union[Any, List[Any], Dict[Any, Any]], **context
+    param: Union[Any, List[Any], Dict[Any, Any]],
+    providers: Optional[ConditionProviderManager] = None,
+    **context,
 ):
     if isinstance(param, list):
-        return [resolve_any_context_variables(item, **context) for item in param]
+        return [
+            resolve_any_context_variables(item, providers, **context) for item in param
+        ]
     elif isinstance(param, dict):
         return {
-            k: resolve_any_context_variables(v, **context) for k, v in param.items()
+            k: resolve_any_context_variables(v, providers, **context)
+            for k, v in param.items()
         }
     elif isinstance(param, str):
         # either it is a context variable OR contains a context variable within it
         # TODO separating the two cases for now out of concern of regex searching
         #  within strings (case 2)
         if is_context_variable(param):
-            return get_context_value(context_variable=param, **context)
+            return get_context_value(
+                context_variable=param, providers=providers, **context
+            )
         else:
             matches = re.findall(CONTEXT_REGEX, param)
             for context_var in matches:
                 # checking out of concern for faulty regex search within string
                 if context_var in context:
                     resolved_var = get_context_value(
-                        context_variable=context_var, **context
+                        context_variable=context_var, providers=providers, **context
                     )
                     param = param.replace(context_var, str(resolved_var))
             return param

@@ -11,6 +11,7 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     SequentialAccessControlCondition,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
 
 
 @pytest.fixture(scope="function")
@@ -173,7 +174,9 @@ def test_sequential_condition(mock_condition_variables):
     )
 
     original_context = dict()
-    result, value = sequential_condition.verify(providers={}, **original_context)
+    result, value = sequential_condition.verify(
+        providers=ConditionProviderManager({}), **original_context
+    )
     assert result is True
     assert value == [1, 1 * 2, 1 * 2 * 3, 1 * 2 * 3 * 4]
     # only a copy of the context is modified internally
@@ -215,7 +218,9 @@ def test_sequential_condition_all_prior_vars_passed_to_subsequent_calls(
     expected_var_3_value = expected_var_1_value + expected_var_2_value + 1
 
     original_context = dict()
-    result, value = sequential_condition.verify(providers={}, **original_context)
+    result, value = sequential_condition.verify(
+        providers=ConditionProviderManager({}), **original_context
+    )
     assert result is True
     assert value == [
         expected_var_1_value,
@@ -238,4 +243,4 @@ def test_sequential_condition_a_call_fails(mock_condition_variables):
     )
 
     with pytest.raises(Web3Exception):
-        _ = sequential_condition.verify(providers={})
+        _ = sequential_condition.verify(providers=ConditionProviderManager({}))

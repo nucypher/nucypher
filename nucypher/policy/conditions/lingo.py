@@ -4,7 +4,7 @@ import json
 import operator as pyoperator
 from enum import Enum
 from hashlib import md5
-from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union
 
 from hexbytes import HexBytes
 from marshmallow import (
@@ -19,7 +19,6 @@ from marshmallow import (
 )
 from marshmallow.validate import OneOf, Range
 from packaging.version import parse as parse_version
-from web3 import HTTPProvider
 
 from nucypher.policy.conditions.base import (
     AccessControlCondition,
@@ -37,7 +36,7 @@ from nucypher.policy.conditions.exceptions import (
     ReturnValueEvaluationError,
 )
 from nucypher.policy.conditions.types import ConditionDict, Lingo
-from nucypher.policy.conditions.utils import CamelCaseSchema
+from nucypher.policy.conditions.utils import CamelCaseSchema, ConditionProviderManager
 
 
 class _ConditionField(fields.Dict):
@@ -339,7 +338,7 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
     # TODO - think about not dereferencing context but using a dict;
     #  may allows more freedom for params
     def verify(
-        self, providers: Dict[int, Set[HTTPProvider]], **context
+        self, providers: ConditionProviderManager, **context
     ) -> Tuple[bool, Any]:
         values = []
         latest_success = False
@@ -611,8 +610,10 @@ class ReturnValueTest:
         result = _COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
         return result
 
-    def with_resolved_context(self, **context):
-        value = resolve_any_context_variables(self.value, **context)
+    def with_resolved_context(
+        self, providers: Optional[ConditionProviderManager] = None, **context
+    ):
+        value = resolve_any_context_variables(self.value, providers, **context)
         return ReturnValueTest(self.comparator, value=value, index=self.index)
 
 

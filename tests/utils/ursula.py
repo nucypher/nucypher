@@ -11,6 +11,7 @@ from web3 import HTTPProvider
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.utils.blockchain import ReservedTestAccountManager
 
@@ -176,14 +177,16 @@ def setup_multichain_ursulas(chain_ids: List[int], ursulas: List[Ursula]) -> Non
     fallback_blockchain_endpoints = [
         base_fallback_uri.format(i) for i in range(len(chain_ids))
     ]
-    mocked_condition_providers = {
-        cid: {HTTPProvider(uri), HTTPProvider(furi)}
-        for cid, uri, furi in zip(
-            chain_ids, blockchain_endpoints, fallback_blockchain_endpoints
-        )
-    }
+    mocked_condition_providers = ConditionProviderManager(
+        {
+            cid: [HTTPProvider(uri), HTTPProvider(furi)]
+            for cid, uri, furi in zip(
+                chain_ids, blockchain_endpoints, fallback_blockchain_endpoints
+            )
+        }
+    )
     for ursula in ursulas:
-        ursula.condition_providers = mocked_condition_providers
+        ursula.condition_provider_manager = mocked_condition_providers
 
 
 MOCK_KNOWN_URSULAS_CACHE = dict()

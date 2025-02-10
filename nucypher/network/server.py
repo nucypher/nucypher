@@ -154,8 +154,9 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         """
         # TODO: When non-evm chains are supported, bump the version.
         #  this can return a list of chain names or other verifiable identifiers.
-
-        payload = {"version": 1.0, "evm": list(this_node.condition_providers)}
+        providers = this_node.condition_provider_manager.providers
+        sorted_chain_ids = sorted(list(providers))
+        payload = {"version": 1.0, "evm": sorted_chain_ids}
         return Response(json.dumps(payload), mimetype="application/json")
 
     @rest_app.route('/decrypt', methods=["POST"])
@@ -260,7 +261,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 try:
                     evaluate_condition_lingo(
                         condition_lingo=condition_lingo,
-                        providers=this_node.condition_providers,
+                        providers=this_node.condition_provider_manager,
                         context=context,
                     )
                 except ConditionEvalError as error:

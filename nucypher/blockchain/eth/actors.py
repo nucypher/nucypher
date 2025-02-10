@@ -4,7 +4,7 @@ import time
 import traceback
 from collections import defaultdict
 from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import maya
 from atxm.exceptions import InsufficientFunds
@@ -65,7 +65,10 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.datastore.dkg import DKGStorage
-from nucypher.policy.conditions.utils import evaluate_condition_lingo
+from nucypher.policy.conditions.utils import (
+    ConditionProviderManager,
+    evaluate_condition_lingo,
+)
 from nucypher.policy.payment import ContractPayment
 from nucypher.types import PhaseId
 from nucypher.utilities.emitters import StdoutEmitter
@@ -247,7 +250,7 @@ class Operator(BaseActor):
             ThresholdRequestDecryptingPower
         )  # used for secure decryption request channel
 
-        self.condition_providers = self.connect_condition_providers(
+        self.condition_provider_manager = self.get_condition_provider_manager(
             condition_blockchain_endpoints
         )
 
@@ -269,9 +272,9 @@ class Operator(BaseActor):
         provider = HTTPProvider(endpoint_uri=uri)
         return provider
 
-    def connect_condition_providers(
+    def get_condition_provider_manager(
         self, operator_configured_endpoints: Dict[int, List[str]]
-    ) -> DefaultDict[int, List[HTTPProvider]]:
+    ) -> ConditionProviderManager:
 
         # check that we have mandatory user configured endpoints
         mandatory_configured_chains = {
@@ -336,7 +339,7 @@ class Operator(BaseActor):
             f"checking on chain IDs {providers.keys()}"
         )
 
-        return providers
+        return ConditionProviderManager(providers=providers)
 
     def _resolve_ritual(self, ritual_id: int) -> Coordinator.Ritual:
         if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
@@ -845,7 +848,7 @@ class Operator(BaseActor):
         evaluate_condition_lingo(
             condition_lingo=condition_lingo,
             context=context,
-            providers=self.condition_providers,
+            providers=self.condition_provider_manager,
         )
 
     def _verify_decryption_request_authorization(

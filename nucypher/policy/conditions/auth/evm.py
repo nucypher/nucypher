@@ -1,16 +1,22 @@
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 import maya
 from eth_account.account import Account
 from eth_account.messages import HexBytes, encode_typed_data
+from eth_typing import ChecksumAddress
 from siwe import SiweMessage, VerificationError
+
+from nucypher.policy.conditions.exceptions import NoConnectionToChain
+from nucypher.policy.conditions.utils import ConditionProviderManager
+from nucypher.utilities.logging import Logger
 
 
 class EvmAuth:
     class AuthScheme(Enum):
         EIP712 = "EIP712"
         EIP4361 = "EIP4361"
+        EIP1271 = "EIP1271"
 
         @classmethod
         def values(cls) -> List[str]:
@@ -26,7 +32,13 @@ class EvmAuth:
         """The message is too old."""
 
     @classmethod
-    def authenticate(cls, data, signature, expected_address):
+    def authenticate(
+        cls,
+        data,
+        signature: str,
+        expected_address: str,
+        providers: Optional[ConditionProviderManager] = None,
+    ):
         raise NotImplementedError
 
     @classmethod
@@ -35,13 +47,21 @@ class EvmAuth:
             return EIP712Auth
         elif scheme == cls.AuthScheme.EIP4361.value:
             return EIP4361Auth
+        elif scheme == cls.AuthScheme.EIP1271.value:
+            return EIP1271Auth
 
         raise ValueError(f"Invalid authentication scheme: {scheme}")
 
 
 class EIP712Auth(EvmAuth):
     @classmethod
-    def authenticate(cls, data, signature, expected_address):
+    def authenticate(
+        cls,
+        data,
+        signature: str,
+        expected_address: str,
+        providers: Optional[ConditionProviderManager] = None,
+    ):
         try:
             # convert hex data for byte fields - bytes are expected by underlying library
             # 1. salt
@@ -72,7 +92,13 @@ class EIP4361Auth(EvmAuth):
     FRESHNESS_IN_HOURS = 2
 
     @classmethod
-    def authenticate(cls, data, signature, expected_address):
+    def authenticate(
+        cls,
+        data,
+        signature: str,
+        expected_address: str,
+        providers: Optional[ConditionProviderManager] = None,
+    ):
         try:
             siwe_message = SiweMessage.from_message(message=data)
         except Exception as e:
@@ -106,3 +132,113 @@ class EIP4361Auth(EvmAuth):
             raise cls.AuthenticationFailed(
                 f"Invalid EIP4361 signature; signature not valid for expected address, {expected_address}"
             )
+
+
+class EIP1271Auth(EvmAuth):
+    EIP1271_ABI = """[
+        {
+            "inputs":[
+                {
+                    "internalType":"bytes32",
+                    "name":"_hash",
+                    "type":"bytes32"
+                },
+                {
+                    "internalType":"bytes",
+                    "name":"_signature",
+                    "type":"bytes"
+                }
+            ],
+            "name":"isValidSignature",
+            "outputs":[
+                {
+                    "internalType":"bytes4",
+                    "name":"",
+                    "type":"bytes4"
+                }
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        }
+    ]"""
+    MAGIC_VALUE_BYTES = bytes(HexBytes("0x1626ba7e"))
+    LOG = Logger("EIP1271Auth")
+
+    @classmethod
+    def _extract_typed_data(cls, data):
+        try:
+            data_hash = bytes(HexBytes(data["dataHash"]))
+            chain = data["chain"]
+            return data_hash, chain
+        except Exception as e:
+            # data could not be processed
+            raise cls.InvalidData(
+                f"Invalid EIP1271 authentication data: {str(e) or e.__class__.__name__}"
+            )
+
+    @classmethod
+    def _validate_auth_data(
+        cls, data_hash, signature_bytes, expected_address, chain, providers
+    ):
+        web3_endpoints = providers.web3_endpoints(chain_id=chain)
+        last_error = None
+        for web3_instance in web3_endpoints:
+            try:
+                # Interact with the EIP1271 contract
+                eip1271_contract = web3_instance.eth.contract(
+                    address=expected_address, abi=cls.EIP1271_ABI
+                )
+                result = eip1271_contract.functions.isValidSignature(
+                    data_hash,
+                    signature_bytes,
+                ).call()
+                if result == cls.MAGIC_VALUE_BYTES:
+                    return  # Successful authentication
+
+                break
+            except Exception as e:
+                last_error = f"EIP1271 contract call failed ({expected_address}): {e}"
+                cls.LOG.warn(f"{last_error}; attempting next provider")
+        else:
+            # If all providers fail
+            if last_error:
+                raise cls.AuthenticationFailed(
+                    f"EIP1271 verification failed; {last_error}"
+                )
+
+        raise cls.AuthenticationFailed(
+            f"EIP1271 verification failed; signature not valid for contract address, {expected_address}"
+        )
+
+    @classmethod
+    def authenticate(
+        cls,
+        data,
+        signature: str,
+        expected_address: ChecksumAddress,
+        providers: Optional[ConditionProviderManager] = None,
+    ):
+        if not providers:
+            # should never happen
+            raise cls.AuthenticationFailed(
+                "EIP1271 verification failed; no endpoints provided"
+            )
+
+        # Extract and validate input data
+        data_hash, chain = cls._extract_typed_data(data)
+
+        # Validate the signature
+        signature_bytes = bytes(HexBytes(signature))
+        try:
+            cls._validate_auth_data(
+                data_hash, signature_bytes, expected_address, chain, providers
+            )
+        except NoConnectionToChain:
+            raise cls.AuthenticationFailed(
+                f"EIP1271 verification failed; No connection to chain ID {chain}"
+            )
+        except cls.AuthenticationFailed:
+            raise
+        except Exception as e:
+            # catch all
+            raise cls.AuthenticationFailed(f"EIP1271 verification failed; {e}")

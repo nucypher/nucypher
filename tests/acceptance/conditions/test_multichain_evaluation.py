@@ -1,7 +1,6 @@
 from collections import defaultdict
 
 import pytest
-from web3 import Web3
 
 from nucypher.policy.conditions.evm import RPCCall, RPCCondition
 from nucypher.policy.conditions.lingo import (
@@ -10,7 +9,8 @@ from nucypher.policy.conditions.lingo import (
     ConditionType,
     ReturnValueTest,
 )
-from nucypher.policy.conditions.time import TimeCondition, TimeRPCCall
+from nucypher.policy.conditions.time import TimeCondition
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.utils.policy import make_message_kits
 
@@ -62,7 +62,7 @@ def conditions(bob, multichain_ids):
 
 
 def test_single_retrieve_with_multichain_conditions(
-    enacted_policy, bob, multichain_ursulas, conditions, mock_rpc_condition
+    enacted_policy, bob, multichain_ursulas, conditions, monkeymodule, testerchain
 ):
     bob.remember_node(multichain_ursulas[0])
     bob.start_learning_loop()
@@ -71,6 +71,11 @@ def test_single_retrieve_with_multichain_conditions(
     policy_info_kwargs = dict(
         encrypted_treasure_map=enacted_policy.treasure_map,
         alice_verifying_key=enacted_policy.publisher_verifying_key,
+    )
+    monkeymodule.setattr(
+        ConditionProviderManager,
+        "web3_endpoints",
+        lambda *args, **kwargs: [testerchain.w3],
     )
 
     cleartexts = bob.retrieve_and_decrypt(
@@ -93,43 +98,30 @@ def test_single_decryption_request_with_faulty_rpc_endpoint(
         alice_verifying_key=enacted_policy.publisher_verifying_key,
     )
 
-    def _mock_configure_provider(*args, **kwargs):
-        rpc_call_type = args[0]
-        if isinstance(rpc_call_type, TimeRPCCall):
-            # time condition call - only RPCCall is made faulty
-            return testerchain.w3
+    monkeymodule.setattr(
+        ConditionProviderManager,
+        "web3_endpoints",
+        lambda *args, **kwargs: [testerchain.w3, testerchain.w3],
+    )  # a base, and fallback
 
-        # rpc condition call
-        provider = args[1]
-        w3 = Web3(provider)
-        return w3
-
-    monkeymodule.setattr(RPCCall, "_configure_provider", _mock_configure_provider)
-
-    calls = defaultdict(int)
+    rpc_calls = defaultdict(int)
     original_execute_call = RPCCall._execute
 
-    def faulty_execute_call(*args, **kwargs):
+    def faulty_rpc_execute_call(*args, **kwargs):
         """Intercept the call to the RPC endpoint and raise an exception on the second call."""
-        nonlocal calls
+        nonlocal rpc_calls
         rpc_call_object = args[0]
-        resolved_parameters = args[2]
-        calls[rpc_call_object.chain] += 1
-        if calls[rpc_call_object.chain] % 2 == 0:
+        rpc_calls[rpc_call_object.chain] += 1
+        if rpc_calls[rpc_call_object.chain] % 2 == 0:
             # simulate a network error
             raise ConnectionError("Something went wrong with the network")
 
-        # replace w3 object with fake provider, with proper w3 object for actual execution
-        return original_execute_call(
-            rpc_call_object, testerchain.w3, resolved_parameters
-        )
+        # make original call
+        return original_execute_call(*args, **kwargs)
 
-    RPCCall._execute = faulty_execute_call
-
+    monkeymodule.setattr(RPCCall, "_execute", faulty_rpc_execute_call)
     cleartexts = bob.retrieve_and_decrypt(
         message_kits=message_kits,
         **policy_info_kwargs,
     )
     assert cleartexts == messages
-
-    RPCCall._execute = original_execute_call
