@@ -9,6 +9,7 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
     event SignerAdded(address indexed signer);
     event SignerRemoved(address indexed signer);
     event SignerReplaced(address indexed signer, address newSigner);
+    event SignedMessageCached(bytes32 indexed hash);
     event ThresholdChanged(uint16 threshold);
 
     uint256 constant public MAX_SIGNER_COUNT = 30;
@@ -20,13 +21,8 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
 
     bytes4 internal constant MAGICVALUE = 0x1626ba7e;
     bytes4 constant internal INVALID_SIGNATURE = 0xffffffff;
+    mapping(bytes32 => bool) public validSignatures;
 
-
-    // @notice Only this contract can call method
-    modifier onlyThisContract() {
-        require(msg.sender == address(this));
-        _;
-    }
 
     function deposit() external payable {}
 
@@ -76,11 +72,11 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
     * @param _destination Destination address
     * @param _value Amount of ETH to transfer
     * @param _data Call data
-    * @param _signatures The signatures for signers
+    * @param _signature The aggregated signatures for signers
     **/
-    function execute(address _destination, uint256 _value, bytes memory _data, bytes[] memory _signatures) external {
+    function execute(address _destination, uint256 _value, bytes memory _data, bytes memory _signature) external {
         bytes32 _hash = getUnsignedTransactionHash(msg.sender,_destination,_value, _data, nonce);
-        require(isValidSignatures(_hash, _signatures) == MAGICVALUE, "Invalid Signature");
+        require(isValidSignature(_hash, _signature) == MAGICVALUE, "Invalid Signature");
         emit Executed(msg.sender, nonce, _destination, _value);
         nonce++;
         (bool success, ) = _destination.call{value: _value}(_data);
@@ -88,39 +84,26 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
     }
 
     /**
-    * @dev Note that addresses recovered from signatures must be strictly increasing
+    * @notice Check if the signatures are valid.
     * @param _hash Hash of the transaction
-    * @param _signatures The signatures for signers
+    * @param _signature The signatures for signers
     **/
-    function isValidSignatures(bytes32 _hash, bytes[] memory _signatures) public view returns (bytes4) {
-        uint256 thresholdCounter = 0;
-        address lastAddress = address(0);
-        for (uint256 i = 0; i < _signatures.length; i++) {
-            address recovered = _hash.recover(_signatures[i]);
-            if (recovered <= lastAddress || !isSigner[recovered]) {
-                return INVALID_SIGNATURE;
-            }
-            lastAddress = recovered;
-            thresholdCounter++;
-            if (thresholdCounter >= threshold) {
-                return MAGICVALUE;
-            }
-        }
-
-        return INVALID_SIGNATURE;
-    }
-
     function isValidSignature(bytes32 _hash, bytes memory _signature) public view override returns (bytes4) {
         // split up signature bytes into array
         require(_signature.length >= (threshold * 65), "Invalid threshold of signatures");
-        address lastAddress = address(0);
+        if (validSignatures[_hash]) {
+            // TODO is this sufficient?
+            // - in this case the message hash was previously signed and cached, but
+            // what if the _hash is correct but the signature is wrong
+            return MAGICVALUE;
+        }
+
         for (uint256 i = 0; i < threshold; i++) {
             (uint8 v, bytes32 r, bytes32 s) = signatureSplit(_signature, i);
             address recovered = ecrecover(_hash, v, r, s);
-            if (recovered <= lastAddress || !isSigner[recovered]) {
+            if (!isSigner[recovered]) {
                 return INVALID_SIGNATURE;
             }
-            lastAddress = recovered;
         }
 
         return MAGICVALUE;
@@ -157,13 +140,12 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
     **/
     function addSigner(address _signer)
         public
-        onlyThisContract
+        onlyOwner
     {
-        require(signers.length < MAX_SIGNER_COUNT &&
-            _signer != address(0) &&
-            !isSigner[_signer]);
-        isSigner[_signer] = true;
+        require(signers.length < MAX_SIGNER_COUNT, "At max signers");
+        require(_signer != address(0) && !isSigner[_signer], "Invalid signer");
         signers.push(_signer);
+        isSigner[_signer] = true;
         emit SignerAdded(_signer);
     }
 
@@ -174,40 +156,44 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
     **/
     function removeSigner(address _signer)
         public
-        onlyThisContract
+        onlyOwner
     {
-        require(signers.length > threshold && isSigner[_signer]);
+        require(signers.length > threshold && isSigner[_signer], "Invalid signer");
         isSigner[_signer] = false;
-        for (uint256 i = 0; i < signers.length - 1; i++) {
+
+        uint256 index = signers.length;
+        for (uint256 i = 0; i < signers.length; i++) {
             if (signers[i] == _signer) {
-                signers[i] = signers[signers.length - 1];
+                index = i;
                 break;
             }
         }
-        signers.pop();
+        require(index < signers.length && signers[index] == _signer, "Signer not found");
+        signers[index] = signers[signers.length - 1];
+        signers.pop(); // Remove last element
         emit SignerRemoved(_signer);
     }
 
     /**
     * @notice Allows to replace an signer with a new signer.
     * @dev Transaction has to be sent by `execute` method.
-    * @param signer Address of signer to be replaced.
+    * @param oldSigner Address of signer to be replaced.
     * @param newSigner Address of new signer.
     */
-    function replaceSigner(address signer, address newSigner)
+    function replaceSigner(address oldSigner, address newSigner)
         public
-        onlyThisContract
+        onlyOwner
     {
-        require(isSigner[signer] && !isSigner[newSigner]);
-        for (uint256 i=0; i < signers.length; i++) {
-            if (signers[i] == signer) {
-                signers[i] = newSigner;
-                break;
-            }
-        }
-        isSigner[signer] = false;
-        isSigner[newSigner] = true;
-        emit SignerReplaced(signer, newSigner);
+        require(isSigner[oldSigner] && !isSigner[newSigner], "Invalid Signer");
+
+        removeSigner(oldSigner);
+        addSigner(newSigner);
+        emit SignerReplaced(oldSigner, newSigner);
+    }
+
+
+    function getSigners() public view returns (address[] memory) {
+        return signers;
     }
 
     /**
@@ -217,11 +203,20 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
     **/
     function changeThreshold(uint8 _threshold)
         public
-        onlyThisContract
+        onlyOwner
     {
         require(_threshold <= signers.length && _threshold > 0);
         threshold = _threshold;
         emit ThresholdChanged(_threshold);
+    }
+
+    function saveSignature(bytes32 _hash, bytes memory _signature) public {
+        // Save signature
+        require(isValidSignature(_hash, _signature) == MAGICVALUE, "Invalid Signature");
+
+        // TODO: is this sufficient?
+        validSignatures[_hash] = true;
+        emit SignedMessageCached(_hash);
     }
 
 }
