@@ -25,6 +25,7 @@ def ursula_sign_raw_hash(accounts, ursula, raw_hash: bytes):
     signature_bytes = message_signature.encode_rsv()
     return signature_bytes
 
+
 @pytest.fixture
 def signing_cohort(ursulas):
     cohort = ursulas[:COHORT_SIZE]
@@ -231,11 +232,23 @@ def test_cohort_handover(
         == EIP1271Auth.MAGIC_VALUE_BYTES
     )
 
-    # new signers can sign
     new_data = "Labor omnia vincit."
     new_signable_message = encode_defunct(text=new_data)
     new_message_hash = defunct_hash_message(text=new_data)
 
+    # old signers can't sign anything new
+    old_cohort_new_signatures = []
+    for ursula in signing_cohort:
+        signature_bytes = ursula_sign_data(accounts, ursula, new_signable_message)
+        old_cohort_new_signatures.append(signature_bytes)
+    assert (
+        multisig_contract_wallet.isValidSignature(
+            new_message_hash, b"".join(old_cohort_new_signatures)
+        )
+        != EIP1271Auth.MAGIC_VALUE_BYTES
+    )
+
+    # new signers can sign
     new_signatures = []
     new_cohort_sample = random.sample(new_cohort, COHORT_THRESHOLD)
     for ursula in new_cohort_sample:
