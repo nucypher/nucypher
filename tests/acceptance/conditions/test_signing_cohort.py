@@ -12,6 +12,19 @@ COHORT_SIZE = 4
 COHORT_THRESHOLD = 2
 
 
+def ursula_sign_data(accounts, ursula, signable_message):
+    operator_account = accounts[ursula.operator_address]
+    message_signature = operator_account.sign_message(signable_message)
+    signature_bytes = message_signature.encode_rsv()
+    return signature_bytes
+
+
+def ursula_sign_raw_hash(accounts, ursula, raw_hash: bytes):
+    operator_account = accounts[ursula.operator_address]
+    message_signature = operator_account.sign_raw_msghash(raw_hash)
+    signature_bytes = message_signature.encode_rsv()
+    return signature_bytes
+
 @pytest.fixture
 def signing_cohort(ursulas):
     cohort = ursulas[:COHORT_SIZE]
@@ -48,9 +61,7 @@ def test_simple_data_message_signing(
     # random sample from cohort
     cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
     for ursula in cohort_sample:
-        operator_account = accounts[ursula.operator_address]
-        message_signature = operator_account.sign_message(signable_message)
-        signature_bytes = message_signature.encode_rsv()
+        signature_bytes = ursula_sign_data(accounts, ursula, signable_message)
         received_signatures.append(signature_bytes)
 
     message_hash = defunct_hash_message(text=data)
@@ -88,16 +99,12 @@ def test_simple_tx_signing(
         b"",
         multisig_contract_wallet.nonce,
     )
-
     received_signatures = []
 
-    # random sample from cohort
+    # use random sample from cohort for signing
     cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
-
     for ursula in cohort_sample:
-        operator_account = accounts[ursula.operator_address]
-        message_signature = operator_account.sign_raw_msghash(tx_hash)
-        signature_bytes = message_signature.encode_rsv()
+        signature_bytes = ursula_sign_raw_hash(accounts, ursula, tx_hash)
         received_signatures.append(signature_bytes)
 
     aggregated_signature = b"".join(received_signatures)
@@ -132,9 +139,7 @@ def test_saved_data_message_signing(
     cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
 
     for ursula in cohort_sample:
-        operator_account = accounts[ursula.operator_address]
-        message_signature = operator_account.sign_message(signable_message)
-        signature_bytes = message_signature.encode_rsv()
+        signature_bytes = ursula_sign_data(accounts, ursula, signable_message)
         received_signatures.append(signature_bytes)
 
     message_hash = defunct_hash_message(text=data)
@@ -177,9 +182,7 @@ def test_cohort_handover(
     cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
 
     for ursula in cohort_sample:
-        operator_account = accounts[ursula.operator_address]
-        message_signature = operator_account.sign_message(signable_message)
-        signature_bytes = message_signature.encode_rsv()
+        signature_bytes = ursula_sign_data(accounts, ursula, signable_message)
         received_signatures.append(signature_bytes)
 
     # call method that takes individual signatures
@@ -224,6 +227,24 @@ def test_cohort_handover(
     assert (
         multisig_contract_wallet.isValidSignature(
             message_hash, os.urandom(len(aggregated_signatures))
+        )
+        == EIP1271Auth.MAGIC_VALUE_BYTES
+    )
+
+    # new signers can sign
+    new_data = "Labor omnia vincit."
+    new_signable_message = encode_defunct(text=new_data)
+    new_message_hash = defunct_hash_message(text=new_data)
+
+    new_signatures = []
+    new_cohort_sample = random.sample(new_cohort, COHORT_THRESHOLD)
+    for ursula in new_cohort_sample:
+        signature_bytes = ursula_sign_data(accounts, ursula, new_signable_message)
+        new_signatures.append(signature_bytes)
+
+    assert (
+        multisig_contract_wallet.isValidSignature(
+            new_message_hash, b"".join(new_signatures)
         )
         == EIP1271Auth.MAGIC_VALUE_BYTES
     )
