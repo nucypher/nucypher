@@ -10,6 +10,10 @@ from nucypher.policy.conditions.context import is_context_variable
 from nucypher.policy.conditions.exceptions import (
     JsonRequestException,
 )
+from nucypher.policy.conditions.json.auth import (
+    AuthorizationType,
+    AuthorizationTypeField,
+)
 from nucypher.policy.conditions.json.base import (
     BaseJsonRequestCondition,
     HTTPMethod,
@@ -30,6 +34,7 @@ class BaseJsonRPCCall(JsonRequestCall, ABC):
         params = AnyField(required=False, allow_none=True)
         query = JSONPathField(required=False, allow_none=True)
         authorization_token = fields.Str(required=False, allow_none=True)
+        authorization_type = AuthorizationTypeField(required=False, allow_none=True)
 
         @validates("authorization_token")
         def validate_auth_token(self, value):
@@ -44,6 +49,7 @@ class BaseJsonRPCCall(JsonRequestCall, ABC):
         params: Optional[Any] = None,
         query: Optional[str] = None,
         authorization_token: Optional[str] = None,
+        authorization_type: Optional[AuthorizationType] = None,
     ):
         self.method = method
         self.params = params or []
@@ -59,6 +65,7 @@ class BaseJsonRPCCall(JsonRequestCall, ABC):
             parameters=parameters,
             query=query,
             authorization_token=authorization_token,
+            authorization_type=authorization_type,
         )
 
     @override
@@ -97,6 +104,7 @@ class JsonEndpointRPCCall(BaseJsonRPCCall):
         params: Optional[Any] = None,
         query: Optional[str] = None,
         authorization_token: Optional[str] = None,
+        authorization_type: Optional[AuthorizationType] = None,
     ):
         self.endpoint = endpoint
         super().__init__(
@@ -104,6 +112,7 @@ class JsonEndpointRPCCall(BaseJsonRPCCall):
             params=params,
             query=query,
             authorization_token=authorization_token,
+            authorization_type=authorization_type,
         )
 
     @override
@@ -138,6 +147,7 @@ class JsonRpcCondition(BaseJsonRequestCondition):
         params: Optional[Any] = None,
         query: Optional[str] = None,
         authorization_token: Optional[str] = None,
+        authorization_type: Optional[AuthorizationType] = None,
         condition_type: Optional[str] = ConditionType.JSONRPC.value,
         name: Optional[str] = None,
     ):
@@ -148,6 +158,7 @@ class JsonRpcCondition(BaseJsonRequestCondition):
             params=params,
             query=query,
             authorization_token=authorization_token,
+            authorization_type=authorization_type,
             condition_type=condition_type,
             name=name,
         )
@@ -171,6 +182,10 @@ class JsonRpcCondition(BaseJsonRequestCondition):
     @property
     def authorization_token(self):
         return self.execution_call.authorization_token
+
+    @property
+    def authorization_type(self):
+        return self.execution_call.authorization_type
 
     @property
     def timeout(self):
