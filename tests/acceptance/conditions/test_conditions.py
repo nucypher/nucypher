@@ -30,6 +30,8 @@ from nucypher.policy.conditions.exceptions import (
     RequiredContextVariable,
     RPCExecutionFailed,
 )
+from nucypher.policy.conditions.json.api import JsonApiCondition
+from nucypher.policy.conditions.json.auth import AuthorizationType
 from nucypher.policy.conditions.json.rpc import JsonRpcCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
@@ -1068,3 +1070,31 @@ def test_validate_condition_lingo_endpoint(ursulas, time_condition):
             path="validate_condition_lingo",
             json=json.dumps({"invalidCondition": "confirmed"}),
         )
+
+
+@pytest.mark.xfail(reason="This test requires a valid POAP API Key")
+@mock.patch(
+    GET_CONTEXT_VALUE_IMPORT_PATH,
+    side_effect=_dont_validate_user_address,
+)
+def test_poap_api_condition(get_context_value_mock, condition_providers):
+    eth_denver_2025_event_id = 185704
+
+    # get an API key from https://documentation.poap.tech/docs/authentication
+    authorization_token = "abcd1234"
+
+    context = {
+        USER_ADDRESS_CONTEXT: {"address": "0x19570deAFd7Cbe25B30A5A72c95A8E7658672436"},
+        ":authToken": authorization_token,
+    }
+
+    # check whether user has attended eth denver 2025
+    condition = JsonApiCondition(
+        endpoint=f"https://api.poap.tech/actions/scan/:userAddress/{eth_denver_2025_event_id}",
+        authorization_token=":authToken",
+        authorization_type=AuthorizationType.X_API_KEY,
+        query="$.tokenId",
+        return_value_test=ReturnValueTest("!=", '""'),
+    )
+    success, _ = condition.verify(providers=condition_providers, **context)
+    assert success
