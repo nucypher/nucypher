@@ -1,6 +1,5 @@
 import random
 
-import maya
 import pytest
 from web3 import Web3
 
@@ -43,11 +42,6 @@ MIN_AUTHORIZATION = Web3.to_wei(40_000, "ether")
 
 REWARD_DURATION = 7 * ONE_DAY  # one week in seconds
 DEAUTHORIZATION_DURATION = 60 * ONE_DAY  # 60 days in seconds
-
-COMMITMENT_DURATION_1 = 182 * ONE_DAY  # 182 days in seconds
-COMMITMENT_DURATION_2 = 2 * COMMITMENT_DURATION_1  # 365 days in seconds
-
-COMMITMENT_DEADLINE = 100 * ONE_DAY  # 100 days after deployment
 
 PENALTY_DEFAULT = 1000  # 10% penalty
 PENALTY_INCREMENT = 2500  # 25% penalty increment
@@ -161,8 +155,6 @@ def taco_application(
         MIN_OPERATOR_SECONDS,
         REWARD_DURATION,
         DEAUTHORIZATION_DURATION,
-        [COMMITMENT_DURATION_1, COMMITMENT_DURATION_2],
-        maya.now().epoch + COMMITMENT_DEADLINE,
         PENALTY_DEFAULT,
         PENALTY_DURATION,
         PENALTY_INCREMENT,
