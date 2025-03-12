@@ -420,9 +420,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.crypto_power = crypto_power
         if keystore_path and not keystore:
             keystore = Keystore(keystore_path=keystore_path)
-        self.__keystore = self.__keystore = keystore or NO_KEYSTORE_ATTACHED.bool_value(
-            False
-        )
+        self.__keystore = keystore or NO_KEYSTORE_ATTACHED.bool_value(False)
         self.keystore_dir = (
             Path(keystore.keystore_path).parent
             if keystore
