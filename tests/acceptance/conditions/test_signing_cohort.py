@@ -162,7 +162,7 @@ def test_saved_data_message_signing(
 
     # save signatures
     multisig_contract_wallet.saveSignature(
-        message_hash, received_signatures, sender=deployer_account
+        message_hash, aggregated_signatures, sender=deployer_account
     )
 
     assert (
@@ -192,7 +192,7 @@ def test_cohort_handover(
 
     # save signatures
     multisig_contract_wallet.saveSignature(
-        message_hash, received_signatures, sender=deployer_account
+        message_hash, aggregated_signatures, sender=deployer_account
     )
 
     assert (
