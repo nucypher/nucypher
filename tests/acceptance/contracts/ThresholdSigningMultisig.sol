@@ -23,6 +23,21 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
     bytes4 constant internal INVALID_SIGNATURE = 0xffffffff;
     mapping(bytes32 => bool) public validSignatures;
 
+    // Random Number Generation
+    struct RandomNumberRequest {
+        address requester;
+        bool fulfilled;
+        uint256 randomValue;
+        bytes[] randomnessValues;
+        bytes[] proofs;
+    }
+    mapping(bytes32 => RandomNumberRequest) public randomRequests;
+    uint256 private randomNonce;
+    mapping(bytes32 => mapping(address => bool)) public randomRequestSigners;
+
+    event RandomNumberRequested(bytes32 indexed requestHash, address requester);
+    event RandomnessSubmitted(bytes32 indexed requestHash, address signer, bytes randomness, bytes proof);
+    event RandomNumberGenerated(bytes32 indexed requestHash, uint256 randomValue);
 
     function deposit() external payable {}
 
@@ -210,6 +225,10 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
         emit ThresholdChanged(_threshold);
     }
 
+    //
+    // Cached signatures (in case of cohort rotation/handover)
+    //
+
     function saveSignature(bytes32 _hash, bytes memory _signature) public {
         // Save signature
         require(isValidSignature(_hash, _signature) == MAGICVALUE, "Invalid Signature");
@@ -217,6 +236,62 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
         // TODO: is this sufficient?
         validSignatures[_hash] = true;
         emit SignedMessageCached(_hash);
+    }
+
+    //
+    // Random Number Generation
+    //
+
+    function requestRandomNumber() external {
+        randomNonce++;
+        bytes32 requestHash = keccak256(abi.encodePacked(msg.sender, block.timestamp, randomNonce));
+        require(randomRequests[requestHash].requester == address(0), "Random Number request already exists");
+
+        RandomNumberRequest storage request = randomRequests[requestHash];
+        request.requester = msg.sender;
+        request.fulfilled = false;
+        request.randomValue = 0;
+
+        emit RandomNumberRequested(requestHash, msg.sender);
+    }
+
+    function submitRandomness(bytes32 requestHash, bytes memory randomness, bytes memory proof) external {
+        require(isSigner[msg.sender], "Not an authorized signer");
+        require(!randomRequestSigners[requestHash][msg.sender], "Submission already made");
+
+        RandomNumberRequest storage request = randomRequests[requestHash];
+        require(request.requester != address(0), "Invalid request");
+        require(!request.fulfilled, "Random Number request already fulfilled");
+
+        request.randomnessValues.push(randomness);
+        request.proofs.push(proof);
+        randomRequestSigners[requestHash][msg.sender] = true;
+        if (request.randomnessValues.length >= threshold) {
+            finalizeRandomness(requestHash);
+        }
+
+        emit RandomnessSubmitted(requestHash, msg.sender, randomness, proof);
+    }
+
+    function getRandomNumber(bytes32 requestHash) external view returns (uint256) {
+        require(randomRequests[requestHash].fulfilled, "Random number not generated");
+        return randomRequests[requestHash].randomValue;
+    }
+
+    function finalizeRandomness(bytes32 requestHash) internal {
+        RandomNumberRequest storage request = randomRequests[requestHash];
+        require(request.randomnessValues.length >= threshold, "Not enough submissions");
+        require(request.randomValue == 0, "Random number already generated");
+
+        bytes32 finalRandomness;
+        for (uint256 i = 0; i < request.randomnessValues.length; i++) {
+            finalRandomness = keccak256(abi.encodePacked(finalRandomness, request.randomnessValues[i]));
+        }
+        uint256 finalRandomValue =  uint256(finalRandomness) % 10**18; // Random number within range
+        request.fulfilled = true;
+        request.randomValue = finalRandomValue;
+
+        emit RandomNumberGenerated(requestHash, finalRandomValue);
     }
 
 }

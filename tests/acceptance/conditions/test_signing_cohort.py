@@ -4,6 +4,10 @@ import random
 import pytest
 from ape.exceptions import ContractLogicError
 from eth_account.messages import defunct_hash_message, encode_defunct
+from eth_keys.datatypes import PrivateKey
+from hexbytes import HexBytes
+from py_ecc.secp256k1 import secp256k1
+from py_ecc.secp256k1.secp256k1 import bytes_to_int
 from web3 import Web3
 
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
@@ -25,6 +29,21 @@ def ursula_sign_raw_hash(accounts, ursula, raw_hash: bytes):
     signature_bytes = message_signature.encode_rsv()
     return signature_bytes
 
+
+def ursula_generate_vrf_randomness(accounts, ursula, message):
+    private_key = PrivateKey(
+        bytes(HexBytes(accounts[ursula.operator_address].private_key))
+    )
+    message_scalar = bytes_to_int(message) % secp256k1.N
+
+    randomness = secp256k1.multiply(secp256k1.G, message_scalar)
+    proof = secp256k1.multiply(randomness, bytes_to_int(private_key.to_bytes()))
+
+    return randomness, proof
+
+
+def point_to_bytes(point):
+    return point[0].to_bytes(32, "big") + point[1].to_bytes(32, "big")
 
 @pytest.fixture
 def signing_cohort(ursulas):
@@ -261,3 +280,38 @@ def test_cohort_handover(
         )
         == EIP1271Auth.MAGIC_VALUE_BYTES
     )
+
+
+def test_on_chain_random_number_generation(
+    deployer_account, multisig_contract_wallet, signing_cohort, accounts
+):
+    random_numbers = set()
+    numbers_to_generate = 3
+
+    for i in range(numbers_to_generate):
+        receipt = multisig_contract_wallet.requestRandomNumber(sender=deployer_account)
+        assert receipt.events[0]["requester"] == deployer_account.address
+
+        request_hash = receipt.events[0]["requestHash"]
+
+        cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+        for ursula in cohort_sample:
+            randomness, proof = ursula_generate_vrf_randomness(
+                accounts, ursula, request_hash
+            )
+            multisig_contract_wallet.submitRandomness(
+                request_hash,
+                point_to_bytes(randomness),
+                point_to_bytes(proof),
+                sender=accounts[ursula.operator_address],
+            )
+
+        # random number should now be generated
+        random_number = int(multisig_contract_wallet.getRandomNumber(request_hash))
+        random_number_second_call = multisig_contract_wallet.getRandomNumber(
+            request_hash
+        )
+        assert random_number == random_number_second_call
+        random_numbers.add(random_number)
+
+    assert len(random_numbers) == numbers_to_generate, "random numbers are unique"
