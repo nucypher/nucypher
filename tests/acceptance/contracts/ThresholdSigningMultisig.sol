@@ -39,6 +39,20 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
     event RandomnessSubmitted(bytes32 indexed requestHash, address signer, bytes randomness, bytes proof);
     event RandomNumberGenerated(bytes32 indexed requestHash, uint256 randomValue);
 
+    // JWT-like Token Issuance
+    struct TokenIssuanceRequest {
+        address requester;
+        bool fulfilled;
+        string tokenPayload;
+        bytes[] collectedSignatures;
+        bytes thresholdSignature;
+    }
+    mapping(bytes32 => TokenIssuanceRequest) public tokenRequests;
+    mapping(bytes32 => mapping(address => bool)) public tokenRequestSigners;
+
+    event TokenIssuanceRequested(bytes32 indexed requestHash, address requster, string tokenPayload);
+    event TokenIssuanceApproved(bytes32 indexed requestHash, string tokenPayload, bytes aggregatedSignature);
+
     function deposit() external payable {}
 
     /**
@@ -292,6 +306,61 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
         request.randomValue = finalRandomValue;
 
         emit RandomNumberGenerated(requestHash, finalRandomValue);
+    }
+
+
+    //
+    // JWT-like token issuance
+    //
+    function requestTokenIssuance(string memory tokenPayload) external {
+        require(msg.sender == owner(), "Only owner can request token");
+        bytes32 requestHash = keccak256(abi.encodePacked(tokenPayload));
+        require(tokenRequests[requestHash].requester == address(0), "Request already exists");
+
+        TokenIssuanceRequest storage request = tokenRequests[requestHash];
+        request.requester = msg.sender;
+        request.fulfilled = false;
+        request.tokenPayload = tokenPayload;
+
+        emit TokenIssuanceRequested(requestHash, msg.sender, tokenPayload);
+    }
+
+    function approveTokenIssuance(bytes32 requestHash, bytes memory signature) external {
+        require(isSigner[msg.sender], "Not an authorized signer");
+        require(tokenRequests[requestHash].requester != address(0), "Invalid token request");
+
+        TokenIssuanceRequest storage request = tokenRequests[requestHash];
+
+        require(!request.fulfilled, "Token request already fulfilled");
+
+        address recovered = ECDSA.recover(requestHash, signature);
+        require(isSigner[recovered], "Invalid signer");
+        require(!tokenRequestSigners[requestHash][recovered], "Signature already submitted");
+
+        tokenRequestSigners[requestHash][recovered] = true;
+        request.collectedSignatures.push(signature);
+        if (request.collectedSignatures.length >= threshold) {
+            finalizeTokenApproval(requestHash);
+        }
+    }
+
+    function finalizeTokenApproval(bytes32 requestHash) internal {
+        TokenIssuanceRequest storage request = tokenRequests[requestHash];
+        require(request.collectedSignatures.length >= threshold, "Not enough signatures");
+
+        bytes memory aggregatedSignature;
+        for (uint256 i = 0; i < threshold; i++) {
+            aggregatedSignature = abi.encodePacked(aggregatedSignature, request.collectedSignatures[i]);
+        }
+        request.thresholdSignature = aggregatedSignature;
+        request.fulfilled = true;
+
+        emit TokenIssuanceApproved(requestHash, tokenRequests[requestHash].tokenPayload, aggregatedSignature);
+    }
+
+    function verifyTokenSignature(string memory tokenPayload, bytes memory signature) external view returns (bool) {
+        bytes32 requestHash = keccak256(abi.encodePacked(tokenPayload));
+        return keccak256(signature) == keccak256(tokenRequests[requestHash].thresholdSignature);
     }
 
 }

@@ -1,6 +1,8 @@
+import json
 import os
 import random
 
+import maya
 import pytest
 from ape.exceptions import ContractLogicError
 from eth_account.messages import defunct_hash_message, encode_defunct
@@ -315,3 +317,36 @@ def test_on_chain_random_number_generation(
         random_numbers.add(random_number)
 
     assert len(random_numbers) == numbers_to_generate, "random numbers are unique"
+
+
+def test_on_chain_token_issuance(
+    deployer_account, multisig_contract_wallet, signing_cohort, accounts
+):
+    delegatee = accounts.unassigned_accounts[0]
+    one_hour_from_now = maya.now().add(hours=1).epoch
+    token_data = {
+        "sub": delegatee,
+        "exp": one_hour_from_now,
+        "permissions": ["read_data"],
+    }
+    token_data_str = json.dumps(token_data)
+
+    receipt = multisig_contract_wallet.requestTokenIssuance(
+        token_data_str, sender=deployer_account
+    )
+    request_hash = receipt.events[0]["requestHash"]
+
+    # submit signatures
+    aggregated_signature = b""
+    cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+    for ursula in cohort_sample:
+        signature_bytes = ursula_sign_raw_hash(accounts, ursula, request_hash)
+        multisig_contract_wallet.approveTokenIssuance(
+            request_hash, signature_bytes, sender=accounts[ursula.operator_address]
+        )
+        aggregated_signature += signature_bytes
+
+    # token should now be valid
+    assert multisig_contract_wallet.verifyTokenSignature(
+        token_data_str, aggregated_signature
+    )
