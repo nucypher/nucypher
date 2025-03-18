@@ -52,7 +52,7 @@ class JWTVerificationCall(ExecutionCall):
                     value.encode(), backend=default_backend()
                 )
                 if isinstance(public_key, rsa.RSAPublicKey):
-                    return value
+                    return
                 elif isinstance(public_key, ec.EllipticCurvePublicKey):
                     curve = public_key.curve
                     if curve.name != JWTVerificationCall.SECP_CURVE_FOR_ES256:
@@ -61,8 +61,6 @@ class JWTVerificationCall(ExecutionCall):
                         )
             except Exception as e:
                 raise ValidationError(f"Invalid public key format: {str(e)}")
-
-            return value
 
     def __init__(
         self,
