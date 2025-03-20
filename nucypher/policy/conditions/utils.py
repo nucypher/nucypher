@@ -1,6 +1,6 @@
 import re
 from http import HTTPStatus
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from marshmallow import Schema, post_dump
 from marshmallow.exceptions import SCHEMA
@@ -223,3 +223,18 @@ def extract_single_error_message_from_schema_errors(
         else ""
     )
     return f"{message_prefix}{message}"
+
+
+def check_and_convert_big_int_string_to_int(value: str) -> Union[str, int]:
+    """
+    Check if a string is a big int string and convert it to an integer, otherwise return the string.
+    """
+    if value.endswith("n"):
+        try:
+            result = int(value[:-1])
+            return result
+        except ValueError:
+            # ignore
+            pass
+
+    return value

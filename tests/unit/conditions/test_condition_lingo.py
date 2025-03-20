@@ -426,16 +426,16 @@ def test_any_field_integer_str_and_no_str_conversion(integer_value):
     deserialized_raw_integer = field._deserialize(
         value=integer_value, attr=None, data=None
     )
-    deserialized_string_integer = field._deserialize(
-        value=str(integer_value), attr=None, data=None
+    deserialized_big_int_string = field._deserialize(
+        value=f"{integer_value}n", attr=None, data=None
     )
-    assert deserialized_raw_integer == deserialized_string_integer
+    assert deserialized_raw_integer == deserialized_big_int_string
 
     assert (
         field._serialize(deserialized_raw_integer, attr=None, obj=None) == integer_value
     )
     assert (
-        field._serialize(deserialized_string_integer, attr=None, obj=None)
+        field._serialize(deserialized_big_int_string, attr=None, obj=None)
         == integer_value
     )
 
@@ -448,8 +448,8 @@ def test_any_field_nested_integer():
     regular_number = 12341231
 
     parameters = [
-        f"{uint256_max}",
-        {"a": [f"{int256_min}", "my_string_value", "0xdeadbeef"], "b": regular_number},
+        f"{uint256_max}n",
+        {"a": [f"{int256_min}n", "my_string_value", "0xdeadbeef"], "b": regular_number},
     ]
     # quoted numbers get unquoted after deserialization
     expected_parameters = [

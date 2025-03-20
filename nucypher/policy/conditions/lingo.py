@@ -36,7 +36,11 @@ from nucypher.policy.conditions.exceptions import (
     ReturnValueEvaluationError,
 )
 from nucypher.policy.conditions.types import ConditionDict, Lingo
-from nucypher.policy.conditions.utils import CamelCaseSchema, ConditionProviderManager
+from nucypher.policy.conditions.utils import (
+    CamelCaseSchema,
+    ConditionProviderManager,
+    check_and_convert_big_int_string_to_int,
+)
 
 
 class AnyField(fields.Field):
@@ -46,23 +50,15 @@ class AnyField(fields.Field):
     numbers as integers, so those need converting to integers.
     """
 
-    def _convert_any_large_integers_from_string(self, value):
+    def _convert_any_big_ints_from_string(self, value):
         if isinstance(value, list):
-            return [
-                self._convert_any_large_integers_from_string(item) for item in value
-            ]
+            return [self._convert_any_big_ints_from_string(item) for item in value]
         elif isinstance(value, dict):
             return {
-                k: self._convert_any_large_integers_from_string(v)
-                for k, v in value.items()
+                k: self._convert_any_big_ints_from_string(v) for k, v in value.items()
             }
         elif isinstance(value, str):
-            try:
-                result = int(value)
-                return result
-            except ValueError:
-                # ignore
-                pass
+            return check_and_convert_big_int_string_to_int(value)
 
         return value
 
@@ -70,7 +66,23 @@ class AnyField(fields.Field):
         return value
 
     def _deserialize(self, value, attr, data, **kwargs):
-        return self._convert_any_large_integers_from_string(value)
+        return self._convert_any_big_ints_from_string(value)
+
+
+class IntegerField(fields.Int):
+    """
+    Integer field that also converts big int strings to integers.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, str):
+            value = check_and_convert_big_int_string_to_int(value)
+
+        return super()._deserialize(value, attr, data, **kwargs)
+
 
 class _ConditionField(fields.Dict):
     """Serializes/Deserializes Conditions to/from dictionaries"""
