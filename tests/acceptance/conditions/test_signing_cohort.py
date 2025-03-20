@@ -1,12 +1,19 @@
+import calendar
 import json
 import os
 import random
+import uuid
+from datetime import datetime, timezone
+from typing import List, Tuple
 
+import jwt
 import maya
 import pytest
 from ape.exceptions import ContractLogicError
+from ecdsa import SECP256k1, SigningKey, VerifyingKey
 from eth_account.messages import defunct_hash_message, encode_defunct
 from eth_keys.datatypes import PrivateKey
+from eth_utils import keccak, to_checksum_address
 from hexbytes import HexBytes
 from py_ecc.secp256k1 import secp256k1
 from py_ecc.secp256k1.secp256k1 import bytes_to_int
@@ -14,8 +21,8 @@ from web3 import Web3
 
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 
-COHORT_SIZE = 4
-COHORT_THRESHOLD = 2
+COHORT_SIZE = 5
+COHORT_THRESHOLD = 3
 
 
 def ursula_sign_data(accounts, ursula, signable_message):
@@ -42,6 +49,29 @@ def ursula_generate_vrf_randomness(accounts, ursula, message):
     proof = secp256k1.multiply(randomness, bytes_to_int(private_key.to_bytes()))
 
     return randomness, proof
+
+
+def get_pem_key_pair(private_key_bytes) -> Tuple[str, str]:
+    # Load the private key from bytes
+    private_key = SigningKey.from_string(private_key_bytes, curve=SECP256k1)
+
+    # Generate the corresponding public key
+    public_key = private_key.get_verifying_key()
+
+    return public_key.to_pem().decode(), private_key.to_pem().decode()
+
+
+def signer_address_from_public_pem(pem_public_key):
+    public_key = VerifyingKey.from_pem(pem_public_key, valid_encodings={"uncompressed"})
+    public_key_bytes = public_key.to_string(encoding="uncompressed")
+
+    # Compute Keccak-256 hash of the public key
+    public_key_raw = public_key_bytes[1:]
+    address_hash = keccak(public_key_raw)
+
+    # Take the last 20 bytes to form the Ethereum address
+    eth_address = to_checksum_address("0x" + address_hash[-20:].hex())
+    return eth_address
 
 
 def point_to_bytes(point):
@@ -352,29 +382,63 @@ def test_on_chain_token_issuance(
     )
 
 
-def test_off_chain_token_issuance(
+def test_jws_issuance(
     deployer_account, multisig_contract_wallet, signing_cohort, accounts
 ):
     delegatee = accounts.unassigned_accounts[0]
-    one_hour_from_now = maya.now().add(hours=1).epoch
-    token_data = {
+    token_payload = {
         "sub": delegatee,
-        "exp": one_hour_from_now,
+        "exp": calendar.timegm(datetime.now(tz=timezone.utc).utctimetuple()) + 60 * 60,
         "permissions": ["read_data"],
+        "signing_cohort_id": uuid.uuid4(),  # some id - doesn't really matter
     }
-    token_data_str = json.dumps(token_data)
-    token_data_hash = multisig_contract_wallet.getTokenPayloadHash(token_data_str)
+
+    # match b64 encoding done by library
+    token_payload_b64 = jwt.utils.base64url_encode(
+        json.dumps(token_payload, separators=(",", ":")).encode()
+    ).decode()
 
     # collect signatures off chain
-    aggregated_signature = b""
+    jws_json = {
+        "payload": token_payload_b64,
+        "signatures": [],
+    }
     cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+
+    cohort_public_pems: List[str] = []
     for ursula in cohort_sample:
         # ursulas would check the contract to determine whether to sign or not (skip that here)
-        signature_bytes = ursula_sign_raw_hash(accounts, ursula, token_data_hash)
-        aggregated_signature += signature_bytes
+        pem_public_key, pem_private_key = get_pem_key_pair(
+            bytes(HexBytes(accounts[ursula.operator_address].private_key))
+        )
 
-    # token should now be valid
-    # TODO what if cohort changes? Maybe that's fine - requester gets a fresh issuance
-    assert multisig_contract_wallet.isValidSignature(
-        token_data_hash, aggregated_signature
-    )
+        cohort_public_pems.append(pem_public_key)
+
+        jwt_token = jwt.encode(
+            payload=token_payload, key=pem_private_key, algorithm="ES256K"
+        )
+
+        _ = jwt.decode(jwt_token, pem_public_key, algorithms=["ES256K"])
+        header, payload_64, signature = jwt_token.split(".")
+        assert payload_64 == token_payload_b64
+
+        jws_json["signatures"].append(
+            {
+                "protected": header,
+                "signature": signature,
+            }
+        )
+
+    # TODO the public key pems for the cohort need to be obtained from somewhere (contract?)
+    #  OR Perhaps other keys are used by Ursula for signing (stored in a contract - requires tx)
+    # verify
+    for i, sig in enumerate(jws_json["signatures"]):
+        header_b64 = sig["protected"]
+        signature_b64 = sig["signature"]
+
+        jwt_token = f"{header_b64}.{jws_json['payload']}.{signature_b64}"
+        _ = jwt.decode(jwt_token, key=cohort_public_pems[i], algorithms=["ES256K"])
+
+        # TODO: does not work
+        # signer_address = signer_address_from_public_pem(cohort_public_pems[i])
+        # assert signer_address == signing_cohort[i].operator_address
