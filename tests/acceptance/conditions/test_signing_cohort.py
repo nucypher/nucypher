@@ -347,6 +347,34 @@ def test_on_chain_token_issuance(
         aggregated_signature += signature_bytes
 
     # token should now be valid
-    assert multisig_contract_wallet.verifyTokenSignature(
+    assert multisig_contract_wallet.verifyOnChainTokenSignature(
         token_data_str, aggregated_signature
+    )
+
+
+def test_off_chain_token_issuance(
+    deployer_account, multisig_contract_wallet, signing_cohort, accounts
+):
+    delegatee = accounts.unassigned_accounts[0]
+    one_hour_from_now = maya.now().add(hours=1).epoch
+    token_data = {
+        "sub": delegatee,
+        "exp": one_hour_from_now,
+        "permissions": ["read_data"],
+    }
+    token_data_str = json.dumps(token_data)
+    token_data_hash = multisig_contract_wallet.getTokenPayloadHash(token_data_str)
+
+    # collect signatures off chain
+    aggregated_signature = b""
+    cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+    for ursula in cohort_sample:
+        # ursulas would check the contract to determine whether to sign or not (skip that here)
+        signature_bytes = ursula_sign_raw_hash(accounts, ursula, token_data_hash)
+        aggregated_signature += signature_bytes
+
+    # token should now be valid
+    # TODO what if cohort changes? Maybe that's fine - requester gets a fresh issuance
+    assert multisig_contract_wallet.isValidSignature(
+        token_data_hash, aggregated_signature
     )

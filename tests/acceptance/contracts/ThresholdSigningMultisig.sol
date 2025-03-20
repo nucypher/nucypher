@@ -358,9 +358,13 @@ contract ThresholdSigningMultisig is IERC1271, Ownable {
         emit TokenIssuanceApproved(requestHash, tokenRequests[requestHash].tokenPayload, aggregatedSignature);
     }
 
-    function verifyTokenSignature(string memory tokenPayload, bytes memory signature) external view returns (bool) {
+    function verifyOnChainTokenSignature(string memory tokenPayload, bytes memory signature) external view returns (bool) {
         bytes32 requestHash = keccak256(abi.encodePacked(tokenPayload));
         return keccak256(signature) == keccak256(tokenRequests[requestHash].thresholdSignature);
+    }
+
+        function getTokenPayloadHash(string memory tokenPayload) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(tokenPayload));
     }
 
 }
