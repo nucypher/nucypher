@@ -33,6 +33,7 @@ from nucypher.policy.conditions.exceptions import (
     RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import (
+    AnyField,
     ConditionType,
     ExecutionCallAccessControlCondition,
     ReturnValueTest,
@@ -71,7 +72,7 @@ class RPCCall(ExecutionCall):
                 "null": "Undefined method name",
             },
         )
-        parameters = fields.List(fields.Field, required=False, allow_none=True)
+        parameters = fields.List(AnyField, required=False, allow_none=True)
 
         @validates("method")
         def validate_method(self, value):

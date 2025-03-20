@@ -1,4 +1,5 @@
 import json
+from collections import namedtuple
 
 import pytest
 from packaging.version import parse as parse_version
@@ -9,7 +10,7 @@ from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
 )
-from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
+from nucypher.policy.conditions.lingo import AnyField, ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
@@ -376,3 +377,85 @@ def test_lingo_data(conditions_test_data):
     for name, condition_dict in conditions_test_data.items():
         condition_class = ConditionLingo.resolve_condition_class(condition_dict)
         _ = condition_class.from_dict(condition_dict)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        1231323123132,
+        2121.23211,
+        False,
+        '"foo"',  # string
+        ":userAddress",  # context variable
+        "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",  # string
+        "0x1234",  # hex string
+        125,  # int
+        -123456789,  # negative int
+        1.223,  # float
+        True,  # bool
+        [1, 1.2314, False, "love"],  # list of different types
+        ["a", "b", "c"],  # list
+        [True, False],  # list of bools
+        {"name": "John", "age": 22},  # dict
+        namedtuple("MyStruct", ["field1", "field2"])(1, "a"),
+        [True, 2, 6.5, "0x123"],
+    ],
+)
+def test_any_field_various_types(value):
+    field = AnyField()
+
+    deserialized_value = field._deserialize(value, attr=None, data=None)
+    serialized_value = field._serialize(deserialized_value, attr=None, obj=None)
+
+    assert deserialized_value == serialized_value
+    assert deserialized_value == value
+
+
+@pytest.mark.parametrize(
+    "integer_value",
+    [
+        2**256 - 1,  # uint256 max
+        -(2**255),  # int256 min
+        123132312,  # safe int
+        -1231231,  # safe negative int
+    ],
+)
+def test_any_field_integer_str_and_no_str_conversion(integer_value):
+    field = AnyField()
+
+    deserialized_raw_integer = field._deserialize(
+        value=integer_value, attr=None, data=None
+    )
+    deserialized_string_integer = field._deserialize(
+        value=str(integer_value), attr=None, data=None
+    )
+    assert deserialized_raw_integer == deserialized_string_integer
+
+    assert (
+        field._serialize(deserialized_raw_integer, attr=None, obj=None) == integer_value
+    )
+    assert (
+        field._serialize(deserialized_string_integer, attr=None, obj=None)
+        == integer_value
+    )
+
+
+def test_any_field_nested_integer():
+    field = AnyField()
+
+    uint256_max = 2**256 - 1
+    int256_min = -(2**255)
+    regular_number = 12341231
+
+    parameters = [
+        f"{uint256_max}",
+        {"a": [f"{int256_min}", "my_string_value", "0xdeadbeef"], "b": regular_number},
+    ]
+    # quoted numbers get unquoted after deserialization
+    expected_parameters = [
+        uint256_max,
+        {"a": [int256_min, "my_string_value", "0xdeadbeef"], "b": regular_number},
+    ]
+
+    deserialized_parameters = field._deserialize(value=parameters, attr=None, data=None)
+    assert deserialized_parameters == expected_parameters

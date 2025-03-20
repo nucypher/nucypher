@@ -39,6 +39,39 @@ from nucypher.policy.conditions.types import ConditionDict, Lingo
 from nucypher.policy.conditions.utils import CamelCaseSchema, ConditionProviderManager
 
 
+class AnyField(fields.Field):
+    """
+    Catch all field for all data types received in JSON.
+    However, `taco-web` will provide bigints as strings since typescript can't handle large
+    numbers as integers, so those need converting to integers.
+    """
+
+    def _convert_any_large_integers_from_string(self, value):
+        if isinstance(value, list):
+            return [
+                self._convert_any_large_integers_from_string(item) for item in value
+            ]
+        elif isinstance(value, dict):
+            return {
+                k: self._convert_any_large_integers_from_string(v)
+                for k, v in value.items()
+            }
+        elif isinstance(value, str):
+            try:
+                result = int(value)
+                return result
+            except ValueError:
+                # ignore
+                pass
+
+        return value
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        return value
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        return self._convert_any_large_integers_from_string(value)
+
 class _ConditionField(fields.Dict):
     """Serializes/Deserializes Conditions to/from dictionaries"""
 
@@ -511,7 +544,7 @@ class ReturnValueTest:
     class ReturnValueTestSchema(CamelCaseSchema):
         SKIP_VALUES = (None,)
         comparator = fields.Str(required=True, validate=OneOf(_COMPARATOR_FUNCTIONS))
-        value = fields.Raw(
+        value = AnyField(
             allow_none=False, required=True
         )  # any valid type (excludes None)
         index = fields.Int(
