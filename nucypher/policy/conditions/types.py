@@ -75,6 +75,12 @@ class JsonRpcConditionDict(BaseExecConditionDict):
     authorizationToken: NotRequired[str]
 
 
+class JWTConditionDict(_AccessControlCondition):
+    jwt_token: str
+    public_key: str  # TODO: See #3572 for a discussion about deprecating this in favour of the expected issuer
+    expected_issuer: NotRequired[str]
+
+
 #
 # CompoundCondition represents:
 # {
@@ -130,6 +136,7 @@ class IfThenElseConditionDict(_AccessControlCondition):
 # - CompoundCondition
 # - JsonApiCondition
 # - JsonRpcCondition
+# - JWTCondition
 # - SequentialCondition
 # - IfThenElseCondition
 ConditionDict = Union[
@@ -139,6 +146,7 @@ ConditionDict = Union[
     CompoundConditionDict,
     JsonApiConditionDict,
     JsonRpcConditionDict,
+    JWTConditionDict,
     SequentialConditionDict,
     IfThenElseConditionDict,
 ]
