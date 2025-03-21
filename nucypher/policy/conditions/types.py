@@ -76,9 +76,9 @@ class JsonRpcConditionDict(BaseExecConditionDict):
 
 
 class JWTConditionDict(_AccessControlCondition):
-    jwt_token: str
-    public_key: str  # TODO: See #3572 for a discussion about deprecating this in favour of the expected issuer
-    expected_issuer: NotRequired[str]
+    jwtToken: str
+    publicKey: str  # TODO: See #3572 for a discussion about deprecating this in favour of the expected issuer
+    expectedIssuer: NotRequired[str]
 
 
 #
