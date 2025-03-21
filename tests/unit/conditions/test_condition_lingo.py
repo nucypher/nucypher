@@ -2,6 +2,7 @@ import json
 from collections import namedtuple
 
 import pytest
+from marshmallow import ValidationError
 from packaging.version import parse as parse_version
 
 import nucypher
@@ -10,8 +11,16 @@ from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
 )
-from nucypher.policy.conditions.lingo import AnyField, ConditionLingo, ConditionType
+from nucypher.policy.conditions.lingo import (
+    AnyField,
+    AnyIntegerField,
+    ConditionLingo,
+    ConditionType,
+)
 from tests.constants import TESTERCHAIN_CHAIN_ID
+
+UINT256_MAX = 2**256 - 1
+INT256_MIN = -(2**255)
 
 
 @pytest.fixture(scope="module")
@@ -386,6 +395,7 @@ def test_lingo_data(conditions_test_data):
         2121.23211,
         False,
         '"foo"',  # string
+        "5555555555",  # example of a number that was a string and should remain a string
         ":userAddress",  # context variable
         "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",  # string
         "0x1234",  # hex string
@@ -404,7 +414,7 @@ def test_lingo_data(conditions_test_data):
 def test_any_field_various_types(value):
     field = AnyField()
 
-    deserialized_value = field._deserialize(value, attr=None, data=None)
+    deserialized_value = field.deserialize(value)
     serialized_value = field._serialize(deserialized_value, attr=None, obj=None)
 
     assert deserialized_value == serialized_value
@@ -414,8 +424,8 @@ def test_any_field_various_types(value):
 @pytest.mark.parametrize(
     "integer_value",
     [
-        2**256 - 1,  # uint256 max
-        -(2**255),  # int256 min
+        UINT256_MAX,
+        INT256_MIN,
         123132312,  # safe int
         -1231231,  # safe negative int
     ],
@@ -423,12 +433,8 @@ def test_any_field_various_types(value):
 def test_any_field_integer_str_and_no_str_conversion(integer_value):
     field = AnyField()
 
-    deserialized_raw_integer = field._deserialize(
-        value=integer_value, attr=None, data=None
-    )
-    deserialized_big_int_string = field._deserialize(
-        value=f"{integer_value}n", attr=None, data=None
-    )
+    deserialized_raw_integer = field.deserialize(value=integer_value)
+    deserialized_big_int_string = field.deserialize(value=f"{integer_value}n")
     assert deserialized_raw_integer == deserialized_big_int_string
 
     assert (
@@ -457,5 +463,31 @@ def test_any_field_nested_integer():
         {"a": [int256_min, "my_string_value", "0xdeadbeef"], "b": regular_number},
     ]
 
-    deserialized_parameters = field._deserialize(value=parameters, attr=None, data=None)
+    deserialized_parameters = field.deserialize(value=parameters)
     assert deserialized_parameters == expected_parameters
+
+
+@pytest.mark.parametrize(
+    "json_value, expected_deserialized_value",
+    [
+        (123132312, 123132312),  # safe int
+        (-1231231, -1231231),  # safe negative int
+        (f"{UINT256_MAX}n", UINT256_MAX),
+        (f"{INT256_MIN}n", INT256_MIN),
+        (f"{UINT256_MAX*2}n", UINT256_MAX * 2),  # larger than uint256 max
+        (f"{INT256_MIN*2}n", INT256_MIN * 2),  # smaller than in256 min
+        # expected failures
+        ("Totally a number", None),
+        ("Totally a number that ends with n", None),
+        ("fallen", None),
+    ],
+)
+def test_any_integer_field(json_value, expected_deserialized_value):
+    field = AnyIntegerField()
+
+    if expected_deserialized_value is not None:
+        assert field.deserialize(json_value) == expected_deserialized_value
+    else:
+        # expected to fail
+        with pytest.raises(ValidationError, match="Not a valid integer."):
+            _ = field.deserialize(json_value)

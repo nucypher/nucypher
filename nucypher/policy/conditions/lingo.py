@@ -69,7 +69,7 @@ class AnyField(fields.Field):
         return self._convert_any_big_ints_from_string(value)
 
 
-class IntegerField(fields.Int):
+class AnyIntegerField(fields.Int):
     """
     Integer field that also converts big int strings to integers.
     """
