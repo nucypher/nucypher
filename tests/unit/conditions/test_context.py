@@ -19,6 +19,7 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.policy.conditions.lingo import (
     ReturnValueTest,
 )
+from tests.constants import INT256_MIN, UINT256_MAX
 
 INVALID_CONTEXT_PARAM_NAMES = [
     ":",
@@ -87,6 +88,34 @@ def test_resolve_any_context_variables():
         assert resolved_return_value.comparator == return_value_test.comparator
         assert resolved_return_value.index == return_value_test.index
         assert resolved_return_value.value == resolved_value
+
+
+@pytest.mark.parametrize(
+    "value, expected_resolved_value",
+    [
+        (":foo", UINT256_MAX),
+        (":bar", INT256_MIN),
+        (
+            [":foo", 12, ":bar", "5555555555", "endWith_n"],
+            [UINT256_MAX, 12, INT256_MIN, "5555555555", "endWith_n"],
+        ),
+        (
+            [":foo", ":foo", 5, [99, [":bar"]]],
+            [UINT256_MAX, UINT256_MAX, 5, [99, [INT256_MIN]]],
+        ),
+    ],
+)
+def test_resolve_big_int_context_variables(value, expected_resolved_value):
+    # bigints have the 'n' suffix
+    context = {":foo": f"{UINT256_MAX}n", ":bar": f"{INT256_MIN}n"}
+
+    # use with parameters
+    resolved_value = resolve_any_context_variables(value, **context)
+    assert resolved_value == expected_resolved_value
+
+    return_value_test = ReturnValueTest(comparator="==", value=value)
+    resolved_return_value = return_value_test.with_resolved_context(**context)
+    assert resolved_return_value.value == resolved_value
 
 
 @pytest.mark.parametrize(

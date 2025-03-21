@@ -11,7 +11,10 @@ from nucypher.policy.conditions.exceptions import (
     InvalidContextVariableData,
     RequiredContextVariable,
 )
-from nucypher.policy.conditions.utils import ConditionProviderManager
+from nucypher.policy.conditions.utils import (
+    ConditionProviderManager,
+    check_and_convert_big_int_string_to_int,
+)
 
 USER_ADDRESS_CONTEXT = ":userAddress"
 USER_ADDRESS_EIP4361_EXTERNAL_CONTEXT = ":userAddressExternalEIP4361"
@@ -114,6 +117,7 @@ def get_context_value(
     try:
         # DIRECTIVES are special context vars that will pre-processed by ursula
         func = _DIRECTIVES[context_variable]
+        value = func(providers=providers, **context)  # required inputs here
     except KeyError:
         # fallback for context variable without directive - assume key,value pair
         # handles the case for user customized context variables
@@ -122,8 +126,9 @@ def get_context_value(
             raise RequiredContextVariable(
                 f'No value provided for unrecognized context variable "{context_variable}"'
             )
-    else:
-        value = func(providers=providers, **context)  # required inputs here
+        elif isinstance(value, str):
+            # possible big int value
+            value = check_and_convert_big_int_string_to_int(value)
 
     return value
 

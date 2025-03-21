@@ -1362,7 +1362,7 @@ def test_big_int_inputs_and_outputs(
         comparator_value=return_value_test_value,  # value set in return value test
         comparator="==",
         expected_outcome=True,
-        context_var_testing=ContextVarTest.NO_CONTEXT_VAR_ONLY,
+        context_var_testing=ContextVarTest.WITH_AND_WITHOUT_CONTEXT_VAR,
     )
 
     execute_spy.assert_called_with(
