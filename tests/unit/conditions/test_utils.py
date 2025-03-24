@@ -39,9 +39,11 @@ from nucypher.policy.conditions.utils import (
     ConditionEvalError,
     ConditionProviderManager,
     camel_case_to_snake,
+    check_and_convert_big_int_string_to_int,
     evaluate_condition_lingo,
     to_camelcase,
 )
+from tests.constants import INT256_MIN, UINT256_MAX
 
 FAILURE_CASE_EXCEPTION_CODE_MATCHING = [
     # (exception, constructor parameters, expected status code)
@@ -216,3 +218,32 @@ def test_condition_provider_manager(mocker):
     w3_2.eth.chain_id = 2
     with patch.object(manager, "_configure_w3", side_effect=[w3_1, w3_2]):
         assert list(manager.web3_endpoints(chain_id=2)) == [w3_1, w3_2]
+
+
+@pytest.mark.parametrize(
+    "value, expectedValue",
+    [
+        # number string
+        ("123132312", None),
+        ("-1231231", None),
+        # big int string of form "<number>n"
+        (f"{UINT256_MAX}n", UINT256_MAX),
+        (f"{INT256_MIN}n", INT256_MIN),
+        (f"{UINT256_MAX*2}n", UINT256_MAX * 2),  # larger than uint256 max
+        (f"{INT256_MIN*2}n", INT256_MIN * 2),  # smaller than in256 min
+        ("9007199254740992n", 9007199254740992),  # bigger than max safe
+        ("-9007199254740992n", -9007199254740992),  # smaller than min safe
+        # regular strings
+        ("Totally a number", None),
+        ("Totally a number that ends with n", None),
+        ("0xdeadbeef", None),
+        ("fallen", None),
+    ],
+)
+def test_conversion_from_big_int_string(value, expectedValue):
+    result = check_and_convert_big_int_string_to_int(value)
+    if expectedValue:
+        assert result == expectedValue
+    else:
+        # value unchanged
+        assert result == value
