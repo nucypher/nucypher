@@ -13,7 +13,7 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.policy.conditions.lingo import (
     AnyField,
-    AnyIntegerField,
+    AnyLargeIntegerField,
     ConditionLingo,
     ConditionType,
 )
@@ -477,8 +477,8 @@ def test_any_field_nested_integer():
         ("fallen", None),
     ],
 )
-def test_any_integer_field(json_value, expected_deserialized_value):
-    field = AnyIntegerField()
+def test_any_large_integer_field(json_value, expected_deserialized_value):
+    field = AnyLargeIntegerField()
 
     if expected_deserialized_value is not None:
         assert field.deserialize(json_value) == expected_deserialized_value

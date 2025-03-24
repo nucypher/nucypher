@@ -69,9 +69,10 @@ class AnyField(fields.Field):
         return self._convert_any_big_ints_from_string(value)
 
 
-class AnyIntegerField(fields.Int):
+class AnyLargeIntegerField(fields.Int):
     """
-    Integer field that also converts big int strings to integers.
+    Integer field that also allows for big int values for large numbers
+    to be provided from `taco-web`. BigInts will be used for integer values > MAX_SAFE_INTEGER.
     """
 
     def __init__(self, *args, **kwargs):
