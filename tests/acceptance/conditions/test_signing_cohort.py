@@ -390,7 +390,7 @@ def test_jws_issuance(
         "sub": delegatee,
         "exp": calendar.timegm(datetime.now(tz=timezone.utc).utctimetuple()) + 60 * 60,
         "permissions": ["read_data"],
-        "signing_cohort_id": uuid.uuid4(),  # some id - doesn't really matter
+        "signing_cohort_id": str(uuid.uuid4()),  # some id - doesn't really matter
     }
 
     # match b64 encoding done by library
