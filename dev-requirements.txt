@@ -33,6 +33,7 @@ dataclassy==0.11.1 ; python_version >= "3.9" and python_version < "4" and (imple
 dateparser==1.2.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 decorator==5.2.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 distlib==0.3.9 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+ecdsa==0.19.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 eip712==0.2.11 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 eth-abi==5.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 eth-account==0.11.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
@@ -135,9 +136,9 @@ pytest-twisted==1.14.3 ; python_version >= "3.9" and python_version < "4" and (i
 pytest==8.3.5 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 python-baseconv==1.2.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 python-dateutil==2.9.0.post0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
-python-dotenv==1.0.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+python-dotenv==1.1.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 python-statemachine==2.3.4 ; python_version >= "3.9" and python_version < "4"
-pytz==2025.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pytz==2025.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 pyunormalize==16.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 pywin32==310 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy") and platform_system == "Windows"
 pyyaml==6.0.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
@@ -150,7 +151,7 @@ rpds-py==0.23.1 ; python_version >= "3.9" and python_version < "4" and (implemen
 safe-pysha3==1.0.4 ; python_version >= "3.9" and python_version < "4" and implementation_name == "cpython"
 semantic-version==2.10.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 service-identity==24.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
-setuptools==78.0.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+setuptools==78.0.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 siwe==4.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 six==1.17.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 sortedcontainers==2.4.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")

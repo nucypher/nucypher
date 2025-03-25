@@ -77,7 +77,7 @@ pynacl==1.5.0 ; python_version >= "3.9" and python_version < "4" and (implementa
 pyopenssl==25.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 python-dateutil==2.9.0.post0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 python-statemachine==2.3.4 ; python_version >= "3.9" and python_version < "4"
-pytz==2025.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pytz==2025.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 pyunormalize==16.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 pywin32==310 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy") and platform_system == "Windows"
 referencing==0.36.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
@@ -86,7 +86,7 @@ requests==2.32.3 ; python_version >= "3.9" and python_version < "4" and (impleme
 rlp==4.1.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 rpds-py==0.23.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 service-identity==24.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
-setuptools==78.0.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+setuptools==78.0.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 siwe==4.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 six==1.17.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 tabulate==0.9.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
