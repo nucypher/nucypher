@@ -62,7 +62,7 @@ def get_pem_key_pair(private_key_bytes) -> Tuple[str, str]:
 
 
 def signer_address_from_public_pem(pem_public_key):
-    public_key = VerifyingKey.from_pem(pem_public_key, valid_encodings={"uncompressed"})
+    public_key = VerifyingKey.from_pem(pem_public_key)
     public_key_bytes = public_key.to_string(encoding="uncompressed")
 
     # Compute Keccak-256 hash of the public key
@@ -382,7 +382,7 @@ def test_on_chain_token_issuance(
     )
 
 
-def test_jws_issuance(
+def test_jwt_issuance(
     deployer_account, multisig_contract_wallet, signing_cohort, accounts
 ):
     delegatee = accounts.unassigned_accounts[0]
@@ -418,7 +418,6 @@ def test_jws_issuance(
             payload=token_payload, key=pem_private_key, algorithm="ES256K"
         )
 
-        _ = jwt.decode(jwt_token, pem_public_key, algorithms=["ES256K"])
         header, payload_64, signature = jwt_token.split(".")
         assert payload_64 == token_payload_b64
 
@@ -431,6 +430,7 @@ def test_jws_issuance(
 
     # TODO the public key pems for the cohort need to be obtained from somewhere (contract?)
     #  OR Perhaps other keys are used by Ursula for signing (stored in a contract - requires tx)
+    #  OR REST endpoint provided by nodes
     # verify
     for i, sig in enumerate(jws_json["signatures"]):
         header_b64 = sig["protected"]
@@ -439,6 +439,5 @@ def test_jws_issuance(
         jwt_token = f"{header_b64}.{jws_json['payload']}.{signature_b64}"
         _ = jwt.decode(jwt_token, key=cohort_public_pems[i], algorithms=["ES256K"])
 
-        # TODO: does not work
-        # signer_address = signer_address_from_public_pem(cohort_public_pems[i])
-        # assert signer_address == signing_cohort[i].operator_address
+        signer_address = signer_address_from_public_pem(cohort_public_pems[i])
+        assert signer_address == cohort_sample[i].operator_address
