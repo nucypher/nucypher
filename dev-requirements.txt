@@ -1,185 +1,183 @@
-abnf==2.3.1 ; python_version >= "3.9" and python_version < "4.0"
-aiohappyeyeballs==2.4.4 ; python_version >= "3.9" and python_version < "4"
-aiohttp==3.11.11 ; python_version >= "3.9" and python_version < "4"
-aiosignal==1.3.2 ; python_version >= "3.9" and python_version < "4"
-annotated-types==0.7.0 ; python_version >= "3.9" and python_version < "4.0"
-ape-solidity==0.8.5 ; python_version >= "3.9" and python_version < "4"
-appdirs==1.4.4 ; python_version >= "3.9" and python_version < "4"
-asttokens==3.0.0 ; python_version >= "3.9" and python_version < "4"
-async-timeout==5.0.1 ; python_version >= "3.9" and python_version < "3.11"
-attrs==24.3.0 ; python_version >= "3.9" and python_version < "4"
-atxm==0.5.0 ; python_version >= "3.9" and python_version < "4"
-autobahn==24.4.2 ; python_version >= "3.9" and python_version < "4"
-automat==24.8.1 ; python_version >= "3.9" and python_version < "4"
-base58==1.0.3 ; python_version >= "3.9" and python_version < "4"
-bitarray==3.0.0 ; python_version >= "3.9" and python_version < "4"
-blinker==1.9.0 ; python_version >= "3.9" and python_version < "4"
-bytestring-splitter==2.4.1 ; python_version >= "3.9" and python_version < "4"
-cached-property==2.0.1 ; python_version >= "3.9" and python_version < "4"
-certifi==2024.12.14 ; python_version >= "3.9" and python_version < "4"
-cffi==1.17.1 ; python_version >= "3.9" and python_version < "4"
-cfgv==3.4.0 ; python_version >= "3.9" and python_version < "4"
-charset-normalizer==3.4.1 ; python_version >= "3.9" and python_version < "4"
-ckzg==1.0.2 ; python_version >= "3.9" and python_version < "4"
-click==8.1.8 ; python_version >= "3.9" and python_version < "4"
-colorama==0.4.6 ; python_version >= "3.9" and python_version < "4"
-constant-sorrow==0.1.0a9 ; python_version >= "3.9" and python_version < "4"
-constantly==23.10.4 ; python_version >= "3.9" and python_version < "4"
-coverage==7.6.10 ; python_version >= "3.9" and python_version < "4"
-coverage[toml]==7.6.10 ; python_version >= "3.9" and python_version < "4"
-cryptography==43.0.3 ; python_version >= "3.9" and python_version < "4"
+abnf==2.3.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+aiohappyeyeballs==2.6.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+aiohttp==3.11.14 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+aiosignal==1.3.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+annotated-types==0.7.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+ape-solidity==0.8.5 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+appdirs==1.4.4 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+asttokens==3.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+async-timeout==5.0.1 ; python_version >= "3.9" and python_version < "3.11" and (implementation_name == "cpython" or implementation_name == "pypy")
+attrs==25.3.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+atxm==0.5.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+autobahn==24.4.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+automat==24.8.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+base58==1.0.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+bitarray==3.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+blinker==1.9.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+bytestring-splitter==2.4.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+cached-property==2.0.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+certifi==2025.1.31 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+cffi==1.17.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+cfgv==3.4.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+charset-normalizer==3.4.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+ckzg==1.0.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+click==8.1.8 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+colorama==0.4.6 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+constant-sorrow==0.1.0a9 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+constantly==23.10.4 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+coverage==7.7.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+cryptography==43.0.3 ; python_version >= "3.9" and python_version < "3.11" and (implementation_name == "cpython" or implementation_name == "pypy")
+cryptography==44.0.2 ; python_version >= "3.11" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 cytoolz==1.0.1 ; python_version >= "3.9" and python_version < "4" and implementation_name == "cpython"
-dataclassy==0.11.1 ; python_version >= "3.9" and python_version < "4"
-dateparser==1.2.0 ; python_version >= "3.9" and python_version < "4"
-decorator==5.1.1 ; python_version >= "3.9" and python_version < "4"
-distlib==0.3.9 ; python_version >= "3.9" and python_version < "4"
-eip712==0.2.10 ; python_version >= "3.9" and python_version < "4"
-eth-abi==5.1.0 ; python_version >= "3.9" and python_version < "4"
-eth-account==0.11.3 ; python_version >= "3.9" and python_version < "4"
-eth-ape==0.8.12 ; python_version >= "3.9" and python_version < "4"
-eth-bloom==3.0.1 ; python_version >= "3.9" and python_version < "4"
-eth-hash==0.7.0 ; python_version >= "3.9" and python_version < "4"
-eth-hash[pycryptodome]==0.7.0 ; python_version >= "3.9" and python_version < "4"
-eth-hash[pysha3]==0.7.0 ; python_version >= "3.9" and python_version < "4" and implementation_name == "cpython"
-eth-keyfile==0.8.1 ; python_version >= "3.9" and python_version < "4"
-eth-keys==0.6.0 ; python_version >= "3.9" and python_version < "4"
-eth-pydantic-types==0.1.3 ; python_version >= "3.9" and python_version < "4"
-eth-rlp==1.0.1 ; python_version >= "3.9" and python_version < "4"
-eth-tester[py-evm]==0.11.0b2 ; python_version >= "3.9" and python_version < "4"
-eth-typing==3.5.2 ; python_version >= "3.9" and python_version < "4"
-eth-utils==2.3.2 ; python_version >= "3.9" and python_version < "4"
-ethpm-types==0.6.19 ; python_version >= "3.9" and python_version < "4"
-eval-type-backport==0.2.2 ; python_version >= "3.9" and python_version < "3.10"
-evm-trace==0.2.4 ; python_version >= "3.9" and python_version < "4"
-evmchains==0.0.13 ; python_version >= "3.9" and python_version < "4"
-exceptiongroup==1.2.2 ; python_version >= "3.9" and python_version < "3.11"
-executing==2.1.0 ; python_version >= "3.9" and python_version < "4"
-filelock==3.16.1 ; python_version >= "3.9" and python_version < "4"
-flask==3.1.0 ; python_version >= "3.9" and python_version < "4"
-frozenlist==1.5.0 ; python_version >= "3.9" and python_version < "4"
-greenlet==3.1.1 ; python_version >= "3.9" and python_version < "4"
-hendrix==5.0.0 ; python_version >= "3.9" and python_version < "4"
-hexbytes==0.3.1 ; python_version >= "3.9" and python_version < "4"
-humanize==4.11.0 ; python_version >= "3.9" and python_version < "4"
-hyperlink==21.0.0 ; python_version >= "3.9" and python_version < "4"
-identify==2.6.4 ; python_version >= "3.9" and python_version < "4"
-idna==3.10 ; python_version >= "3.9" and python_version < "4"
-ijson==3.3.0 ; python_version >= "3.9" and python_version < "4"
-importlib-metadata==8.5.0 ; python_version >= "3.9" and python_version < "3.10"
-incremental==24.7.2 ; python_version >= "3.9" and python_version < "4"
-iniconfig==2.0.0 ; python_version >= "3.9" and python_version < "4"
-ipython==8.18.1 ; python_version >= "3.9" and python_version < "4"
-itsdangerous==2.2.0 ; python_version >= "3.9" and python_version < "4"
-jedi==0.19.2 ; python_version >= "3.9" and python_version < "4"
-jinja2==3.1.5 ; python_version >= "3.9" and python_version < "4"
-jsonpath-ng==1.7.0 ; python_version >= "3.9" and python_version < "4"
-jsonschema-specifications==2024.10.1 ; python_version >= "3.9" and python_version < "4"
-jsonschema==4.23.0 ; python_version >= "3.9" and python_version < "4"
-lazyasd==0.1.4 ; python_version >= "3.9" and python_version < "4"
-lru-dict==1.2.0 ; python_version >= "3.9" and python_version < "4"
-mako==1.3.8 ; python_version >= "3.9" and python_version < "4"
-markdown-it-py==3.0.0 ; python_version >= "3.9" and python_version < "4"
-markupsafe==3.0.2 ; python_version >= "3.9" and python_version < "4"
-marshmallow==3.23.2 ; python_version >= "3.9" and python_version < "4"
-matplotlib-inline==0.1.7 ; python_version >= "3.9" and python_version < "4"
-maya==0.6.1 ; python_version >= "3.9" and python_version < "4"
-mdurl==0.1.2 ; python_version >= "3.9" and python_version < "4"
-mnemonic==0.21 ; python_version >= "3.9" and python_version < "4"
-morphys==1.0 ; python_version >= "3.9" and python_version < "4"
-msgpack-python==0.5.6 ; python_version >= "3.9" and python_version < "4"
-msgspec==0.19.0 ; python_version >= "3.9" and python_version < "3.13"
-multidict==6.1.0 ; python_version >= "3.9" and python_version < "4"
-nodeenv==1.9.1 ; python_version >= "3.9" and python_version < "4"
-nucypher-core==0.13.0 ; python_version >= "3.9" and python_version < "4"
-numpy==1.26.4 ; python_version >= "3.9" and python_version < "4"
-packaging==23.2 ; python_version >= "3.9" and python_version < "4"
-pandas==2.2.3 ; python_version >= "3.9" and python_version < "4"
-parsimonious==0.10.0 ; python_version >= "3.9" and python_version < "4"
-parso==0.8.4 ; python_version >= "3.9" and python_version < "4"
-pendulum==3.0.0 ; python_version >= "3.9" and python_version < "4"
-pexpect==4.9.0 ; python_version >= "3.9" and python_version < "4" and sys_platform != "win32"
-platformdirs==4.3.6 ; python_version >= "3.9" and python_version < "4"
-pluggy==1.5.0 ; python_version >= "3.9" and python_version < "4"
-ply==3.11 ; python_version >= "3.9" and python_version < "4"
-pre-commit==2.21.0 ; python_version >= "3.9" and python_version < "4"
-prometheus-client==0.21.1 ; python_version >= "3.9" and python_version < "4"
-prompt-toolkit==3.0.48 ; python_version >= "3.9" and python_version < "4"
-propcache==0.2.1 ; python_version >= "3.9" and python_version < "4"
-protobuf==5.29.2 ; python_version >= "3.9" and python_version < "4"
-ptyprocess==0.7.0 ; python_version >= "3.9" and python_version < "4" and sys_platform != "win32"
-pure-eval==0.2.3 ; python_version >= "3.9" and python_version < "4"
-py-cid==0.3.0 ; python_version >= "3.9" and python_version < "4"
-py-ecc==7.0.1 ; python_version >= "3.9" and python_version < "4"
-py-evm==0.10.1b1 ; python_version >= "3.9" and python_version < "4"
-py-geth==5.1.0 ; python_version >= "3.9" and python_version < "4"
-py-multibase==1.0.3 ; python_version >= "3.9" and python_version < "4"
-py-multicodec==0.2.1 ; python_version >= "3.9" and python_version < "4"
-py-multihash==0.2.3 ; python_version >= "3.9" and python_version < "4"
-py-solc-x==2.0.3 ; python_version >= "3.9" and python_version < "4"
-pyasn1-modules==0.4.1 ; python_version >= "3.9" and python_version < "4"
-pyasn1==0.6.1 ; python_version >= "3.9" and python_version < "4"
-pychalk==2.0.1 ; python_version >= "3.9" and python_version < "4"
-pycparser==2.22 ; python_version >= "3.9" and python_version < "4"
-pycryptodome==3.21.0 ; python_version >= "3.9" and python_version < "4"
-pydantic-core==2.27.2 ; python_version >= "3.9" and python_version < "4.0"
-pydantic-settings==2.7.1 ; python_version >= "3.9" and python_version < "4"
-pydantic==2.10.4 ; python_version >= "3.9" and python_version < "4.0"
-pygments==2.18.0 ; python_version >= "3.9" and python_version < "4"
-pyjwt[crypto]==2.10.1 ; python_version >= "3.9" and python_version < "4"
-pynacl==1.5.0 ; python_version >= "3.9" and python_version < "4"
-pyopenssl==24.3.0 ; python_version >= "3.9" and python_version < "4"
-pytest-cov==6.0.0 ; python_version >= "3.9" and python_version < "4"
-pytest-mock==3.14.0 ; python_version >= "3.9" and python_version < "4"
-pytest-timeout==2.3.1 ; python_version >= "3.9" and python_version < "4"
-pytest-twisted==1.14.3 ; python_version >= "3.9" and python_version < "4"
-pytest==8.3.4 ; python_version >= "3.9" and python_version < "4"
-python-baseconv==1.2.2 ; python_version >= "3.9" and python_version < "4"
-python-dateutil==2.9.0.post0 ; python_version >= "3.9" and python_version < "4"
-python-dotenv==1.0.1 ; python_version >= "3.9" and python_version < "4"
+dataclassy==0.11.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+dateparser==1.2.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+decorator==5.2.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+distlib==0.3.9 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eip712==0.2.11 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-abi==5.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-account==0.11.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-ape==0.8.12 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-bloom==3.1.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-hash==0.7.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-keyfile==0.9.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-keys==0.6.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-pydantic-types==0.1.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-rlp==1.0.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-tester==0.11.0b2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-typing==3.5.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eth-utils==2.3.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+ethpm-types==0.6.24 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+eval-type-backport==0.2.2 ; python_version == "3.9" and (implementation_name == "cpython" or implementation_name == "pypy")
+evm-trace==0.2.4 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+evmchains==0.0.13 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+exceptiongroup==1.2.2 ; python_version >= "3.9" and python_version < "3.11" and (implementation_name == "cpython" or implementation_name == "pypy")
+executing==2.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+filelock==3.18.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+flask==3.1.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+frozenlist==1.5.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+greenlet==3.1.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+hendrix==5.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+hexbytes==0.3.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+humanize==4.12.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+hyperlink==21.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+identify==2.6.9 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+idna==3.10 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+ijson==3.3.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+importlib-metadata==8.6.1 ; python_version == "3.9" and (implementation_name == "cpython" or implementation_name == "pypy")
+incremental==24.7.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+iniconfig==2.1.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+ipython==8.18.1 ; python_version >= "3.9" and python_version < "3.11" and (implementation_name == "cpython" or implementation_name == "pypy")
+ipython==8.34.0 ; python_version >= "3.11" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+itsdangerous==2.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+jedi==0.19.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+jinja2==3.1.6 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+jsonpath-ng==1.7.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+jsonschema-specifications==2024.10.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+jsonschema==4.23.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+lazyasd==0.1.4 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+lru-dict==1.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+mako==1.3.9 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+markdown-it-py==3.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+markupsafe==3.0.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+marshmallow==3.26.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+matplotlib-inline==0.1.7 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+maya==0.6.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+mdurl==0.1.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+mnemonic==0.21 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+morphys==1.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+msgpack-python==0.5.6 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+msgspec==0.19.0 ; python_version >= "3.9" and python_version < "3.13" and (implementation_name == "cpython" or implementation_name == "pypy")
+multidict==6.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+nodeenv==1.9.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+nucypher-core==0.13.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+numpy==1.26.4 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+packaging==23.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pandas==2.2.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+parsimonious==0.10.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+parso==0.8.4 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pendulum==3.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pexpect==4.9.0 ; python_version >= "3.9" and python_version < "4" and (sys_platform != "win32" and sys_platform != "emscripten" or python_version < "3.11") and sys_platform != "win32" and (implementation_name == "cpython" or implementation_name == "pypy")
+platformdirs==4.3.7 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pluggy==1.5.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+ply==3.11 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pre-commit==2.21.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+prometheus-client==0.21.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+prompt-toolkit==3.0.50 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+propcache==0.3.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+protobuf==6.30.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+ptyprocess==0.7.0 ; python_version >= "3.9" and python_version < "4" and (sys_platform != "win32" and sys_platform != "emscripten" or python_version < "3.11") and sys_platform != "win32" and (implementation_name == "cpython" or implementation_name == "pypy")
+pure-eval==0.2.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+py-cid==0.3.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+py-ecc==7.0.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+py-evm==0.10.1b1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+py-geth==5.3.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+py-multibase==1.0.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+py-multicodec==0.2.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+py-multihash==0.2.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+py-solc-x==2.0.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pyasn1-modules==0.4.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pyasn1==0.6.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pychalk @ git+https://github.com/nucypher/pychalk.git@b1a5c7562f9788f9c8722216b32019eeca281b69 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pycparser==2.22 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pycryptodome==3.22.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pydantic-core==2.27.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pydantic-settings==2.8.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pydantic==2.10.6 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pygments==2.19.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pyjwt==2.10.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pynacl==1.5.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pyopenssl==25.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pytest-cov==6.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pytest-mock==3.14.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pytest-timeout==2.3.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pytest-twisted==1.14.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pytest==8.3.5 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+python-baseconv==1.2.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+python-dateutil==2.9.0.post0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+python-dotenv==1.0.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 python-statemachine==2.3.4 ; python_version >= "3.9" and python_version < "4"
-pytz==2024.2 ; python_version >= "3.9" and python_version < "4"
-pyunormalize==16.0.0 ; python_version >= "3.9" and python_version < "4"
-pywin32==308 ; python_version >= "3.9" and python_version < "4" and platform_system == "Windows"
-pyyaml==6.0.2 ; python_version >= "3.9" and python_version < "4"
-referencing==0.35.1 ; python_version >= "3.9" and python_version < "4"
-regex==2024.11.6 ; python_version >= "3.9" and python_version < "4"
-requests==2.32.3 ; python_version >= "3.9" and python_version < "4"
-rich==13.9.4 ; python_version >= "3.9" and python_version < "4"
-rlp==4.0.1 ; python_version >= "3.9" and python_version < "4"
-rpds-py==0.22.3 ; python_version >= "3.9" and python_version < "4"
+pytz==2025.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pyunormalize==16.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pywin32==310 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy") and platform_system == "Windows"
+pyyaml==6.0.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+referencing==0.36.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+regex==2024.11.6 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+requests==2.32.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+rich==13.9.4 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+rlp==4.1.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+rpds-py==0.23.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 safe-pysha3==1.0.4 ; python_version >= "3.9" and python_version < "4" and implementation_name == "cpython"
-semantic-version==2.10.0 ; python_version >= "3.9" and python_version < "4"
-service-identity==24.2.0 ; python_version >= "3.9" and python_version < "4"
-setuptools==75.6.0 ; python_version >= "3.9" and python_version < "4"
-siwe==4.2.0 ; python_version >= "3.9" and python_version < "4.0"
-six==1.17.0 ; python_version >= "3.9" and python_version < "4"
-snaptime==0.2.4 ; python_version >= "3.9" and python_version < "4"
-sortedcontainers==2.4.0 ; python_version >= "3.9" and python_version < "4"
-sqlalchemy==2.0.36 ; python_version >= "3.9" and python_version < "4"
-stack-data==0.6.3 ; python_version >= "3.9" and python_version < "4"
-tabulate==0.9.0 ; python_version >= "3.9" and python_version < "4"
-time-machine==2.16.0 ; python_version >= "3.9" and python_version < "4"
-toml==0.10.2 ; python_version >= "3.9" and python_version < "3.11"
-tomli==2.2.1 ; python_version >= "3.9" and python_full_version <= "3.11.0a6"
-toolz==1.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "pypy" or implementation_name == "cpython")
-tqdm==4.67.1 ; python_version >= "3.9" and python_version < "4"
-traitlets==5.14.3 ; python_version >= "3.9" and python_version < "4"
-trie==3.0.1 ; python_version >= "3.9" and python_version < "4"
-twisted==24.11.0 ; python_version >= "3.9" and python_version < "4"
-txaio==23.1.1 ; python_version >= "3.9" and python_version < "4"
-types-requests==2.32.0.20241016 ; python_version >= "3.9" and python_version < "4"
-typing-extensions==4.12.2 ; python_version >= "3.9" and python_version < "4"
-tzdata==2024.2 ; python_version >= "3.9" and python_version < "4"
-tzlocal==5.2 ; python_version >= "3.9" and python_version < "4"
-urllib3==2.3.0 ; python_version >= "3.9" and python_version < "4"
-varint==1.0.2 ; python_version >= "3.9" and python_version < "4"
-virtualenv==20.28.1 ; python_version >= "3.9" and python_version < "4"
-watchdog==3.0.0 ; python_version >= "3.9" and python_version < "4"
-wcwidth==0.2.13 ; python_version >= "3.9" and python_version < "4"
-web3==6.20.1 ; python_version >= "3.9" and python_version < "4"
-web3[tester]==6.20.1 ; python_version >= "3.9" and python_version < "4"
-websockets==14.1 ; python_version >= "3.9" and python_version < "4"
-werkzeug==3.1.3 ; python_version >= "3.9" and python_version < "4"
-yarl==1.18.3 ; python_version >= "3.9" and python_version < "4"
-zipp==3.21.0 ; python_version >= "3.9" and python_version < "3.10"
-zope-interface==7.2 ; python_version >= "3.9" and python_version < "4"
+semantic-version==2.10.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+service-identity==24.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+setuptools==78.0.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+siwe==4.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+six==1.17.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+snaptime @ git+https://github.com/nucypher/snaptime.git@7edf0f861198b3689ccf82602e3f7b0a24acf6d5 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+sortedcontainers==2.4.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+sqlalchemy==2.0.39 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+stack-data==0.6.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+tabulate==0.9.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+time-machine==2.16.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+toml==0.10.2 ; python_version >= "3.9" and python_version < "3.11" and (implementation_name == "cpython" or implementation_name == "pypy")
+tomli==2.2.1 ; python_version >= "3.9" and python_version < "3.11" and (implementation_name == "cpython" or implementation_name == "pypy")
+toolz==1.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+tqdm==4.67.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+traitlets==5.14.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+trie==3.1.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+twisted==24.11.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+txaio==23.1.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+types-requests==2.32.0.20250306 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+typing-extensions==4.12.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+tzdata==2025.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+tzlocal==5.3.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+urllib3==2.3.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+varint==1.0.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+virtualenv==20.29.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+watchdog==3.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+wcwidth==0.2.13 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+web3==6.20.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+websockets==15.0.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+werkzeug==3.1.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+yarl==1.18.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+zipp==3.21.0 ; python_version == "3.9" and (implementation_name == "cpython" or implementation_name == "pypy")
+zope-interface==7.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")

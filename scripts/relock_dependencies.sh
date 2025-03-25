@@ -40,7 +40,7 @@ pip cache purge
 set -e
 
 echo "Building Development Requirements"
-poetry lock
+poetry lock --regenerate
 poetry export -o dev-requirements.txt --without-hashes --with dev
 
 echo "Building Standard Requirements"
