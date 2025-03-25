@@ -34,6 +34,7 @@ dateparser==1.2.2 ; python_version >= "3.9" and python_version < "4"
 decorator==5.2.1 ; python_version >= "3.9" and python_version < "4"
 distlib==0.4.0 ; python_version >= "3.9" and python_version < "4"
 eip712==0.2.13 ; python_version >= "3.9" and python_version < "4"
+ecdsa==0.19.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 eth-abi==5.2.0 ; python_version >= "3.9" and python_version < "4"
 eth-account==0.11.3 ; python_version >= "3.9" and python_version < "4"
 eth-ape==0.8.12 ; python_version >= "3.9" and python_version < "4"
@@ -68,7 +69,8 @@ ijson==3.4.0 ; python_version >= "3.9" and python_version < "4"
 importlib-metadata==8.7.0 ; python_version >= "3.9" and python_version < "3.10"
 incremental==24.7.2 ; python_version >= "3.9" and python_version < "4"
 iniconfig==2.1.0 ; python_version >= "3.9" and python_version < "4"
-ipython==8.18.1 ; python_version >= "3.9" and python_version < "4"
+ipython==8.18.1 ; python_version >= "3.9" and python_version < "3.11" and (implementation_name == "cpython" or implementation_name == "pypy")
+ipython==8.34.0 ; python_version >= "3.11" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 itsdangerous==2.2.0 ; python_version >= "3.9" and python_version < "4"
 jedi==0.19.2 ; python_version >= "3.9" and python_version < "4"
 jinja2==3.1.6 ; python_version >= "3.9" and python_version < "4"
