@@ -45,6 +45,28 @@ from tests.utils.policy import make_message_kits
 
 GET_CONTEXT_VALUE_IMPORT_PATH = "nucypher.policy.conditions.context.get_context_value"
 
+getActiveStakingProviders_abi_2_params = {
+    "type": "function",
+    "name": "getActiveStakingProviders",
+    "stateMutability": "view",
+    "inputs": [
+        {"name": "_startIndex", "type": "uint256", "internalType": "uint256"},
+        {
+            "name": "_maxStakingProviders",
+            "type": "uint256",
+            "internalType": "uint256",
+        },
+    ],
+    "outputs": [
+        {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
+        {
+            "name": "activeStakingProviders",
+            "type": "bytes32[]",
+            "internalType": "bytes32[]",
+        },
+    ],
+}
+
 
 def _dont_validate_user_address(context_variable: str, **context):
     if context_variable == USER_ADDRESS_CONTEXT:
@@ -773,30 +795,9 @@ def test_contract_condition_using_overloaded_function(
     #
     # valid overloaded function - 2 params
     #
-    valid_abi_2_params = {
-        "type": "function",
-        "name": "getActiveStakingProviders",
-        "stateMutability": "view",
-        "inputs": [
-            {"name": "_startIndex", "type": "uint256", "internalType": "uint256"},
-            {
-                "name": "_maxStakingProviders",
-                "type": "uint256",
-                "internalType": "uint256",
-            },
-        ],
-        "outputs": [
-            {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
-            {
-                "name": "activeStakingProviders",
-                "type": "bytes32[]",
-                "internalType": "bytes32[]",
-            },
-        ],
-    }
     condition = ContractCondition(
         contract_address=taco_child_application_agent.contract.address,
-        function_abi=ABIFunction(valid_abi_2_params),
+        function_abi=ABIFunction(getActiveStakingProviders_abi_2_params),
         method="getActiveStakingProviders",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
@@ -985,3 +986,60 @@ def test_rpc_condition_using_eip1271(
     assert condition_result is False
     assert call_result != eth_amount
     assert call_result == (eth_amount - withdraw_amount)
+
+
+@pytest.mark.usefixtures("staking_providers")
+def test_big_int_string_handling(
+    accounts, taco_child_application_agent, bob, condition_providers
+):
+    (
+        total_staked,
+        providers,
+    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10, 0)
+    expected_result = [
+        total_staked,
+        [
+            HexBytes(provider_bytes).hex() for provider_bytes in providers
+        ],  # must be json serializable
+    ]
+
+    context = {
+        ":expectedStakingProviders": expected_result,
+    }  # user-defined context vars
+
+    contract_condition = {
+        "conditionType": ConditionType.CONTRACT.value,
+        "contractAddress": taco_child_application_agent.contract.address,
+        "functionAbi": getActiveStakingProviders_abi_2_params,
+        "chain": TESTERCHAIN_CHAIN_ID,
+        "method": "getActiveStakingProviders",
+        "parameters": ["0n", "10n"],  # use bigint notation
+        "returnValueTest": {
+            "comparator": "==",
+            "value": ":expectedStakingProviders",
+        },
+    }
+    rpc_condition = {
+        "conditionType": ConditionType.RPC.value,
+        "chain": TESTERCHAIN_CHAIN_ID,
+        "method": "eth_getBalance",
+        "parameters": [bob.checksum_address, "latest"],
+        "returnValueTest": {
+            "comparator": ">=",
+            "value": "10000000000000n",
+        },  # use bigint notation
+    }
+    compound_condition = {
+        "version": ConditionLingo.VERSION,
+        "condition": {
+            "conditionType": ConditionType.COMPOUND.value,
+            "operator": "and",
+            "operands": [contract_condition, rpc_condition],
+        },
+    }
+
+    compound_condition_json = json.dumps(compound_condition)
+    condition_result = ConditionLingo.from_json(compound_condition_json).eval(
+        providers=condition_providers, **context
+    )
+    assert condition_result, "condition executed and passes"

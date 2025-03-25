@@ -183,3 +183,9 @@ RPC_SUCCESSFUL_RESPONSE = {
     "id": 1,
     "result": "Geth/v1.9.20-stable-979fc968/linux-amd64/go1.15"
 }
+
+
+# Integers
+
+UINT256_MAX = 2**256 - 1
+INT256_MIN = -(2**255)

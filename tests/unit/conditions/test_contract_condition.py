@@ -4,11 +4,12 @@ import os
 import random
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Union
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock
 
 import pytest
 from hexbytes import HexBytes
 from marshmallow import post_load
+from web3 import Web3
 from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.evm import ContractCall, ContractCondition
@@ -17,8 +18,11 @@ from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
-from nucypher.policy.conditions.utils import ConditionProviderManager
-from tests.constants import TESTERCHAIN_CHAIN_ID
+from nucypher.policy.conditions.utils import (
+    ConditionProviderManager,
+    check_and_convert_big_int_string_to_int,
+)
+from tests.constants import INT256_MIN, TESTERCHAIN_CHAIN_ID, UINT256_MAX
 
 CHAIN_ID = 137
 
@@ -53,7 +57,7 @@ class FakeExecutionContractCondition(ContractCondition):
         def set_execution_return_value(self, value: Any):
             self.execution_return_value = value
 
-        def execute(self, providers: ConditionProviderManager, **context) -> Any:
+        def _execute(self, w3: Web3, resolved_parameters: List[Any]) -> Any:
             return self.execution_return_value
 
     EXECUTION_CALL_TYPE = FakeRPCCall
@@ -77,11 +81,19 @@ def contract_condition_dict():
 
 def _replace_abi_outputs(condition_json: Dict, output_type: str, output_value: Any):
     # modify outputs type
-    condition_json["functionAbi"]["outputs"][0]["internalType"] = output_type
-    condition_json["functionAbi"]["outputs"][0]["type"] = output_type
+    for entry in condition_json["functionAbi"]["outputs"]:
+        entry["internalType"] = output_type
+        entry["type"] = output_type
 
     # modify return value test
     condition_json["returnValueTest"]["value"] = output_value
+
+
+def _replace_abi_inputs(condition_json: Dict, input_type: str):
+    # modify inputs type
+    for entry in condition_json["functionAbi"]["inputs"]:
+        entry["internalType"] = input_type
+        entry["type"] = input_type
 
 
 class ContextVarTest(Enum):
@@ -126,7 +138,9 @@ def _check_execution_logic(
             json.dumps(condition_dict)
         )
         fake_execution_contract_condition.set_execution_return_value(execution_result)
-        fake_providers = ConditionProviderManager({CHAIN_ID: {Mock(BaseProvider)}})
+        fake_providers = Mock(spec=ConditionProviderManager)
+        fake_providers.web3_endpoints.return_value = [Mock(BaseProvider)]
+
         condition_result, call_result = fake_execution_contract_condition.verify(
             fake_providers, **context
         )
@@ -1286,3 +1300,71 @@ def test_abi_nested_tuples_output_values(
             expected_outcome=None,
             context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
+
+
+@pytest.mark.parametrize(
+    "io_type, parameter,return_value_test_value,contract_result",
+    [
+        ("uint256", f"{UINT256_MAX}n", f"{UINT256_MAX}n", UINT256_MAX),
+        (
+            "uint256",
+            f"{int(UINT256_MAX/2)}n",
+            f"{int(UINT256_MAX/2)}n",
+            int(UINT256_MAX / 2),
+        ),
+        ("int256", f"{INT256_MIN}n", f"{INT256_MIN}n", INT256_MIN),
+        (
+            "int256",
+            f"{int(INT256_MIN/2)}n",
+            f"{int(INT256_MIN/2)}n",
+            int(INT256_MIN / 2),
+        ),
+    ],
+)
+def test_big_int_inputs_and_outputs(
+    io_type, parameter, return_value_test_value, contract_result, mocker
+):
+    # tests use of big int values in inputs and outputs (both parameters, and return value test)
+    contract_condition = {
+        "conditionType": "contract",
+        "contractAddress": "0x01B67b1194C75264d06F808A921228a95C765dd7",
+        "parameters": [parameter],
+        "method": "getValue",
+        "functionAbi": {
+            "inputs": [
+                {"internalType": "uint256", "name": "value", "type": "uint256"},
+            ],
+            "name": "getValue",
+            "outputs": [
+                {"internalType": "uint256", "name": "result", "type": "uint256"},
+            ],
+            "stateMutability": "view",
+            "type": "function",
+            "constant": True,
+        },
+        "chain": CHAIN_ID,
+        "returnValueTest": {
+            "comparator": "==",
+            "value": 0,
+        },
+    }
+
+    _replace_abi_inputs(contract_condition, input_type=io_type)
+    _replace_abi_outputs(
+        contract_condition, output_type=io_type, output_value=return_value_test_value
+    )
+
+    execute_spy = mocker.spy(FakeExecutionContractCondition.FakeRPCCall, "_execute")
+
+    _check_execution_logic(
+        condition_dict=contract_condition,
+        execution_result=contract_result,  # value returned by contract
+        comparator_value=return_value_test_value,  # value set in return value test
+        comparator="==",
+        expected_outcome=True,
+        context_var_testing=ContextVarTest.WITH_AND_WITHOUT_CONTEXT_VAR,
+    )
+
+    execute_spy.assert_called_with(
+        ANY, ANY, [check_and_convert_big_int_string_to_int(parameter)]
+    )  # (self, w3, [value used for parameter])

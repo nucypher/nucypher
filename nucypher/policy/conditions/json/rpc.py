@@ -17,6 +17,7 @@ from nucypher.policy.conditions.json.base import (
     JsonRequestCall,
 )
 from nucypher.policy.conditions.lingo import (
+    AnyField,
     ConditionType,
     ExecutionCallAccessControlCondition,
     ReturnValueTest,
@@ -26,7 +27,7 @@ from nucypher.policy.conditions.lingo import (
 class BaseJsonRPCCall(JsonRequestCall, ABC):
     class Schema(JsonRequestCall.Schema):
         method = fields.Str(required=True)
-        params = fields.Field(required=False, allow_none=True)
+        params = AnyField(required=False, allow_none=True)
         query = JSONPathField(required=False, allow_none=True)
         authorization_token = fields.Str(required=False, allow_none=True)
 
