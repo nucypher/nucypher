@@ -1,4 +1,5 @@
 import pathlib
+import re
 import sys
 from contextlib import contextmanager
 from enum import Enum
@@ -15,6 +16,7 @@ from twisted.logger import (
 )
 from twisted.logger import Logger as TwistedLogger
 from twisted.python.logfile import LogFile
+from twisted.web import http
 
 import nucypher
 from nucypher.config.constants import (
@@ -211,11 +213,35 @@ def get_text_file_observer(name=DEFAULT_LOG_FILENAME, path=USER_LOG_DIR):
     return observer
 
 
-class Logger(TwistedLogger):
-    """Drop-in replacement of Twisted's Logger, patching the emit() method to tolerate inputs with curly braces,
-    i.e., not compliant with PEP 3101.
+def _redact_ip_address_when_logging_server_requests():
+    """
+    Monkey-patch of twisted's HttpFactory log formatter so that logging of server requests
+    will exclude (redact) the IP address of the requester.
+    """
+    original_formatter = http.combinedLogFormatter
+    ip_address_pattern = r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
 
-    See Issue #724 and, particularly, https://github.com/nucypher/nucypher/issues/724#issuecomment-600190455"""
+    def redact_ip_address_formatter(timestamp, request):
+        line = original_formatter(timestamp, request)
+        # redact any ip address
+        line = re.sub(ip_address_pattern, "<IP_REDACTED>", line)
+        return line
+
+    http.combinedLogFormatter = redact_ip_address_formatter
+
+
+class Logger(TwistedLogger):
+    """Drop-in replacement of Twisted's Logger:
+    1. patch the emit() method to tolerate inputs with curly braces,
+    i.e., not compliant with PEP 3101. See Issue #724 and, particularly,
+    https://github.com/nucypher/nucypher/issues/724#issuecomment-600190455
+    2. redact IP addresses for http requests
+    """
+
+    _redact_ip_address_when_logging_server_requests()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     @classmethod
     def escape_format_string(cls, string):
