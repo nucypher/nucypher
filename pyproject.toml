@@ -49,6 +49,7 @@ coverage = '^7.3.2'
 pre-commit = '^2.12.1'
 numpy = '^1.26.0'
 ecdsa = "*"
+jwcrypto = "*"
 
 [tool.towncrier]
     package = "nucypher"
