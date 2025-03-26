@@ -4,17 +4,19 @@ import os
 import random
 import uuid
 from datetime import datetime, timezone
-from typing import List, Tuple
+from typing import Tuple
 
 import jwt
 import maya
 import pytest
 from ape.exceptions import ContractLogicError
+from cryptography.hazmat.primitives import serialization
 from ecdsa import SECP256k1, SigningKey, VerifyingKey
 from eth_account.messages import defunct_hash_message, encode_defunct
 from eth_keys.datatypes import PrivateKey
 from eth_utils import keccak, to_checksum_address
 from hexbytes import HexBytes
+from jwcrypto.jwk import JWK
 from py_ecc.secp256k1 import secp256k1
 from py_ecc.secp256k1.secp256k1 import bytes_to_int
 from web3 import Web3
@@ -65,8 +67,14 @@ def signer_address_from_public_pem(pem_public_key):
     public_key = VerifyingKey.from_pem(pem_public_key)
     public_key_bytes = public_key.to_string(encoding="uncompressed")
 
+    return signer_address_from_uncompressed_bytes(public_key_bytes)
+
+
+def signer_address_from_uncompressed_bytes(uncompressed_bytes):
+    # Drop the first byte (0x04) which is the prefix for uncompressed keys
+    public_key_raw = uncompressed_bytes[1:]
+
     # Compute Keccak-256 hash of the public key
-    public_key_raw = public_key_bytes[1:]
     address_hash = keccak(public_key_raw)
 
     # Take the last 20 bytes to form the Ethereum address
@@ -387,57 +395,106 @@ def test_jwt_issuance(
 ):
     delegatee = accounts.unassigned_accounts[0]
     token_payload = {
-        "sub": delegatee,
         "exp": calendar.timegm(datetime.now(tz=timezone.utc).utctimetuple()) + 60 * 60,
+        "iat": calendar.timegm(datetime.now(tz=timezone.utc).utctimetuple()),
+        "subject": delegatee,
         "permissions": ["read_data"],
-        "signing_cohort_id": str(uuid.uuid4()),  # some id - doesn't really matter
+        "verification": {
+            "signingCohortId": str(uuid.uuid4()),  # some id - doesn't really matter
+            # include list of signers, and threshold in payload
+            # (ursulas will validate these values before signing)
+            "allowedSigners": [ursula.operator_address for ursula in signing_cohort],
+            "threshold": COHORT_THRESHOLD,
+        },
     }
+    token_payload_str = json.dumps(token_payload, separators=(",", ":"))
+    # match b64 encoding done by library
+    token_payload_b64 = jwt.utils.base64url_encode(token_payload_str.encode()).decode()
 
     # match b64 encoding done by library
-    token_payload_b64 = jwt.utils.base64url_encode(
-        json.dumps(token_payload, separators=(",", ":")).encode()
-    ).decode()
-
-    # collect signatures off chain
+    # collect signatures off-chain (node REST call_
     jws_json = {
         "payload": token_payload_b64,
         "signatures": [],
     }
-    cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
 
-    cohort_public_pems: List[str] = []
+    #
+    # Node Signing (node endpoint calls and aggregation by caller)
+    #
+    cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
     for ursula in cohort_sample:
-        # ursulas would check the contract to determine whether to sign or not (skip that here)
+        # ursulas would check before signing:
+        # - check that allowedSigners is correct for cohort ID
+        # - check that threshold is correct for cohort ID
+        # - check member of cohort based on cohort ID
+        # - the contract for policies determine whether to sign or not
+        # ...
+        # For example
+        # check allowed signers
+        assert set(token_payload["verification"]["allowedSigners"]) == set(
+            multisig_contract_wallet.getSigners()
+        )
+        # check threshold
+        assert (
+            token_payload["verification"]["threshold"]
+            == multisig_contract_wallet.threshold()
+        )
+        # (Skip other checks and go straight to signing)
+
         pem_public_key, pem_private_key = get_pem_key_pair(
             bytes(HexBytes(accounts[ursula.operator_address].private_key))
         )
 
-        cohort_public_pems.append(pem_public_key)
-
         jwt_token = jwt.encode(
             payload=token_payload, key=pem_private_key, algorithm="ES256K"
         )
+        protected, payload_64, signature = jwt_token.split(".")
 
-        header, payload_64, signature = jwt_token.split(".")
-        assert payload_64 == token_payload_b64
+        # Purely for testing purposes - but the payload_64 should always be the same for all signers
+        # already set, ensure consistency
+        assert jws_json["payload"] == payload_64
 
-        jws_json["signatures"].append(
-            {
-                "protected": header,
-                "signature": signature,
-            }
-        )
 
-    # TODO the public key pems for the cohort need to be obtained from somewhere (contract?)
-    #  OR Perhaps other keys are used by Ursula for signing (stored in a contract - requires tx)
-    #  OR REST endpoint provided by nodes
-    # verify
+        # to be returned from node
+        # TODO used the jwcrypto library just to generate this JWK in a dictionary form from pem
+        signing_key = JWK.from_pem(pem_private_key.encode())
+        verifying_jwk = signing_key.export_public(
+            as_dict=True
+        )  # public key in dict form
+
+        result = {
+            "protected": protected,
+            "header": {
+                "jwk": verifying_jwk
+            },  # include public verifying key in unprotected header
+            "signature": signature,
+        }
+
+        # aggregated by caller
+        jws_json["signatures"].append(result)
+
+    #
+    # JWS Verification (local with no calls to contract)
+    #
+    num_verifications = 0
     for i, sig in enumerate(jws_json["signatures"]):
         header_b64 = sig["protected"]
         signature_b64 = sig["signature"]
+        header_jwk = jwt.PyJWK.from_dict(sig["header"]["jwk"])
 
         jwt_token = f"{header_b64}.{jws_json['payload']}.{signature_b64}"
-        _ = jwt.decode(jwt_token, key=cohort_public_pems[i], algorithms=["ES256K"])
+        jwt_payload = jwt.decode(jwt_token, key=header_jwk)
 
-        signer_address = signer_address_from_public_pem(cohort_public_pems[i])
-        assert signer_address == cohort_sample[i].operator_address
+        # verify signer address
+        raw_bytes = header_jwk.key.public_bytes(
+            encoding=serialization.Encoding.X962,
+            format=serialization.PublicFormat.UncompressedPoint,
+        )
+        signer_address = signer_address_from_uncompressed_bytes(raw_bytes)
+        assert signer_address in set(jwt_payload["verification"]["allowedSigners"])
+
+        num_verifications += 1
+        if num_verifications >= jwt_payload["verification"]["threshold"]:
+            break
+
+    assert num_verifications == COHORT_THRESHOLD
