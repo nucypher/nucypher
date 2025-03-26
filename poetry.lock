@@ -2203,6 +2203,21 @@ files = [
 referencing = ">=0.31.0"
 
 [[package]]
+name = "jwcrypto"
+version = "1.5.6"
+description = "Implementation of JOSE Web standards"
+optional = false
+python-versions = ">= 3.8"
+files = [
+    {file = "jwcrypto-1.5.6-py3-none-any.whl", hash = "sha256:150d2b0ebbdb8f40b77f543fb44ffd2baeff48788be71f67f03566692fd55789"},
+    {file = "jwcrypto-1.5.6.tar.gz", hash = "sha256:771a87762a0c081ae6166958a954f80848820b2ab066937dc8b8379d65b1b039"},
+]
+
+[package.dependencies]
+cryptography = ">=3.4"
+typing-extensions = ">=4.5.0"
+
+[[package]]
 name = "lazyasd"
 version = "0.1.4"
 description = "Lazy & self-destructive tools for speeding up module imports"
@@ -5270,4 +5285,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4"
-content-hash = "5ca6e0134c8e1ffac6dc6c25fa0268ebe1c47041f95b66c0de4bda1853992524"
+content-hash = "32905af30125f3eb8b9d4cd38d022c3d95eef82ece00f420037c5151103e4b6d"
