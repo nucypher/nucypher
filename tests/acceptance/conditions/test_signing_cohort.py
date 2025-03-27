@@ -42,6 +42,9 @@ def ursula_sign_raw_hash(accounts, ursula, raw_hash: bytes):
 
 
 def ursula_generate_vrf_randomness(accounts, ursula, message):
+    #
+    # To clarify, this is not a real vrf implementation, but a simple mock
+    #
     private_key = PrivateKey(
         bytes(HexBytes(accounts[ursula.operator_address].private_key))
     )
