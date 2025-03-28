@@ -480,6 +480,7 @@ def test_jwt_issuance(
     # JWS Verification (local with no calls to contract)
     #
     num_verifications = 0
+    prev_payload = None
     for i, sig in enumerate(jws_json["signatures"]):
         header_b64 = sig["protected"]
         signature_b64 = sig["signature"]
@@ -487,6 +488,12 @@ def test_jwt_issuance(
 
         jwt_token = f"{header_b64}.{jws_json['payload']}.{signature_b64}"
         jwt_payload = jwt.decode(jwt_token, key=header_jwk)
+
+        if prev_payload:
+            # same payload for all signers
+            assert jwt_payload == prev_payload
+        else:
+            prev_payload = jwt_payload
 
         # verify signer address
         raw_bytes = header_jwk.key.public_bytes(
