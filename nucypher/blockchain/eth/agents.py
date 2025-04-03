@@ -790,7 +790,8 @@ class CoordinatorAgent(EthereumContractAgent):
         transacting_power: TransactingPower,
         async_tx_hooks: BlockchainInterface.AsyncTxHooks,
     ) -> AsyncTx:
-        contract_function: ContractFunction = self.contract.functions.postTranscript(
+        # See sprints/#145
+        contract_function: ContractFunction = self.contract.functions.publishTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
         )
         async_tx = self.blockchain.send_async_transaction(
