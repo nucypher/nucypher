@@ -1,0 +1,1 @@
+Introduce support to post transcripts via new method ``publishTranscript()`` in Coordinator. Current ``postTranscript()`` method is marked for deprecation.
