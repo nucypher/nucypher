@@ -247,9 +247,13 @@ def fee_model(nucypher_dependency, deployer_account, coordinator, ritual_token):
         ritual_token.address,
         FEE_RATE,
     )
-    treasury_role = coordinator.TREASURY_ROLE()
     coordinator.grantRole(
-        treasury_role, deployer_account.address, sender=deployer_account
+        coordinator.TREASURY_ROLE(), deployer_account.address, sender=deployer_account
+    )
+    coordinator.grantRole(
+        coordinator.FEE_MODEL_MANAGER_ROLE(),
+        deployer_account.address,
+        sender=deployer_account,
     )
     coordinator.approveFeeModel(contract.address, sender=deployer_account)
 
