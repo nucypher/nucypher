@@ -229,7 +229,7 @@ def check_and_convert_big_int_string_to_int(value: str) -> Union[str, int]:
     """
     Check if a string is a big int string and convert it to an integer, otherwise return the string.
     """
-    if re.fullmatch("^-?\d+n$", value):
+    if re.fullmatch(r"^-?\d+n$", value):
         try:
             result = int(value[:-1])
             return result
