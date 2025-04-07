@@ -104,9 +104,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             )
 
             if staking_provider_address and staking_provider_address != NULL_ADDRESS:
-                if coordinator_agent.is_provider_public_key_set(
-                    staking_provider_address
-                ):
+                if coordinator_agent.is_provider_key_set(staking_provider_address):
                     message = (
                         f"Operator {self.operator_address} has already published a public key.\n"
                         f"It is not permitted to create a new node with this operator address."
