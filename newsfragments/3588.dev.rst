@@ -1,1 +1,1 @@
-Introduce support to post transcripts via new method ``publishTranscript()`` in Coordinator. Current ``postTranscript()`` method is marked for deprecation.
+Introduce necessary changes to adapt agents methods to breaking changes in Coordinator contract. Previous methods are now deprecated from the API.
