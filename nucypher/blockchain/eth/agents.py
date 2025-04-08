@@ -748,7 +748,7 @@ class CoordinatorAgent(EthereumContractAgent):
         return is_authorized
 
     @contract_api(CONTRACT_CALL)
-    def is_provider_key_set(self, staking_provider: ChecksumAddress) -> bool:
+    def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
         result = self.contract.functions.isProviderKeySet(staking_provider).call()
         return result
 

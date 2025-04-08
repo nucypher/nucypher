@@ -258,7 +258,7 @@ class Operator(BaseActor):
 
     def set_provider_public_key(self) -> Union[TxReceipt, None]:
         # TODO: Here we're assuming there is one global key per node. See nucypher/#3167
-        node_global_ferveo_key_set = self.coordinator_agent.is_provider_key_set(
+        node_global_ferveo_key_set = self.coordinator_agent.is_provider_public_key_set(
             self.staking_provider_address
         )
         if not node_global_ferveo_key_set:
