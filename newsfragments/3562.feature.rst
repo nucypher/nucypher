@@ -1,1 +1,0 @@
-Enhance threshold decryption request efficiency by prioritizing nodes in the cohort with lower communication latency.

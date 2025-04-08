@@ -4,6 +4,39 @@ Releases
 
 .. towncrier release notes start
 
+v7.5.0 (2025-04-08)
+-------------------
+
+Features
+~~~~~~~~
+
+- Support for executing multiple conditions sequentially, where the outcome of one condition can be used as input for another. (`#3500 <https://github.com/nucypher/nucypher/issues/3500>`__)
+- Support for offchain JSON endpoint condition expression and evaluation (`#3511 <https://github.com/nucypher/nucypher/issues/3511>`__)
+- Expands recovery CLI to include audit and keystore identification features (`#3538 <https://github.com/nucypher/nucypher/issues/3538>`__)
+- Condition that allows for if-then-else branching based on underlying conditions i.e. IF ``CONDITION A`` THEN ``CONDITION B`` ELSE ``CONDITION_C``.
+  The ELSE component can either be a Condition or a boolean value. (`#3558 <https://github.com/nucypher/nucypher/issues/3558>`__)
+- Enable support for Bearer authorization tokens (e.g., OAuth, JWT) within HTTP GET requests for ``JsonApiCondition``. (`#3560 <https://github.com/nucypher/nucypher/issues/3560>`__)
+- Enhance threshold decryption request efficiency by prioritizing nodes in the cohort with lower communication latency. (`#3562 <https://github.com/nucypher/nucypher/issues/3562>`__)
+- Added plumbing to support EVM condition evaluation on "any" (major) EVM chain outside of Ethereum and Polygon - only enabled on ``lynx`` testnet for now. (`#3569 <https://github.com/nucypher/nucypher/issues/3569>`__)
+- Support for conditions based on verification of JWT tokens. (`#3570 <https://github.com/nucypher/nucypher/issues/3570>`__)
+- Support for conditions based on APIs provided by off-chain JSON RPC 2.0 endpoints. (`#3571 <https://github.com/nucypher/nucypher/issues/3571>`__)
+- Add support for EIP1271 signature verification for smart contract wallets. (`#3576 <https://github.com/nucypher/nucypher/issues/3576>`__)
+- Allow BigInt values from ``taco-web`` typescript library to be provided as strings. (`#3585 <https://github.com/nucypher/nucypher/issues/3585>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- `#3577 <https://github.com/nucypher/nucypher/issues/3577>`__
+
+
+Internal Development Tasks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- `#3523 <https://github.com/nucypher/nucypher/issues/3523>`__, `#3535 <https://github.com/nucypher/nucypher/issues/3535>`__, `#3539 <https://github.com/nucypher/nucypher/issues/3539>`__, `#3545 <https://github.com/nucypher/nucypher/issues/3545>`__, `#3547 <https://github.com/nucypher/nucypher/issues/3547>`__, `#3553 <https://github.com/nucypher/nucypher/issues/3553>`__, `#3554 <https://github.com/nucypher/nucypher/issues/3554>`__, `#3556 <https://github.com/nucypher/nucypher/issues/3556>`__, `#3557 <https://github.com/nucypher/nucypher/issues/3557>`__, `#3563 <https://github.com/nucypher/nucypher/issues/3563>`__, `#3564 <https://github.com/nucypher/nucypher/issues/3564>`__, `#3565 <https://github.com/nucypher/nucypher/issues/3565>`__, `#3578 <https://github.com/nucypher/nucypher/issues/3578>`__, `#3581 <https://github.com/nucypher/nucypher/issues/3581>`__, `#3586 <https://github.com/nucypher/nucypher/issues/3586>`__, `#3589 <https://github.com/nucypher/nucypher/issues/3589>`__
+- Introduce necessary changes to adapt agents methods to breaking changes in Coordinator contract. Previous methods are now deprecated from the API. (`#3588 <https://github.com/nucypher/nucypher/issues/3588>`__)
+
+
 v7.4.1 (2024-09-12)
 -------------------
 

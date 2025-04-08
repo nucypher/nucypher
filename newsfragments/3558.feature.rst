@@ -1,2 +1,0 @@
-Condition that allows for if-then-else branching based on underlying conditions i.e. IF ``CONDITION A`` THEN ``CONDITION B`` ELSE ``CONDITION_C``.
-The ELSE component can either be a Condition or a boolean value.

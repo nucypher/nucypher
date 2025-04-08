@@ -1,1 +1,0 @@
-Enable support for Bearer authorization tokens (e.g., OAuth, JWT) within HTTP GET requests for ``JsonApiCondition``.

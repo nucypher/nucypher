@@ -1,1 +1,0 @@
-Allow BigInt values from ``taco-web`` typescript library to be provided as strings.

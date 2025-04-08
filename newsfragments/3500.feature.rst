@@ -1,1 +1,0 @@
-Support for executing multiple conditions sequentially, where the outcome of one condition can be used as input for another.

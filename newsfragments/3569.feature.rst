@@ -1,1 +1,0 @@
-Added plumbing to support EVM condition evaluation on "any" (major) EVM chain outside of Ethereum and Polygon - only enabled on ``lynx`` testnet for now.
