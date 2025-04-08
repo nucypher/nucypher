@@ -749,7 +749,7 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
-        result = self.contract.functions.isProviderPublicKeySet(staking_provider).call()
+        result = self.contract.functions.isProviderKeySet(staking_provider).call()
         return result
 
     @contract_api(TRANSACTION)
@@ -790,7 +790,8 @@ class CoordinatorAgent(EthereumContractAgent):
         transacting_power: TransactingPower,
         async_tx_hooks: BlockchainInterface.AsyncTxHooks,
     ) -> AsyncTx:
-        contract_function: ContractFunction = self.contract.functions.postTranscript(
+        # See sprints/#145
+        contract_function: ContractFunction = self.contract.functions.publishTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
         )
         async_tx = self.blockchain.send_async_transaction(
