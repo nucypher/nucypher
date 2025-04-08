@@ -2,25 +2,25 @@ import pytest
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
-    NucypherTokenAgent,
     SubscriptionManagerAgent,
 )
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import (
-    AndCompoundCondition,
     ConditionLingo,
     OrCompoundCondition,
     ReturnValueTest,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 
 @pytest.fixture()
 def condition_providers(testerchain):
-    providers = {testerchain.client.chain_id: {testerchain.provider}}
+    providers = ConditionProviderManager(
+        {testerchain.client.chain_id: {testerchain.provider}}
+    )
     return providers
-
 
 @pytest.fixture()
 def compound_lingo(
@@ -35,12 +35,8 @@ def compound_lingo(
             operands=[
                 erc721_evm_condition_balanceof,
                 time_condition,
-                AndCompoundCondition(
-                    operands=[
-                        rpc_condition,
-                        erc20_evm_condition_balanceof,
-                    ]
-                ),
+                rpc_condition,
+                erc20_evm_condition_balanceof,
             ]
         )
     )
@@ -48,14 +44,9 @@ def compound_lingo(
 
 
 @pytest.fixture()
-def erc20_evm_condition_balanceof(testerchain, test_registry):
-    token = ContractAgency.get_agent(
-        NucypherTokenAgent,
-        registry=test_registry,
-        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
-    )
+def erc20_evm_condition_balanceof(testerchain, test_registry, ritual_token):
     condition = ContractCondition(
-        contract_address=token.contract.address,
+        contract_address=ritual_token.address,
         method="balanceOf",
         standard_contract_type="ERC20",
         chain=TESTERCHAIN_CHAIN_ID,
@@ -66,14 +57,12 @@ def erc20_evm_condition_balanceof(testerchain, test_registry):
 
 
 @pytest.fixture
-def erc721_contract(accounts, project):
-    account = accounts[0]
-
+def erc721_contract(project, deployer_account):
     # deploy contract
-    deployed_contract = project.ConditionNFT.deploy(sender=account)
+    deployed_contract = project.ConditionNFT.deploy(sender=deployer_account)
 
     # mint nft with token id = 1
-    deployed_contract.mint(account.address, 1, sender=account)
+    deployed_contract.mint(deployer_account.address, 1, sender=deployer_account)
     return deployed_contract
 
 
@@ -152,15 +141,10 @@ def subscription_manager_is_active_policy_condition(testerchain, test_registry):
 
 @pytest.fixture
 def custom_context_variable_erc20_condition(
-    test_registry, testerchain, mock_condition_blockchains
+    test_registry, testerchain, mock_condition_blockchains, ritual_token
 ):
-    token = ContractAgency.get_agent(
-        NucypherTokenAgent,
-        registry=test_registry,
-        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
-    )
     condition = ContractCondition(
-        contract_address=token.contract.address,
+        contract_address=ritual_token.address,
         method="balanceOf",
         standard_contract_type="ERC20",
         chain=TESTERCHAIN_CHAIN_ID,
@@ -168,3 +152,11 @@ def custom_context_variable_erc20_condition(
         parameters=[":addressToUse"],
     )
     return condition
+
+
+@pytest.fixture
+def eip1271_contract_wallet(project, deployer_account):
+    _eip1271_contract_wallet = deployer_account.deploy(
+        project.SmartContractWallet, deployer_account.address
+    )
+    return _eip1271_contract_wallet

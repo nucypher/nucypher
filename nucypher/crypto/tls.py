@@ -42,7 +42,7 @@ def generate_self_signed_certificate(
         private_key = ec.generate_private_key(curve(), default_backend())
     public_key = private_key.public_key()
 
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     fields = [x509.NameAttribute(NameOID.COMMON_NAME, host)]
 
     subject = issuer = x509.Name(fields)

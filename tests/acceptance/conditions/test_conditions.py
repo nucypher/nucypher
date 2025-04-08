@@ -3,6 +3,7 @@ import os
 from unittest import mock
 
 import pytest
+from eth_account.messages import defunct_hash_message, encode_defunct
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.providers import BaseProvider
@@ -13,6 +14,7 @@ from nucypher.blockchain.eth.agents import (
     SubscriptionManagerAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
     get_context_value,
@@ -22,17 +24,18 @@ from nucypher.policy.conditions.evm import (
     RPCCondition,
 )
 from nucypher.policy.conditions.exceptions import (
-    InvalidCondition,
     NoConnectionToChain,
     RequiredContextVariable,
     RPCExecutionFailed,
 )
+from nucypher.policy.conditions.json.rpc import JsonRpcCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
     ConditionType,
     NotCompoundCondition,
     ReturnValueTest,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from tests.constants import (
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
@@ -41,6 +44,28 @@ from tests.constants import (
 from tests.utils.policy import make_message_kits
 
 GET_CONTEXT_VALUE_IMPORT_PATH = "nucypher.policy.conditions.context.get_context_value"
+
+getActiveStakingProviders_abi_2_params = {
+    "type": "function",
+    "name": "getActiveStakingProviders",
+    "stateMutability": "view",
+    "inputs": [
+        {"name": "_startIndex", "type": "uint256", "internalType": "uint256"},
+        {
+            "name": "_maxStakingProviders",
+            "type": "uint256",
+            "internalType": "uint256",
+        },
+    ],
+    "outputs": [
+        {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
+        {
+            "name": "activeStakingProviders",
+            "type": "bytes32[]",
+            "internalType": "bytes32[]",
+        },
+    ],
+}
 
 
 def _dont_validate_user_address(context_variable: str, **context):
@@ -67,11 +92,12 @@ def test_rpc_condition_evaluation_no_providers(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
     with pytest.raises(NoConnectionToChain):
-        _ = rpc_condition.verify(providers={}, **context)
+        _ = rpc_condition.verify(providers=ConditionProviderManager({}), **context)
 
     with pytest.raises(NoConnectionToChain):
         _ = rpc_condition.verify(
-            providers={testerchain.client.chain_id: set()}, **context
+            providers=ConditionProviderManager({testerchain.client.chain_id: list()}),
+            **context,
         )
 
 
@@ -84,10 +110,11 @@ def test_rpc_condition_evaluation_invalid_provider_for_chain(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
     new_chain = 23
-    rpc_condition.chain = new_chain
-    condition_providers = {new_chain: {testerchain.provider}}
+    rpc_condition.execution_call.chain = new_chain
+    condition_providers = ConditionProviderManager({new_chain: [testerchain.provider]})
     with pytest.raises(
-        InvalidCondition, match=f"can only be evaluated on chain ID {new_chain}"
+        NoConnectionToChain,
+        match=f"Problematic provider endpoints for chain ID {new_chain}",
     ):
         _ = rpc_condition.verify(providers=condition_providers, **context)
 
@@ -118,13 +145,15 @@ def test_rpc_condition_evaluation_multiple_chain_providers(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
 
-    condition_providers = {
-        "1": {"fake1a", "fake1b"},
-        "2": {"fake2"},
-        "3": {"fake3"},
-        "4": {"fake4"},
-        TESTERCHAIN_CHAIN_ID: {testerchain.provider},
-    }
+    condition_providers = ConditionProviderManager(
+        {
+            "1": ["fake1a", "fake1b"],
+            "2": ["fake2"],
+            "3": ["fake3"],
+            "4": ["fake4"],
+            TESTERCHAIN_CHAIN_ID: [testerchain.provider],
+        }
+    )
 
     condition_result, call_result = rpc_condition.verify(
         providers=condition_providers, **context
@@ -144,22 +173,17 @@ def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
 
-    def my_configure_w3(provider: BaseProvider):
-        return Web3(provider)
-
-    condition_providers = {
-        TESTERCHAIN_CHAIN_ID: {
-            mocker.Mock(spec=BaseProvider),
-            mocker.Mock(spec=BaseProvider),
-            mocker.Mock(spec=BaseProvider),
+    condition_providers = ConditionProviderManager(
+        {
+            TESTERCHAIN_CHAIN_ID: [
+                mocker.Mock(spec=BaseProvider),
+                mocker.Mock(spec=BaseProvider),
+                mocker.Mock(spec=BaseProvider),
+            ]
         }
-    }
+    )
 
-    mocker.patch.object(
-        rpc_condition, "_check_chain_id", return_value=None
-    )  # skip chain check
-    mocker.patch.object(rpc_condition, "_configure_w3", my_configure_w3)
-
+    mocker.patch.object(condition_providers, "_check_chain_id", return_value=None)
     with pytest.raises(RPCExecutionFailed):
         _ = rpc_condition.verify(providers=condition_providers, **context)
 
@@ -173,22 +197,18 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
 
-    def my_configure_w3(provider: BaseProvider):
-        return Web3(provider)
-
-    condition_providers = {
-        TESTERCHAIN_CHAIN_ID: {
-            mocker.Mock(spec=BaseProvider),
-            mocker.Mock(spec=BaseProvider),
-            mocker.Mock(spec=BaseProvider),
-            testerchain.provider,
+    condition_providers = ConditionProviderManager(
+        {
+            TESTERCHAIN_CHAIN_ID: [
+                mocker.Mock(spec=BaseProvider),
+                mocker.Mock(spec=BaseProvider),
+                mocker.Mock(spec=BaseProvider),
+                testerchain.provider,
+            ]
         }
-    }
+    )
 
-    mocker.patch.object(
-        rpc_condition, "_check_chain_id", return_value=None
-    )  # skip chain check
-    mocker.patch.object(rpc_condition, "_configure_w3", my_configure_w3)
+    mocker.patch.object(condition_providers, "_check_chain_id", return_value=None)
 
     condition_result, call_result = rpc_condition.verify(
         providers=condition_providers, **context
@@ -211,10 +231,12 @@ def test_rpc_condition_evaluation_no_connection_to_chain(
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
 
     # condition providers for other unrelated chains
-    providers = {
-        1: mock.Mock(),  # mainnet
-        11155111: mock.Mock(),  # Sepolia
-    }
+    providers = ConditionProviderManager(
+        {
+            1: [mock.Mock()],  # mainnet
+            11155111: [mock.Mock()],  # Sepolia
+        }
+    )
 
     with pytest.raises(NoConnectionToChain):
         rpc_condition.verify(providers=providers, **context)
@@ -253,7 +275,10 @@ def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
     invalid_balance = balance + 1
     context[":balanceContextVar"] = invalid_balance
     condition_result, call_result = rpc_condition.verify(
-        providers={testerchain.client.chain_id: [testerchain.provider]}, **context
+        providers=ConditionProviderManager(
+            {testerchain.client.chain_id: [testerchain.provider]}
+        ),
+        **context,
     )
     assert condition_result is False
     assert call_result != invalid_balance
@@ -770,30 +795,9 @@ def test_contract_condition_using_overloaded_function(
     #
     # valid overloaded function - 2 params
     #
-    valid_abi_2_params = {
-        "type": "function",
-        "name": "getActiveStakingProviders",
-        "stateMutability": "view",
-        "inputs": [
-            {"name": "_startIndex", "type": "uint256", "internalType": "uint256"},
-            {
-                "name": "_maxStakingProviders",
-                "type": "uint256",
-                "internalType": "uint256",
-            },
-        ],
-        "outputs": [
-            {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
-            {
-                "name": "activeStakingProviders",
-                "type": "bytes32[]",
-                "internalType": "bytes32[]",
-            },
-        ],
-    }
     condition = ContractCondition(
         contract_address=taco_child_application_agent.contract.address,
-        function_abi=ABIFunction(valid_abi_2_params),
+        function_abi=ABIFunction(getActiveStakingProviders_abi_2_params),
         method="getActiveStakingProviders",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
@@ -897,3 +901,145 @@ def test_contract_condition_using_overloaded_function(
     )
     with pytest.raises(RPCExecutionFailed):
         _ = condition.verify(providers=condition_providers, **context)
+
+
+@pytest.mark.xfail(reason="This test uses a public rpc endpoint")
+def test_json_rpc_condition_non_evm_prototyping_example():
+    condition = JsonRpcCondition(
+        endpoint="https://api.mainnet-beta.solana.com",
+        method="getBlockTime",
+        params=[308103883],
+        return_value_test=ReturnValueTest(">=", 1734461499),
+    )
+    success, _ = condition.verify()
+    assert success
+
+    condition = JsonRpcCondition(
+        endpoint="https://api.mainnet-beta.solana.com",
+        method="getBalance",
+        params=["83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri"],
+        query="$.value",
+        return_value_test=ReturnValueTest(">=", 0),
+    )
+    success, _ = condition.verify()
+    assert success
+
+    condition = JsonRpcCondition(
+        endpoint="https://bitcoin.drpc.org",
+        method="getblock",
+        params=["00000000000000000001ed4d40e6b602d7f09b9d47d5e046d52339cc6673a486"],
+        query="$.time",
+        return_value_test=ReturnValueTest(">=", 1734461294),
+    )
+    success, _ = condition.verify()
+    assert success
+
+
+def test_rpc_condition_using_eip1271(
+    deployer_account, eip1271_contract_wallet, condition_providers
+):
+    # send some ETH to the smart contract wallet
+    eth_amount = Web3.to_wei(2.25, "ether")
+
+    encoded_deposit_function = eip1271_contract_wallet.deposit.encode_input().hex()
+    deployer_account.transfer(
+        account=eip1271_contract_wallet.address,
+        value=eth_amount,
+        data=encoded_deposit_function,
+    )
+
+    rpc_condition = RPCCondition(
+        method="eth_getBalance",
+        chain=TESTERCHAIN_CHAIN_ID,
+        parameters=[USER_ADDRESS_CONTEXT],
+        return_value_test=ReturnValueTest("==", eth_amount),
+    )
+
+    data = f"I'm the owner of the smart contract wallet address {eip1271_contract_wallet.address}"
+    signable_message = encode_defunct(text=data)
+    hash = defunct_hash_message(text=data)
+    message_signature = deployer_account.sign_message(signable_message)
+    hex_signature = HexBytes(message_signature.encode_rsv()).hex()
+
+    typedData = {"chain": TESTERCHAIN_CHAIN_ID, "dataHash": hash.hex()}
+    auth_message = {
+        "signature": f"{hex_signature}",
+        "address": f"{eip1271_contract_wallet.address}",
+        "scheme": EvmAuth.AuthScheme.EIP1271.value,
+        "typedData": typedData,
+    }
+    context = {
+        USER_ADDRESS_CONTEXT: auth_message,
+    }
+    condition_result, call_result = rpc_condition.verify(
+        providers=condition_providers, **context
+    )
+    assert condition_result is True
+    assert call_result == eth_amount
+
+    # withdraw some ETH and check condition again
+    withdraw_amount = Web3.to_wei(1, "ether")
+    eip1271_contract_wallet.withdraw(withdraw_amount, sender=deployer_account)
+    condition_result, call_result = rpc_condition.verify(
+        providers=condition_providers, **context
+    )
+    assert condition_result is False
+    assert call_result != eth_amount
+    assert call_result == (eth_amount - withdraw_amount)
+
+
+@pytest.mark.usefixtures("staking_providers")
+def test_big_int_string_handling(
+    accounts, taco_child_application_agent, bob, condition_providers
+):
+    (
+        total_staked,
+        providers,
+    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10, 0)
+    expected_result = [
+        total_staked,
+        [
+            HexBytes(provider_bytes).hex() for provider_bytes in providers
+        ],  # must be json serializable
+    ]
+
+    context = {
+        ":expectedStakingProviders": expected_result,
+    }  # user-defined context vars
+
+    contract_condition = {
+        "conditionType": ConditionType.CONTRACT.value,
+        "contractAddress": taco_child_application_agent.contract.address,
+        "functionAbi": getActiveStakingProviders_abi_2_params,
+        "chain": TESTERCHAIN_CHAIN_ID,
+        "method": "getActiveStakingProviders",
+        "parameters": ["0n", "10n"],  # use bigint notation
+        "returnValueTest": {
+            "comparator": "==",
+            "value": ":expectedStakingProviders",
+        },
+    }
+    rpc_condition = {
+        "conditionType": ConditionType.RPC.value,
+        "chain": TESTERCHAIN_CHAIN_ID,
+        "method": "eth_getBalance",
+        "parameters": [bob.checksum_address, "latest"],
+        "returnValueTest": {
+            "comparator": ">=",
+            "value": "10000000000000n",
+        },  # use bigint notation
+    }
+    compound_condition = {
+        "version": ConditionLingo.VERSION,
+        "condition": {
+            "conditionType": ConditionType.COMPOUND.value,
+            "operator": "and",
+            "operands": [contract_condition, rpc_condition],
+        },
+    }
+
+    compound_condition_json = json.dumps(compound_condition)
+    condition_result = ConditionLingo.from_json(compound_condition_json).eval(
+        providers=condition_providers, **context
+    )
+    assert condition_result, "condition executed and passes"

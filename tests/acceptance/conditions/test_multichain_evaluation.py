@@ -2,8 +2,15 @@ from collections import defaultdict
 
 import pytest
 
-from nucypher.policy.conditions.evm import RPCCondition
-from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
+from nucypher.policy.conditions.evm import RPCCall, RPCCondition
+from nucypher.policy.conditions.lingo import (
+    CompoundAccessControlCondition,
+    ConditionLingo,
+    ConditionType,
+    ReturnValueTest,
+)
+from nucypher.policy.conditions.time import TimeCondition
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.utils.policy import make_message_kits
 
@@ -14,22 +21,28 @@ def make_multichain_evm_conditions(bob, chain_ids):
     """This is a helper function to make a set of conditions that are valid on multiple chains."""
     operands = list()
     for chain_id in chain_ids:
-        operand = [
-            {
-                "conditionType": ConditionType.TIME.value,
-                "returnValueTest": {"value": 0, "comparator": ">"},
-                "method": "blocktime",
-                "chain": chain_id,
-            },
-            {
-                "conditionType": ConditionType.RPC.value,
-                "chain": chain_id,
-                "method": "eth_getBalance",
-                "parameters": [bob.checksum_address, "latest"],
-                "returnValueTest": {"comparator": ">=", "value": 10000000000000},
-            },
-        ]
-        operands.extend(operand)
+        compound_and_condition = CompoundAccessControlCondition(
+            operator="and",
+            operands=[
+                TimeCondition(
+                    chain=chain_id,
+                    return_value_test=ReturnValueTest(
+                        comparator=">",
+                        value=0,
+                    ),
+                ),
+                RPCCondition(
+                    chain=chain_id,
+                    method="eth_getBalance",
+                    parameters=[bob.checksum_address, "latest"],
+                    return_value_test=ReturnValueTest(
+                        comparator=">=",
+                        value=10000000000000,
+                    ),
+                ),
+            ],
+        )
+        operands.append(compound_and_condition.to_dict())
 
     _conditions = {
         "version": ConditionLingo.VERSION,
@@ -49,7 +62,7 @@ def conditions(bob, multichain_ids):
 
 
 def test_single_retrieve_with_multichain_conditions(
-    enacted_policy, bob, multichain_ursulas, conditions, mock_rpc_condition
+    enacted_policy, bob, multichain_ursulas, conditions, monkeymodule, testerchain
 ):
     bob.remember_node(multichain_ursulas[0])
     bob.start_learning_loop()
@@ -58,6 +71,11 @@ def test_single_retrieve_with_multichain_conditions(
     policy_info_kwargs = dict(
         encrypted_treasure_map=enacted_policy.treasure_map,
         alice_verifying_key=enacted_policy.publisher_verifying_key,
+    )
+    monkeymodule.setattr(
+        ConditionProviderManager,
+        "web3_endpoints",
+        lambda *args, **kwargs: [testerchain.w3],
     )
 
     cleartexts = bob.retrieve_and_decrypt(
@@ -69,7 +87,7 @@ def test_single_retrieve_with_multichain_conditions(
 
 
 def test_single_decryption_request_with_faulty_rpc_endpoint(
-    enacted_policy, bob, multichain_ursulas, conditions, mock_rpc_condition
+    monkeymodule, testerchain, enacted_policy, bob, multichain_ursulas, conditions
 ):
     bob.remember_node(multichain_ursulas[0])
     bob.start_learning_loop()
@@ -80,30 +98,30 @@ def test_single_decryption_request_with_faulty_rpc_endpoint(
         alice_verifying_key=enacted_policy.publisher_verifying_key,
     )
 
-    calls = defaultdict(int)
-    original_execute_call = RPCCondition._execute_call
+    monkeymodule.setattr(
+        ConditionProviderManager,
+        "web3_endpoints",
+        lambda *args, **kwargs: [testerchain.w3, testerchain.w3],
+    )  # a base, and fallback
 
-    def faulty_execute_call(*args, **kwargs):
+    rpc_calls = defaultdict(int)
+    original_execute_call = RPCCall._execute
+
+    def faulty_rpc_execute_call(*args, **kwargs):
         """Intercept the call to the RPC endpoint and raise an exception on the second call."""
-        nonlocal calls
-        rpc_call = args[0]
-        calls[rpc_call.chain] += 1
-        if (
-            calls[rpc_call.chain] == 2
-            and "tester://multichain.0" in rpc_call.provider.endpoint_uri
-        ):
+        nonlocal rpc_calls
+        rpc_call_object = args[0]
+        rpc_calls[rpc_call_object.chain] += 1
+        if rpc_calls[rpc_call_object.chain] % 2 == 0:
             # simulate a network error
             raise ConnectionError("Something went wrong with the network")
-        elif calls[rpc_call.chain] == 3:
-            # check the provider is the fallback
-            this_uri = rpc_call.provider.endpoint_uri
-            assert "fallback" in this_uri
+
+        # make original call
         return original_execute_call(*args, **kwargs)
 
-    RPCCondition._execute_call = faulty_execute_call
+    monkeymodule.setattr(RPCCall, "_execute", faulty_rpc_execute_call)
     cleartexts = bob.retrieve_and_decrypt(
         message_kits=message_kits,
         **policy_info_kwargs,
     )
     assert cleartexts == messages
-    RPCCondition._execute_call = original_execute_call

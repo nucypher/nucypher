@@ -87,19 +87,6 @@
       "value": 0
     }
   },
-  "SubscriptionManagerPayment": {
-    "conditionType": "contract",
-    "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
-    "chain": 137,
-    "method": "isValidPolicy",
-    "parameters": [
-      ":hrac"
-    ],
-    "returnValueTest": {
-      "comparator": "==",
-      "value": true
-    }
-  },
   "ERC1155_balance": {
     "conditionType": "contract",
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
@@ -137,7 +124,7 @@
     ],
     "returnValueTest": {
       "comparator": ">",
-      "value": 0
+      "value": [0,0,0,0]
     }
   },
   "ERC721_ownership": {
@@ -150,7 +137,7 @@
       5954
     ],
     "returnValueTest": {
-      "comparator": "=",
+      "comparator": "==",
       "value": ":userAddress"
     }
   },
@@ -183,9 +170,7 @@
     }
   },
   "ETH_balance": {
-    "conditionType": "contract",
-    "contractAddress": "",
-    "standardContractType": "",
+    "conditionType": "rpc",
     "chain": 1,
     "method": "eth_getBalance",
     "parameters": [
@@ -197,32 +182,227 @@
       "value": 10000000000000
     }
   },
-  "specific_wallet_address": {
-    "conditionType": "contract",
-    "contractAddress": "",
-    "standardContractType": "",
-    "chain": 1,
-    "method": "",
-    "parameters": [
-      ":userAddress"
-    ],
-    "returnValueTest": {
-      "comparator": "=",
-      "value": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118"
-    }
-  },
   "timestamp": {
-    "conditionType": "contract",
-    "contractAddress": "",
-    "standardContractType": "timestamp",
+    "conditionType": "time",
     "chain": 1,
-    "method": "eth_getBlockByNumber",
-    "parameters": [
-      "latest"
-    ],
+    "method": "blocktime",
     "returnValueTest": {
       "comparator": ">=",
       "value": 1234567890
     }
+  },
+  "compoundNot": {
+    "conditionType": "compound",
+    "operator": "not",
+    "operands":[
+      {
+        "conditionType": "time",
+        "method": "blocktime",
+        "chain": 131277322940537,
+        "returnValueTest": {
+          "value": 0,
+          "comparator": ">"
+        }
+      }
+    ]
+  },
+  "compoundAnd": {
+    "conditionType": "compound",
+    "operator": "and",
+    "operands": [
+      {
+        "conditionType": "contract",
+        "chain": 131277322940537,
+        "method": "isPolicyActive",
+        "parameters": [
+          ":hrac"
+        ],
+        "contractAddress": "0xfD09F629A77439dc3FFaBD6318a02F0FC469cd92",
+        "functionAbi": {
+          "type": "function",
+          "name": "isPolicyActive",
+          "stateMutability": "view",
+          "inputs": [
+            {
+              "name": "_policyID",
+              "type": "bytes16",
+              "internalType": "bytes16"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "bool",
+              "internalType": "bool"
+            }
+          ]
+        },
+        "returnValueTest": {
+          "comparator": "==",
+          "value": true
+        }
+      },
+      {
+        "conditionType": "time",
+        "method": "blocktime",
+        "chain": 131277322940537,
+        "returnValueTest": {
+          "value": 0,
+          "comparator": ">"
+        }
+      }
+    ]
+  },
+    "compoundOr": {
+    "conditionType": "compound",
+    "operator": "or",
+    "operands": [
+      {
+        "conditionType": "contract",
+        "chain": 131277322940537,
+        "method": "isPolicyActive",
+        "parameters": [
+          ":hrac"
+        ],
+        "contractAddress": "0xfD09F629A77439dc3FFaBD6318a02F0FC469cd92",
+        "functionAbi": {
+          "type": "function",
+          "name": "isPolicyActive",
+          "stateMutability": "view",
+          "inputs": [
+            {
+              "name": "_policyID",
+              "type": "bytes16",
+              "internalType": "bytes16"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "bool",
+              "internalType": "bool"
+            }
+          ]
+        },
+        "returnValueTest": {
+          "comparator": "==",
+          "value": true
+        }
+      },
+      {
+        "conditionType": "time",
+        "method": "blocktime",
+        "chain": 131277322940537,
+        "returnValueTest": {
+          "value": 0,
+          "comparator": ">"
+        }
+      }
+    ]
+  },
+  "jsonApi": {
+    "conditionType": "json-api",
+    "endpoint": "https://api.example.com/data",
+    "parameters": {
+      "ids": "ethereum",
+      "vs_currencies": "usd"
+    },
+    "authorizationToken": ":authToken",
+    "query": "$.store.book[0].price",
+    "returnValueTest": {
+      "comparator": "==",
+      "value": 2
+    }
+  },
+  "jsonRpc": {
+    "conditionType": "json-rpc",
+    "endpoint": "https://math.example.com/",
+    "method": "subtract",
+    "params": [
+      42,
+      23
+    ],
+    "query": "$.mathresult",
+    "returnValueTest": {
+      "comparator": "==",
+      "value": 19
+    }
+  },
+  "ifThenElse": {
+    "conditionType": "if-then-else",
+    "ifCondition": {
+      "conditionType": "rpc",
+      "chain": 131277322940537,
+      "method": "eth_getBalance",
+      "parameters": [
+        "0xd797C6a6e0A8e32e9fDFfEB0f742bbf37D90Bba8",
+        "latest"
+      ],
+      "returnValueTest": {
+        "comparator": ">=",
+        "value": 10000000000000
+      }
+    },
+    "thenCondition": {
+      "conditionType": "json-api",
+      "endpoint": "https://api.example.com/data",
+      "parameters": {
+        "ids": "ethereum",
+        "vs_currencies": "usd"
+      },
+      "authorizationToken": ":authToken",
+      "query": "$.store.book[0].price",
+      "returnValueTest": {
+        "comparator": "==",
+        "value": 2
+      }
+    },
+    "elseCondition": {
+      "conditionType": "json-rpc",
+      "endpoint": "https://math.example.com/",
+      "method": "subtract",
+      "params": [
+        42,
+        23
+      ],
+      "query": "$.mathresult",
+      "returnValueTest": {
+        "comparator": "==",
+        "value": 19
+      }
+    }
+  },
+  "sequential": {
+    "conditionType": "sequential",
+    "conditionVariables": [
+      {
+        "varName": "timeValue",
+        "condition": {
+          "conditionType": "time",
+          "method": "blocktime",
+          "chain": 131277322940537,
+          "returnValueTest": {
+            "value": 0,
+            "comparator": ">"
+          }
+        }
+      },
+      {
+        "varName": "rpcValue",
+        "condition": {
+          "conditionType": "rpc",
+          "chain": 131277322940537,
+          "method": "eth_getBalance",
+          "parameters": [
+            "0xd797C6a6e0A8e32e9fDFfEB0f742bbf37D90Bba8",
+            "latest"
+          ],
+          "returnValueTest": {
+            "comparator": ">=",
+            "value": 10000000000000
+          }
+        }
+      }
+    ]
   }
 }

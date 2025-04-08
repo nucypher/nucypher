@@ -11,11 +11,6 @@ dependencies:
       solidity:
         version: 0.8.23
         evm_version: paris
-        import_remapping:
-          - "@openzeppelin/contracts=openzeppelin/v5.0.0"
-          - "@openzeppelin-upgradeable/contracts=openzeppelin-upgradeable/v5.0.0"
-          - "@fx-portal/contracts=fx-portal/v1.0.5"
-          - "@threshold/contracts=threshold/v1.2.1"
 
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
@@ -24,11 +19,10 @@ dependencies:
 solidity:
   version: 0.8.23
   evm_version: paris
-  import_remapping:
-    - "@openzeppelin/contracts=openzeppelin/v5.0.0"
 
 test:
   provider:
     chain_id: 131277322940537  # ensure ape doesn't change chain id to 1337
   mnemonic: test test test test test test test test test test test junk
   number_of_accounts: 30
+  balance: 1_000_000 ETH

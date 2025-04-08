@@ -24,6 +24,7 @@ from nucypher.blockchain.eth.registry import (
 )
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Ursula
+from nucypher.cli.actions.auth import collect_mnemonic
 from nucypher.config import constants
 from nucypher.config.util import cast_paths_from
 from nucypher.crypto.keystore import Keystore
@@ -419,9 +420,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.crypto_power = crypto_power
         if keystore_path and not keystore:
             keystore = Keystore(keystore_path=keystore_path)
-        self.__keystore = self.__keystore = keystore or NO_KEYSTORE_ATTACHED.bool_value(
-            False
-        )
+        self.__keystore = keystore or NO_KEYSTORE_ATTACHED.bool_value(False)
         self.keystore_dir = (
             Path(keystore.keystore_path).parent
             if keystore
@@ -583,18 +582,29 @@ class CharacterConfiguration(BaseConfiguration):
 
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
-        # config file should exist and we we override -> no need for modifier
+        # config file should exist and we override -> no need for modifier
         return super().update(filepath=self.config_file_location, **kwargs)
 
     @classmethod
     def generate(
-        cls, password: str, key_material: Optional[bytes] = None, *args, **kwargs
+        cls,
+        password: str,
+        key_material: Optional[bytes] = None,
+        with_mnemonic: bool = False,
+        *args,
+        **kwargs,
     ):
-        """
-        Generates local directories, private keys, and initial configuration for a new node.
-        """
+        """Generates local directories, private keys, and initial configuration for a new node."""
         node_config = cls(dev_mode=False, *args, **kwargs)
-        node_config.initialize(key_material=key_material, password=password)
+        if key_material and with_mnemonic:
+            raise ValueError(
+                "Cannot provide key_material and with_mnemonic simultaneously"
+            )
+        node_config.initialize(
+            key_material=key_material,
+            with_mnemonic=with_mnemonic,
+            password=password,
+        )
         node_config.keystore.unlock(password)
         return node_config
 
@@ -789,8 +799,18 @@ class CharacterConfiguration(BaseConfiguration):
                 power_ups.append(power_up)
         return power_ups
 
-    def initialize(self, password: str, key_material: Optional[bytes] = None) -> Path:
+    def initialize(
+        self,
+        password: str,
+        key_material: Optional[bytes] = None,
+        with_mnemonic: bool = False,
+    ) -> Path:
         """Initialize a new configuration and write installation files to disk."""
+
+        if key_material and with_mnemonic:
+            raise ValueError(
+                "Cannot provide key_material and with_mnemonic simultaneously"
+            )
 
         # Development
         if self.dev_mode:
@@ -806,6 +826,7 @@ class CharacterConfiguration(BaseConfiguration):
                 key_material=key_material,
                 password=password,
                 interactive=self.MNEMONIC_KEYSTORE,
+                with_mnemonic=with_mnemonic,
             )
 
         self._cache_runtime_filepaths()
@@ -824,12 +845,25 @@ class CharacterConfiguration(BaseConfiguration):
         password: str,
         key_material: Optional[bytes] = None,
         interactive: bool = True,
+        with_mnemonic: bool = False,
     ) -> Keystore:
+
+        if key_material and with_mnemonic:
+            raise ValueError(
+                "Cannot provide key_material and with_mnemonic simultaneously"
+            )
+
         if key_material:
             self.__keystore = Keystore.import_secure(
                 key_material=key_material,
                 password=password,
                 keystore_dir=self.keystore_dir,
+            )
+        elif with_mnemonic:
+            self.__keystore = Keystore.restore(
+                password=password,
+                keystore_dir=self.keystore_dir,
+                words=collect_mnemonic(self.emitter),
             )
         else:
             if interactive:

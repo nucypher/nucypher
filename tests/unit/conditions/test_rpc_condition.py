@@ -1,7 +1,10 @@
 import pytest
 
 from nucypher.policy.conditions.evm import RPCCondition
-from nucypher.policy.conditions.exceptions import InvalidCondition
+from nucypher.policy.conditions.exceptions import (
+    InvalidCondition,
+    InvalidConditionLingo,
+)
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
@@ -44,20 +47,11 @@ def test_invalid_rpc_condition():
             parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
         )
 
-    # unsupported chain id
-    with pytest.raises(InvalidCondition, match="is not a permitted blockchain"):
-        _ = RPCCondition(
-            method="eth_getBalance",
-            chain=90210,  # Beverly Hills Chain :)
-            return_value_test=ReturnValueTest("==", 0),
-            parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
-        )
-
     # invalid chain type provided
-    with pytest.raises(ValueError, match="must be the integer chain ID"):
+    with pytest.raises(ValueError, match="invalid literal for int"):
         _ = RPCCondition(
             method="eth_getBalance",
-            chain=str(TESTERCHAIN_CHAIN_ID),  # should be int not str.
+            chain="chainId",  # should be int not str.
             return_value_test=ReturnValueTest("==", 0),
             parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
         )
@@ -67,44 +61,40 @@ def test_rpc_condition_schema_validation(rpc_condition):
     condition_dict = rpc_condition.to_dict()
 
     # no issues here
-    RPCCondition.validate(condition_dict)
+    RPCCondition.from_dict(condition_dict)
 
     # no issues with optional name
     condition_dict["name"] = "my_rpc_condition"
-    RPCCondition.validate(condition_dict)
+    RPCCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # no chain defined
         condition_dict = rpc_condition.to_dict()
         del condition_dict["chain"]
-        RPCCondition.validate(condition_dict)
+        RPCCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # no method defined
         condition_dict = rpc_condition.to_dict()
         del condition_dict["method"]
-        RPCCondition.validate(condition_dict)
+        RPCCondition.from_dict(condition_dict)
 
     # no issue with no parameters
     condition_dict = rpc_condition.to_dict()
     del condition_dict["parameters"]
-    RPCCondition.validate(condition_dict)
+    RPCCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # no returnValueTest defined
         condition_dict = rpc_condition.to_dict()
         del condition_dict["returnValueTest"]
-        RPCCondition.validate(condition_dict)
+        RPCCondition.from_dict(condition_dict)
 
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         # chain id not an integer
+        condition_dict = rpc_condition.to_dict()
         condition_dict["chain"] = str(TESTERCHAIN_CHAIN_ID)
-        RPCCondition.validate(condition_dict)
-
-    with pytest.raises(InvalidCondition):
-        # chain id not a permitted chain
-        condition_dict["chain"] = 90210  # Beverly Hills Chain :)
-        RPCCondition.validate(condition_dict)
+        RPCCondition.from_dict(condition_dict)
 
 
 def test_rpc_condition_repr(rpc_condition):

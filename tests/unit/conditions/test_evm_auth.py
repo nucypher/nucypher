@@ -1,16 +1,32 @@
 import maya
 import pytest
+from eth_account import Account
+from eth_account.messages import defunct_hash_message
+from hexbytes import HexBytes
 from siwe import SiweMessage
+from web3.contract import Contract
 
 from nucypher.blockchain.eth.signers import InMemorySigner
-from nucypher.policy.conditions.auth.evm import EIP712Auth, EIP4361Auth, EvmAuth
+from nucypher.policy.conditions.auth.evm import (
+    EIP712Auth,
+    EIP1271Auth,
+    EIP4361Auth,
+    EvmAuth,
+)
+from nucypher.policy.conditions.exceptions import NoConnectionToChain
+from nucypher.policy.conditions.utils import ConditionProviderManager
+from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
 def test_auth_scheme():
+    expected_schemes = {
+        EvmAuth.AuthScheme.EIP712: EIP712Auth,
+        EvmAuth.AuthScheme.EIP4361: EIP4361Auth,
+        EvmAuth.AuthScheme.EIP1271: EIP1271Auth,
+    }
+
     for scheme in EvmAuth.AuthScheme:
-        expected_scheme = (
-            EIP712Auth if scheme == EvmAuth.AuthScheme.EIP712 else EIP4361Auth
-        )
+        expected_scheme = expected_schemes.get(scheme)
         assert EvmAuth.from_scheme(scheme=scheme.value) == expected_scheme
 
     # non-existent scheme
@@ -278,4 +294,120 @@ def test_authenticate_eip4361(get_random_checksum_address):
             not_stale_but_past_expiry_message,
             not_stale_but_past_expiry_signature.hex(),
             valid_address_for_signature,
+        )
+
+
+def test_authenticate_eip1271(mocker, get_random_checksum_address):
+    # smart contract wallet
+    eip1271_mock_contract = mocker.Mock(spec=Contract)
+    contract_address = get_random_checksum_address()
+    eip1271_mock_contract.address = contract_address
+
+    # signer for wallet
+    data = f"I'm the owner of the smart contract wallet address {eip1271_mock_contract.address}"
+    wallet_signer = InMemorySigner()
+    valid_message_signature = wallet_signer.sign_message(
+        account=wallet_signer.accounts[0], message=data.encode()
+    )
+    data_hash = defunct_hash_message(text=data)
+    typedData = {"chain": TESTERCHAIN_CHAIN_ID, "dataHash": data_hash.hex()}
+
+    def _isValidSignature(data_hash, signature_bytes):
+        class ContractCall:
+            def __init__(self, hash, signature):
+                self.hash = hash
+                self.signature = signature
+
+            def call(self):
+                recovered_address = Account._recover_hash(
+                    message_hash=self.hash, signature=self.signature
+                )
+                if recovered_address == wallet_signer.accounts[0]:
+                    return bytes(HexBytes("0x1626ba7e"))
+
+                return bytes(HexBytes("0xffffffff"))
+
+        return ContractCall(data_hash, signature_bytes)
+
+    eip1271_mock_contract.functions.isValidSignature.side_effect = _isValidSignature
+
+    # condition provider manager
+    providers = mocker.Mock(spec=ConditionProviderManager)
+    w3 = mocker.Mock()
+    w3.eth.contract.return_value = eip1271_mock_contract
+    providers.web3_endpoints.return_value = [w3]
+
+    # valid signature
+    EIP1271Auth.authenticate(
+        typedData, valid_message_signature, eip1271_mock_contract.address, providers
+    )
+    w3.eth.contract.assert_called_once_with(
+        address=eip1271_mock_contract.address, abi=EIP1271Auth.EIP1271_ABI
+    )
+
+    # no providers
+    with pytest.raises(EvmAuth.AuthenticationFailed, match="no endpoints provided"):
+        EIP1271Auth.authenticate(
+            typedData, valid_message_signature, eip1271_mock_contract.address, None
+        )
+
+    # invalid typed data - no chain id
+    with pytest.raises(EvmAuth.InvalidData):
+        EIP1271Auth.authenticate(
+            {
+                "dataHash": data_hash.hex(),
+            },
+            valid_message_signature,
+            eip1271_mock_contract.address,
+            providers,
+        )
+
+    # invalid typed data - no data hash
+    with pytest.raises(EvmAuth.InvalidData):
+        EIP1271Auth.authenticate(
+            {
+                "chainId": TESTERCHAIN_CHAIN_ID,
+            },
+            valid_message_signature,
+            eip1271_mock_contract.address,
+            providers,
+        )
+
+    # use invalid signer
+    invalid_signer = InMemorySigner()
+    invalid_message_signature = invalid_signer.sign_message(
+        account=invalid_signer.accounts[0], message=data.encode()
+    )
+    with pytest.raises(EvmAuth.AuthenticationFailed):
+        EIP1271Auth.authenticate(
+            typedData,
+            invalid_message_signature,
+            eip1271_mock_contract.address,
+            providers,
+        )
+
+    # bad w3 instance failed for some reason
+    w3_bad = mocker.Mock()
+    w3_bad.eth.contract.side_effect = ValueError("something went wrong")
+    providers.web3_endpoints.return_value = [w3_bad]
+    with pytest.raises(EvmAuth.AuthenticationFailed, match="something went wrong"):
+        EIP1271Auth.authenticate(
+            typedData, valid_message_signature, eip1271_mock_contract.address, providers
+        )
+    assert w3_bad.eth.contract.call_count == 1, "one call that failed"
+
+    # fall back to good w3 instances
+    providers.web3_endpoints.return_value = [w3_bad, w3_bad, w3]
+    EIP1271Auth.authenticate(
+        typedData, valid_message_signature, eip1271_mock_contract.address, providers
+    )
+    assert w3_bad.eth.contract.call_count == 3, "two more calls that failed"
+
+    # no connection to chain
+    providers.web3_endpoints.side_effect = NoConnectionToChain(
+        chain=TESTERCHAIN_CHAIN_ID
+    )
+    with pytest.raises(EvmAuth.AuthenticationFailed, match="No connection to chain ID"):
+        EIP1271Auth.authenticate(
+            typedData, valid_message_signature, eip1271_mock_contract.address, providers
         )

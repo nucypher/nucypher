@@ -593,6 +593,8 @@ class CoordinatorAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def __rituals(self, ritual_id: int) -> Coordinator.Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
+        # legacy rituals do not have a fee model entry - so None is appropriate
+        fee_model = ChecksumAddress(result[12]) if len(result) >= 13 else None
         ritual = Coordinator.Ritual(
             id=ritual_id,
             initiator=ChecksumAddress(result[0]),
@@ -605,9 +607,10 @@ class CoordinatorAgent(EthereumContractAgent):
             threshold=result[7],
             aggregation_mismatch=result[8],
             access_controller=ChecksumAddress(result[9]),
-            aggregated_transcript=bytes(result[11]),
             public_key=Ferveo.G1Point(result[10][0], result[10][1]),
+            aggregated_transcript=bytes(result[11]),
             participants=[],  # solidity does not return sub-structs
+            fee_model=fee_model,
         )
         return ritual
 
@@ -689,6 +692,7 @@ class CoordinatorAgent(EthereumContractAgent):
         result = self.contract.functions.numberOfRituals().call()
         return result
 
+    # TODO: Deprecate this method. Use IEncryptionAuthorizer contract directly - #3349
     @contract_api(CONTRACT_CALL)
     def is_encryption_authorized(
         self, ritual_id: int, evidence: bytes, ciphertext_header: bytes
@@ -697,14 +701,55 @@ class CoordinatorAgent(EthereumContractAgent):
         This contract read is relayed through coordinator to the access controller
         contract associated with a given ritual.
         """
-        result = self.contract.functions.isEncryptionAuthorized(
-            ritual_id, evidence, ciphertext_header
+
+        # TODO this makes the test pass more easily - find a better way
+        #  for this access controller calling logic  #3503
+        ritual = self.get_ritual(ritual_id=ritual_id)
+        abi = """[
+            {
+                "type": "function",
+                "name": "isAuthorized",
+                "stateMutability": "view",
+                "inputs": [
+                    {
+                        "name": "ritualId",
+                        "type": "uint32",
+                        "internalType": "uint32"
+                    },
+                    {
+                        "name": "evidence",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                    },
+                    {
+                        "name": "ciphertextHeader",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "name": "",
+                        "type": "bool",
+                        "internalType": "bool"
+                    }
+                ]
+            }
+        ]"""
+        encryption_authorizer = self.blockchain.w3.eth.contract(
+            address=ritual.access_controller, abi=abi
+        )
+        is_authorized = encryption_authorizer.functions.isAuthorized(
+            ritual_id,
+            evidence,
+            ciphertext_header,
         ).call()
-        return result
+
+        return is_authorized
 
     @contract_api(CONTRACT_CALL)
     def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
-        result = self.contract.functions.isProviderPublicKeySet(staking_provider).call()
+        result = self.contract.functions.isProviderKeySet(staking_provider).call()
         return result
 
     @contract_api(TRANSACTION)
@@ -722,6 +767,7 @@ class CoordinatorAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def initiate_ritual(
         self,
+        fee_model: ChecksumAddress,
         providers: List[ChecksumAddress],
         authority: ChecksumAddress,
         duration: int,
@@ -729,7 +775,7 @@ class CoordinatorAgent(EthereumContractAgent):
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.initiateRitual(
-            providers, authority, duration, access_controller
+            fee_model, providers, authority, duration, access_controller
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function, transacting_power=transacting_power
@@ -744,7 +790,8 @@ class CoordinatorAgent(EthereumContractAgent):
         transacting_power: TransactingPower,
         async_tx_hooks: BlockchainInterface.AsyncTxHooks,
     ) -> AsyncTx:
-        contract_function: ContractFunction = self.contract.functions.postTranscript(
+        # See sprints/#145
+        contract_function: ContractFunction = self.contract.functions.publishTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
         )
         async_tx = self.blockchain.send_async_transaction(
@@ -779,15 +826,6 @@ class CoordinatorAgent(EthereumContractAgent):
             info={"ritual_id": ritual_id, "phase": PHASE2},
         )
         return async_tx
-
-    @contract_api(CONTRACT_CALL)
-    def get_ritual_initiation_cost(
-        self, providers: List[ChecksumAddress], duration: int
-    ) -> Wei:
-        result = self.contract.functions.getRitualInitiationCost(
-            providers, duration
-        ).call()
-        return Wei(result)
 
     @contract_api(CONTRACT_CALL)
     def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:

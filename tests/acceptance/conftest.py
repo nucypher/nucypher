@@ -1,6 +1,5 @@
 import random
 
-import maya
 import pytest
 from web3 import Web3
 
@@ -14,14 +13,12 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
-from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.utilities.logging import Logger
 from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
     MIN_OPERATOR_SECONDS,
     TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID,
 )
 from tests.utils.blockchain import ReservedTestAccountManager, TesterBlockchain
 from tests.utils.registry import ApeRegistrySource
@@ -32,6 +29,7 @@ from tests.utils.ursula import (
 
 test_logger = Logger("acceptance-test-logger")
 
+ONE_DAY = 24 * 60 * 60
 
 # ERC-20
 TOTAL_SUPPLY = Web3.to_wei(11_000_000_000, "ether")
@@ -42,17 +40,12 @@ NU_TOTAL_SUPPLY = Web3.to_wei(
 # TACo Application
 MIN_AUTHORIZATION = Web3.to_wei(40_000, "ether")
 
-REWARD_DURATION = 60 * 60 * 24 * 7  # one week in seconds
-DEAUTHORIZATION_DURATION = 60 * 60 * 24 * 60  # 60 days in seconds
-
-COMMITMENT_DURATION_1 = 182 * 60 * 24 * 60  # 182 days in seconds
-COMMITMENT_DURATION_2 = 2 * COMMITMENT_DURATION_1  # 365 days in seconds
-
-COMMITMENT_DEADLINE = 60 * 60 * 24 * 100  # 100 days after deployment
+REWARD_DURATION = 7 * ONE_DAY  # one week in seconds
+DEAUTHORIZATION_DURATION = 60 * ONE_DAY  # 60 days in seconds
 
 PENALTY_DEFAULT = 1000  # 10% penalty
 PENALTY_INCREMENT = 2500  # 25% penalty increment
-PENALTY_DURATION = 60 * 60 * 24  # 1 day in seconds
+PENALTY_DURATION = ONE_DAY  # 1 day in seconds
 
 
 # Coordinator
@@ -139,14 +132,6 @@ def t_token(nucypher_dependency, deployer_account):
 
 
 @pytest.fixture(scope="module")
-def nu_token(nucypher_dependency, deployer_account):
-    _nu_token = deployer_account.deploy(
-        nucypher_dependency.NuCypherToken, NU_TOTAL_SUPPLY
-    )
-    return _nu_token
-
-
-@pytest.fixture(scope="module")
 def threshold_staking(nucypher_dependency, deployer_account):
     _threshold_staking = deployer_account.deploy(
         nucypher_dependency.TestnetThresholdStaking
@@ -170,8 +155,6 @@ def taco_application(
         MIN_OPERATOR_SECONDS,
         REWARD_DURATION,
         DEAUTHORIZATION_DURATION,
-        [COMMITMENT_DURATION_1, COMMITMENT_DURATION_2],
-        maya.now().epoch + COMMITMENT_DEADLINE,
         PENALTY_DEFAULT,
         PENALTY_DURATION,
         PENALTY_INCREMENT,
@@ -237,8 +220,6 @@ def coordinator(
     _coordinator = deployer_account.deploy(
         nucypher_dependency.Coordinator,
         taco_child_application.address,
-        ritual_token.address,
-        FEE_RATE,
     )
 
     encoded_initializer_function = _coordinator.initialize.encode_input(
@@ -252,11 +233,31 @@ def coordinator(
     )
 
     proxy_contract = nucypher_dependency.Coordinator.at(proxy.address)
-    proxy_contract.makeInitiationPublic(sender=deployer_account)
     taco_child_application.initialize(
         proxy_contract.address, adjudicator.address, sender=deployer_account
     )
     return proxy_contract
+
+
+@pytest.fixture(scope="module")
+def fee_model(nucypher_dependency, deployer_account, coordinator, ritual_token):
+    contract = deployer_account.deploy(
+        nucypher_dependency.FlatRateFeeModel,
+        coordinator.address,
+        ritual_token.address,
+        FEE_RATE,
+    )
+    coordinator.grantRole(
+        coordinator.TREASURY_ROLE(), deployer_account.address, sender=deployer_account
+    )
+    coordinator.grantRole(
+        coordinator.FEE_MODEL_MANAGER_ROLE(),
+        deployer_account.address,
+        sender=deployer_account,
+    )
+    coordinator.approveFeeModel(contract.address, sender=deployer_account)
+
+    return contract
 
 
 @pytest.fixture(scope="module")
@@ -285,11 +286,11 @@ def subscription_manager(nucypher_dependency, deployer_account):
 def deployed_contracts(
     ritual_token,
     t_token,
-    nu_token,
     threshold_staking,
     taco_application,
     taco_child_application,
     coordinator,
+    fee_model,
     global_allow_list,
     subscription_manager,
 ):
@@ -297,11 +298,11 @@ def deployed_contracts(
     deployments = [
         ritual_token,
         t_token,
-        nu_token,
         threshold_staking,
         taco_application,
         taco_child_application,
         coordinator,
+        fee_model,
         global_allow_list,
         subscription_manager,
     ]
@@ -413,26 +414,13 @@ def taco_child_application_agent(testerchain, test_registry):
 #
 
 @pytest.fixture(scope="module")
-def mock_rpc_condition(module_mocker, testerchain, monkeymodule):
-    def configure_mock(condition, provider, *args, **kwargs):
-        condition.provider = provider
-        return testerchain.w3
-
-    monkeymodule.setattr(RPCCondition, "_configure_w3", configure_mock)
-    configure_spy = module_mocker.spy(RPCCondition, "_configure_w3")
-
-    chain_id_check_mock = module_mocker.patch.object(RPCCondition, "_check_chain_id")
-    return configure_spy, chain_id_check_mock
-
-
-@pytest.fixture(scope="module")
 def multichain_ids(module_mocker):
     ids = mock_permitted_multichain_connections(mocker=module_mocker)
     return ids
 
 
 @pytest.fixture(scope="module")
-def multichain_ursulas(ursulas, multichain_ids, mock_rpc_condition):
+def multichain_ursulas(ursulas, multichain_ids):
     setup_multichain_ursulas(ursulas=ursulas, chain_ids=multichain_ids)
     return ursulas
 
@@ -440,10 +428,6 @@ def multichain_ursulas(ursulas, multichain_ids, mock_rpc_condition):
 @pytest.fixture(scope="module", autouse=True)
 def mock_condition_blockchains(module_mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
-    module_mocker.patch.dict(
-        "nucypher.policy.conditions.evm._CONDITION_CHAINS",
-        {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
-    )
 
     module_mocker.patch(
         "nucypher.blockchain.eth.domains.get_domain", return_value=TEMPORARY_DOMAIN
