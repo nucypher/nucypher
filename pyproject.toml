@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nucypher"
-version = "7.5.0"
+version = "7.6.0"
 authors = ["NuCypher"]
 description = "A threshold access control application to empower privacy in decentralized systems."
 
