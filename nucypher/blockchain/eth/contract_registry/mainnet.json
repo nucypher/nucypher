@@ -2332,6 +2332,19 @@
                 },
                 {
                     "type": "function",
+                    "name": "FEE_MODEL_MANAGER_ROLE",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
                     "name": "TREASURY_ROLE",
                     "stateMutability": "view",
                     "inputs": [],
@@ -3167,6 +3180,25 @@
                 },
                 {
                     "type": "function",
+                    "name": "isProviderKeySet",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "provider",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
                     "name": "isProviderPublicKeySet",
                     "stateMutability": "view",
                     "inputs": [
@@ -3332,6 +3364,37 @@
                             "name": "transcript",
                             "type": "bytes",
                             "internalType": "bytes"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "publishTranscript",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "ritualId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "transcript",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "reinitializeDefaultAdmin",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "newDefaultAdmin",
+                            "type": "address",
+                            "internalType": "address"
                         }
                     ],
                     "outputs": []
@@ -3603,9 +3666,9 @@
                     "outputs": []
                 }
             ],
-            "tx_hash": "0x2a7f64225d9884b6b854ba7454283ecd4730785cbc862b72d4d8111224688e13",
-            "block_number": 50224074,
-            "deployer": "0xFfFd7092685bDeeBD121D1A0FEA3c349114Cce50"
+            "tx_hash": "0x7858c6f34297752433f772ef6b7fa7086608ac3207fc9df5d4d6136ed7ab9b1f",
+            "block_number": 70019855,
+            "deployer": "0x1591165F1BF8B73de7053A6BE6f239BC15076879"
         },
         "FreeFeeModel": {
             "address": "0x1acaf2677B987e690A09296BabdCe6376712213d",
