@@ -7,14 +7,6 @@ description = "A threshold access control application to empower privacy in dece
 [tool.poetry.dependencies]
 python = ">=3.9,<4"
 
-# Special dependencies required because their setup.cfg files are incorrect.
-# Once these changes are incorporated in the origin projects, these lines can
-# be removed.
-# https://github.com/anthonyalmarza/chalk/pull/23
-# https://github.com/zartstrom/snaptime/pull/6
-pychalk = { git = "https://github.com/nucypher/pychalk.git", rev = "main" }
-snaptime = { git = "https://github.com/nucypher/snaptime.git", rev = "main" }
-
 nucypher-core = "==0.13.0"
 cryptography = "*"
 pynacl = ">=1.4.0"
@@ -39,6 +31,10 @@ time-machine = "^2.13.0"
 twisted = "^24.2.0rc1"
 jsonpath-ng = "^1.6.1"
 pyjwt = {extras = ["crypto"], version = "^2.10.1"}
+nucypher-pychalk = "^2.0.2"
+nucypher-snaptime = "^0.2.5"
+# TODO: this is to match requirements.txt; update and relock for 7.6.x
+python-statemachine = "==2.3.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = '*'

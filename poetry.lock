@@ -225,7 +225,7 @@ description = "Timeout context manager for asyncio programs"
 optional = false
 python-versions = ">=3.8"
 groups = ["main", "dev"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version < \"3.11\""
+markers = "python_version < \"3.11\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c"},
     {file = "async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3"},
@@ -974,7 +974,7 @@ description = "cryptography is a package which provides cryptographic recipes an
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version < \"3.11\""
+markers = "python_version < \"3.11\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "cryptography-43.0.3-cp37-abi3-macosx_10_9_universal2.whl", hash = "sha256:bf7a1932ac4176486eab36a19ed4c0492da5d97123f1406cf15e41b05e787d2e"},
     {file = "cryptography-43.0.3-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:63efa177ff54aec6e1c0aefaa1a241232dcd37413835a9b674b6e3f0ae2bfd3e"},
@@ -1025,7 +1025,7 @@ description = "cryptography is a package which provides cryptographic recipes an
 optional = false
 python-versions = "!=3.9.0,!=3.9.1,>=3.7"
 groups = ["main"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version >= \"3.11\""
+markers = "python_version >= \"3.11\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "cryptography-44.0.2-cp37-abi3-macosx_10_9_universal2.whl", hash = "sha256:efcfe97d1b3c79e486554efddeb8f6f53a4cdd4cf6086642784fa31fc384e1d7"},
     {file = "cryptography-44.0.2-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:29ecec49f3ba3f3849362854b7253a9f59799e3763b0c9d0826259a88efa02f1"},
@@ -1653,7 +1653,7 @@ description = "Like `typing._eval_type`, but lets older Python versions use newe
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version < \"3.10\""
+markers = "python_version < \"3.10\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "eval_type_backport-0.2.2-py3-none-any.whl", hash = "sha256:cb6ad7c393517f476f96d456d0412ea80f0a8cf96f6892834cd9340149111b0a"},
     {file = "eval_type_backport-0.2.2.tar.gz", hash = "sha256:f0576b4cf01ebb5bd358d02314d31846af5e07678387486e2c798af0e7d849c1"},
@@ -1714,7 +1714,7 @@ description = "Backport of PEP 654 (exception groups)"
 optional = false
 python-versions = ">=3.7"
 groups = ["dev"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version < \"3.11\""
+markers = "python_version < \"3.11\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "exceptiongroup-1.2.2-py3-none-any.whl", hash = "sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b"},
     {file = "exceptiongroup-1.2.2.tar.gz", hash = "sha256:47c2edf7c6738fafb49fd34290706d1a1a2f4d1c6df275526b62cbb4aa5393cc"},
@@ -2194,7 +2194,7 @@ description = "Read metadata from Python packages"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version < \"3.10\""
+markers = "python_version < \"3.10\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "importlib_metadata-8.6.1-py3-none-any.whl", hash = "sha256:02a89390c1e15fdfdc0d7c6b25cb3e62650d0494005c97d6f148bf5b9787525e"},
     {file = "importlib_metadata-8.6.1.tar.gz", hash = "sha256:310b41d755445d74569f993ccfc22838295d9fe005425094fad953d7f15c8580"},
@@ -2252,7 +2252,7 @@ description = "IPython: Productive Interactive Computing"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version < \"3.11\""
+markers = "python_version < \"3.11\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "ipython-8.18.1-py3-none-any.whl", hash = "sha256:e8267419d72d81955ec1177f8a29aaa90ac80ad647499201119e2f05e99aa397"},
     {file = "ipython-8.18.1.tar.gz", hash = "sha256:ca6f079bb33457c66e233e4580ebfc4128855b4cf6370dddd73842a9563e8a27"},
@@ -2291,7 +2291,7 @@ description = "IPython: Productive Interactive Computing"
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version >= \"3.11\""
+markers = "python_version >= \"3.11\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "ipython-8.34.0-py3-none-any.whl", hash = "sha256:0419883fa46e0baa182c5d50ebb8d6b49df1889fdb70750ad6d8cfe678eda6e3"},
     {file = "ipython-8.34.0.tar.gz", hash = "sha256:c31d658e754673ecc6514583e7dda8069e47136eb62458816b7d1e6625948b5a"},
@@ -2772,7 +2772,7 @@ description = "A fast serialization and validation library, with builtin support
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version < \"3.13\""
+markers = "python_version < \"3.13\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "msgspec-0.19.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:d8dd848ee7ca7c8153462557655570156c2be94e79acec3561cf379581343259"},
     {file = "msgspec-0.19.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:0553bbc77662e5708fe66aa75e7bd3e4b0f209709c48b299afd791d711a93c36"},
@@ -2964,6 +2964,39 @@ files = [
     {file = "nucypher_core-0.13.0-cp39-cp39-win_amd64.whl", hash = "sha256:0b8449ab2524628b1d4c095fc4ff5e46c699f0acd62a099ba6d411e72704c94c"},
     {file = "nucypher_core-0.13.0.tar.gz", hash = "sha256:fcb97049f8719d30fd155fe3f862410cb5edb3afd76ff0ae1ff60d76d0b5a3f8"},
 ]
+
+[[package]]
+name = "nucypher-pychalk"
+version = "2.0.2"
+description = "Color printing in python"
+optional = false
+python-versions = "*"
+groups = ["main"]
+markers = "implementation_name == \"cpython\" or implementation_name == \"pypy\""
+files = [
+    {file = "nucypher_pychalk-2.0.2-py3-none-any.whl", hash = "sha256:a154066af9c29dca0831ccc8e7c596529b0e93d54f501e6870c25995e5023eda"},
+    {file = "nucypher_pychalk-2.0.2.tar.gz", hash = "sha256:eac3b675c9cba6167727aca66922dfb05261491a47cda6233f043a3ed72b65c3"},
+]
+
+[package.dependencies]
+six = ">=1.11.0"
+
+[[package]]
+name = "nucypher-snaptime"
+version = "0.2.5"
+description = "Transform timestamps with a simple DSL"
+optional = false
+python-versions = "*"
+groups = ["main"]
+markers = "implementation_name == \"cpython\" or implementation_name == \"pypy\""
+files = [
+    {file = "nucypher_snaptime-0.2.5-py3-none-any.whl", hash = "sha256:5488da938acb8cbe6b23f0e2480ab56a527e9efc482b2d312d7a743b92253fa1"},
+    {file = "nucypher_snaptime-0.2.5.tar.gz", hash = "sha256:b0e685ed5de1b95c0be0af5bfb05b8f59d5ff0cc5c20a914c40916bfa42a0f94"},
+]
+
+[package.dependencies]
+python-dateutil = "*"
+pytz = "*"
 
 [[package]]
 name = "numpy"
@@ -3254,7 +3287,7 @@ description = "Pexpect allows easy control of interactive console applications."
 optional = false
 python-versions = "*"
 groups = ["dev"]
-markers = "(sys_platform != \"win32\" and sys_platform != \"emscripten\" or python_version < \"3.11\") and sys_platform != \"win32\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
+markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and sys_platform != \"win32\" and (sys_platform != \"win32\" and sys_platform != \"emscripten\" or python_version < \"3.11\")"
 files = [
     {file = "pexpect-4.9.0-py2.py3-none-any.whl", hash = "sha256:7236d1e080e4936be2dc3e326cec0af72acf9212a7e1d060210e70a47e253523"},
     {file = "pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f"},
@@ -3499,7 +3532,7 @@ description = "Run a subprocess in a pseudo terminal"
 optional = false
 python-versions = "*"
 groups = ["dev"]
-markers = "(sys_platform != \"win32\" and sys_platform != \"emscripten\" or python_version < \"3.11\") and sys_platform != \"win32\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
+markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and sys_platform != \"win32\" and (sys_platform != \"win32\" and sys_platform != \"emscripten\" or python_version < \"3.11\")"
 files = [
     {file = "ptyprocess-0.7.0-py2.py3-none-any.whl", hash = "sha256:4b41f3967fce3af57cc7e94b888626c18bf37a083e3651ca8feeb66d492fef35"},
     {file = "ptyprocess-0.7.0.tar.gz", hash = "sha256:5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347423220"},
@@ -4194,6 +4227,19 @@ files = [
 
 [package.extras]
 cli = ["click (>=5.0)"]
+
+[[package]]
+name = "python-statemachine"
+version = "2.3.4"
+description = "Python Finite State Machines made easy."
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+markers = "implementation_name == \"cpython\" or implementation_name == \"pypy\""
+files = [
+    {file = "python_statemachine-2.3.4-py3-none-any.whl", hash = "sha256:c892b66f1248af80854ec3ff4186399625693a79e205e3ca33dffee0c058c963"},
+    {file = "python_statemachine-2.3.4.tar.gz", hash = "sha256:f5a061a5f0abef0977a2679bf7aefecbe4d87a57ac5839e97c8f30b2d6a9f3ae"},
+]
 
 [[package]]
 name = "pytz"
@@ -4973,7 +5019,7 @@ description = "Python Library for Tom's Obvious, Minimal Language"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 groups = ["dev"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version < \"3.11\""
+markers = "python_version < \"3.11\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
     {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
@@ -4986,7 +5032,7 @@ description = "A lil' TOML parser"
 optional = false
 python-versions = ">=3.8"
 groups = ["main", "dev"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version < \"3.11\""
+markers = "python_version < \"3.11\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "tomli-2.2.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:678e4fa69e4575eb77d103de3df8a895e1591b48e740211bd1067378c69e8249"},
     {file = "tomli-2.2.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:023aa114dd824ade0100497eb2318602af309e5a55595f76b626d6d9f3b7b0a6"},
@@ -5565,7 +5611,7 @@ description = "Backport of pathlib-compatible object wrapper for zip files"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and python_version < \"3.10\""
+markers = "python_version < \"3.10\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
 files = [
     {file = "zipp-3.21.0-py3-none-any.whl", hash = "sha256:ac1bbe05fd2991f160ebce24ffbac5f6d11d83dc90891255885223d42b3cd931"},
     {file = "zipp-3.21.0.tar.gz", hash = "sha256:2c9958f6430a2040341a52eb608ed6dd93ef4392e02ffe219417c1b28b5dd1f4"},
@@ -5638,4 +5684,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<4"
-content-hash = "3a4917b2287744f5f106f0b41e88842ab04282edf7915baaee73aea85593165c"
+content-hash = "c34269024622b73a4090079ac22fa5e4dc23c53e61f004f1e7779e15ad27de67"
