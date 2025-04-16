@@ -6,6 +6,7 @@ from pathlib import Path
 
 from constant_sorrow import constants
 from flask import Flask, Response, jsonify, request
+from hexbytes import HexBytes
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from nucypher_core import (
@@ -297,7 +298,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             )
         return Response(response=ipv4, status=HTTPStatus.OK)
 
-    @rest_app.route('/status/', methods=['GET'])
+    @rest_app.route("/status", methods=["GET"])
     def status():
         return_json = request.args.get('json') == 'true'
         omit_known_nodes = request.args.get('omit_known_nodes') == 'true'
@@ -314,6 +315,28 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(response=html_error, headers=headers, status=HTTPStatus.INTERNAL_SERVER_ERROR)
         return Response(response=content, headers=headers)
 
+    @rest_app.route("/sign", methods=["POST"])
+    def threshold_sign():
+        """
+        An endpoint that handles threshold signing requests.
+        """
+        try:
+            signing_request = ThresholdSignatureRequest.from_bytes(request.data)
+            # Handle the signing request
+            signing_response = this_node.handle_threshold_signing_request(
+                signing_request.cohort_id,
+                signing_request.data_to_sign,
+                signing_request.condition,
+                signing_request.signature,
+            )
+            return Response(
+                response=bytes(signing_response),
+                status=HTTPStatus.OK,
+                mimetype="application/octet-stream",
+            )
+        except Exception as e:
+            return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
     if this_node.domain.name in [domains.LYNX.name, TEMPORARY_DOMAIN_NAME]:
         # only available on Lynx or for testing
         @rest_app.route("/validate_condition_lingo", methods=["POST"])
@@ -328,3 +351,23 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
     return rest_app
+
+
+class ThresholdSignatureRequest:
+    def __init__(
+        self, data_to_sign: bytes, cohort_id: int, condition: bytes, signature: bytes
+    ):
+        self.data_to_sign = data_to_sign
+        self.cohort_id = cohort_id
+        self.condition = condition
+        self.signature = signature
+
+    def from_bytes(request_data: bytes):
+        # Placeholder for actual implementation
+        result = json.loads(request_data.decode())
+        return ThresholdSignatureRequest(
+            data_to_sign=bytes(HexBytes(result["data_to_sign"])),
+            cohort_id=result["cohort_id"],
+            condition=bytes(HexBytes(result["condition"])),
+            signature=bytes(HexBytes(result["signature_of_proof"])),
+        )
