@@ -36,6 +36,7 @@ from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
+    SigningCoordinatorAgent,
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
@@ -238,6 +239,12 @@ class Operator(BaseActor):
 
         self.coordinator_agent = ContractAgency.get_agent(
             CoordinatorAgent,
+            registry=registry,
+            blockchain_endpoint=polygon_endpoint,
+        )
+
+        self.signing_coordinator_agent = ContractAgency.get_agent(
+            SigningCoordinatorAgent,
             registry=registry,
             blockchain_endpoint=polygon_endpoint,
         )

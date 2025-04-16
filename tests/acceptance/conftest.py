@@ -244,6 +244,32 @@ def coordinator(
 
 
 @pytest.fixture(scope="module")
+def signing_coordinator(
+    oz_dependency,
+    nucypher_dependency,
+    deployer_account,
+    taco_child_application,
+):
+    _signing_coordinator = deployer_account.deploy(
+        nucypher_dependency.SigningCoordinator,
+        taco_child_application.address,
+    )
+
+    encoded_initializer_function = _signing_coordinator.initialize.encode_input(
+        TIMEOUT, MAX_DKG_SIZE, deployer_account.address
+    )
+    proxy = deployer_account.deploy(
+        oz_dependency.TransparentUpgradeableProxy,
+        _signing_coordinator.address,
+        deployer_account.address,
+        encoded_initializer_function,
+    )
+
+    proxy_contract = nucypher_dependency.SigningCoordinator.at(proxy.address)
+    return proxy_contract
+
+
+@pytest.fixture(scope="module")
 def fee_model(nucypher_dependency, deployer_account, coordinator, ritual_token):
     contract = deployer_account.deploy(
         nucypher_dependency.FlatRateFeeModel,
@@ -312,6 +338,7 @@ def deployed_contracts(
     taco_application,
     taco_child_application,
     coordinator,
+    signing_coordinator,
     fee_model,
     global_allow_list,
     subscription_manager,
@@ -324,6 +351,7 @@ def deployed_contracts(
         taco_application,
         taco_child_application,
         coordinator,
+        signing_coordinator,
         fee_model,
         global_allow_list,
         subscription_manager,

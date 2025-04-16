@@ -181,3 +181,49 @@ class Coordinator:
         blinded_share: bytes
         transcript: bytes
         decryption_request_pubkey: bytes
+
+
+@dataclass
+class SigningCoordinator:
+    @dataclass
+    class RitualStatus:
+        NON_INITIATED = 0
+        AWAITING_SIGNATURES = 1
+        TIMEOUT = 2
+        ACTIVE = 3
+        EXPIRED = 4
+
+    @dataclass
+    class SigningCohort:
+        id: int
+        initiator: ChecksumAddress
+        init_timestamp: int
+        end_timestamp: int
+        authority: ChecksumAddress
+        total_signatures: int
+        num_signers: int
+        threshold: int
+        signers: List = field(default_factory=list)
+
+        @staticmethod
+        def make_signers(
+            data: list,
+        ) -> Iterable["SigningCoordinator.SigningCohortParticipant"]:
+            """Converts a list of participant data into an iterable of Participant objects."""
+            for signer_data in data:
+                participant = SigningCoordinator.SigningCohortParticipant.from_data(
+                    data=signer_data
+                )
+                yield participant
+
+    @dataclass
+    class SigningCohortParticipant:
+        provider: ChecksumAddress
+        signature: bytes = bytes()
+
+        @classmethod
+        def from_data(cls, data: list):
+            return cls(
+                provider=ChecksumAddress(data[0]),
+                signature=bytes(data[1]),
+            )

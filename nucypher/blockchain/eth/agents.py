@@ -55,6 +55,7 @@ from nucypher.blockchain.eth.models import (
     PHASE2,
     Coordinator,
     Ferveo,
+    SigningCoordinator,
 )
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
@@ -989,6 +990,99 @@ class CoordinatorAgent(EthereumContractAgent):
         if not ritual.public_key:
             return
         return ritual.public_key.to_dkg_public_key()
+
+
+class SigningCoordinatorAgent(EthereumContractAgent):
+    contract_name: str = "SigningCoordinator"
+
+    @contract_api(CONTRACT_CALL)
+    def get_timeout(self) -> int:
+        return self.contract.functions.timeout().call()
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_cohort_status(self, cohort_id: int) -> int:
+        result = self.contract.functions.getSigningCohortState(cohort_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_cohort_active(self, cohort_id: int) -> bool:
+        result = self.contract.functions.isCohortActive(cohort_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_cohort_signer(self, cohort_id: int, signer: ChecksumAddress) -> bool:
+        result = self.contract.functions.isSigner(cohort_id, signer).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_cohort(
+        self,
+        cohort_id: int,
+    ) -> SigningCoordinator.SigningCohort:
+        result = self.contract.functions.signing_cohorts(int(cohort_id)).call()
+        signing_cohort = SigningCoordinator.SigningCohort(
+            id=cohort_id,
+            initiator=ChecksumAddress(result[0]),
+            init_timestamp=result[1],
+            end_timestamp=result[2],
+            authority=ChecksumAddress(result[3]),
+            total_signatures=result[4],
+            num_signers=result[5],
+            threshold=result[6],
+            signers=[],  # solidity does not return sub-structs
+        )
+        signing_cohort.signers = list(self._get_signers(cohort_id=cohort_id))
+        return signing_cohort
+
+    def _get_signers(self, cohort_id: int):
+        data = self.contract.functions.getSigners(cohort_id).call()
+        signers = SigningCoordinator.SigningCohort.make_signers(data=data)
+        return signers
+
+    @contract_api(CONTRACT_CALL)
+    def number_of_cohorts(self) -> int:
+        result = self.contract.functions.numberOfSigningCohorts().call()
+        return result
+
+    @contract_api(TRANSACTION)
+    def initiate_signing_cohort(
+        self,
+        authority: ChecksumAddress,
+        providers: List[ChecksumAddress],
+        threshold: int,
+        duration: int,
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
+        contract_function: ContractFunction = (
+            self.contract.functions.initiateSigningCohort(
+                authority, providers, threshold, duration
+            )
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
+        return receipt
+
+    @contract_api(TRANSACTION)
+    def post_signature(
+        self,
+        cohort_id: int,
+        signature: bytes,
+        transacting_power: TransactingPower,
+        async_tx_hooks: BlockchainInterface.AsyncTxHooks,
+    ) -> AsyncTx:
+        # See sprints/#145
+        contract_function: ContractFunction = (
+            self.contract.functions.postSigningCohortSignature(
+                cohortId=cohort_id, signature=signature
+            )
+        )
+        async_tx = self.blockchain.send_async_transaction(
+            contract_function=contract_function,
+            transacting_power=transacting_power,
+            async_tx_hooks=async_tx_hooks,
+        )
+        return async_tx
 
 
 class ContractAgency:
