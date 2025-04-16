@@ -23,7 +23,7 @@ from eth_utils import encode_hex
 from eth_utils.abi import event_abi_to_log_topic
 from web3 import Web3
 from web3._utils.events import get_event_data
-from web3.contract.contract import Contract
+from web3.contract.contract import Contract, ContractEvent
 from web3.datastructures import AttributeDict
 from web3.exceptions import BlockNotFound
 from web3.types import BlockIdentifier
@@ -138,7 +138,7 @@ class EventScanner:
         web3: Web3,
         contract: Contract,
         state: EventScannerState,
-        events: List,
+        events: List[ContractEvent],
         min_chunk_scan_size: int = 10,  # 12 s/block = 120 seconds period
         max_chunk_scan_size: int = 10000,
         max_request_retries: int = 30,

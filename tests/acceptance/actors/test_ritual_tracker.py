@@ -770,7 +770,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
                 ),
             }
         )
-        d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+        d = active_ritual_tracker._handle_event(event_data, get_block_when)
         yield d
 
         assert len(active_ritual_tracker._participation_states) == (i + 1)
@@ -801,7 +801,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
             ),
         }
     )
-    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+    d = active_ritual_tracker._handle_event(event_data, get_block_when)
     yield d
 
     assert operator.perform_round_1.call_count == 3  # same count as before
@@ -837,7 +837,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
             ),
         }
     )
-    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+    d = active_ritual_tracker._handle_event(event_data, get_block_when)
     yield d
 
     assert operator.perform_round_1.call_count == 3  # same as before
@@ -877,7 +877,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
             ),
         }
     )
-    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+    d = active_ritual_tracker._handle_event(event_data, get_block_when)
     yield d
 
     assert operator.perform_round_1.call_count == 3  # same as before
@@ -919,7 +919,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
             ),
         }
     )
-    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+    d = active_ritual_tracker._handle_event(event_data, get_block_when)
     yield d
 
     assert operator.perform_round_1.call_count == 3  # same as before

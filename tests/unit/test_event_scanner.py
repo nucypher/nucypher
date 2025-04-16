@@ -6,7 +6,8 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker, EventScannerTask
+from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
+from nucypher.blockchain.eth.trackers.events import EventScannerTask
 from nucypher.utilities.events import EventScanner, EventScannerState, JSONifiedState
 
 CHAIN_REORG_WINDOW = ActiveRitualTracker.CHAIN_REORG_SCAN_WINDOW
