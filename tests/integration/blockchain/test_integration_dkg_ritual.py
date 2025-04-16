@@ -98,9 +98,7 @@ def execute_round_1(ritual_id: int, authority: ChecksumAddress, cohort: List[Urs
             )
         )
 
-        ursula.ritual_tracker._handle_ritual_event(
-            event, get_block_when=lambda x: event
-        )
+        ursula.ritual_tracker._handle_event(event, get_block_when=lambda x: event)
 
 
 def execute_round_2(ritual_id: int, cohort: List[Ursula]):
@@ -117,9 +115,7 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
             )
         )
 
-        ursula.ritual_tracker._handle_ritual_event(
-            event, get_block_when=lambda x: event
-        )
+        ursula.ritual_tracker._handle_event(event, get_block_when=lambda x: event)
 
 
 def run_test(
