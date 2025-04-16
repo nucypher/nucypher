@@ -1284,6 +1284,10 @@ class Ursula(Teacher, Character, Operator):
         )
         return encrypted_response
 
+    def handle_threshold_signature_request(
+        self, cohort_id: int, data_to_sign: bytes, condition: bytes, signature: bytes
+    ) -> bytes:
+        pass
 
 class LocalUrsulaStatus(NamedTuple):
     nickname: Nickname
