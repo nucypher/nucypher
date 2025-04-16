@@ -435,11 +435,9 @@ class JSONifiedState(EventScannerState):
     Simple load/store massive JSON on start up.
     """
 
-    STATE_FILENAME = "eventscanner.json"
-
-    def __init__(self, persistent=True):
+    def __init__(self, persistent=True, fname="eventscanner.json"):
         self.state = None
-        self.fname = self.STATE_FILENAME
+        self.fname = fname
         # How many second ago we saved the JSON file
         self.last_save = 0
         self.persistent = persistent
@@ -453,6 +451,10 @@ class JSONifiedState(EventScannerState):
 
     def restore(self):
         """Restore the last scan state from a file."""
+        if not self.persistent:
+            self.reset()
+            return
+
         try:
             self.state = json.load(open(self.fname, "rt"))
             print(f"Restored the state, previously {self.state['last_scanned_block']} blocks have been scanned")
@@ -462,8 +464,9 @@ class JSONifiedState(EventScannerState):
 
     def save(self):
         """Save everything we have scanned so far in a file."""
-        with open(self.fname, "wt") as f:
-            json.dump(self.state, f)
+        if self.persistent:
+            with open(self.fname, "wt") as f:
+                json.dump(self.state, f)
         self.last_save = time.time()
 
     #

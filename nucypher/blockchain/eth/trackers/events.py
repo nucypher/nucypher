@@ -1,5 +1,4 @@
 import datetime
-import os
 import time
 from abc import ABC
 from typing import Callable, Dict, List
@@ -24,13 +23,10 @@ class EventActuator(EventScanner):
         hooks: List[
             Callable[[AttributeDict, Callable[[int], datetime.datetime]], None]
         ],
-        clear: bool = True,
         *args,
         **kwargs,
     ):
         self.log = Logger("EventActuator")
-        if clear and os.path.exists(JSONifiedState.STATE_FILENAME):
-            os.remove(JSONifiedState.STATE_FILENAME)
         self.hooks = hooks
         super().__init__(*args, **kwargs)
 
