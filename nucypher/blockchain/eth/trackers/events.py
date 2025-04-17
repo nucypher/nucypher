@@ -1,6 +1,6 @@
 import datetime
 import time
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Callable, Dict, List
 
 from twisted.internet import threads
@@ -111,12 +111,14 @@ class EventTracker(ABC):
         return self.web3.provider
 
     # TODO: should sample_window_size be additionally configurable/chain-dependent?
+    @abstractmethod
     def _get_first_scan_start_block_number(self, sample_window_size: int = 100) -> int:
         """
         Returns the block number to start scanning for events from.
         """
         raise NotImplementedError
 
+    @abstractmethod
     def _action_required(self, event: AttributeDict) -> bool:
         """Check if an action is required for a given ritual event."""
         raise NotImplementedError

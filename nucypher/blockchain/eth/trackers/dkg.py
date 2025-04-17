@@ -1,38 +1,34 @@
 from typing import Optional, Tuple
 
-import maya
 from prometheus_client import REGISTRY, Gauge
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.trackers.events import EventTracker
-from nucypher.blockchain.eth.utils import get_block_just_before
-from nucypher.utilities.cache import TTLCache
+from nucypher.blockchain.eth.trackers.rituals import RitualTracker
 
 
-class ActiveRitualTracker(EventTracker):
-    # how often to check/purge for expired cached values - 8hrs?
-    _PARTICIPATION_STATES_PURGE_INTERVAL = 60 * 60 * 8
-
-    # what's the buffer for potentially receiving repeated events - 10mins?
-    _RITUAL_TIMEOUT_ADDITIONAL_TTL_BUFFER = 60 * 10
-
+class DkgRitualTracker(RitualTracker):
     _LAST_SCANNED_BLOCK_METRIC = Gauge(
         "ritual_events_last_scanned_block_number",
         "Last scanned block number for ritual events",
         registry=REGISTRY,
     )
 
-    class ParticipationState:
+    class DkgParticipationState(RitualTracker.ParticipationState):
         def __init__(
             self,
             participating=False,
             already_posted_transcript=False,
             already_posted_aggregate=False,
         ):
-            self.participating = participating
+            super().__init__(participating)
             self.already_posted_transcript = already_posted_transcript
             self.already_posted_aggregate = already_posted_aggregate
+
+        def update(self, updated_state: "DkgParticipationState"):
+            self.participating = updated_state.participating
+            self.already_posted_transcript = updated_state.already_posted_transcript
+            self.already_posted_aggregate = updated_state.already_posted_aggregate
 
     def __init__(
         self,
@@ -40,6 +36,13 @@ class ActiveRitualTracker(EventTracker):
         persistent: bool = False,  # TODO: use persistent storage?
     ):
         contract = operator.coordinator_agent.contract
+
+        self.handover_event_types = [
+            contract.events.HandoverTranscriptPosted,
+            contract.events.HandoverRequest,
+            contract.events.HandoverFinalized,
+        ]
+
         actions = {
             contract.events.StartRitual: operator.perform_round_1,
             contract.events.StartAggregationRound: operator.perform_round_2,
@@ -50,10 +53,10 @@ class ActiveRitualTracker(EventTracker):
             contract.events.StartRitual,
             contract.events.StartAggregationRound,
             contract.events.EndRitual,
-            contract.events.HandoverRequest,
-            contract.events.HandoverTranscriptPosted,
-            contract.events.HandoverFinalized,
+            *self.handover_event_types,
         ]
+
+        self.coordinator_agent = operator.coordinator_agent
 
         super().__init__(
             operator=operator,
@@ -62,42 +65,18 @@ class ActiveRitualTracker(EventTracker):
             events=events,
             actions=actions,
             persistent=persistent,
+            timeout=self.coordinator_agent.get_dkg_timeout(),
         )
 
-        self.coordinator_agent = operator.coordinator_agent
+    def _get_identifier(self, event: AttributeDict) -> str:
+        return event.args.ritualId
 
-        cache_ttl = (
-            self.coordinator_agent.get_dkg_timeout()
-            + self._RITUAL_TIMEOUT_ADDITIONAL_TTL_BUFFER
-        )
-        self._participation_states = TTLCache(
-            ttl=cache_ttl
-        )  # { ritual_id -> ParticipationState }
-        self._participation_states_next_purge_timestamp = maya.now().add(
-            seconds=self._PARTICIPATION_STATES_PURGE_INTERVAL
-        )
-
-    # TODO: should sample_window_size be additionally configurable/chain-dependent?
-    def _get_first_scan_start_block_number(self, sample_window_size: int = 100) -> int:
-        """
-        Returns the block number to start scanning for events from.
-        """
-        timeout = self.coordinator_agent.get_dkg_timeout()
-        return get_block_just_before(
-            w3=self.web3, how_far_back=timeout, sample_window_size=sample_window_size
-        )
-
-    def _action_required(self, event: AttributeDict) -> bool:
-        """Check if an action is required for a given ritual event."""
-
+    def _action_required_based_on_participation_state(
+        self, participation_state: DkgParticipationState, event: AttributeDict
+    ) -> bool:
         # Let's handle separately handover events and non-handover events
-        handover_events = [
-            self.contract.events.HandoverTranscriptPosted,
-            self.contract.events.HandoverRequest,
-            self.contract.events.HandoverFinalized,
-        ]
         event_type = getattr(self.contract.events, event.event)
-        if event_type in handover_events:
+        if event_type in self.handover_event_types:
             # handover modifies existing ritual metadata; so we need to proactively prune it
             # during handover process and at the end to avoid having any stale metadata
             # in the cache
@@ -111,29 +90,22 @@ class ActiveRitualTracker(EventTracker):
                 return False
 
             is_departing_participant_in_handover = (
-                event_type == self.contract.events.HandoverTranscriptPosted
-                and event.args.departingParticipant
-                == self.operator.checksum_address
+                    event_type == self.contract.events.HandoverTranscriptPosted
+                    and event.args.departingParticipant
+                    == self.operator.checksum_address
             )
             is_incoming_participant_in_handover = (
-                event_type == self.contract.events.HandoverRequest
-                and event.args.incomingParticipant
-                == self.operator.checksum_address
+                    event_type == self.contract.events.HandoverRequest
+                    and event.args.incomingParticipant
+                    == self.operator.checksum_address
             )
             # for handover events we need to act only if the operator is the departing or incoming participant
             return (
-                is_departing_participant_in_handover
-                or is_incoming_participant_in_handover
+                    is_departing_participant_in_handover
+                    or is_incoming_participant_in_handover
             )
 
         # Non-handover events (for the moment, DKG events)
-
-        # establish participation state first
-        participation_state = self._get_participation_state(event)
-
-        if not participation_state.participating:
-            return False
-
         # does event have an associated action
         event_type = getattr(self.contract.events, event.event)
 
@@ -157,6 +129,63 @@ class ActiveRitualTracker(EventTracker):
 
         return True
 
+    def _create_participation_state(
+        self, event: AttributeDict
+    ) -> DkgParticipationState:
+        # obtain information from contract
+        participation_state = self._get_participation_state_values_from_contract(event=event)
+        return participation_state
+
+    def _update_participation_state(
+        self, participation_state: DkgParticipationState, event: AttributeDict
+    ) -> None:
+        #
+        # already tracked and participating in ritual - populate other values
+        # based on certain events, the values can be populated without consulting the contract
+        #
+        event_type = getattr(self.contract.events, event.event)
+        if event_type == self.contract.events.StartAggregationRound:
+            participation_state.already_posted_transcript = True
+        elif event_type == self.contract.events.EndRitual:
+            # while `EndRitual` signals the end of the ritual, and there is no
+            # *current* node action for EndRitual, perhaps there will
+            # be one in the future. So to be complete, and adhere to
+            # the expectations of this function we still update
+            # the participation state
+            if event.args.successful:
+                # since successful we know these values are true
+                participation_state.already_posted_transcript = True
+                participation_state.already_posted_aggregate = True
+            elif (
+                not participation_state.already_posted_transcript
+                or not participation_state.already_posted_aggregate
+            ):
+                # not successful - and unsure of state values
+                # obtain information from contract
+                (
+                    _,  # participating ignored - we know we are participating
+                    posted_transcript,
+                    posted_aggregate,
+                ) = self._get_participation_state_values_from_contract(
+                    event=event,
+                )
+                participation_state.already_posted_transcript = posted_transcript
+                participation_state.already_posted_aggregate = posted_aggregate
+        elif event_type == self.contract.events.HandoverFinalized:
+            # HandoverFinalized signals the end of the handover process
+            # node is either departing or incoming participant
+            if event.args.departingParticipant == self.operator.checksum_address:
+                # node no longer in ritual
+                participation_state.participating = False
+                participation_state.already_posted_transcript = False
+                participation_state.already_posted_aggregate = False
+            else:
+                # node newly added to ritual
+                participation_state.participating = True
+                participation_state.already_posted_transcript = True
+                participation_state.already_posted_aggregate = True
+
+
     def _get_ritual_participant_info(
         self, ritual_id: int
     ) -> Optional[Coordinator.Participant]:
@@ -177,119 +206,72 @@ class ActiveRitualTracker(EventTracker):
 
         return None
 
-    def _purge_expired_participation_states_as_needed(self):
-        # let's check whether we should purge participation states before returning
-        now = maya.now()
-        if now > self._participation_states_next_purge_timestamp:
-            self._participation_states.purge_expired()
-            self._participation_states_next_purge_timestamp = now.add(
-                seconds=self._PARTICIPATION_STATES_PURGE_INTERVAL
-            )
-
     def _get_participation_state_values_from_contract(
-        self, ritual_id: int
-    ) -> Tuple[bool, bool, bool]:
+        self, event: AttributeDict
+    ) -> DkgParticipationState:
         """
-        Obtains values for ParticipationState from the Coordinator contract.
+        Obtains values for current participation state.
         """
-        participating = False
-        already_posted_transcript = False
-        already_posted_aggregate = False
+        # check if we are participating in this ritual
+        event_type = getattr(self.contract.events, event.event)
+        if event_type in self.handover_event_types:
+            return self.__get_handover_participation_state_value(event)
+        else:
+            return self.__get_dkg_participation_state_value(event)
 
-        participant_info = self._get_ritual_participant_info(ritual_id=ritual_id)
-        if participant_info:
-            # actually participating in this ritual; get latest information
-            participating = True
-            # populate information since we already hit the contract
-            already_posted_transcript = bool(participant_info.transcript)
-            already_posted_aggregate = participant_info.aggregated
 
-        return participating, already_posted_transcript, already_posted_aggregate
+    def __get_dkg_participation_state_value(self, event: AttributeDict) -> DkgParticipationState:
+        """
+        Returns the participation state value for DKG events.
+        """
+        # Handle DKG events
+        event_type = getattr(self.contract.events, event.event)
+        if event_type == self.contract.events.StartRitual:
+            participating = self.operator.checksum_address in event.args.participants
+            return self.DkgParticipationState(participating=participating)
+        else:
+            participant_info = self._get_ritual_participant_info(ritual_id=event.args.ritualId)
+            if participant_info:
+                # actually participating in this ritual; get latest information
+                participating = True
+                # populate information since we already hit the contract
+                already_posted_transcript = bool(participant_info.transcript)
+                already_posted_aggregate = participant_info.aggregated
+                return self.DkgParticipationState(
+                    participating=participating,
+                    already_posted_transcript=already_posted_transcript,
+                    already_posted_aggregate=already_posted_aggregate
+                )
 
-    def _get_participation_state(self, event: AttributeDict) -> ParticipationState:
+        return self.DkgParticipationState(participating=False)
+
+    def __get_handover_participation_state_value(self, event: AttributeDict):
         """
-        Returns the current participation state of the Operator as it pertains to
-        the ritual associated with the provided event.
+        Returns the participation state value for handover events.
         """
-        self._purge_expired_participation_states_as_needed()
+        # Handle Handover events
+        if self.operator.checksum_address == event.args.departingParticipant:
+            # operator is the departing participant so we know that ritual is active and
+            # node already posted data
+            return self.DkgParticipationState(
+                participating=True,
+                already_posted_transcript=True,
+                already_posted_aggregate=True,
+            )
 
         event_type = getattr(self.contract.events, event.event)
-        if event_type not in self.events:
-            # should never happen since we specify the list of events we
-            # want to receive (1st level of filtering)
-            raise RuntimeError(f"Unexpected event type: {event_type}")
+        if event_type == self.contract.events.HandoverRequest and self.operator.checksum_address == event.args.incomingParticipant:
+            return self.DkgParticipationState(participating=True)
 
-        args = event.args
+        ritual_id = event.args.ritualId
+        handover = self.coordinator_agent.get_handover(
+            ritual_id=ritual_id,
+            departing_provider=event.args.departingParticipant
+        )
+        # check if operator is the incoming participant; other values aren't applicable
+        participating = (handover.incoming_validator == self.operator.checksum_address)
+        return self.DkgParticipationState(participating=participating)
 
-        try:
-            ritual_id = args.ritualId
-        except AttributeError:
-            # no ritualId arg
-            raise RuntimeError(
-                f"Unexpected event type: '{event_type}' has no ritual id as argument"
-            )
-
-        participation_state = self._participation_states[ritual_id]
-        if not participation_state:
-            # not previously tracked; get current state and return
-            # need to determine if participating in this ritual or not
-            if event_type == self.contract.events.StartRitual:
-                participation_state = self.ParticipationState(
-                    participating=(self.operator.checksum_address in args.participants)
-                )
-                self._participation_states[ritual_id] = participation_state
-                return participation_state
-
-            # obtain information from contract
-            (
-                participating,
-                posted_transcript,
-                posted_aggregate,
-            ) = self._get_participation_state_values_from_contract(ritual_id=ritual_id)
-            participation_state = self.ParticipationState(
-                participating=participating,
-                already_posted_transcript=posted_transcript,
-                already_posted_aggregate=posted_aggregate,
-            )
-            self._participation_states[ritual_id] = participation_state
-            return participation_state
-
-        # already tracked but not participating
-        if not participation_state.participating:
-            return participation_state
-
-        #
-        # already tracked and participating in ritual - populate other values
-        #
-        if event_type == self.contract.events.StartAggregationRound:
-            participation_state.already_posted_transcript = True
-        elif event_type == self.contract.events.EndRitual:
-            # while `EndRitual` signals the end of the ritual, and there is no
-            # *current* node action for EndRitual, perhaps there will
-            # be one in the future. So to be complete, and adhere to
-            # the expectations of this function we still update
-            # the participation state
-            if args.successful:
-                # since successful we know these values are true
-                participation_state.already_posted_transcript = True
-                participation_state.already_posted_aggregate = True
-            elif (
-                not participation_state.already_posted_transcript
-                or not participation_state.already_posted_aggregate
-            ):
-                # not successful - and unsure of state values
-                # obtain information from contract
-                (
-                    _,  # participating ignored - we know we are participating
-                    posted_transcript,
-                    posted_aggregate,
-                ) = self._get_participation_state_values_from_contract(
-                    ritual_id=ritual_id
-                )
-                participation_state.already_posted_transcript = posted_transcript
-                participation_state.already_posted_aggregate = posted_aggregate
-
-        return participation_state
 
     def scan(self):
         last_scanned_block = self.scanner.get_last_scanned_block()

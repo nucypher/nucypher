@@ -250,7 +250,7 @@ class Operator(BaseActor):
         )
 
         # track active onchain rituals
-        self.ritual_tracker = dkg.ActiveRitualTracker(
+        self.ritual_tracker = dkg.DkgRitualTracker(
             operator=self,
         )
 
