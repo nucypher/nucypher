@@ -5,7 +5,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
+from nucypher.blockchain.eth.trackers.dkg import DkgRitualTracker
 from nucypher.cli.literature import (
     COLLECT_NUCYPHER_PASSWORD,
     CONFIRM_IPV4_ADDRESS_QUESTION,
@@ -37,7 +37,7 @@ from tests.utils.ursula import select_test_port
 
 @pytest.fixture(autouse=True)
 def mock_dkg_tracker(mocker):
-    mock = mocker.patch.object(ActiveRitualTracker, 'start', autospec=True)
+    mock = mocker.patch.object(DkgRitualTracker, "start", autospec=True)
     mock.return_value = mock
     mock.get_ursulas = mocker.MagicMock()
     return mock

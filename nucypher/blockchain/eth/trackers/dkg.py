@@ -1,36 +1,27 @@
 from typing import Optional, Tuple
 
-import maya
 from prometheus_client import REGISTRY, Gauge
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.trackers.events import EventTracker
-from nucypher.blockchain.eth.utils import get_block_just_before
-from nucypher.utilities.cache import TTLCache
+from nucypher.blockchain.eth.trackers.rituals import RitualTracker
 
 
-class ActiveRitualTracker(EventTracker):
-    # how often to check/purge for expired cached values - 8hrs?
-    _PARTICIPATION_STATES_PURGE_INTERVAL = 60 * 60 * 8
-
-    # what's the buffer for potentially receiving repeated events - 10mins?
-    _RITUAL_TIMEOUT_ADDITIONAL_TTL_BUFFER = 60 * 10
-
+class DkgRitualTracker(RitualTracker):
     _LAST_SCANNED_BLOCK_METRIC = Gauge(
         "ritual_events_last_scanned_block_number",
         "Last scanned block number for ritual events",
         registry=REGISTRY,
     )
 
-    class ParticipationState:
+    class DkgParticipationState(RitualTracker.ParticipationState):
         def __init__(
             self,
             participating=False,
             already_posted_transcript=False,
             already_posted_aggregate=False,
         ):
-            self.participating = participating
+            super().__init__(participating)
             self.already_posted_transcript = already_posted_transcript
             self.already_posted_aggregate = already_posted_aggregate
 
@@ -50,6 +41,8 @@ class ActiveRitualTracker(EventTracker):
             contract.events.EndRitual,
         ]
 
+        self.coordinator_agent = operator.coordinator_agent
+
         super().__init__(
             operator=operator,
             web3=operator.coordinator_agent.blockchain.w3,
@@ -57,39 +50,15 @@ class ActiveRitualTracker(EventTracker):
             events=events,
             actions=actions,
             persistent=persistent,
+            timeout=self.coordinator_agent.get_timeout(),
         )
 
-        self.coordinator_agent = operator.coordinator_agent
+    def _get_identifier(self, event: AttributeDict) -> str:
+        return event.args.ritualId
 
-        cache_ttl = (
-            self.coordinator_agent.get_timeout()
-            + self._RITUAL_TIMEOUT_ADDITIONAL_TTL_BUFFER
-        )
-        self._participation_states = TTLCache(
-            ttl=cache_ttl
-        )  # { ritual_id -> ParticipationState }
-        self._participation_states_next_purge_timestamp = maya.now().add(
-            seconds=self._PARTICIPATION_STATES_PURGE_INTERVAL
-        )
-
-    # TODO: should sample_window_size be additionally configurable/chain-dependent?
-    def _get_first_scan_start_block_number(self, sample_window_size: int = 100) -> int:
-        """
-        Returns the block number to start scanning for events from.
-        """
-        timeout = self.coordinator_agent.get_timeout()
-        return get_block_just_before(
-            w3=self.web3, how_far_back=timeout, sample_window_size=sample_window_size
-        )
-
-    def _action_required(self, event: AttributeDict) -> bool:
-        """Check if an action is required for a given ritual event."""
-        # establish participation state first
-        participation_state = self._get_participation_state(event)
-
-        if not participation_state.participating:
-            return False
-
+    def _action_required_based_on_participation_state(
+        self, participation_state: DkgParticipationState, event: AttributeDict
+    ) -> bool:
         # does event have an associated action
         event_type = getattr(self.contract.events, event.event)
 
@@ -113,6 +82,68 @@ class ActiveRitualTracker(EventTracker):
 
         return True
 
+    def _create_participation_state(
+        self, event: AttributeDict
+    ) -> DkgParticipationState:
+        event_type = getattr(self.contract.events, event.event)
+        args = event.args
+        if event_type == self.contract.events.StartRitual:
+            participation_state = self.DkgParticipationState(
+                participating=(self.operator.checksum_address in args.participants)
+            )
+            return participation_state
+
+        ritual_id = args.ritualId
+        # obtain information from contract
+        (
+            participating,
+            posted_transcript,
+            posted_aggregate,
+        ) = self._get_participation_state_values_from_contract(ritual_id=ritual_id)
+        participation_state = self.DkgParticipationState(
+            participating=participating,
+            already_posted_transcript=posted_transcript,
+            already_posted_aggregate=posted_aggregate,
+        )
+        return participation_state
+
+    def _update_participation_state(
+        self, participation_state: DkgParticipationState, event: AttributeDict
+    ) -> None:
+        #
+        # already tracked and participating in ritual - populate other values
+        #
+        event_type = getattr(self.contract.events, event.event)
+        args = event.args
+        if event_type == self.contract.events.StartAggregationRound:
+            participation_state.already_posted_transcript = True
+        elif event_type == self.contract.events.EndRitual:
+            # while `EndRitual` signals the end of the ritual, and there is no
+            # *current* node action for EndRitual, perhaps there will
+            # be one in the future. So to be complete, and adhere to
+            # the expectations of this function we still update
+            # the participation state
+            if args.successful:
+                # since successful we know these values are true
+                participation_state.already_posted_transcript = True
+                participation_state.already_posted_aggregate = True
+            elif (
+                not participation_state.already_posted_transcript
+                or not participation_state.already_posted_aggregate
+            ):
+                ritual_id = args.ritualId
+                # not successful - and unsure of state values
+                # obtain information from contract
+                (
+                    _,  # participating ignored - we know we are participating
+                    posted_transcript,
+                    posted_aggregate,
+                ) = self._get_participation_state_values_from_contract(
+                    ritual_id=ritual_id
+                )
+                participation_state.already_posted_transcript = posted_transcript
+                participation_state.already_posted_aggregate = posted_aggregate
+
     def _get_ritual_participant_info(
         self, ritual_id: int
     ) -> Optional[Coordinator.Participant]:
@@ -133,15 +164,6 @@ class ActiveRitualTracker(EventTracker):
 
         return None
 
-    def _purge_expired_participation_states_as_needed(self):
-        # let's check whether we should purge participation states before returning
-        now = maya.now()
-        if now > self._participation_states_next_purge_timestamp:
-            self._participation_states.purge_expired()
-            self._participation_states_next_purge_timestamp = now.add(
-                seconds=self._PARTICIPATION_STATES_PURGE_INTERVAL
-            )
-
     def _get_participation_state_values_from_contract(
         self, ritual_id: int
     ) -> Tuple[bool, bool, bool]:
@@ -161,91 +183,6 @@ class ActiveRitualTracker(EventTracker):
             already_posted_aggregate = participant_info.aggregated
 
         return participating, already_posted_transcript, already_posted_aggregate
-
-    def _get_participation_state(self, event: AttributeDict) -> ParticipationState:
-        """
-        Returns the current participation state of the Operator as it pertains to
-        the ritual associated with the provided event.
-        """
-        self._purge_expired_participation_states_as_needed()
-
-        event_type = getattr(self.contract.events, event.event)
-        if event_type not in self.events:
-            # should never happen since we specify the list of events we
-            # want to receive (1st level of filtering)
-            raise RuntimeError(f"Unexpected event type: {event_type}")
-
-        args = event.args
-
-        try:
-            ritual_id = args.ritualId
-        except AttributeError:
-            # no ritualId arg
-            raise RuntimeError(
-                f"Unexpected event type: '{event_type}' has no ritual id as argument"
-            )
-
-        participation_state = self._participation_states[ritual_id]
-        if not participation_state:
-            # not previously tracked; get current state and return
-            # need to determine if participating in this ritual or not
-            if event_type == self.contract.events.StartRitual:
-                participation_state = self.ParticipationState(
-                    participating=(self.operator.checksum_address in args.participants)
-                )
-                self._participation_states[ritual_id] = participation_state
-                return participation_state
-
-            # obtain information from contract
-            (
-                participating,
-                posted_transcript,
-                posted_aggregate,
-            ) = self._get_participation_state_values_from_contract(ritual_id=ritual_id)
-            participation_state = self.ParticipationState(
-                participating=participating,
-                already_posted_transcript=posted_transcript,
-                already_posted_aggregate=posted_aggregate,
-            )
-            self._participation_states[ritual_id] = participation_state
-            return participation_state
-
-        # already tracked but not participating
-        if not participation_state.participating:
-            return participation_state
-
-        #
-        # already tracked and participating in ritual - populate other values
-        #
-        if event_type == self.contract.events.StartAggregationRound:
-            participation_state.already_posted_transcript = True
-        elif event_type == self.contract.events.EndRitual:
-            # while `EndRitual` signals the end of the ritual, and there is no
-            # *current* node action for EndRitual, perhaps there will
-            # be one in the future. So to be complete, and adhere to
-            # the expectations of this function we still update
-            # the participation state
-            if args.successful:
-                # since successful we know these values are true
-                participation_state.already_posted_transcript = True
-                participation_state.already_posted_aggregate = True
-            elif (
-                not participation_state.already_posted_transcript
-                or not participation_state.already_posted_aggregate
-            ):
-                # not successful - and unsure of state values
-                # obtain information from contract
-                (
-                    _,  # participating ignored - we know we are participating
-                    posted_transcript,
-                    posted_aggregate,
-                ) = self._get_participation_state_values_from_contract(
-                    ritual_id=ritual_id
-                )
-                participation_state.already_posted_transcript = posted_transcript
-                participation_state.already_posted_aggregate = posted_aggregate
-
-        return participation_state
 
     def scan(self):
         last_scanned_block = self.scanner.get_last_scanned_block()

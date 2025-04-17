@@ -12,7 +12,7 @@ from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
+from nucypher.blockchain.eth.trackers.dkg import DkgRitualTracker
 
 
 @pytest.fixture(scope="module")
@@ -26,9 +26,9 @@ def cohort(ursulas):
 def test_action_required_not_participating(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
-    participation_state = ActiveRitualTracker.ParticipationState(
+    participation_state = DkgRitualTracker.DkgParticipationState(
         participating=False,  # not participating
         already_posted_transcript=False,
         already_posted_aggregate=False,
@@ -38,7 +38,7 @@ def test_action_required_not_participating(cohort):
         return participation_state
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participation_state",
+        "nucypher.blockchain.eth.trackers.dkg.DkgRitualTracker._get_participation_state",
         _my_get_participation_state,
     ):
         for event in agent.contract.events:
@@ -59,9 +59,9 @@ def test_action_required_not_participating(cohort):
 def test_action_required_only_for_events_with_corresponding_actions(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
-    participation_state = ActiveRitualTracker.ParticipationState(
+    participation_state = DkgRitualTracker.DkgParticipationState(
         participating=True,  # participating
         already_posted_transcript=False,
         already_posted_aggregate=False,
@@ -71,7 +71,7 @@ def test_action_required_only_for_events_with_corresponding_actions(cohort):
         return participation_state
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participation_state",
+        "nucypher.blockchain.eth.trackers.dkg.DkgRitualTracker._get_participation_state",
         _my_get_participation_state,
     ):
         for event in agent.contract.events:
@@ -97,9 +97,9 @@ def test_action_required_only_for_events_with_corresponding_actions(cohort):
 def test_action_required_depending_on_participation_state(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
-    participation_state = ActiveRitualTracker.ParticipationState(
+    participation_state = DkgRitualTracker.DkgParticipationState(
         participating=True,
         already_posted_transcript=False,
         already_posted_aggregate=False,
@@ -109,7 +109,7 @@ def test_action_required_depending_on_participation_state(cohort):
         return participation_state
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participation_state",
+        "nucypher.blockchain.eth.trackers.dkg.DkgRitualTracker._get_participation_state",
         _my_get_participation_state,
     ):
         # actionable events
@@ -161,7 +161,7 @@ def test_get_participation_state_start_ritual(cohort, get_random_checksum_addres
     args_dict = {"ritualId": ritual_id}
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
     # StartRitual
     start_ritual_event = agent.contract.events.StartRitual()
@@ -220,7 +220,7 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
     args_dict = {"ritualId": ritual_id}
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
     start_aggregation_round_event = agent.contract.events.StartAggregationRound()
 
@@ -242,7 +242,7 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
     # not participating
     #
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.DkgRitualTracker._get_ritual_participant_info",
         not_participating,
     ):
         verify_non_participation_flow(active_ritual_tracker, event_data)
@@ -266,7 +266,7 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
         return participant
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.DkgRitualTracker._get_ritual_participant_info",
         participating,
     ):
         verify_participation_flow(
@@ -286,7 +286,7 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
     args_dict = {"ritualId": ritual_id}
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
     start_aggregation_round_event = agent.contract.events.StartAggregationRound()
 
@@ -306,9 +306,9 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
     #
 
     # mimic already tracked prior state: not participating
-    active_ritual_tracker._participation_states[
-        ritual_id
-    ] = active_ritual_tracker.ParticipationState(False, False, False)
+    active_ritual_tracker._participation_states[ritual_id] = (
+        active_ritual_tracker.DkgParticipationState(False, False, False)
+    )
 
     verify_non_participation_flow(active_ritual_tracker, event_data)
 
@@ -317,9 +317,9 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
     #
 
     # mimic already tracked prior state: participating
-    active_ritual_tracker._participation_states[
-        ritual_id
-    ] = active_ritual_tracker.ParticipationState(True, False, False)
+    active_ritual_tracker._participation_states[ritual_id] = (
+        active_ritual_tracker.DkgParticipationState(True, False, False)
+    )
 
     participation_state = active_ritual_tracker._get_participation_state(event_data)
     check_participation_state(
@@ -354,7 +354,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     args_dict = {"ritualId": ritual_id}
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
     end_ritual_event = agent.contract.events.EndRitual()
 
@@ -376,7 +376,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         return None
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.DkgRitualTracker._get_ritual_participant_info",
         not_participating,
     ):
         verify_non_participation_flow(active_ritual_tracker, event_data)
@@ -400,7 +400,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         return participant
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.DkgRitualTracker._get_ritual_participant_info",
         participating,
     ):
         verify_participation_flow(
@@ -429,7 +429,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         return participant
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.DkgRitualTracker._get_ritual_participant_info",
         participating,
     ):
         args_dict["successful"] = False
@@ -462,7 +462,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         return participant
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.DkgRitualTracker._get_ritual_participant_info",
         participating,
     ):
         args_dict["successful"] = False
@@ -486,7 +486,7 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     args_dict = {"ritualId": ritual_id}
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
     end_ritual_event = agent.contract.events.EndRitual()
 
@@ -506,9 +506,9 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     #
 
     # mimic already tracked prior state: not participating
-    active_ritual_tracker._participation_states[
-        ritual_id
-    ] = active_ritual_tracker.ParticipationState(False, False, False)
+    active_ritual_tracker._participation_states[ritual_id] = (
+        active_ritual_tracker.DkgParticipationState(False, False, False)
+    )
 
     verify_non_participation_flow(active_ritual_tracker, event_data)
     # no additional entry
@@ -519,9 +519,9 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     #
 
     # mimic already tracked prior state: participating
-    active_ritual_tracker._participation_states[
-        ritual_id
-    ] = active_ritual_tracker.ParticipationState(True, False, False)
+    active_ritual_tracker._participation_states[ritual_id] = (
+        active_ritual_tracker.DkgParticipationState(True, False, False)
+    )
 
     participation_state = active_ritual_tracker._get_participation_state(event_data)
     check_participation_state(
@@ -539,7 +539,7 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
 def test_get_participation_state_unexpected_event_without_ritual_id_arg(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
     # TimeoutChanged
     timeout_changed_event = agent.contract.events.TimeoutChanged()
@@ -563,7 +563,7 @@ def test_get_participation_state_unexpected_event_without_ritual_id_arg(cohort):
 def test_get_participation_state_unexpected_event_with_ritual_id_arg(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
     # create args data - faked to include ritual id arg
     args_dict = {"ritualId": 0, "oldTimeout": 1, "newTimeout": 2}
@@ -592,13 +592,13 @@ def test_get_participation_state_purge_expired_cache_entries(
     # This test hinges on the relationship between ritual timeout and the purge interval
     # This relationship should hold: ritual timeout (ttl) + buffer == to the purge
     # interval for ease of testing; so fake the ritual timeout
-    faked_ritual_timeout = ActiveRitualTracker._PARTICIPATION_STATES_PURGE_INTERVAL - (
-        ActiveRitualTracker._RITUAL_TIMEOUT_ADDITIONAL_TTL_BUFFER
+    faked_ritual_timeout = DkgRitualTracker._PARTICIPATION_STATES_PURGE_INTERVAL - (
+        DkgRitualTracker._TIMEOUT_ADDITIONAL_TTL_BUFFER
     )
 
     with patch.object(agent, "get_timeout", return_value=faked_ritual_timeout):
         # fake timeout only needed for initialization
-        active_ritual_tracker = ActiveRitualTracker(operator=ursula)
+        active_ritual_tracker = DkgRitualTracker(operator=ursula)
 
     now = maya.now()
 
@@ -633,7 +633,7 @@ def test_get_participation_state_purge_expired_cache_entries(
     # modify the time that ritual id 2 is processed later on
     def maya_now_for_ritual_2():
         return now.add(
-            seconds=ActiveRitualTracker._PARTICIPATION_STATES_PURGE_INTERVAL / 2
+            seconds=DkgRitualTracker._PARTICIPATION_STATES_PURGE_INTERVAL / 2
         )
 
     with patch.object(
@@ -676,7 +676,7 @@ def test_get_participation_state_purge_expired_cache_entries(
     # fake event for ritual 2
     def maya_now_for_purge_interval():
         return now.add(
-            seconds=ActiveRitualTracker._PARTICIPATION_STATES_PURGE_INTERVAL + 1
+            seconds=DkgRitualTracker._PARTICIPATION_STATES_PURGE_INTERVAL + 1
         )
 
     with patch.object(
@@ -731,7 +731,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     operator.checksum_address = ursula.checksum_address
     operator.coordinator_agent = ursula.coordinator_agent
 
-    active_ritual_tracker = ActiveRitualTracker(operator=operator)
+    active_ritual_tracker = DkgRitualTracker(operator=operator)
 
     block_number = 17692417  # random block number - value doesn't matter
 
@@ -947,7 +947,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
 
 
 def verify_non_participation_flow(
-    active_ritual_tracker: ActiveRitualTracker,
+    active_ritual_tracker: DkgRitualTracker,
     event_data: AttributeDict,
 ):
     ritual_id = event_data.args.ritualId
@@ -969,7 +969,7 @@ def verify_non_participation_flow(
 
 
 def verify_participation_flow(
-    active_ritual_tracker: ActiveRitualTracker,
+    active_ritual_tracker: DkgRitualTracker,
     event_data: AttributeDict,
     expected_posted_transcript: bool,
     expected_posted_aggregate: bool,
@@ -1031,7 +1031,7 @@ def check_event_args_match_latest_event_inputs(event: ContractEvent, args_dict: 
 
 
 def check_participation_state(
-    participation_state: ActiveRitualTracker.ParticipationState,
+    participation_state: DkgRitualTracker.DkgParticipationState,
     expected_participating: bool = False,
     expected_already_posted_transcript: bool = False,
     expected_already_posted_aggregate: bool = False,

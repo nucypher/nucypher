@@ -871,9 +871,17 @@ class SigningCoordinatorAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def is_cohort_signer(self, cohort_id: int, signer: ChecksumAddress) -> bool:
+    def is_signer(self, cohort_id: int, signer: ChecksumAddress) -> bool:
         result = self.contract.functions.isSigner(cohort_id, signer).call()
         return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_signer(
+        self, cohort_id: int, provider: ChecksumAddress
+    ) -> SigningCoordinator.SigningCohortParticipant:
+        data = self.contract.functions.getSigner(cohort_id, provider).call()
+        participant = next(iter(SigningCoordinator.SigningCohort.make_signers([data])))
+        return participant
 
     @contract_api(CONTRACT_CALL)
     def get_signing_cohort(
