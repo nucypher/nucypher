@@ -142,6 +142,19 @@ class IfThenElseConditionDict(_AccessControlCondition):
 
 
 #
+# ECDSACondition represents:
+# {
+#     "message": [bytes | str]
+#     "signature": str
+#     "verifyingKey": str
+# }
+class ECDSAConditionDict(_AccessControlCondition):
+    message: Union[bytes, str]
+    signature: str
+    verifyingKey: str
+
+
+#
 # ConditionDict is a dictionary of:
 # - TimeCondition
 # - RPCCondition
@@ -152,6 +165,7 @@ class IfThenElseConditionDict(_AccessControlCondition):
 # - JWTCondition
 # - SequentialCondition
 # - IfThenElseCondition
+# - ECDSACondition
 ConditionDict = Union[
     TimeConditionDict,
     RPCConditionDict,
@@ -163,6 +177,7 @@ ConditionDict = Union[
     SequentialConditionDict,
     IfThenElseConditionDict,
     AddressAllowlistConditionDict,
+    ECDSAConditionDict,
 ]
 
 
