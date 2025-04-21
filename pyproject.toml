@@ -36,6 +36,7 @@ nucypher-snaptime = "^0.2.5"
 # TODO: this is to match requirements.txt; update and relock for 7.6.x
 python-statemachine = "==2.3.4"
 pydantic = "~2.11.0"  # TODO 2.12; there some issue - 'pydantic_core._pydantic_core.ValidationInfo' object has no attribute 'manifest'
+ecdsa = "^0.19.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = '*'
