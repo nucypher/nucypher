@@ -35,6 +35,7 @@ nucypher-pychalk = "^2.0.2"
 nucypher-snaptime = "^0.2.5"
 # TODO: this is to match requirements.txt; update and relock for 7.6.x
 python-statemachine = "==2.3.4"
+ecdsa = "^0.19.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = '*'
