@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Union
 import maya
 from atxm.exceptions import InsufficientFunds
 from atxm.tx import AsyncTx, FaultedTx, FinalizedTx, FutureTx, PendingTx
+from eth_abi import encode
 from eth_typing import ChecksumAddress
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
@@ -48,10 +49,15 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
 )
-from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
+from nucypher.blockchain.eth.models import (
+    PHASE1,
+    PHASE2,
+    Coordinator,
+    SigningCoordinator,
+)
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.trackers import dkg
+from nucypher.blockchain.eth.trackers import dkg, signing
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import (
     get_healthy_default_rpc_endpoints,
@@ -243,6 +249,9 @@ class Operator(BaseActor):
 
         # track active onchain rituals
         self.ritual_tracker = dkg.DkgRitualTracker(
+            operator=self,
+        )
+        self.signing_ritual_tracker = signing.SigningRitualTracker(
             operator=self,
         )
 
@@ -755,6 +764,68 @@ class Operator(BaseActor):
         if total >= ritual.dkg_size:
             self.log.debug(f"DKG ritual #{ritual.id} should now be finalized")
 
+        return async_tx
+
+    def _is_post_signature_action_required(self, cohort_id: int) -> bool:
+        status = self.signing_coordinator_agent.get_signing_cohort_status(cohort_id)
+        if status != SigningCoordinator.RitualStatus.AWAITING_SIGNATURES:
+            # This is a normal state when replaying/syncing historical
+            # blocks that contain StartRitual events of pending or completed rituals.
+            self.log.debug(
+                f"cohort #{cohort_id} is not waiting for signatures; status={status}."
+            )
+            return False
+
+        participant = self.signing_coordinator_agent.get_signer(
+            cohort_id=cohort_id, provider=self.staking_provider_address
+        )
+        if participant.signature:
+            # This is a normal state, as the node may have already submitted a signature
+            # for this cohort, and it's not necessary to submit another one. Carry on.
+            self.log.debug(
+                f"Node {self.transacting_power.account} has already posted a signature for cohort {cohort_id}."
+            )
+            return False
+
+        return True
+
+    def perform_post_signature(
+        self,
+        cohort_id: int,
+        authority: ChecksumAddress,
+        participants: List[ChecksumAddress],
+        timestamp: int,
+    ):
+        if self.checksum_address not in participants:
+            message = (
+                f"{self.checksum_address}|{self.wallet_address} "
+                f"is not a member of cohort {cohort_id}"
+            )
+            stack_trace = traceback.format_stack()
+            self.log.critical(f"{message}\n{stack_trace}")
+            return
+
+        if not self._is_post_signature_action_required(cohort_id=cohort_id):
+            self.log.debug(f"No action required for cohort {cohort_id}.")
+            return
+
+        data = encode(["uint32", "address"], [cohort_id, authority])
+        digest = Web3.keccak(data)
+        signature = self.transacting_power.sign_message(digest, standardize=False)
+
+        # TODO add async tx hooks
+        async_tx_hooks = BlockchainInterface.AsyncTxHooks(
+            on_broadcast_failure=None,
+            on_fault=None,
+            on_finalized=None,
+            on_insufficient_funds=None,
+        )
+        async_tx = self.signing_coordinator_agent.post_signature(
+            cohort_id=cohort_id,
+            signature=signature,
+            transacting_power=self.transacting_power,
+            async_tx_hooks=async_tx_hooks,
+        )
         return async_tx
 
     def produce_decryption_share(

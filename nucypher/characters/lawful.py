@@ -922,6 +922,10 @@ class Ursula(Teacher, Character, Operator):
             if emitter:
                 emitter.message("✓ DKG Ritual Tracking", color="green")
 
+            self.signing_ritual_tracker.start()
+            if emitter:
+                emitter.message("✓ Signing Ritual Tracking", color="green")
+
         if block_until_ready:
             # Sets (staker's) checksum address; Prevent worker startup before bonding
             self.block_until_ready()
