@@ -224,7 +224,6 @@ def test_transcript_publication(coordinator_agent, cohort, ritual_id, dkg_size):
             )
             > 0
         ), "no transcript found for ursula"
-        print(f"Ursula {ursula.checksum_address} has submitted a transcript")
 
 
 def test_get_participants(coordinator_agent, cohort, ritual_id, dkg_size):
