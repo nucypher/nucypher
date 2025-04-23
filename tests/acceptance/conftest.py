@@ -8,6 +8,7 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
+    SigningCoordinatorAgent,
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
@@ -435,6 +436,17 @@ def coordinator_agent(testerchain, test_registry):
         blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
     return coordinator
+
+
+@pytest.fixture(scope="module", autouse=True)
+def signing_coordinator_agent(testerchain, test_registry):
+    """Creates a coordinator agent"""
+    signing_coordinator = ContractAgency.get_agent(
+        SigningCoordinatorAgent,
+        registry=test_registry,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
+    )
+    return signing_coordinator
 
 
 @pytest.fixture(scope="module", autouse=True)
