@@ -1027,7 +1027,7 @@ class SigningCoordinatorAgent(EthereumContractAgent):
         self,
         cohort_id: int,
     ) -> SigningCoordinator.SigningCohort:
-        result = self.contract.functions.signing_cohorts(int(cohort_id)).call()
+        result = self.contract.functions.signingCohorts(int(cohort_id)).call()
         signing_cohort = SigningCoordinator.SigningCohort(
             id=cohort_id,
             initiator=ChecksumAddress(result[0]),
@@ -1081,9 +1081,7 @@ class SigningCoordinatorAgent(EthereumContractAgent):
     ) -> AsyncTx:
         # See sprints/#145
         contract_function: ContractFunction = (
-            self.contract.functions.postSigningCohortSignature(
-                cohortId=cohort_id, signature=signature
-            )
+            self.contract.functions.postSigningCohortSignature(cohort_id, signature)
         )
         async_tx = self.blockchain.send_async_transaction(
             contract_function=contract_function,
