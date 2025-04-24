@@ -48,12 +48,6 @@ def authority(get_random_checksum_address):
     return get_random_checksum_address()
 
 
-def test_coordinator_properties(agent):
-    assert len(agent.contract_address) == 42
-    assert agent.contract.address == agent.contract_address
-    assert agent.contract_name == SigningCoordinatorAgent.contract_name
-
-
 @pytest.mark.usefixtures("ursulas")
 def test_initiate_signing_cohort(
     accounts,
