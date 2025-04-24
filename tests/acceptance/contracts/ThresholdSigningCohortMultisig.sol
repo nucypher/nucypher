@@ -2,7 +2,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract ThresholdSigningMultisig is IERC1271, Ownable {
+contract ThresholdSigningCohortMultisig is IERC1271, Ownable {
     using ECDSA for bytes32;
 
     event Executed(address indexed sender, uint256 indexed nonce, address indexed destination, uint256 value);

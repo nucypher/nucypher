@@ -88,6 +88,7 @@ def signer_address_from_uncompressed_bytes(uncompressed_bytes):
 def point_to_bytes(point):
     return point[0].to_bytes(32, "big") + point[1].to_bytes(32, "big")
 
+
 @pytest.fixture
 def signing_cohort(ursulas):
     cohort = ursulas[:COHORT_SIZE]
@@ -98,7 +99,7 @@ def signing_cohort(ursulas):
 def multisig_contract_wallet(project, deployer_account, signing_cohort):
     owners = [ursula.operator_address for ursula in signing_cohort]
     _multisig_contract_wallet = deployer_account.deploy(
-        project.ThresholdSigningMultisig, owners, COHORT_THRESHOLD
+        project.ThresholdSigningCohortMultisig, owners, COHORT_THRESHOLD
     )
 
     # transfer some funds into smart contract wallet
@@ -456,7 +457,6 @@ def test_jwt_issuance(
         # Purely for testing purposes - but the payload_64 should always be the same for all signers
         # already set, ensure consistency
         assert jws_json["payload"] == payload_64
-
 
         # to be returned from node
         # TODO used the jwcrypto library just to generate this JWK in a dictionary form from pem

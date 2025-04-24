@@ -241,15 +241,37 @@ def coordinator(
 
 
 @pytest.fixture(scope="module")
+def threshold_signing_multisig(nucypher_dependency, deployer_account):
+    contract = nucypher_dependency.ThresholdSigningMultisig.deploy(
+        sender=deployer_account,
+    )
+    return contract
+
+
+@pytest.fixture(scope="module")
+def threshold_signing_multisig_clone_factory(
+    nucypher_dependency, deployer_account, threshold_signing_multisig
+):
+    contract = nucypher_dependency.ThresholdSigningMultisigCloneFactory.deploy(
+        threshold_signing_multisig.address,
+        sender=deployer_account,
+    )
+
+    return contract
+
+
+@pytest.fixture(scope="module")
 def signing_coordinator(
     oz_dependency,
     nucypher_dependency,
     deployer_account,
     taco_child_application,
+    threshold_signing_multisig_clone_factory,
 ):
     _signing_coordinator = deployer_account.deploy(
         nucypher_dependency.SigningCoordinator,
         taco_child_application.address,
+        threshold_signing_multisig_clone_factory,
     )
 
     encoded_initializer_function = _signing_coordinator.initialize.encode_input(
