@@ -99,7 +99,10 @@ def signing_cohort(ursulas):
 def multisig_contract_wallet(project, deployer_account, signing_cohort):
     owners = [ursula.operator_address for ursula in signing_cohort]
     _multisig_contract_wallet = deployer_account.deploy(
-        project.ThresholdSigningCohortMultisig, owners, COHORT_THRESHOLD
+        project.ThresholdSigningCohortMultisig
+    )
+    _multisig_contract_wallet.initialize(
+        owners, COHORT_THRESHOLD, deployer_account.address, sender=deployer_account
     )
 
     # transfer some funds into smart contract wallet
