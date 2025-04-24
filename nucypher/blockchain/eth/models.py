@@ -184,6 +184,7 @@ class SigningCoordinator:
         total_signatures: int
         num_signers: int
         threshold: int
+        multisig: ChecksumAddress
         signers: List = field(default_factory=list)
 
         @staticmethod
@@ -200,11 +201,13 @@ class SigningCoordinator:
     @dataclass
     class SigningCohortParticipant:
         provider: ChecksumAddress
+        operator: ChecksumAddress
         signature: bytes = bytes()
 
         @classmethod
         def from_data(cls, data: list):
             return cls(
                 provider=ChecksumAddress(data[0]),
-                signature=bytes(data[1]),
+                operator=ChecksumAddress(data[1]),
+                signature=bytes(data[2]),
             )

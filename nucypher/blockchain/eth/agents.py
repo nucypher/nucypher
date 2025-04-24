@@ -898,6 +898,7 @@ class SigningCoordinatorAgent(EthereumContractAgent):
             total_signatures=result[4],
             num_signers=result[5],
             threshold=result[6],
+            multisig=result[7],
             signers=[],  # solidity does not return sub-structs
         )
         signing_cohort.signers = list(self._get_signers(cohort_id=cohort_id))
