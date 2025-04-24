@@ -16,7 +16,7 @@ def client(ursula):
 def test_ursula_html_renders(ursula, client):
     response = client.get('/')
     assert response.status_code == 404
-    response = client.get('/status/')
+    response = client.get("/status")
     assert response.status_code == 200
     assert b"<!DOCTYPE html>" in response.data
     assert ursula.checksum_address.encode() in response.data
@@ -25,8 +25,8 @@ def test_ursula_html_renders(ursula, client):
 
 @pytest.mark.parametrize('omit_known_nodes', [False, True])
 def test_json_status_endpoint(ursula, client, omit_known_nodes):
-    omit_known_nodes_str = 'true' if omit_known_nodes else 'false'
-    response = client.get(f'/status/?json=true&omit_known_nodes={omit_known_nodes_str}')
+    omit_known_nodes_str = "true" if omit_known_nodes else "false"
+    response = client.get(f"/status?json=true&omit_known_nodes={omit_known_nodes_str}")
     assert response.status_code == 200
     json_status = response.get_json()
     status = ursula.status_info(omit_known_nodes=omit_known_nodes)
