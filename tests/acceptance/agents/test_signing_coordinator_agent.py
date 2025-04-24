@@ -17,7 +17,7 @@ def agent(signing_coordinator_agent) -> SigningCoordinatorAgent:
 
 @pytest.mark.usefixtures("ursulas")
 @pytest.fixture(scope="module")
-def cohort(staking_providers):
+def cohort_providers(staking_providers):
     # "ursulas" fixture is needed to set provider public key
     deployer, cohort_provider_1, cohort_provider_2, *everybody_else = staking_providers
     cohort_providers = [cohort_provider_1, cohort_provider_2]
@@ -26,9 +26,9 @@ def cohort(staking_providers):
 
 
 @pytest.fixture(scope="module")
-def cohort_ursulas(cohort, taco_application_agent):
+def cohort_operators(cohort_providers, taco_application_agent):
     ursulas_for_cohort = []
-    for provider in cohort:
+    for provider in cohort_providers:
         operator = taco_application_agent.get_operator_from_staking_provider(provider)
         ursulas_for_cohort.append(operator)
 
@@ -36,10 +36,10 @@ def cohort_ursulas(cohort, taco_application_agent):
 
 
 @pytest.fixture(scope="module")
-def transacting_powers(accounts, cohort_ursulas):
+def transacting_powers(accounts, cohort_operators):
     return [
         TransactingPower(account=ursula, signer=accounts.get_account_signer(ursula))
-        for ursula in cohort_ursulas
+        for ursula in cohort_operators
     ]
 
 
@@ -52,7 +52,7 @@ def authority(get_random_checksum_address):
 def test_initiate_signing_cohort(
     accounts,
     agent,
-    cohort,
+    cohort_providers,
     authority,
     transacting_powers,
     testerchain,
@@ -65,8 +65,8 @@ def test_initiate_signing_cohort(
 
     receipt = agent.initiate_signing_cohort(
         authority=authority,
-        providers=cohort,
-        threshold=len(cohort) // 2 + 1,
+        providers=cohort_providers,
+        threshold=len(cohort_providers) // 2 + 1,
         duration=duration,
         transacting_power=initiator.transacting_power,
     )
@@ -75,7 +75,7 @@ def test_initiate_signing_cohort(
         receipt
     )
     assert initiate_event[0]["args"]["authority"] == authority
-    assert initiate_event[0]["args"]["participants"] == cohort
+    assert initiate_event[0]["args"]["participants"] == cohort_providers
 
     number_of_cohorts = agent.number_of_cohorts()
     assert number_of_cohorts == 1
@@ -83,7 +83,7 @@ def test_initiate_signing_cohort(
 
     signing_cohort = agent.get_signing_cohort(cohort_id)
     assert signing_cohort.authority == authority
-    assert [p.provider for p in signing_cohort.signers] == cohort
+    assert [p.provider for p in signing_cohort.signers] == cohort_providers
 
     assert (
         agent.get_signing_cohort_status(cohort_id=cohort_id)
@@ -92,9 +92,18 @@ def test_initiate_signing_cohort(
 
 
 @pytest_twisted.inlineCallbacks
-@pytest.mark.usefixtures("cohort_ursulas")
+@pytest.mark.usefixtures()
 def test_post_signature(
-    accounts, agent, transacting_powers, authority, testerchain, clock, mock_async_hooks
+    accounts,
+    agent,
+    transacting_powers,
+    authority,
+    cohort_providers,
+    cohort_operators,
+    testerchain,
+    clock,
+    mock_async_hooks,
+    nucypher_dependency,
 ):
     cohort_id = agent.number_of_cohorts() - 1
 
@@ -145,11 +154,22 @@ def test_post_signature(
     assert mock_async_hooks.on_fault.call_count == 0
     assert mock_async_hooks.on_insufficient_funds.call_count == 0
 
-    cohort = agent.get_signing_cohort(cohort_id)
-    assert [s.signature for s in cohort.signers] == signatures
-
     assert (
         agent.get_signing_cohort_status(cohort_id=cohort_id)
         == SigningCoordinator.RitualStatus.ACTIVE
     )
     assert agent.is_cohort_active(cohort_id=cohort_id)
+
+    signing_cohort = agent.get_signing_cohort(cohort_id)
+    for i, signer in enumerate(signing_cohort.signers):
+        assert signer.provider == cohort_providers[i]
+        assert signer.operator == cohort_operators[i]
+        assert signer.signature == signatures[i]
+
+    # check deployed multisig
+    deployed_multisig = nucypher_dependency.ThresholdSigningMultisig.at(
+        signing_cohort.multisig
+    )
+    assert deployed_multisig.getSigners() == cohort_operators
+    assert deployed_multisig.threshold() == len(cohort_operators) // 2 + 1
+    assert deployed_multisig.owner() == authority
