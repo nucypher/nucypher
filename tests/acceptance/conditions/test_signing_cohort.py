@@ -126,7 +126,10 @@ def test_simple_data_message_signing(
     received_signatures = []
 
     # random sample from cohort
-    cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+    cohort_sample = sorted(
+        random.sample(signing_cohort, COHORT_THRESHOLD),
+        key=lambda x: x.operator_address,
+    )
     for ursula in cohort_sample:
         signature_bytes = ursula_sign_data(accounts, ursula, signable_message)
         received_signatures.append(signature_bytes)
@@ -169,7 +172,10 @@ def test_simple_tx_signing(
     received_signatures = []
 
     # use random sample from cohort for signing
-    cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+    cohort_sample = sorted(
+        random.sample(signing_cohort, COHORT_THRESHOLD),
+        key=lambda x: x.operator_address,
+    )
     for ursula in cohort_sample:
         signature_bytes = ursula_sign_raw_hash(accounts, ursula, tx_hash)
         received_signatures.append(signature_bytes)
@@ -216,7 +222,10 @@ def test_saved_data_message_signing(
     received_signatures = []
 
     # random sample from cohort
-    cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+    cohort_sample = sorted(
+        random.sample(signing_cohort, COHORT_THRESHOLD),
+        key=lambda x: x.operator_address,
+    )
 
     for ursula in cohort_sample:
         signature_bytes = ursula_sign_data(accounts, ursula, signable_message)
@@ -267,7 +276,10 @@ def test_cohort_handover(
     received_signatures = []
 
     # random sample from cohort
-    cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+    cohort_sample = sorted(
+        random.sample(signing_cohort, COHORT_THRESHOLD),
+        key=lambda x: x.operator_address,
+    )
 
     for ursula in cohort_sample:
         signature_bytes = ursula_sign_data(accounts, ursula, signable_message)
@@ -336,7 +348,9 @@ def test_cohort_handover(
 
     # new signers can sign
     new_signatures = []
-    new_cohort_sample = random.sample(new_cohort, COHORT_THRESHOLD)
+    new_cohort_sample = sorted(
+        random.sample(new_cohort, COHORT_THRESHOLD), key=lambda x: x.operator_address
+    )
     for ursula in new_cohort_sample:
         signature_bytes = ursula_sign_data(accounts, ursula, new_signable_message)
         new_signatures.append(signature_bytes)
@@ -361,7 +375,10 @@ def test_on_chain_random_number_generation(
 
         request_hash = receipt.events[0]["requestHash"]
 
-        cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+        cohort_sample = sorted(
+            random.sample(signing_cohort, COHORT_THRESHOLD),
+            key=lambda x: x.operator_address,
+        )
         for ursula in cohort_sample:
             randomness, proof = ursula_generate_vrf_randomness(
                 accounts, ursula, request_hash
@@ -403,7 +420,10 @@ def test_on_chain_token_issuance(
 
     # submit signatures
     aggregated_signature = b""
-    cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+    cohort_sample = sorted(
+        random.sample(signing_cohort, COHORT_THRESHOLD),
+        key=lambda x: x.operator_address,
+    )
     for ursula in cohort_sample:
         signature_bytes = ursula_sign_raw_hash(accounts, ursula, request_hash)
         multisig_contract_wallet.approveTokenIssuance(
@@ -448,7 +468,10 @@ def test_jwt_issuance(
     #
     # Node Signing (node endpoint calls and aggregation by caller)
     #
-    cohort_sample = random.sample(signing_cohort, COHORT_THRESHOLD)
+    cohort_sample = sorted(
+        random.sample(signing_cohort, COHORT_THRESHOLD),
+        key=lambda x: x.operator_address,
+    )
     for ursula in cohort_sample:
         # ursulas would check before signing:
         # - check that allowedSigners is correct for cohort ID
