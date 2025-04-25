@@ -176,13 +176,26 @@ def test_simple_tx_signing(
 
     aggregated_signature = b"".join(received_signatures)
 
-    # should fail
+    # should fail - invalid signature
     with pytest.raises(ContractLogicError):
         multisig_contract_wallet.execute(
             receiver.address,
             eth_amount,
             b"",
             os.urandom(len(aggregated_signature)),
+            sender=deployer_account,
+        )
+    # (t-1) signatures are valid but the last signature is invalid -> still invalid
+    signature_size = len(received_signatures[0])
+    not_full_valid_signature = aggregated_signature[:-signature_size] + os.urandom(
+        signature_size
+    )
+    with pytest.raises(ContractLogicError):
+        multisig_contract_wallet.execute(
+            receiver.address,
+            eth_amount,
+            b"",
+            not_full_valid_signature,
             sender=deployer_account,
         )
 
@@ -234,6 +247,14 @@ def test_saved_data_message_signing(
     assert (
         multisig_contract_wallet.isValidSignature(message_hash, aggregated_signatures)
         == EIP1271Auth.MAGIC_VALUE_BYTES
+    )
+
+    # still invalid if incorrect signature provided for cached message
+    assert (
+        multisig_contract_wallet.isValidSignature(
+            message_hash, os.urandom(len(aggregated_signatures))
+        )
+        != EIP1271Auth.MAGIC_VALUE_BYTES
     )
 
 
@@ -289,13 +310,12 @@ def test_cohort_handover(
         == EIP1271Auth.MAGIC_VALUE_BYTES
     )
 
-    # signature is ignored since old signature was saved
-    # TODO: is this correct?
+    # signature not ignored since old signature was saved
     assert (
         multisig_contract_wallet.isValidSignature(
             message_hash, os.urandom(len(aggregated_signatures))
         )
-        == EIP1271Auth.MAGIC_VALUE_BYTES
+        != EIP1271Auth.MAGIC_VALUE_BYTES
     )
 
     new_data = "Labor omnia vincit."
