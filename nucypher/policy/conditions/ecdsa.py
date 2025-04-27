@@ -8,6 +8,7 @@ from marshmallow import ValidationError, fields, post_load, validate, validates
 
 from nucypher.policy.conditions.base import AccessControlCondition, ExecutionCall
 from nucypher.policy.conditions.context import (
+    USER_ADDRESS_CONTEXT,
     is_context_variable,
     resolve_any_context_variables,
 )
@@ -68,30 +69,42 @@ class ECDSAVerificationCall(ExecutionCall):
         super().__init__()
 
     def execute(self, **context) -> bool:
-        # Resolve any variables from context
-        message = resolve_any_context_variables(self.message, **context)
-        signature_b64 = resolve_any_context_variables(self.signature, **context)
-
-        # Ensure message is bytes
-        if isinstance(message, str):
-            message = message.encode("utf-8")
-
-        # Decode the base64 signature
         try:
-            signature = base64.b64decode(signature_b64)
-        except Exception as e:
-            self.logger.error(f"Error decoding signature: {e}")
-            return False
+            # Special handling for USER_ADDRESS_CONTEXT if it's provided directly as bytes or string
+            if self.message == USER_ADDRESS_CONTEXT and USER_ADDRESS_CONTEXT in context:
+                message = context[USER_ADDRESS_CONTEXT]
+                # Direct use of the message if it's already bytes or string
+                if isinstance(message, (bytes, str)):
+                    if isinstance(message, str):
+                        message = message.encode("utf-8")
+                else:
+                    # Fallback to normal resolution for complex objects
+                    message = resolve_any_context_variables(self.message, **context)
+            else:
+                # Normal resolution for other cases
+                message = resolve_any_context_variables(self.message, **context)
 
-        # Load the verifying key
-        try:
-            verifying_key = VerifyingKey.from_pem(self.verifying_key.encode())
-        except Exception as e:
-            self.logger.error(f"Error loading verifying key: {e}")
-            return False
+            signature_b64 = resolve_any_context_variables(self.signature, **context)
 
-        # Verify the signature
-        try:
+            # Ensure message is bytes
+            if isinstance(message, str):
+                message = message.encode("utf-8")
+
+            # Decode the base64 signature
+            try:
+                signature = base64.b64decode(signature_b64)
+            except Exception as e:
+                self.logger.error(f"Error decoding signature: {e}")
+                return False
+
+            # Load the verifying key
+            try:
+                verifying_key = VerifyingKey.from_pem(self.verifying_key.encode())
+            except Exception as e:
+                self.logger.error(f"Error loading verifying key: {e}")
+                return False
+
+            # Verify the signature
             return verifying_key.verify(
                 signature=signature,
                 data=message,

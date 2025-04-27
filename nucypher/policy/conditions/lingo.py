@@ -127,6 +127,20 @@ class ConditionType(Enum):
         return [condition.value for condition in cls]
 
 
+class Operator(Enum):
+    """
+    Defines the logical operators that can be used in compound conditions.
+    """
+
+    AND = "and"
+    OR = "or"
+    NOT = "not"
+
+    @classmethod
+    def values(cls) -> List[str]:
+        return [op.value for op in cls]
+
+
 class CompoundAccessControlCondition(MultiConditionAccessControl):
     """
     A combination of two or more conditions connected by logical operators such as AND, OR, NOT.
@@ -142,11 +156,11 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         }
     """
 
-    AND_OPERATOR = "and"
-    OR_OPERATOR = "or"
-    NOT_OPERATOR = "not"
+    AND_OPERATOR = Operator.AND.value
+    OR_OPERATOR = Operator.OR.value
+    NOT_OPERATOR = Operator.NOT.value
 
-    OPERATORS = (AND_OPERATOR, OR_OPERATOR, NOT_OPERATOR)
+    OPERATORS = tuple(Operator.values())
     CONDITION_TYPE = ConditionType.COMPOUND.value
 
     @classmethod
