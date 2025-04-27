@@ -327,14 +327,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         - data_to_sign: The data to be signed
         - condition: Condition lingo for authorization (can be a compound of ECDSA and JSON API conditions)
         - context: Context variables for the condition lingo
-        - proof_type: The type of proof
-        - proof: The proof data
-        - signature: Signature of the proof
         """
         try:
             signing_request = ThresholdSignatureRequest.from_bytes(request.data)
 
-            # Evaluate condition if provided
+            # Handle condition evaluation if condition is present
             if signing_request.condition:
                 try:
                     # Load the condition lingo
@@ -381,13 +378,17 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 except ConditionEvalError as e:
                     return Response(e.message, status=e.status_code)
 
-            # Handle the signing request after condition verification
+            # After condition verification, handle the signing request
+            # Note we're passing just cohort_id, data_to_sign, and signature (no condition)
+            signature = (
+                signing_request.signature
+                if hasattr(signing_request, "signature")
+                else None
+            )
+
+            # Handle the signing request
             signing_response = this_node.handle_threshold_signing_request(
-                signing_request.cohort_id,
-                signing_request.data_to_sign,
-                signing_request.proof_type,
-                signing_request.proof,
-                signing_request.signature,
+                signing_request.cohort_id, signing_request.data_to_sign, signature
             )
 
             return Response(
@@ -428,16 +429,12 @@ class ThresholdSignatureRequest:
         cohort_id: int,
         condition: Optional[bytes] = None,
         context: Optional[bytes] = None,
-        proof_type: Optional[str] = None,
-        proof: Optional[bytes] = None,
         signature: Optional[bytes] = None,
     ):
         self.data_to_sign = data_to_sign
         self.cohort_id = cohort_id
         self.condition = condition
         self.context = context
-        self.proof_type = proof_type
-        self.proof = proof
         self.signature = signature
 
     @staticmethod
@@ -454,8 +451,6 @@ class ThresholdSignatureRequest:
             bytes(HexBytes(result["condition"])) if "condition" in result else None
         )
         context = bytes(HexBytes(result["context"])) if "context" in result else None
-        proof_type = result.get("proof_type")
-        proof = bytes(HexBytes(result["proof"])) if "proof" in result else None
         signature = (
             bytes(HexBytes(result["signature"])) if "signature" in result else None
         )
@@ -465,7 +460,5 @@ class ThresholdSignatureRequest:
             cohort_id=cohort_id,
             condition=condition,
             context=context,
-            proof_type=proof_type,
-            proof=proof,
             signature=signature,
         )
