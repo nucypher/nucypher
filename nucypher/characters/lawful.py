@@ -705,6 +705,118 @@ class Bob(Character):
         cleartext = threshold_message_kit.decrypt_with_shared_secret(shared_secret)
         return cleartext
 
+    def handle_threshold_signing_request(
+        self, cohort_id: int, data_to_sign: bytes, signature: bytes = None
+    ) -> bytes:
+        """
+        Handle a request to generate a threshold signature.
+
+        Args:
+            cohort_id: ID of the signing cohort
+            data_to_sign: Data to be signed
+            signature: Optional signature to authenticate the request
+
+        Returns:
+            bytes: The signature share for this Ursula
+
+        Raises:
+            UnauthorizedRequest: If the request is not properly authorized
+        """
+        # Verify this Ursula is part of the requested cohort
+        if not self.is_signing_cohort_member(cohort_id):
+            raise self.UnauthorizedRequest(
+                f"Not a member of signing cohort {cohort_id}"
+            )
+
+        # Verify authentication signature if provided
+        if signature and not self.verify_request_signature(data_to_sign, signature):
+            raise self.UnauthorizedRequest("Invalid authentication signature")
+
+        # Generate the signature share
+        signature_share = self.generate_signature_share(cohort_id, data_to_sign)
+
+        return signature_share
+
+    def handle_threshold_signature_request(
+        self, cohort_id: int, data_to_sign: bytes, signature: bytes = None
+    ) -> bytes:
+        """
+        Implementation of threshold signature request handling.
+
+        Args:
+            cohort_id: ID of the signing cohort
+            data_to_sign: Data to be signed
+            signature: Optional signature to authenticate the request
+
+        Returns:
+            bytes: The signature share for this node
+        """
+        # Verify this node is part of the requested cohort
+        if not self.is_signing_cohort_member(cohort_id):
+            raise self.UnauthorizedRequest(
+                f"Not a member of signing cohort {cohort_id}"
+            )
+
+        # Verify authentication signature if provided
+        if signature and not self.verify_request_signature(data_to_sign, signature):
+            raise self.UnauthorizedRequest("Invalid authentication signature")
+
+        # Generate the signature share
+        signature_share = self.generate_signature_share(cohort_id, data_to_sign)
+
+        return signature_share
+
+    def is_signing_cohort_member(self, cohort_id: int) -> bool:
+        """
+        Check if this Ursula is a member of the specified signing cohort.
+
+        Args:
+            cohort_id: ID of the signing cohort
+
+        Returns:
+            bool: True if this Ursula is a member of the cohort
+        """
+        # In a production implementation, this would check against cohort records
+        # For now, this is a simplified check that always returns True
+        # TODO: Implement actual cohort membership verification
+        return True
+
+    def verify_request_signature(self, data: bytes, signature: bytes) -> bool:
+        """
+        Verify that a signature is valid for the given data.
+
+        Args:
+            data: The data that was signed
+            signature: The signature to verify
+
+        Returns:
+            bool: True if the signature is valid
+        """
+        # TODO: Implement proper signature verification
+        # This would typically verify the signature against a known public key
+        return True
+
+    def generate_signature_share(self, cohort_id: int, data: bytes) -> bytes:
+        """
+        Generate a signature share for the given cohort and data.
+
+        Uses the node's TransactingPower to create an Ethereum-compatible signature for the data.
+
+        Args:
+            cohort_id: ID of the signing cohort
+            data: Data to be signed
+
+        Returns:
+            bytes: The signature share for this Ursula
+        """
+        # Create a unique message by combining the data with the cohort ID
+        # The keccak_digest is necessary to create a fixed-length message hash
+        message_to_sign = keccak_digest(data + str(cohort_id).encode())
+
+        # Use TransactingPower to sign the message
+        signature = self.transacting_power.sign_message(message=message_to_sign)
+        return bytes(signature)
+
 
 class Ursula(Teacher, Character, Operator):
     banner = URSULA_BANNER
@@ -1292,10 +1404,6 @@ class Ursula(Teacher, Character, Operator):
         )
         return encrypted_response
 
-    def handle_threshold_signature_request(
-        self, cohort_id: int, data_to_sign: bytes, condition: bytes, signature: bytes
-    ) -> bytes:
-        pass
 
 class LocalUrsulaStatus(NamedTuple):
     nickname: Nickname
