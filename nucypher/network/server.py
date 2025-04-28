@@ -31,10 +31,10 @@ from nucypher.policy.conditions.utils import (
     ConditionEvalError,
     evaluate_condition_lingo,
 )
+from nucypher.types import ThresholdSignatureRequest
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import get_global_source_ipv4
 
-# Prometheus metrics
 DECRYPTION_REQUESTS_SUCCESSES = Counter(
     "threshold_decryption_num_successes",
     "Number of threshold decryption successes",
@@ -319,76 +319,60 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route("/sign", methods=["POST"])
     def threshold_sign():
-        """
-        An endpoint that handles threshold signing requests.
-
-        The request includes:
-        - cohort_id: ID of the signing cohort
-        - data_to_sign: The data to be signed
-        - condition: Condition lingo for authorization (can be a compound of ECDSA and JSON API conditions)
-        - context: Context variables for the condition lingo
-        """
+        """An endpoint that handles threshold signing requests."""
         try:
             signing_request = ThresholdSignatureRequest.from_bytes(request.data)
+        except ValueError as e:
+            # this line is hit when the ThresholdSignatureRequest is an old version
+            # ValueError: Failed to deserialize: differing major version: expected 3, got 1
+            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
-            # Handle condition evaluation if condition is present
-            if signing_request.condition:
-                try:
-                    # Load the condition lingo
-                    condition_lingo_json = signing_request.condition.decode()
+        try:
+            # Load the condition lingo
+            condition_lingo_json = signing_request.condition.decode()
 
-                    try:
-                        condition_lingo = ConditionLingo.from_json(condition_lingo_json)
-                    except (
-                        InvalidConditionLingo,
-                        json.JSONDecodeError,
-                        Exception,
-                    ) as e:
-                        log.error(f"Failed to load condition lingo: {e}")
-                        return Response(
-                            f"Invalid condition lingo: {e}",
-                            status=HTTPStatus.BAD_REQUEST,
-                        )
+            try:
+                condition_lingo = ConditionLingo.from_json(condition_lingo_json)
+            except (
+                InvalidConditionLingo,
+                json.JSONDecodeError,
+                Exception,
+            ) as e:
+                log.error(f"Failed to load condition lingo: {e}")
+                return Response(
+                    f"Invalid condition lingo: {e}",
+                    status=HTTPStatus.BAD_REQUEST,
+                )
 
-                    # Get the context from the request
-                    context = (
-                        json.loads(signing_request.context.decode())
-                        if signing_request.context
-                        else {}
-                    )
-
-                    # Evaluate the condition
-                    try:
-                        # Evaluate the condition with the provided context and this node's providers
-                        is_authorized = condition_lingo.eval(
-                            providers=this_node.condition_provider_manager, **context
-                        )
-
-                        if not is_authorized:
-                            return Response(
-                                "Condition not satisfied",
-                                status=HTTPStatus.UNAUTHORIZED,
-                            )
-                    except Exception as e:
-                        log.error(f"Error evaluating condition: {e}")
-                        return Response(
-                            f"Error evaluating condition: {e}",
-                            status=HTTPStatus.INTERNAL_SERVER_ERROR,
-                        )
-                except ConditionEvalError as e:
-                    return Response(e.message, status=e.status_code)
-
-            # After condition verification, handle the signing request
-            # Note we're passing just cohort_id, data_to_sign, and signature (no condition)
-            signature = (
-                signing_request.signature
-                if hasattr(signing_request, "signature")
-                else None
+            # Get the context from the request
+            context = (
+                json.loads(signing_request.context.decode())
+                if signing_request.context
+                else {}
             )
+
+            # Evaluate the condition
+            try:
+                # Evaluate the condition with the provided context and this node's providers
+                is_authorized = condition_lingo.eval(
+                    providers=this_node.condition_provider_manager, **context
+                )
+
+                if not is_authorized:
+                    return Response(
+                        "Condition not satisfied",
+                        status=HTTPStatus.UNAUTHORIZED,
+                    )
+            except Exception as e:
+                log.error(f"Error evaluating condition: {e}")
+                return Response(
+                    f"Error evaluating condition: {e}",
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
 
             # Handle the signing request
             signing_response = this_node.handle_threshold_signing_request(
-                signing_request.cohort_id, signing_request.data_to_sign, signature
+                signing_request.data_to_sign
             )
 
             return Response(
@@ -420,45 +404,3 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
     return rest_app
-
-
-class ThresholdSignatureRequest:
-    def __init__(
-        self,
-        data_to_sign: bytes,
-        cohort_id: int,
-        condition: Optional[bytes] = None,
-        context: Optional[bytes] = None,
-        signature: Optional[bytes] = None,
-    ):
-        self.data_to_sign = data_to_sign
-        self.cohort_id = cohort_id
-        self.condition = condition
-        self.context = context
-        self.signature = signature
-
-    @staticmethod
-    def from_bytes(request_data: bytes):
-        # Deserialize the request data
-        result = json.loads(request_data.decode())
-
-        # Extract required fields
-        data_to_sign = bytes(HexBytes(result["data_to_sign"]))
-        cohort_id = result["cohort_id"]
-
-        # Extract optional fields
-        condition = (
-            bytes(HexBytes(result["condition"])) if "condition" in result else None
-        )
-        context = bytes(HexBytes(result["context"])) if "context" in result else None
-        signature = (
-            bytes(HexBytes(result["signature"])) if "signature" in result else None
-        )
-
-        return ThresholdSignatureRequest(
-            data_to_sign=data_to_sign,
-            cohort_id=cohort_id,
-            condition=condition,
-            context=context,
-            signature=signature,
-        )
