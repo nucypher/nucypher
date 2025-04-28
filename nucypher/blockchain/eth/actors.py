@@ -974,6 +974,35 @@ class Operator(BaseActor):
         )
         return encrypted_response
 
+    def handle_threshold_signing_request(
+        self, cohort_id: int, data_to_sign: bytes
+    ) -> bytes:
+        if not self.is_signing_cohort_member(cohort_id):
+            raise self.UnauthorizedRequest(
+                f"Not a member of signing cohort {cohort_id}"
+            )
+        signature_share = self.generate_signature_share(data_to_sign)
+        return signature_share
+
+    def is_signing_cohort_member(self, cohort_id: int) -> bool:
+        """Check if this Ursula is a member of the specified signing cohort."""
+        cohort = self.signing_coordinator_agent.get_signing_cohort(
+            cohort_id=cohort_id,
+            provider=self.staking_provider_address,
+        )
+        for member in cohort.signers:
+            if member == self.staking_provider_address:
+                return True
+        return False
+
+    def generate_signature_share(self, data: bytes) -> bytes:
+        """
+        Generate a signature share for the given cohort and data.
+        Uses the node's TransactingPower to create an Ethereum-compatible signature for the data.
+        """
+        signature = self.transacting_power.sign_message(message=data)
+        return bytes(signature)
+
     def _local_operator_address(self):
         return self.__operator_address
 
