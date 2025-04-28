@@ -997,6 +997,7 @@ class Ursula(Teacher, Character, Operator):
             self.stop_learning_loop()
             self._operator_bonded_tracker.stop()
             self.ritual_tracker.stop()
+            self.signing_ritual_tracker.stop()
             if self._prometheus_metrics_tracker:
                 self._prometheus_metrics_tracker.stop()
         if halt_reactor:
@@ -1261,7 +1262,10 @@ class Ursula(Teacher, Character, Operator):
             previous_fleet_states=previous_fleet_states,
             known_nodes=known_nodes_info,
             balance_eth=balance_eth,
-            block_height=self.ritual_tracker.scanner.get_last_scanned_block(),
+            block_height=max(
+                self.ritual_tracker.scanner.get_last_scanned_block(),
+                self.signing_ritual_tracker.scanner.get_last_scanned_block(),
+            ),
             ferveo_public_key=bytes(self.public_keys(RitualisticPower)).hex(),
         )
 
