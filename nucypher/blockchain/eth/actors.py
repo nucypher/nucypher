@@ -9,7 +9,6 @@ from typing import Dict, List, Optional, Union
 import maya
 from atxm.exceptions import InsufficientFunds
 from atxm.tx import AsyncTx, FaultedTx, FinalizedTx, FutureTx, PendingTx
-from eth_abi import encode
 from eth_typing import ChecksumAddress
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
@@ -795,7 +794,7 @@ class Operator(BaseActor):
         authority: ChecksumAddress,
         participants: List[ChecksumAddress],
         timestamp: int,
-    ):
+    ) -> Optional[AsyncTx]:
         if self.checksum_address not in participants:
             message = (
                 f"{self.checksum_address}|{self.wallet_address} "
@@ -809,9 +808,10 @@ class Operator(BaseActor):
             self.log.debug(f"No action required for cohort {cohort_id}.")
             return
 
-        data = encode(["uint32", "address"], [cohort_id, authority])
-        digest = Web3.keccak(data)
-        signature = self.transacting_power.sign_message(digest, standardize=False)
+        data_hash = self.signing_coordinator_agent.get_signing_cohort_data_hash(
+            cohort_id
+        )
+        signature = self.transacting_power.sign_message(data_hash, standardize=False)
 
         # TODO add async tx hooks
         async_tx_hooks = BlockchainInterface.AsyncTxHooks(
