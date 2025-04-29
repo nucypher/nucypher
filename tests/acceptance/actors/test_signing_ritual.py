@@ -40,10 +40,21 @@ def cohort(testerchain, clock, signing_coordinator_agent, ursulas, dkg_size):
     return nodes
 
 
+# TODO figure out why I can't do this in conftest.py
+@pytest.fixture(scope="module")
+def ritual_initiator(initiator, signing_coordinator, deployer_account):
+    signing_coordinator.grantRole(
+        signing_coordinator.INITIATOR_ROLE(),
+        initiator.transacting_power.account,
+        sender=deployer_account,
+    )
+    return initiator
+
+
 def test_signing_cohort_initiation(
     signing_coordinator_agent,
     accounts,
-    initiator,
+    ritual_initiator,
     cohort,
     testerchain,
     cohort_id,
@@ -53,11 +64,11 @@ def test_signing_cohort_initiation(
     cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
 
     receipt = signing_coordinator_agent.initiate_signing_cohort(
-        authority=initiator.transacting_power.account,
+        authority=ritual_initiator.transacting_power.account,
         providers=cohort_staking_provider_addresses,
         threshold=len(cohort_staking_provider_addresses) - 1,
         duration=duration,
-        transacting_power=initiator.transacting_power,
+        transacting_power=ritual_initiator.transacting_power,
     )
 
     testerchain.time_travel(seconds=1)
@@ -101,10 +112,29 @@ def test_signature_publication(signing_coordinator_agent, cohort, cohort_id, dkg
         ), "no signature found for ursula"
 
 
-def test_get_signers(signing_coordinator_agent, cohort, cohort_id, dkg_size):
+def test_get_signers(
+    nucypher_dependency,
+    signing_coordinator_agent,
+    cohort,
+    cohort_id,
+    dkg_size,
+    ritual_initiator,
+):
     signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
     for i, signer in enumerate(signing_cohort.signers):
         assert signer.provider == cohort[i].checksum_address
         assert signer.signature
 
     assert len(signing_cohort.signers) == dkg_size
+
+    # check deployed multisig
+    expected_multisig_address = signing_cohort.multisig
+
+    cohort_multisig = nucypher_dependency.ThresholdSigningMultisig.at(
+        expected_multisig_address
+    )
+    operator_addresses = [u.operator_address for u in cohort]
+
+    assert cohort_multisig.getSigners() == operator_addresses
+    assert cohort_multisig.threshold() == len(cohort) - 1
+    assert cohort_multisig.owner() == ritual_initiator.transacting_power.account
