@@ -105,8 +105,8 @@ def initiator(testerchain, alice, ritual_token, deployer_account):
 def nucypher_dependency(project):
     nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
     # simply use first entry - could be from github ('main') or local ('local')
-    _, nucypher_dependency = list(nucypher_contracts_dependency_api.items())[0]
-    return nucypher_dependency
+    _, _nucypher_dependency = list(nucypher_contracts_dependency_api.items())[0]
+    return _nucypher_dependency
 
 
 @pytest.fixture(scope="session", autouse=True)
