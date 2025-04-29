@@ -48,6 +48,17 @@ def authority(get_random_checksum_address):
     return get_random_checksum_address()
 
 
+# TODO figure out why I can't do this in conftest.py
+@pytest.fixture(scope="module")
+def ritual_initiator(initiator, signing_coordinator, deployer_account):
+    signing_coordinator.grantRole(
+        signing_coordinator.INITIATOR_ROLE(),
+        initiator.transacting_power.account,
+        sender=deployer_account,
+    )
+    return initiator
+
+
 @pytest.mark.usefixtures("ursulas")
 def test_initiate_signing_cohort(
     accounts,
@@ -56,7 +67,7 @@ def test_initiate_signing_cohort(
     authority,
     transacting_powers,
     testerchain,
-    initiator,
+    ritual_initiator,
 ):
     number_of_cohorts = agent.number_of_cohorts()
     assert number_of_cohorts == 0
@@ -68,7 +79,7 @@ def test_initiate_signing_cohort(
         providers=cohort_providers,
         threshold=len(cohort_providers) // 2 + 1,
         duration=duration,
-        transacting_power=initiator.transacting_power,
+        transacting_power=ritual_initiator.transacting_power,
     )
     assert receipt["status"] == 1
     initiate_event = agent.contract.events.InitiateSigningCohort().process_receipt(
