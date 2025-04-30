@@ -3,11 +3,9 @@ import weakref
 from http import HTTPStatus
 from ipaddress import AddressValueError
 from pathlib import Path
-from typing import Optional
 
 from constant_sorrow import constants
 from flask import Flask, Response, jsonify, request
-from hexbytes import HexBytes
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from nucypher_core import (
