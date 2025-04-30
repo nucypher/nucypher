@@ -20,13 +20,13 @@ class PhaseId(NamedTuple):
 
 class ThresholdSignatureRequest:
     """TODO: Implement this in nucypher_core"""
+
     def __init__(
         self,
         data_to_sign: bytes,
         cohort_id: int,
         condition: bytes,
         context: bytes,
-
     ):
         self.data_to_sign = data_to_sign
         self.cohort_id = cohort_id
