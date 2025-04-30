@@ -986,21 +986,17 @@ class Operator(BaseActor):
 
     def is_signing_cohort_member(self, cohort_id: int) -> bool:
         """Check if this Ursula is a member of the specified signing cohort."""
-        cohort = self.signing_coordinator_agent.get_signing_cohort(
-            cohort_id=cohort_id,
-            provider=self.staking_provider_address,
+        result = self.signing_coordinator_agent.is_signer(
+            cohort_id=cohort_id, signer=self.staking_provider_address
         )
-        for member in cohort.signers:
-            if member == self.staking_provider_address:
-                return True
-        return False
+        return result
 
     def generate_signature_share(self, data: bytes) -> bytes:
         """
         Generate a signature share for the given cohort and data.
         Uses the node's TransactingPower to create an Ethereum-compatible signature for the data.
         """
-        signature = self.transacting_power.sign_message(message=data)
+        signature = self.transacting_power.sign_message(message=data, standardize=False)
         return bytes(signature)
 
     def _local_operator_address(self):
