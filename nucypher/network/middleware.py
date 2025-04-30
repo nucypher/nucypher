@@ -270,3 +270,20 @@ class RestMiddleware:
             data=bytes(request),
         )
         return response
+
+    def request_signature(
+        self,
+        ursula: "Ursula",
+        signing_request_bytes: bytes,
+        timeout: int = None,
+    ) -> Response:
+        """
+        Send a request to an Ursula node to get a threshold signature share.
+        """
+        response = self.client.post(
+            node_or_sprout=ursula,
+            path="sign",
+            data=signing_request_bytes,
+            timeout=timeout,
+        )
+        return response
