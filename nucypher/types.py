@@ -33,6 +33,16 @@ class ThresholdSignatureRequest:
         self.condition = condition
         self.context = context
 
+    def __bytes__(self) -> bytes:
+        """Serialize the request to bytes in JSON format."""
+        data = {
+            "data_to_sign": self.data_to_sign.hex(),
+            "cohort_id": self.cohort_id,
+            "condition": self.condition.hex(),
+            "context": self.context.hex(),
+        }
+        return json.dumps(data).encode()
+
     @staticmethod
     def from_bytes(request_data: bytes):
         result = json.loads(request_data.decode())

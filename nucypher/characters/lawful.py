@@ -1,6 +1,7 @@
 import contextlib
 import json
 import time
+from http import HTTPStatus
 from queue import Queue
 from typing import (
     Any,
@@ -1342,9 +1343,11 @@ class Enrico:
         self,
         encrypting_key: Union[PublicKey, DkgPublicKey],
         signer: Optional[Signer] = None,
+        network_middleware: Optional[RestMiddleware] = None,
     ):
         self.signer = signer
         self._encrypting_key = encrypting_key
+        self.network_middleware = network_middleware or RestMiddleware()
         self.log = Logger(f"{self.__class__.__name__}-{encrypting_key}")
         self.log.info(self.banner.format(encrypting_key))
 
