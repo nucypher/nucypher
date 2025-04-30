@@ -1,7 +1,11 @@
 import pytest
 import pytest_twisted
+from eth_account.messages import defunct_hash_message
+from web3 import Web3
 
 from nucypher.blockchain.eth.models import SigningCoordinator
+from nucypher.policy.conditions.auth.evm import EIP1271Auth
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 
 
 @pytest.fixture(scope="module")
@@ -138,3 +142,40 @@ def test_get_signers(
     assert cohort_multisig.getSigners() == operator_addresses
     assert cohort_multisig.threshold() == len(cohort) - 1
     assert cohort_multisig.owner() == ritual_initiator.transacting_power.account
+
+
+@pytest_twisted.inlineCallbacks
+def test_signing_request_fulfilment(
+    mocker,
+    bob,
+    accounts,
+    signing_coordinator_agent,
+    initiator,
+    cohort_id,
+    cohort,
+    time_condition,
+    nucypher_dependency
+):
+    print("==================== SIGNING REQUEST ====================")
+    bob.start_learning_loop(now=True)
+    data_to_sign = b"test_data"
+    signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
+    signatures = yield bob.request_threshold_signatures(
+        data_to_sign=data_to_sign,
+        cohort_id=cohort_id,
+        conditions=ConditionLingo(time_condition).to_dict(),
+        ursulas=cohort,
+        threshold=signing_cohort.threshold,
+    )
+    assert len(signatures) >= signing_cohort.threshold
+    multisig = nucypher_dependency.ThresholdSigningMultisig.at(
+        signing_cohort.multisig
+    )
+    result = multisig.isValidSignature(
+        defunct_hash_message(data_to_sign),
+        b''.join(signatures),
+    )
+    magic_value = EIP1271Auth.MAGIC_VALUE_BYTES
+    assert result == magic_value, f"Invalid signature: {result} != {magic_value}"
+    print("===================== SIGNING SUCCESSFUL =====================")
+    yield

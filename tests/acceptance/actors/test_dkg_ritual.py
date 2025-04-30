@@ -312,7 +312,7 @@ def test_authorized_decryption(
         key=lambda ursula_checksum: latency_stats[ursula_checksum],
     )
     value_factory_spy = mocker.spy(
-        ThresholdDecryptionClient.ThresholdDecryptionRequestFactory, "__init__"
+        ThresholdDecryptionClient.RequestFactory, "__init__"
     )
 
     # ritual_id, ciphertext, conditions are obtained from the side channel
