@@ -370,7 +370,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
             # Handle the signing request
             signing_response = this_node.handle_threshold_signing_request(
-                signing_request.data_to_sign
+                cohort_id=signing_request.cohort_id,
+                data_to_sign=signing_request.data_to_sign
             )
 
             return Response(

@@ -25,7 +25,7 @@ class ThresholdSignatureRequest:
         self,
         data_to_sign: bytes,
         cohort_id: int,
-        condition: bytes,
+        condition: bytes,  # TODO: remove this
         context: bytes,
     ):
         self.data_to_sign = data_to_sign
@@ -57,3 +57,19 @@ class ThresholdSignatureRequest:
             condition=condition,
             context=context,
         )
+
+
+class ThresholdSignatureResponse:
+
+    def __init__(self, data: bytes):
+        self.data = data
+
+    def __bytes__(self) -> bytes:
+        """Serialize the response to bytes in JSON format."""
+        return self.data
+
+    @staticmethod
+    def from_bytes(response_data: bytes):
+        """Deserialize the response from bytes in JSON format."""
+        return ThresholdSignatureResponse(data=response_data)
+
