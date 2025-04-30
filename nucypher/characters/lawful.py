@@ -119,6 +119,7 @@ from nucypher.utilities.prometheus.metrics import (
     PrometheusMetricsConfig,
     start_prometheus_exporter,
 )
+from nucypher.types import ThresholdSignatureRequest
 
 
 class Alice(Character, actors.PolicyAuthor):
@@ -1406,3 +1407,67 @@ class Enrico:
                 "This Enrico doesn't know which policy encrypting key he used.  Oh well."
             )
         return self._encrypting_key
+
+    def request_threshold_signature(
+        self,
+        data_to_sign: bytes,
+        cohort_id: int,
+        conditions: Optional[Lingo] = None,
+        context: Optional[dict] = None,
+        ursulas: Optional[List["Ursula"]] = None,
+        timeout: int = 30,
+    ) -> bytes:
+        """
+        Request a threshold signature from a cohort of Ursulas.
+
+        Args:
+            data_to_sign: The data to be signed
+            cohort_id: ID of the signing cohort
+            conditions: Optional conditions that must be satisfied for signing
+            context: Optional context for condition evaluation
+            ursulas: Optional list of specific Ursulas to request signatures from
+            timeout: Timeout for signature request in seconds
+
+        Returns:
+            The aggregated threshold signature
+        """
+        if conditions:
+            condition_lingo = ConditionLingo.from_dict(conditions)
+            conditions_json = condition_lingo.to_json()
+        else:
+            conditions_json = "{}"
+
+        # Create the signing request
+        signing_request = ThresholdSignatureRequest(
+            data_to_sign=data_to_sign,
+            cohort_id=cohort_id,
+            condition=conditions_json.encode(),
+            context=json.dumps(context).encode() if context else b"",
+        )
+
+        # Track successful signatures and failures
+        signatures = {}
+        failures = {}
+
+        # Request signatures from each Ursula
+        for ursula in ursulas:
+            try:
+                response = self.network_middleware.request_signature(
+                    ursula=ursula,
+                    signing_request_bytes=bytes(signing_request),
+                    timeout=timeout,
+                )
+                if response.status_code == HTTPStatus.OK:
+                    signatures[ursula.checksum_address] = response.content
+                else:
+                    failures[ursula.checksum_address] = f"HTTP {response.status_code}: {response.content}"
+            except Exception as e:
+                failures[ursula.checksum_address] = str(e)
+
+        # Check if we got enough signatures
+        if not signatures:
+            raise RuntimeError(f"No signatures collected. Failures: {failures}")
+
+        # Aggregate signatures
+        aggregated_signature = b"".join(signatures.values())
+        return aggregated_signature
