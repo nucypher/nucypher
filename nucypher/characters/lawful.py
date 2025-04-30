@@ -101,7 +101,7 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.crypto.utils import keccak_digest
-from nucypher.network.decryption import ThresholdDecryptionClient
+from nucypher.network.decryption import ThresholdDecryptionClient, ThresholdSigningClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, Teacher
@@ -648,6 +648,51 @@ class Bob(Character):
         agent = self._get_coordinator_agent()
         ritual = agent.get_ritual(ritual_id, transcripts=False)
         return ritual
+
+    def request_threshold_signatures(
+        self,
+        data_to_sign: bytes,
+        cohort_id: int,
+        ursulas: List["Ursula"],
+        conditions: Lingo,
+        threshold: int,
+        context: Optional[dict] = None,
+        timeout: int = 30,
+    ) -> List[bytes]:
+        """
+        Request a threshold signature from a cohort of Ursulas.
+        """
+        # TODO: remove this (conditions wil be on chain)
+        condition_lingo = ConditionLingo.from_dict(conditions)
+        conditions_json = condition_lingo.to_json()
+
+        # Create the signing request
+        signing_requests = {}
+        for ursula in ursulas:
+            signing_request = ThresholdSignatureRequest(
+                data_to_sign=data_to_sign,
+                cohort_id=cohort_id,
+                condition=conditions_json.encode(),
+                context=json.dumps(context).encode() if context else b"",
+            )
+            signing_requests[ursula.staking_provider_address] = signing_request
+
+        signing_client = ThresholdSigningClient(learner=self)
+        successes, failures = signing_client.gather_signatures(
+            signing_requests=signing_requests,
+            threshold=threshold,
+            timeout=timeout,
+        )
+
+        if len(successes) < threshold:
+            raise Ursula.NotEnoughUrsulas(
+                f"Threshold of Ursulas unable to sign: {failures}"
+            )
+
+        # Aggregate signatures
+        sorted_successes = sorted(successes.values(), key=lambda t: to_checksum_address(t[0]))
+        signatures = [s[1].data for s in sorted_successes]
+        return signatures
 
     def threshold_decrypt(
         self,
@@ -1343,11 +1388,9 @@ class Enrico:
         self,
         encrypting_key: Union[PublicKey, DkgPublicKey],
         signer: Optional[Signer] = None,
-        network_middleware: Optional[RestMiddleware] = None,
     ):
         self.signer = signer
         self._encrypting_key = encrypting_key
-        self.network_middleware = network_middleware or RestMiddleware()
         self.log = Logger(f"{self.__class__.__name__}-{encrypting_key}")
         self.log.info(self.banner.format(encrypting_key))
 
@@ -1411,66 +1454,3 @@ class Enrico:
             )
         return self._encrypting_key
 
-    def request_threshold_signature(
-        self,
-        data_to_sign: bytes,
-        cohort_id: int,
-        conditions: Optional[Lingo] = None,
-        context: Optional[dict] = None,
-        ursulas: Optional[List["Ursula"]] = None,
-        timeout: int = 30,
-    ) -> bytes:
-        """
-        Request a threshold signature from a cohort of Ursulas.
-
-        Args:
-            data_to_sign: The data to be signed
-            cohort_id: ID of the signing cohort
-            conditions: Optional conditions that must be satisfied for signing
-            context: Optional context for condition evaluation
-            ursulas: Optional list of specific Ursulas to request signatures from
-            timeout: Timeout for signature request in seconds
-
-        Returns:
-            The aggregated threshold signature
-        """
-        if conditions:
-            condition_lingo = ConditionLingo.from_dict(conditions)
-            conditions_json = condition_lingo.to_json()
-        else:
-            conditions_json = "{}"
-
-        # Create the signing request
-        signing_request = ThresholdSignatureRequest(
-            data_to_sign=data_to_sign,
-            cohort_id=cohort_id,
-            condition=conditions_json.encode(),
-            context=json.dumps(context).encode() if context else b"",
-        )
-
-        # Track successful signatures and failures
-        signatures = {}
-        failures = {}
-
-        # Request signatures from each Ursula
-        for ursula in ursulas:
-            try:
-                response = self.network_middleware.request_signature(
-                    ursula=ursula,
-                    signing_request_bytes=bytes(signing_request),
-                    timeout=timeout,
-                )
-                if response.status_code == HTTPStatus.OK:
-                    signatures[ursula.checksum_address] = response.content
-                else:
-                    failures[ursula.checksum_address] = f"HTTP {response.status_code}: {response.content}"
-            except Exception as e:
-                failures[ursula.checksum_address] = str(e)
-
-        # Check if we got enough signatures
-        if not signatures:
-            raise RuntimeError(f"No signatures collected. Failures: {failures}")
-
-        # Aggregate signatures
-        aggregated_signature = b"".join(signatures.values())
-        return aggregated_signature
