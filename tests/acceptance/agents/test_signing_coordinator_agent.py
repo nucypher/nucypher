@@ -8,6 +8,7 @@ from web3 import Web3
 from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
 from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.conditions.lingo import ConditionLingo
 
 
 @pytest.fixture(scope="module")
@@ -173,12 +174,12 @@ def test_post_signature(
     assert not agent.is_cohort_active(cohort_id=cohort_id)
 
     # submit condition
-    time_condition_bytes = time_condition.to_json().encode("utf-8")
+    condition_lingo = ConditionLingo(time_condition)
     authority_transacting_power = TransactingPower(
         account=authority, signer=accounts.get_account_signer(authority)
     )
     agent.set_signing_cohort_conditions(
-        cohort_id, time_condition_bytes, transacting_power=authority_transacting_power
+        cohort_id, condition_lingo, transacting_power=authority_transacting_power
     )
     assert (
         agent.get_signing_cohort_status(cohort_id=cohort_id)

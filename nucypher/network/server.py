@@ -1,4 +1,6 @@
 import json
+import sys
+import traceback
 import weakref
 from http import HTTPStatus
 from ipaddress import AddressValueError
@@ -23,8 +25,6 @@ from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions.exceptions import InvalidConditionLingo
-from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import (
     ConditionEvalError,
     evaluate_condition_lingo,
@@ -320,58 +320,9 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         """An endpoint that handles threshold signing requests."""
         try:
             signing_request = ThresholdSignatureRequest.from_bytes(request.data)
-        except ValueError as e:
-            # this line is hit when the ThresholdSignatureRequest is an old version
-            # ValueError: Failed to deserialize: differing major version: expected 3, got 1
-            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
-
-        try:
-            # Load the condition lingo
-            condition_lingo_json = signing_request.condition.decode()
-
-            try:
-                condition_lingo = ConditionLingo.from_json(condition_lingo_json)
-            except (
-                InvalidConditionLingo,
-                json.JSONDecodeError,
-                Exception,
-            ) as e:
-                log.error(f"Failed to load condition lingo: {e}")
-                return Response(
-                    f"Invalid condition lingo: {e}",
-                    status=HTTPStatus.BAD_REQUEST,
-                )
-
-            # Get the context from the request
-            context = (
-                json.loads(signing_request.context.decode())
-                if signing_request.context
-                else {}
-            )
-
-            # Evaluate the condition
-            try:
-                # Evaluate the condition with the provided context and this node's providers
-                is_authorized = condition_lingo.eval(
-                    providers=this_node.condition_provider_manager, **context
-                )
-
-                if not is_authorized:
-                    return Response(
-                        "Condition not satisfied",
-                        status=HTTPStatus.UNAUTHORIZED,
-                    )
-            except Exception as e:
-                log.error(f"Error evaluating condition: {e}")
-                return Response(
-                    f"Error evaluating condition: {e}",
-                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
-                )
-
             # Handle the signing request
             signing_response = this_node.handle_threshold_signing_request(
-                cohort_id=signing_request.cohort_id,
-                data_to_sign=signing_request.data_to_sign
+                signing_request=signing_request
             )
 
             return Response(
@@ -379,9 +330,16 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 status=HTTPStatus.OK,
                 mimetype="application/octet-stream",
             )
+        except ConditionEvalError as e:
+            return Response(e.message, status=e.status_code)
         except this_node.UnauthorizedRequest as e:
             return Response(str(e), status=HTTPStatus.UNAUTHORIZED)
+        except ValueError as e:
+            # this line is hit when the ThresholdSignatureRequest is an old version
+            # ValueError: Failed to deserialize: differing major version: expected 3, got 1
+            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
         except Exception as e:
+            traceback.print_exc(file=sys.stdout)
             return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     @rest_app.route("/health", methods=["GET"])

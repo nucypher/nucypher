@@ -5,6 +5,7 @@ from eth_account.messages import defunct_hash_message
 from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.types import ThresholdSignatureRequest
 
 
 @pytest.fixture(scope="module")
@@ -107,9 +108,11 @@ def test_signing_cohort_finality(
     testerchain.tx_machine.stop()
     assert not testerchain.tx_machine.running
 
+    on_chain_condition_lingo = ConditionLingo(time_condition)
+
     signing_coordinator_agent.set_signing_cohort_conditions(
         cohort_id,
-        time_condition.to_json().encode("utf-8"),
+        on_chain_condition_lingo,
         ritual_initiator.transacting_power,
     )
     assert signing_coordinator_agent.is_cohort_active(cohort_id)
@@ -162,27 +165,28 @@ def test_get_signers(
 
 @pytest_twisted.inlineCallbacks
 def test_signing_request_fulfilment(
-    mocker,
     bob,
     accounts,
     signing_coordinator_agent,
     initiator,
     cohort_id,
     cohort,
-    time_condition,
     nucypher_dependency
 ):
     print("==================== SIGNING REQUEST ====================")
     bob.start_learning_loop(now=True)
     data_to_sign = b"test_data"
-    signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
-    signatures = yield bob.request_threshold_signatures(
+
+    signing_request = ThresholdSignatureRequest(
         data_to_sign=data_to_sign,
         cohort_id=cohort_id,
-        conditions=ConditionLingo(time_condition).to_dict(),
-        ursulas=cohort,
-        threshold=signing_cohort.threshold,
+        context=None,
     )
+    signatures = yield bob.request_threshold_signatures(
+        signing_request=signing_request,
+    )
+
+    signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
     assert len(signatures) >= signing_cohort.threshold
     multisig = nucypher_dependency.ThresholdSigningMultisig.at(
         signing_cohort.multisig
