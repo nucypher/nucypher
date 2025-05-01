@@ -675,7 +675,7 @@ class Bob(Character):
                 condition=conditions_json.encode(),
                 context=json.dumps(context).encode() if context else b"",
             )
-            signing_requests[ursula.staking_provider_address] = signing_request
+            signing_requests[ursula.checksum_address] = signing_request
 
         signing_client = ThresholdSigningClient(learner=self)
         successes, failures = signing_client.gather_signatures(
