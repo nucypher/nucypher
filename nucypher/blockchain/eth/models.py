@@ -173,6 +173,7 @@ class SigningCoordinator:
         TIMEOUT = 2
         ACTIVE = 3
         EXPIRED = 4
+        AWAITING_CONDITIONS = 5
 
     @dataclass
     class SigningCohort:
@@ -185,6 +186,7 @@ class SigningCoordinator:
         num_signers: int
         threshold: int
         multisig: ChecksumAddress
+        conditions: bytes
         signers: List = field(default_factory=list)
 
         @staticmethod
