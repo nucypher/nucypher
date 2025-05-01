@@ -1,7 +1,9 @@
 import json
-from typing import NamedTuple, NewType, TypeVar
+from typing import NamedTuple, NewType, Optional, TypeVar
 
 from hexbytes import HexBytes
+
+from nucypher.policy.conditions.types import ContextDict
 
 ERC20Units = NewType("ERC20Units", int)
 NuNits = NewType("NuNits", ERC20Units)
@@ -25,21 +27,18 @@ class ThresholdSignatureRequest:
         self,
         data_to_sign: bytes,
         cohort_id: int,
-        condition: bytes,  # TODO: remove this
-        context: bytes,
+        context: Optional[ContextDict] = None,
     ):
         self.data_to_sign = data_to_sign
         self.cohort_id = cohort_id
-        self.condition = condition
-        self.context = context
+        self.context = context or {}
 
     def __bytes__(self) -> bytes:
         """Serialize the request to bytes in JSON format."""
         data = {
             "data_to_sign": self.data_to_sign.hex(),
             "cohort_id": self.cohort_id,
-            "condition": self.condition.hex(),
-            "context": self.context.hex(),
+            "context": self.context,
         }
         return json.dumps(data).encode()
 
@@ -48,13 +47,10 @@ class ThresholdSignatureRequest:
         result = json.loads(request_data.decode())
         data_to_sign = bytes(HexBytes(result["data_to_sign"]))
         cohort_id = result["cohort_id"]
-        condition = bytes(HexBytes(result["condition"]))
-        context = bytes(HexBytes(result["context"]))
-
+        context = result["context"]
         return ThresholdSignatureRequest(
             data_to_sign=data_to_sign,
             cohort_id=cohort_id,
-            condition=condition,
             context=context,
         )
 
@@ -72,4 +68,3 @@ class ThresholdSignatureResponse:
     def from_bytes(response_data: bytes):
         """Deserialize the response from bytes in JSON format."""
         return ThresholdSignatureResponse(data=response_data)
-

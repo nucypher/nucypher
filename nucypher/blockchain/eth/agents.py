@@ -63,6 +63,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
 )
 from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import Logger
 
 
@@ -961,10 +962,15 @@ class SigningCoordinatorAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def set_signing_cohort_conditions(
-        self, cohort_id: int, conditions: bytes, transacting_power: TransactingPower
+        self,
+        cohort_id: int,
+        conditions: ConditionLingo,
+        transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = (
-            self.contract.functions.setSigningCohortConditions(cohort_id, conditions)
+            self.contract.functions.setSigningCohortConditions(
+                cohort_id, bytes(conditions)
+            )
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function, transacting_power=transacting_power

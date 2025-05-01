@@ -76,7 +76,7 @@ from nucypher.policy.conditions.utils import (
     evaluate_condition_lingo,
 )
 from nucypher.policy.payment import ContractPayment
-from nucypher.types import PhaseId
+from nucypher.types import PhaseId, ThresholdSignatureRequest
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.warnings import render_ferveo_key_mismatch_warning
@@ -975,21 +975,36 @@ class Operator(BaseActor):
         return encrypted_response
 
     def handle_threshold_signing_request(
-        self, cohort_id: int, data_to_sign: bytes
+        self, signing_request: ThresholdSignatureRequest
     ) -> bytes:
-        if not self.is_signing_cohort_member(cohort_id):
+        if not self.signing_coordinator_agent.is_cohort_active(
+            signing_request.cohort_id
+        ):
             raise self.UnauthorizedRequest(
-                f"Not a member of signing cohort {cohort_id}"
+                f"Cohort #{signing_request.cohort_id} is not active",
             )
-        signature_share = self.generate_signature_share(data_to_sign)
-        return signature_share
 
-    def is_signing_cohort_member(self, cohort_id: int) -> bool:
-        """Check if this Ursula is a member of the specified signing cohort."""
-        result = self.signing_coordinator_agent.is_signer(
-            cohort_id=cohort_id, signer=self.staking_provider_address
+        if not self.signing_coordinator_agent.is_signer(
+            cohort_id=signing_request.cohort_id, signer=self.staking_provider_address
+        ):
+            raise self.UnauthorizedRequest(
+                f"Not a member of signing cohort {signing_request.cohort_id}"
+            )
+
+        signing_cohort = self.signing_coordinator_agent.get_signing_cohort(
+            signing_request.cohort_id
         )
-        return result
+
+        # evaluate condition
+        condition_lingo = json.loads(signing_cohort.conditions.decode())
+        context = signing_request.context
+
+        evaluate_condition_lingo(
+            condition_lingo, self.condition_provider_manager, context
+        )
+
+        signature_share = self.generate_signature_share(signing_request.data_to_sign)
+        return signature_share
 
     def generate_signature_share(self, data: bytes) -> bytes:
         """

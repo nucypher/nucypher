@@ -9,12 +9,12 @@ from nucypher_core import (
 )
 
 from nucypher.network.client import ThresholdAccessControlClient
-from nucypher.types import ThresholdSignatureResponse, ThresholdSignatureRequest
+from nucypher.types import ThresholdSignatureRequest, ThresholdSignatureResponse
 from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 
 
 class NetworkRequestClient(ThresholdAccessControlClient):
-    DEFAULT_DECRYPTION_TIMEOUT = 30
+    DEFAULT_TIMEOUT = 30
     DEFAULT_STAGGER_TIMEOUT = 3
 
     def __init__(self, *args, **kwargs):
@@ -92,7 +92,7 @@ class ThresholdDecryptionClient(NetworkRequestClient):
         self,
         encrypted_requests: Dict[ChecksumAddress, EncryptedThresholdDecryptionRequest],
         threshold: int,
-        timeout: int = NetworkRequestClient.DEFAULT_DECRYPTION_TIMEOUT,
+        timeout: int = NetworkRequestClient.DEFAULT_TIMEOUT,
         stagger_timeout: int = NetworkRequestClient.DEFAULT_STAGGER_TIMEOUT,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
@@ -153,11 +153,11 @@ class ThresholdSigningClient(NetworkRequestClient):
         super().__init__(*args, **kwargs)
 
     def gather_signatures(
-            self,
-            signing_requests: Dict[ChecksumAddress, ThresholdSignatureRequest],
-            threshold: int,
-            timeout: int = NetworkRequestClient.DEFAULT_DECRYPTION_TIMEOUT,
-            stagger_timeout: int = NetworkRequestClient.DEFAULT_STAGGER_TIMEOUT,
+        self,
+        signing_requests: Dict[ChecksumAddress, ThresholdSignatureRequest],
+        threshold: int,
+        timeout: int = NetworkRequestClient.DEFAULT_TIMEOUT,
+        stagger_timeout: int = NetworkRequestClient.DEFAULT_STAGGER_TIMEOUT,
     ) -> Tuple[
         Dict[ChecksumAddress, Tuple[ChecksumAddress, ThresholdSignatureResponse]],
         Dict[ChecksumAddress, str],
