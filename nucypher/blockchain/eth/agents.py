@@ -1038,6 +1038,7 @@ class SigningCoordinatorAgent(EthereumContractAgent):
             num_signers=result[5],
             threshold=result[6],
             multisig=result[7],
+            conditions=result[8],
             signers=[],  # solidity does not return sub-structs
         )
         signing_cohort.signers = list(self._get_signers(cohort_id=cohort_id))
@@ -1097,6 +1098,17 @@ class SigningCoordinatorAgent(EthereumContractAgent):
         )
         return async_tx
 
+    @contract_api(TRANSACTION)
+    def set_signing_cohort_conditions(
+        self, cohort_id: int, conditions: bytes, transacting_power: TransactingPower
+    ) -> TxReceipt:
+        contract_function: ContractFunction = (
+            self.contract.functions.setSigningCohortConditions(cohort_id, conditions)
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
+        return receipt
 
 class ContractAgency:
     """Where agents live and die."""

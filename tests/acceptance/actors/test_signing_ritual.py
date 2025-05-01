@@ -1,11 +1,10 @@
 import pytest
 import pytest_twisted
 from eth_account.messages import defunct_hash_message
-from web3 import Web3
 
 from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
-from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
+from nucypher.policy.conditions.lingo import ConditionLingo
 
 
 @pytest.fixture(scope="module")
@@ -88,16 +87,31 @@ def test_signing_cohort_initiation(
 
 @pytest_twisted.inlineCallbacks
 def test_signing_cohort_finality(
-    signing_coordinator_agent, cohort_id, cohort, clock, interval, testerchain
+    signing_coordinator_agent,
+    cohort_id,
+    cohort,
+    clock,
+    interval,
+    testerchain,
+    ritual_initiator,
+    time_condition,
 ):
     print("==================== AWAITING COHORT FINALITY ====================")
-    while not signing_coordinator_agent.is_cohort_active(cohort_id):
+    while (
+        not signing_coordinator_agent.get_signing_cohort_status(cohort_id)
+        == SigningCoordinator.RitualStatus.AWAITING_CONDITIONS
+    ):
         yield clock.advance(interval)
         yield testerchain.time_travel(seconds=1)
 
     testerchain.tx_machine.stop()
     assert not testerchain.tx_machine.running
 
+    signing_coordinator_agent.set_signing_cohort_conditions(
+        cohort_id,
+        time_condition.to_json().encode("utf-8"),
+        ritual_initiator.transacting_power,
+    )
     assert signing_coordinator_agent.is_cohort_active(cohort_id)
     yield
 
@@ -114,6 +128,8 @@ def test_signature_publication(signing_coordinator_agent, cohort, cohort_id, dkg
             )
             > 0
         ), "no signature found for ursula"
+
+    assert len(signing_coordinator_agent.get_signing_cohort(cohort_id).conditions) > 0
 
 
 def test_get_signers(

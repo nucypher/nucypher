@@ -44,8 +44,8 @@ def transacting_powers(accounts, cohort_operators):
 
 
 @pytest.fixture(scope="module")
-def authority(get_random_checksum_address):
-    return get_random_checksum_address()
+def authority(accounts):
+    return accounts[1].address
 
 
 # TODO figure out why I can't do this in conftest.py
@@ -112,6 +112,7 @@ def test_post_signature(
     cohort_providers,
     cohort_operators,
     testerchain,
+    time_condition,
     clock,
     mock_async_hooks,
     nucypher_dependency,
@@ -165,6 +166,20 @@ def test_post_signature(
     assert mock_async_hooks.on_fault.call_count == 0
     assert mock_async_hooks.on_insufficient_funds.call_count == 0
 
+    assert (
+        agent.get_signing_cohort_status(cohort_id=cohort_id)
+        == SigningCoordinator.RitualStatus.AWAITING_CONDITIONS
+    )
+    assert not agent.is_cohort_active(cohort_id=cohort_id)
+
+    # submit condition
+    time_condition_bytes = time_condition.to_json().encode("utf-8")
+    authority_transacting_power = TransactingPower(
+        account=authority, signer=accounts.get_account_signer(authority)
+    )
+    agent.set_signing_cohort_conditions(
+        cohort_id, time_condition_bytes, transacting_power=authority_transacting_power
+    )
     assert (
         agent.get_signing_cohort_status(cohort_id=cohort_id)
         == SigningCoordinator.RitualStatus.ACTIVE
