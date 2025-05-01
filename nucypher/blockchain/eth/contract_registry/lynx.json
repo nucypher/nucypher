@@ -5767,7 +5767,7 @@
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
         "SigningCoordinator": {
-            "address": "0x3D0f29aC05A629eDa6Fc76E236Db275421a6BABd",
+            "address": "0x7b4b09eE01CBaBF1C498596fDB2cf6dd2A5BEdc4",
             "abi": [
                 {
                     "type": "constructor",
@@ -6070,6 +6070,25 @@
                 },
                 {
                     "type": "event",
+                    "name": "SigningCohortConditionsSet",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "conditions",
+                            "type": "bytes",
+                            "internalType": "bytes",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
                     "name": "SigningCohortSignaturePosted",
                     "inputs": [
                         {
@@ -6304,6 +6323,25 @@
                                 }
                             ],
                             "internalType": "struct SigningCoordinator.SigningCohortParticipant[]"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getSigningCohortConditions",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bytes",
+                            "internalType": "bytes"
                         }
                     ]
                 },
@@ -6625,6 +6663,24 @@
                 },
                 {
                     "type": "function",
+                    "name": "setSigningCohortConditions",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "conditions",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
                     "name": "setTimeout",
                     "stateMutability": "nonpayable",
                     "inputs": [
@@ -6687,6 +6743,11 @@
                             "name": "multisig",
                             "type": "address",
                             "internalType": "address"
+                        },
+                        {
+                            "name": "conditions",
+                            "type": "bytes",
+                            "internalType": "bytes"
                         }
                     ]
                 },
@@ -6736,8 +6797,8 @@
                     ]
                 }
             ],
-            "tx_hash": "0x441180b8cdb217192ee8d44cb34773d8e7cca6605827d74baac56639ced60b7e",
-            "block_number": 21062779,
+            "tx_hash": "0x7d71c68b342bb04ced5104f2cb9ecd61544b79e57b1b9f356cb1fa43b203dc8e",
+            "block_number": 21143196,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
         "StandardSubscription": {
