@@ -113,7 +113,7 @@ class SigningRitualTracker(RitualTracker):
         ritual id; None if node is not participating in the ritual
         """
         is_participant = self.signing_coordinator_agent.is_signer(
-            cohort_id=cohort_id, provider=self.operator.checksum_address
+            cohort_id=cohort_id, provider_address=self.operator.checksum_address
         )
         if is_participant:
             participant = self.signing_coordinator_agent.get_signer(

@@ -985,7 +985,7 @@ class Operator(BaseActor):
             )
 
         if not self.signing_coordinator_agent.is_signer(
-            cohort_id=signing_request.cohort_id, signer=self.staking_provider_address
+            cohort_id=signing_request.cohort_id, provider_address=self.staking_provider_address
         ):
             raise self.UnauthorizedRequest(
                 f"Not a member of signing cohort {signing_request.cohort_id}"
