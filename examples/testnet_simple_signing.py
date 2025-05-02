@@ -89,4 +89,3 @@ assert len(signing_results["signatures"]) >= threshold
 print(
     f"\nSignatures:\n{[base64.b64decode(s[1]) for s in signing_results['signatures'].values()]}"
 )
-

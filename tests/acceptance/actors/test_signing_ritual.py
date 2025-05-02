@@ -171,7 +171,7 @@ def test_signing_request_fulfilment(
     initiator,
     cohort_id,
     cohort,
-    nucypher_dependency
+    nucypher_dependency,
 ):
     print("==================== SIGNING REQUEST ====================")
     bob.start_learning_loop(now=True)
@@ -188,12 +188,10 @@ def test_signing_request_fulfilment(
 
     signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
     assert len(signatures) >= signing_cohort.threshold
-    multisig = nucypher_dependency.ThresholdSigningMultisig.at(
-        signing_cohort.multisig
-    )
+    multisig = nucypher_dependency.ThresholdSigningMultisig.at(signing_cohort.multisig)
     result = multisig.isValidSignature(
         defunct_hash_message(data_to_sign),
-        b''.join(signatures),
+        b"".join(signatures),
     )
     magic_value = EIP1271Auth.MAGIC_VALUE_BYTES
     assert result == magic_value, f"Invalid signature: {result} != {magic_value}"

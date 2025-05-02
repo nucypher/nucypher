@@ -1,10 +1,10 @@
 import os
 from http import HTTPStatus
 from typing import Optional, Sequence, Tuple, Union
-from requests import Response
 
 from constant_sorrow.constants import EXEMPT_FROM_VERIFICATION
 from nucypher_core import FleetStateChecksum, MetadataRequest, NodeMetadata
+from requests import Response
 
 from nucypher import characters
 from nucypher.blockchain.eth.registry import ContractRegistry
@@ -274,7 +274,7 @@ class RestMiddleware:
 
     def request_signature(
         self,
-        ursula: "Ursula",
+        ursula,
         signing_request_bytes: bytes,
         timeout: int = None,
     ) -> Response:

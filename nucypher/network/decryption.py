@@ -34,12 +34,12 @@ class NetworkRequestClient(ThresholdAccessControlClient):
             )
 
     def execute(
-            self,
-            requests: Dict,
-            worker,
-            threshold: int,
-            timeout: int,
-            stagger_timeout: int = DEFAULT_STAGGER_TIMEOUT,
+        self,
+        requests: Dict,
+        worker,
+        threshold: int,
+        timeout: int,
+        stagger_timeout: int = DEFAULT_STAGGER_TIMEOUT,
     ) -> Tuple[Dict, Dict]:
 
         ursulas_to_contact = (
@@ -169,7 +169,7 @@ class ThresholdSigningClient(NetworkRequestClient):
         )
 
         def worker(
-                ursula_address: ChecksumAddress,
+            ursula_address: ChecksumAddress,
         ) -> Tuple[ChecksumAddress, ThresholdSignatureResponse]:
 
             encrypted_request = signing_requests[ursula_address]
@@ -177,12 +177,10 @@ class ThresholdSigningClient(NetworkRequestClient):
             try:
                 node_or_sprout = self._learner.known_nodes[ursula_address]
                 node_or_sprout.mature()
-                response = (
-                    self._learner.network_middleware.request_signature(
-                        ursula=node_or_sprout,
-                        signing_request_bytes=bytes(encrypted_request),
-                        timeout=timeout,
-                    )
+                response = self._learner.network_middleware.request_signature(
+                    ursula=node_or_sprout,
+                    signing_request_bytes=bytes(encrypted_request),
+                    timeout=timeout,
                 )
                 if response.status_code == HTTPStatus.OK:
                     response = ThresholdSignatureResponse.from_bytes(response.content)
