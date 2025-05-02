@@ -24,6 +24,7 @@ constantly==23.10.4 ; python_version >= "3.9" and python_version < "4" and (impl
 cryptography==43.0.3 ; python_version >= "3.9" and python_version < "3.11" and (implementation_name == "cpython" or implementation_name == "pypy")
 cryptography==44.0.2 ; python_version >= "3.11" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 cytoolz==1.0.1 ; python_version >= "3.9" and python_version < "4" and implementation_name == "cpython"
+ecdsa==0.19.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 dateparser==1.2.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 eth-abi==5.2.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 eth-account==0.11.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
