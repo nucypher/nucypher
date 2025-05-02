@@ -30,6 +30,7 @@ print("--------- Threshold Signing Bob ---------")
 
 eth_endpoint = os.environ["DEMO_L1_PROVIDER_URI"]
 polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
+porter_base_url = os.environ["DEMO_PORTER_URI"]
 
 registry = ContractRegistry.from_latest_publication(
     domain=domain,
@@ -59,7 +60,7 @@ print(f"\nSignatures:\n{signatures}")
 
 print("--------- Threshold Signing Porter ---------")
 
-porter_base_url = "http://127.0.0.1:9155"
+
 response = requests.get(f"{porter_base_url}/get_ursulas", params={"quantity": 3})
 response.raise_for_status()
 
