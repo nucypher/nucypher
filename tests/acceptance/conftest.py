@@ -370,7 +370,6 @@ def test_registry(deployed_contracts, module_mocker):
         yield registry
 
 
-@pytest.mark.usefixtures("test_registry")
 @pytest.fixture(scope="module")
 def testerchain(project, clock, accounts) -> TesterBlockchain:
     # Extract the web3 provider containing EthereumTester from the ape project's chain manager
