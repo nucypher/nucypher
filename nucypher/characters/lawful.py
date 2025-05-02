@@ -714,7 +714,9 @@ class Bob(Character):
             )
 
         # Aggregate signatures
-        sorted_successes = sorted(successes.values(), key=lambda t: to_checksum_address(t[0]))
+        sorted_successes = sorted(
+            successes.values(), key=lambda t: to_checksum_address(t[0])
+        )
         signatures = [s[1].data for s in sorted_successes]
         return signatures
 
