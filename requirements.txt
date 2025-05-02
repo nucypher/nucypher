@@ -12,6 +12,7 @@ automat==25.4.16 ; python_version >= "3.9" and python_version < "4"
 bitarray==3.6.1 ; python_version >= "3.9" and python_version < "4"
 blinker==1.9.0 ; python_version >= "3.9" and python_version < "4"
 bytestring-splitter==2.4.1 ; python_version >= "3.9" and python_version < "4"
+cached-property==2.0.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 certifi==2025.8.3 ; python_version >= "3.9" and python_version < "4"
 cffi==1.17.1 ; python_version >= "3.9" and python_version < "4"
 charset-normalizer==3.4.3 ; python_version >= "3.9" and python_version < "4"
