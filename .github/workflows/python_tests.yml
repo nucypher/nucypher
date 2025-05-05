@@ -74,6 +74,9 @@ jobs:
         if: matrix.python-version != '3.12'
         run: python -m pytest tests/integration
 
+      - name: Start SSH session
+        uses: mxschmitt/action-tmate@v3
+
       # Acceptance tests
       - name: Agents Tests (Coverage)
         if: matrix.python-version == '3.12'
