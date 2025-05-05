@@ -34,7 +34,7 @@ jobs:
 
       - id: python_cache
         name: Retrieve Cached Python Dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ env.pythonLocation }}
           key: ${{ runner.os }}-pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('dev-requirements.txt', 'requirements.txt') }}
