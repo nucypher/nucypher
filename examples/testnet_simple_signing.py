@@ -2,6 +2,7 @@ import base64
 import os
 
 import requests
+from hexbytes import HexBytes
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
@@ -17,7 +18,7 @@ GlobalLoggerSettings.start_console_logging()
 domain = domains.LYNX
 
 cohort_id = 0  # got this from a side channel
-threshold = 2
+threshold = 2  # 2-of-3 signing
 
 data_to_sign = b"paz al amanecer"
 signing_request = ThresholdSignatureRequest(
@@ -56,7 +57,8 @@ signatures = bob.request_threshold_signatures(
     signing_request=signing_request,
 )
 
-print(f"\nSignatures:\n{signatures}")
+print("\nData to sign: ", data_to_sign)
+print(f"\nSignatures:\n{[HexBytes(s).hex() for s in signatures]}")
 
 print("--------- Threshold Signing Porter ---------")
 
@@ -86,6 +88,7 @@ assert len(errors) == 0, f"{errors}"  # no errors
 
 assert len(signing_results["signatures"]) >= threshold
 
+print("\nData to sign: ", data_to_sign)
 print(
-    f"\nSignatures:\n{[base64.b64decode(s[1]) for s in signing_results['signatures'].values()]}"
+    f"\nSignatures:\n{[HexBytes(base64.b64decode(s[1])).hex() for s in signing_results['signatures'].values()]}"
 )
