@@ -27,12 +27,14 @@ constant-sorrow==0.1.0a9 ; python_version >= "3.9" and python_version < "4"
 constantly==23.10.4 ; python_version >= "3.9" and python_version < "4"
 coverage==7.10.3 ; python_version >= "3.9" and python_version < "4"
 coverage[toml]==7.10.3 ; python_version >= "3.9" and python_version < "4"
-cryptography==43.0.3 ; python_version >= "3.9" and python_version < "4"
+cryptography==43.0.3 ; python_version >= "3.9" and python_version < "3.11" and (implementation_name == "cpython" or implementation_name == "pypy")
+cryptography==44.0.2 ; python_version >= "3.11" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 cytoolz==1.0.1 ; python_version >= "3.9" and python_version < "4" and implementation_name == "cpython"
 dataclassy==0.11.1 ; python_version >= "3.9" and python_version < "4"
 dateparser==1.2.2 ; python_version >= "3.9" and python_version < "4"
 decorator==5.2.1 ; python_version >= "3.9" and python_version < "4"
 distlib==0.4.0 ; python_version >= "3.9" and python_version < "4"
+ecdsa==0.19.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 eip712==0.2.13 ; python_version >= "3.9" and python_version < "4"
 eth-abi==5.2.0 ; python_version >= "3.9" and python_version < "4"
 eth-account==0.11.3 ; python_version >= "3.9" and python_version < "4"
@@ -68,13 +70,15 @@ ijson==3.4.0 ; python_version >= "3.9" and python_version < "4"
 importlib-metadata==8.7.0 ; python_version >= "3.9" and python_version < "3.10"
 incremental==24.7.2 ; python_version >= "3.9" and python_version < "4"
 iniconfig==2.1.0 ; python_version >= "3.9" and python_version < "4"
-ipython==8.18.1 ; python_version >= "3.9" and python_version < "4"
+ipython==8.18.1 ; python_version >= "3.9" and python_version < "3.11" and (implementation_name == "cpython" or implementation_name == "pypy")
+ipython==8.34.0 ; python_version >= "3.11" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 itsdangerous==2.2.0 ; python_version >= "3.9" and python_version < "4"
 jedi==0.19.2 ; python_version >= "3.9" and python_version < "4"
 jinja2==3.1.6 ; python_version >= "3.9" and python_version < "4"
 jsonpath-ng==1.7.0 ; python_version >= "3.9" and python_version < "4"
 jsonschema-specifications==2025.4.1 ; python_version >= "3.9" and python_version < "4"
 jsonschema==4.25.0 ; python_version >= "3.9" and python_version < "4"
+jwcrypto==1.5.6 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 lazyasd==0.1.4 ; python_version >= "3.9" and python_version < "4"
 lru-dict==1.2.0 ; python_version >= "3.9" and python_version < "4"
 mako==1.3.10 ; python_version >= "3.9" and python_version < "4"

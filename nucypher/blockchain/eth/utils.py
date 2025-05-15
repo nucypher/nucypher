@@ -74,6 +74,41 @@ def get_tx_cost_data(transaction_dict: TxParams):
     return max_cost, max_price_gwei, tx_type
 
 
+def get_block_just_before(w3: Web3, how_far_back: int, sample_window_size=100):
+    """
+    Returns the block number just before a given time from now.
+    """
+    latest_block = w3.eth.get_block("latest")
+    if latest_block.number == 0:
+        return 0
+
+    # get average block time
+    sample_block_number = latest_block.number - sample_window_size
+    if sample_block_number <= 0:
+        return 0
+    base_block = w3.eth.get_block(sample_block_number)
+    average_block_time = (
+        latest_block.timestamp - base_block.timestamp
+    ) / sample_window_size
+
+    number_of_blocks_in_the_past = int(how_far_back / average_block_time)
+
+    expected_start_block = w3.eth.get_block(
+        max(0, latest_block.number - number_of_blocks_in_the_past)
+    )
+    target_timestamp = latest_block.timestamp - how_far_back
+
+    # Keep looking back until we find the last block before the target timestamp
+    while (
+        expected_start_block.number > 0
+        and expected_start_block.timestamp > target_timestamp
+    ):
+        expected_start_block = w3.eth.get_block(expected_start_block.number - 1)
+
+    # if non-zero block found - return the block before
+    return expected_start_block.number - 1 if expected_start_block.number > 0 else 0
+
+
 def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> bool:
     """
     Checks the health of an Ethereum RPC endpoint by comparing the timestamp of the latest block

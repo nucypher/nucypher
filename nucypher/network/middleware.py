@@ -4,6 +4,7 @@ from typing import Optional, Sequence, Tuple, Union
 
 from constant_sorrow.constants import EXEMPT_FROM_VERIFICATION
 from nucypher_core import FleetStateChecksum, MetadataRequest, NodeMetadata
+from requests import Response
 
 from nucypher import characters
 from nucypher.blockchain.eth.registry import ContractRegistry
@@ -268,5 +269,22 @@ class RestMiddleware:
             node_or_sprout=node,
             path="node_metadata",
             data=bytes(request),
+        )
+        return response
+
+    def request_signature(
+        self,
+        ursula,
+        signing_request_bytes: bytes,
+        timeout: int = None,
+    ) -> Response:
+        """
+        Send a request to an Ursula node to get a threshold signature share.
+        """
+        response = self.client.post(
+            node_or_sprout=ursula,
+            path="sign",
+            data=signing_request_bytes,
+            timeout=timeout,
         )
         return response

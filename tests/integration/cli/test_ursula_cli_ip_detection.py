@@ -3,7 +3,7 @@ import shutil
 import pytest
 
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
+from nucypher.blockchain.eth.trackers.rituals import RitualTracker
 from nucypher.cli.commands import ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
@@ -100,7 +100,7 @@ def test_ursula_run_ip_checkup(
 ):
 
     # Mock DKG
-    mocker.patch.object(ActiveRitualTracker, 'start', autospec=True)
+    mocker.patch.object(RitualTracker, "start", autospec=True)
 
     # Mock IP determination
     target = 'nucypher.cli.actions.configure.determine_external_ip_address'

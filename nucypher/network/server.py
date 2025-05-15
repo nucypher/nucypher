@@ -1,4 +1,6 @@
 import json
+import sys
+import traceback
 import weakref
 from http import HTTPStatus
 from ipaddress import AddressValueError
@@ -23,12 +25,11 @@ from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions.exceptions import InvalidConditionLingo
-from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import (
     ConditionEvalError,
     evaluate_condition_lingo,
 )
+from nucypher.types import ThresholdSignatureRequest
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import get_global_source_ipv4
 
@@ -297,7 +298,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             )
         return Response(response=ipv4, status=HTTPStatus.OK)
 
-    @rest_app.route('/status/', methods=['GET'])
+    @rest_app.route("/status", methods=["GET"])
     def status():
         return_json = request.args.get('json') == 'true'
         omit_known_nodes = request.args.get('omit_known_nodes') == 'true'
@@ -313,6 +314,38 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             log.debug("Template Rendering Exception:\n" + text_error)
             return Response(response=html_error, headers=headers, status=HTTPStatus.INTERNAL_SERVER_ERROR)
         return Response(response=content, headers=headers)
+
+    @rest_app.route("/sign", methods=["POST"])
+    def threshold_sign():
+        """An endpoint that handles threshold signing requests."""
+        try:
+            signing_request = ThresholdSignatureRequest.from_bytes(request.data)
+            # Handle the signing request
+            signing_response = this_node.handle_threshold_signing_request(
+                signing_request=signing_request
+            )
+
+            return Response(
+                response=bytes(signing_response),
+                status=HTTPStatus.OK,
+                mimetype="application/octet-stream",
+            )
+        except ConditionEvalError as e:
+            return Response(e.message, status=e.status_code)
+        except this_node.UnauthorizedRequest as e:
+            return Response(str(e), status=HTTPStatus.UNAUTHORIZED)
+        except ValueError as e:
+            # this line is hit when the ThresholdSignatureRequest is an old version
+            # ValueError: Failed to deserialize: differing major version: expected 3, got 1
+            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
+        except Exception as e:
+            traceback.print_exc(file=sys.stdout)
+            return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    @rest_app.route("/health", methods=["GET"])
+    def health_check():
+        """Health check endpoint"""
+        return jsonify({"status": "healthy"}), 200
 
     if this_node.domain.name in [domains.LYNX.name, TEMPORARY_DOMAIN_NAME]:
         # only available on Lynx or for testing
