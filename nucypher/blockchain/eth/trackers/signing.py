@@ -27,7 +27,7 @@ class SigningRitualTracker(RitualTracker):
         }
         events = [
             contract.events.InitiateSigningCohort,
-            contract.events.SigningCohortCompleted,
+            contract.events.SigningCohortDeployed,
         ]
 
         self.signing_coordinator_agent = operator.signing_coordinator_agent
@@ -94,7 +94,7 @@ class SigningRitualTracker(RitualTracker):
     ) -> None:
         event_type = getattr(self.contract.events, event.event)
         if (
-            event_type == self.contract.events.SigningCohortCompleted
+            event_type == self.contract.events.SigningCohortDeployed
             and not participation_state.already_posted_signature
         ):
             (

@@ -247,7 +247,7 @@ class Operator(BaseActor):
         self.signing_coordinator_agent = ContractAgency.get_agent(
             SigningCoordinatorAgent,
             registry=registry,
-            blockchain_endpoint=polygon_endpoint,
+            blockchain_endpoint=eth_endpoint,
         )
 
         # track active onchain rituals
@@ -795,6 +795,7 @@ class Operator(BaseActor):
     def perform_post_signature(
         self,
         cohort_id: int,
+        chain_id: int,
         authority: ChecksumAddress,
         participants: List[ChecksumAddress],
         timestamp: int,
@@ -1004,7 +1005,9 @@ class Operator(BaseActor):
         )
 
         # evaluate condition
-        condition_lingo = json.loads(signing_cohort.conditions.decode())
+        condition_lingo = json.loads(
+            signing_cohort.conditions[signing_request.chain_id].decode()
+        )
         context = signing_request.context
 
         evaluate_condition_lingo(

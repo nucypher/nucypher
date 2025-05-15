@@ -56,6 +56,7 @@ def ritual_initiator(initiator, signing_coordinator, deployer_account):
 
 
 def test_signing_cohort_initiation(
+    chain,
     signing_coordinator_agent,
     accounts,
     ritual_initiator,
@@ -68,6 +69,7 @@ def test_signing_cohort_initiation(
     cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
 
     receipt = signing_coordinator_agent.initiate_signing_cohort(
+        chain_id=chain.chain_id,
         authority=ritual_initiator.transacting_power.account,
         providers=cohort_staking_provider_addresses,
         threshold=len(cohort_staking_provider_addresses) - 1,
@@ -95,12 +97,11 @@ def test_signing_cohort_finality(
     interval,
     testerchain,
     ritual_initiator,
-    time_condition,
 ):
     print("==================== AWAITING COHORT FINALITY ====================")
     while (
-        not signing_coordinator_agent.get_signing_cohort_status(cohort_id)
-        == SigningCoordinator.RitualStatus.AWAITING_CONDITIONS
+        signing_coordinator_agent.get_signing_cohort_status(cohort_id)
+        != SigningCoordinator.RitualStatus.ACTIVE
     ):
         yield clock.advance(interval)
         yield testerchain.time_travel(seconds=1)
@@ -108,13 +109,6 @@ def test_signing_cohort_finality(
     testerchain.tx_machine.stop()
     assert not testerchain.tx_machine.running
 
-    on_chain_condition_lingo = ConditionLingo(time_condition)
-
-    signing_coordinator_agent.set_signing_cohort_conditions(
-        cohort_id,
-        on_chain_condition_lingo,
-        ritual_initiator.transacting_power,
-    )
     assert signing_coordinator_agent.is_cohort_active(cohort_id)
     yield
 
@@ -141,7 +135,8 @@ def test_get_signers(
     cohort,
     cohort_id,
     dkg_size,
-    ritual_initiator,
+    threshold_signing_multisig_clone_factory,
+    signing_coordinator_child,
 ):
     signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
     for i, signer in enumerate(signing_cohort.signers):
@@ -151,8 +146,9 @@ def test_get_signers(
     assert len(signing_cohort.signers) == dkg_size
 
     # check deployed multisig
-    expected_multisig_address = signing_cohort.multisig
-
+    expected_multisig_address = (
+        threshold_signing_multisig_clone_factory.getCloneAddress(cohort_id)
+    )
     cohort_multisig = nucypher_dependency.ThresholdSigningMultisig.at(
         expected_multisig_address
     )
@@ -160,11 +156,12 @@ def test_get_signers(
 
     assert cohort_multisig.getSigners() == operator_addresses
     assert cohort_multisig.threshold() == len(cohort) - 1
-    assert cohort_multisig.owner() == ritual_initiator.transacting_power.account
+    assert cohort_multisig.owner() == signing_coordinator_child.address
 
 
 @pytest_twisted.inlineCallbacks
 def test_signing_request_fulfilment(
+    chain,
     bob,
     accounts,
     signing_coordinator_agent,
@@ -172,14 +169,27 @@ def test_signing_request_fulfilment(
     cohort_id,
     cohort,
     nucypher_dependency,
+    ritual_initiator,
+    time_condition,
+    threshold_signing_multisig_clone_factory,
 ):
+    # set condition for cohort and chain
+    on_chain_condition_lingo = ConditionLingo(time_condition)
+    signing_coordinator_agent.set_signing_cohort_conditions(
+        cohort_id,
+        chain.chain_id,
+        on_chain_condition_lingo,
+        ritual_initiator.transacting_power,
+    )
+
     print("==================== SIGNING REQUEST ====================")
     bob.start_learning_loop(now=True)
     data_to_sign = b"test_data"
 
     signing_request = ThresholdSignatureRequest(
-        data_to_sign=data_to_sign,
         cohort_id=cohort_id,
+        chain_id=chain.chain_id,
+        data_to_sign=data_to_sign,
         context=None,
     )
     responses = yield bob.request_threshold_signatures(
@@ -188,7 +198,11 @@ def test_signing_request_fulfilment(
 
     signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
     assert len(responses) >= signing_cohort.threshold
-    multisig = nucypher_dependency.ThresholdSigningMultisig.at(signing_cohort.multisig)
+
+    multisig_address = threshold_signing_multisig_clone_factory.getCloneAddress(
+        cohort_id
+    )
+    multisig = nucypher_dependency.ThresholdSigningMultisig.at(multisig_address)
     result = multisig.isValidSignature(
         defunct_hash_message(data_to_sign),
         b"".join(r.signature for r in responses),
