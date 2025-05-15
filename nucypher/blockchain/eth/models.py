@@ -192,21 +192,20 @@ class SigningCoordinator:
         TIMEOUT = 2
         ACTIVE = 3
         EXPIRED = 4
-        AWAITING_CONDITIONS = 5
 
     @dataclass
     class SigningCohort:
         id: int
-        initiator: ChecksumAddress
         init_timestamp: int
         end_timestamp: int
+        initiator: ChecksumAddress
         authority: ChecksumAddress
         total_signatures: int
         num_signers: int
         threshold: int
-        multisig: ChecksumAddress
-        conditions: bytes
         signers: List = field(default_factory=list)
+        chains: List = field(default_factory=list)
+        conditions: Dict = field(default_factory=dict)
 
         @staticmethod
         def make_signers(

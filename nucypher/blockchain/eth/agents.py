@@ -1038,17 +1038,33 @@ class SigningCoordinatorAgent(EthereumContractAgent):
             total_signatures=result[4],
             num_signers=result[5],
             threshold=result[6],
-            multisig=result[7],
-            conditions=result[8],
             signers=[],  # solidity does not return sub-structs
+            chains=[],
+            conditions={},
         )
         signing_cohort.signers = list(self._get_signers(cohort_id=cohort_id))
+        signing_cohort.chains = self.get_chains(cohort_id)
+
+        for chain in signing_cohort.chains:
+            signing_cohort.conditions[chain] = self.get_condition(
+                cohort_id=cohort_id, chain_id=chain
+            )
         return signing_cohort
 
     def _get_signers(self, cohort_id: int):
         data = self.contract.functions.getSigners(cohort_id).call()
         signers = SigningCoordinator.SigningCohort.make_signers(data=data)
         return signers
+
+    @contract_api(CONTRACT_CALL)
+    def get_chains(self, cohort_id: int) -> List[int]:
+        result = self.contract.functions.getChains(cohort_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_condition(self, cohort_id: int, chain_id: int) -> bytes:
+        result = self.contract.functions.getCondition(cohort_id, chain_id).call()
+        return result
 
     @contract_api(CONTRACT_CALL)
     def number_of_cohorts(self) -> int:
@@ -1058,6 +1074,7 @@ class SigningCoordinatorAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def initiate_signing_cohort(
         self,
+        chain_id: int,
         authority: ChecksumAddress,
         providers: List[ChecksumAddress],
         threshold: int,
@@ -1066,7 +1083,7 @@ class SigningCoordinatorAgent(EthereumContractAgent):
     ) -> TxReceipt:
         contract_function: ContractFunction = (
             self.contract.functions.initiateSigningCohort(
-                authority, providers, threshold, duration
+                chain_id, authority, providers, threshold, duration
             )
         )
         receipt = self.blockchain.send_transaction(
@@ -1103,12 +1120,13 @@ class SigningCoordinatorAgent(EthereumContractAgent):
     def set_signing_cohort_conditions(
         self,
         cohort_id: int,
+        chain_id: int,
         conditions: ConditionLingo,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = (
             self.contract.functions.setSigningCohortConditions(
-                cohort_id, bytes(conditions)
+                cohort_id, chain_id, bytes(conditions)
             )
         )
         receipt = self.blockchain.send_transaction(

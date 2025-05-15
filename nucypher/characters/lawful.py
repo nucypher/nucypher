@@ -440,7 +440,7 @@ class Bob(Character):
 
             signing_coordinator_agent = ContractAgency.get_agent(
                 SigningCoordinatorAgent,
-                blockchain_endpoint=polygon_endpoint,
+                blockchain_endpoint=eth_endpoint,
                 registry=ContractRegistry.from_latest_publication(
                     domain=self.domain,
                 ),
