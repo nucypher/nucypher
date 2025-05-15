@@ -104,7 +104,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -120,10 +120,25 @@ class ConditionType(Enum):
     SEQUENTIAL = "sequential"
     IF_THEN_ELSE = "if-then-else"
     ADDRESS_ALLOWLIST = "address-allowlist"
+    ECDSA = "ecdsa"
 
     @classmethod
     def values(cls) -> List[str]:
         return [condition.value for condition in cls]
+
+
+class Operator(Enum):
+    """
+    Defines the logical operators that can be used in compound conditions.
+    """
+
+    AND = "and"
+    OR = "or"
+    NOT = "not"
+
+    @classmethod
+    def values(cls) -> List[str]:
+        return [op.value for op in cls]
 
 
 class CompoundAccessControlCondition(MultiConditionAccessControl):
@@ -141,11 +156,11 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         }
     """
 
-    AND_OPERATOR = "and"
-    OR_OPERATOR = "or"
-    NOT_OPERATOR = "not"
+    AND_OPERATOR = Operator.AND.value
+    OR_OPERATOR = Operator.OR.value
+    NOT_OPERATOR = Operator.NOT.value
 
-    OPERATORS = (AND_OPERATOR, OR_OPERATOR, NOT_OPERATOR)
+    OPERATORS = tuple(Operator.values())
     CONDITION_TYPE = ConditionType.COMPOUND.value
 
     @classmethod
@@ -754,6 +769,7 @@ class ConditionLingo(_Serializable):
         conditions expression framework.
         """
         from nucypher.policy.conditions.address import AddressAllowlistCondition
+        from nucypher.policy.conditions.ecdsa import ECDSACondition
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
         from nucypher.policy.conditions.json.api import JsonApiCondition
         from nucypher.policy.conditions.json.rpc import JsonRpcCondition
@@ -774,6 +790,7 @@ class ConditionLingo(_Serializable):
             SequentialAccessControlCondition,
             IfThenElseCondition,
             AddressAllowlistCondition,
+            ECDSACondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition

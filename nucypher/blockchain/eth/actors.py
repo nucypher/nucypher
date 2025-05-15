@@ -34,6 +34,7 @@ from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
+    SigningCoordinatorAgent,
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
@@ -47,10 +48,15 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
 )
-from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
+from nucypher.blockchain.eth.models import (
+    PHASE1,
+    PHASE2,
+    Coordinator,
+    SigningCoordinator,
+)
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.trackers import dkg
+from nucypher.blockchain.eth.trackers import dkg, signing
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import (
     get_healthy_default_rpc_endpoints,
@@ -70,7 +76,7 @@ from nucypher.policy.conditions.utils import (
     evaluate_condition_lingo,
 )
 from nucypher.policy.payment import ContractPayment
-from nucypher.types import PhaseId
+from nucypher.types import PhaseId, ThresholdSignatureRequest
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.warnings import render_ferveo_key_mismatch_warning
@@ -234,8 +240,17 @@ class Operator(BaseActor):
             blockchain_endpoint=polygon_endpoint,
         )
 
+        self.signing_coordinator_agent = ContractAgency.get_agent(
+            SigningCoordinatorAgent,
+            registry=registry,
+            blockchain_endpoint=polygon_endpoint,
+        )
+
         # track active onchain rituals
-        self.ritual_tracker = dkg.ActiveRitualTracker(
+        self.ritual_tracker = dkg.DkgRitualTracker(
+            operator=self,
+        )
+        self.signing_ritual_tracker = signing.SigningRitualTracker(
             operator=self,
         )
 
@@ -750,6 +765,69 @@ class Operator(BaseActor):
 
         return async_tx
 
+    def _is_post_signature_action_required(self, cohort_id: int) -> bool:
+        status = self.signing_coordinator_agent.get_signing_cohort_status(cohort_id)
+        if status != SigningCoordinator.RitualStatus.AWAITING_SIGNATURES:
+            # This is a normal state when replaying/syncing historical
+            # blocks that contain StartRitual events of pending or completed rituals.
+            self.log.debug(
+                f"cohort #{cohort_id} is not waiting for signatures; status={status}."
+            )
+            return False
+
+        participant = self.signing_coordinator_agent.get_signer(
+            cohort_id=cohort_id, provider=self.staking_provider_address
+        )
+        if participant.signature:
+            # This is a normal state, as the node may have already submitted a signature
+            # for this cohort, and it's not necessary to submit another one. Carry on.
+            self.log.debug(
+                f"Node {self.transacting_power.account} has already posted a signature for cohort {cohort_id}."
+            )
+            return False
+
+        return True
+
+    def perform_post_signature(
+        self,
+        cohort_id: int,
+        authority: ChecksumAddress,
+        participants: List[ChecksumAddress],
+        timestamp: int,
+    ) -> Optional[AsyncTx]:
+        if self.checksum_address not in participants:
+            message = (
+                f"{self.checksum_address}|{self.wallet_address} "
+                f"is not a member of cohort {cohort_id}"
+            )
+            stack_trace = traceback.format_stack()
+            self.log.critical(f"{message}\n{stack_trace}")
+            return
+
+        if not self._is_post_signature_action_required(cohort_id=cohort_id):
+            self.log.debug(f"No action required for cohort {cohort_id}.")
+            return
+
+        data_hash = self.signing_coordinator_agent.get_signing_cohort_data_hash(
+            cohort_id
+        )
+        signature = self.transacting_power.sign_message(data_hash, standardize=False)
+
+        # TODO add async tx hooks
+        async_tx_hooks = BlockchainInterface.AsyncTxHooks(
+            on_broadcast_failure=None,
+            on_fault=None,
+            on_finalized=None,
+            on_insufficient_funds=None,
+        )
+        async_tx = self.signing_coordinator_agent.post_signature(
+            cohort_id=cohort_id,
+            signature=signature,
+            transacting_power=self.transacting_power,
+            async_tx_hooks=async_tx_hooks,
+        )
+        return async_tx
+
     def produce_decryption_share(
         self,
         ritual_id: int,
@@ -895,6 +973,47 @@ class Operator(BaseActor):
             requester_public_key=public_key,
         )
         return encrypted_response
+
+    def handle_threshold_signing_request(
+        self, signing_request: ThresholdSignatureRequest
+    ) -> bytes:
+        if not self.signing_coordinator_agent.is_cohort_active(
+            signing_request.cohort_id
+        ):
+            raise self.UnauthorizedRequest(
+                f"Cohort #{signing_request.cohort_id} is not active",
+            )
+
+        if not self.signing_coordinator_agent.is_signer(
+            cohort_id=signing_request.cohort_id,
+            provider_address=self.staking_provider_address,
+        ):
+            raise self.UnauthorizedRequest(
+                f"Not a member of signing cohort {signing_request.cohort_id}"
+            )
+
+        signing_cohort = self.signing_coordinator_agent.get_signing_cohort(
+            signing_request.cohort_id
+        )
+
+        # evaluate condition
+        condition_lingo = json.loads(signing_cohort.conditions.decode())
+        context = signing_request.context
+
+        evaluate_condition_lingo(
+            condition_lingo, self.condition_provider_manager, context
+        )
+
+        signature_share = self.generate_signature_share(signing_request.data_to_sign)
+        return signature_share
+
+    def generate_signature_share(self, data: bytes) -> bytes:
+        """
+        Generate a signature share for the given cohort and data.
+        Uses the node's TransactingPower to create an Ethereum-compatible signature for the data.
+        """
+        signature = self.transacting_power.sign_message(message=data, standardize=False)
+        return bytes(signature)
 
     def _local_operator_address(self):
         return self.__operator_address

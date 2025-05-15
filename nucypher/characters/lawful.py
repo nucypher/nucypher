@@ -72,6 +72,7 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
+    SigningCoordinatorAgent,
     TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -100,7 +101,10 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.crypto.utils import keccak_digest
-from nucypher.network.decryption import ThresholdDecryptionClient
+from nucypher.network.decryption import (
+    ThresholdDecryptionClient,
+    ThresholdSigningClient,
+)
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, Teacher
@@ -112,6 +116,7 @@ from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import ContractPayment, PaymentMethod
 from nucypher.policy.policies import Policy
+from nucypher.types import ThresholdSignatureRequest
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
@@ -423,6 +428,7 @@ class Bob(Character):
         )
 
         coordinator_agent = None
+        signing_coordinator_agent = None
         if polygon_endpoint:
             coordinator_agent = ContractAgency.get_agent(
                 CoordinatorAgent,
@@ -431,7 +437,17 @@ class Bob(Character):
                     domain=self.domain,
                 ),
             )
+
+            signing_coordinator_agent = ContractAgency.get_agent(
+                SigningCoordinatorAgent,
+                blockchain_endpoint=polygon_endpoint,
+                registry=ContractRegistry.from_latest_publication(
+                    domain=self.domain,
+                ),
+            )
+
         self.coordinator_agent = coordinator_agent
+        self.signing_coordinator_agent = signing_coordinator_agent
 
         # Cache of decrypted treasure maps
         self._treasure_maps: Dict[int, TreasureMap] = {}
@@ -636,6 +652,18 @@ class Bob(Character):
 
         return self.coordinator_agent
 
+    def _get_signing_coordinator_agent(self) -> SigningCoordinatorAgent:
+        if not self.signing_coordinator_agent:
+            raise ValueError("No polygon endpoint URI provided in Bob's constructor.")
+
+        return self.signing_coordinator_agent
+
+    def get_signing_cohort(self, cohort_id):
+        signing_cohort = self._get_signing_coordinator_agent().get_signing_cohort(
+            cohort_id=cohort_id
+        )
+        return signing_cohort
+
     def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
         ritual_id = self._get_coordinator_agent().get_ritual_id_from_public_key(
             public_key
@@ -647,12 +675,57 @@ class Bob(Character):
         ritual = agent.get_ritual(ritual_id, transcripts=False)
         return ritual
 
+    def request_threshold_signatures(
+        self,
+        signing_request: ThresholdSignatureRequest,
+        ursulas: List["Ursula"] = None,
+        timeout: int = ThresholdSigningClient.DEFAULT_TIMEOUT,
+    ) -> List[bytes]:
+        """
+        Request a threshold signature from a cohort of Ursulas.
+        """
+        signing_cohort = self.get_signing_cohort(signing_request.cohort_id)
+        threshold = signing_cohort.threshold
+
+        providers = [s.provider for s in signing_cohort.signers]
+        if ursulas:
+            for ursula in ursulas:
+                if ursula.staking_provider_address not in providers:
+                    raise ValueError(
+                        f"{ursula} ({ursula.staking_provider_address}) is not part of the cohort"
+                    )
+                self.remember_node(ursula)
+
+        # Create the signing request
+        signing_requests = {}
+        for provider in providers:
+            signing_requests[provider] = signing_request
+
+        signing_client = ThresholdSigningClient(learner=self)
+        successes, failures = signing_client.gather_signatures(
+            signing_requests=signing_requests,
+            threshold=threshold,
+            timeout=timeout,
+        )
+
+        if len(successes) < threshold:
+            raise Ursula.NotEnoughUrsulas(
+                f"Threshold of Ursulas unable to sign: {failures}"
+            )
+
+        # Aggregate signatures
+        sorted_successes = sorted(
+            successes.values(), key=lambda t: to_checksum_address(t[0])
+        )
+        signatures = [s[1].data for s in sorted_successes]
+        return signatures
+
     def threshold_decrypt(
         self,
         threshold_message_kit: ThresholdMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
-        decryption_timeout: int = ThresholdDecryptionClient.DEFAULT_DECRYPTION_TIMEOUT,
+        decryption_timeout: int = ThresholdDecryptionClient.DEFAULT_TIMEOUT,
     ) -> bytes:
         ritual_id = self.get_ritual_id_from_public_key(
             public_key=threshold_message_kit.acp.public_key
@@ -922,6 +995,10 @@ class Ursula(Teacher, Character, Operator):
             if emitter:
                 emitter.message("✓ DKG Ritual Tracking", color="green")
 
+            self.signing_ritual_tracker.start()
+            if emitter:
+                emitter.message("✓ Signing Ritual Tracking", color="green")
+
         if block_until_ready:
             # Sets (staker's) checksum address; Prevent worker startup before bonding
             self.block_until_ready()
@@ -993,6 +1070,7 @@ class Ursula(Teacher, Character, Operator):
             self.stop_learning_loop()
             self._operator_bonded_tracker.stop()
             self.ritual_tracker.stop()
+            self.signing_ritual_tracker.stop()
             if self._prometheus_metrics_tracker:
                 self._prometheus_metrics_tracker.stop()
         if halt_reactor:
@@ -1257,7 +1335,10 @@ class Ursula(Teacher, Character, Operator):
             previous_fleet_states=previous_fleet_states,
             known_nodes=known_nodes_info,
             balance_eth=balance_eth,
-            block_height=self.ritual_tracker.scanner.get_last_scanned_block(),
+            block_height=max(
+                self.ritual_tracker.scanner.get_last_scanned_block(),
+                self.signing_ritual_tracker.scanner.get_last_scanned_block(),
+            ),
             ferveo_public_key=bytes(self.public_keys(RitualisticPower)).hex(),
         )
 

@@ -224,7 +224,6 @@ def test_transcript_publication(coordinator_agent, cohort, ritual_id, dkg_size):
             )
             > 0
         ), "no transcript found for ursula"
-        print(f"Ursula {ursula.checksum_address} has submitted a transcript")
 
 
 def test_get_participants(coordinator_agent, cohort, ritual_id, dkg_size):
@@ -312,9 +311,7 @@ def test_authorized_decryption(
         list(latency_stats.keys()),
         key=lambda ursula_checksum: latency_stats[ursula_checksum],
     )
-    value_factory_spy = mocker.spy(
-        ThresholdDecryptionClient.ThresholdDecryptionRequestFactory, "__init__"
-    )
+    value_factory_spy = mocker.spy(ThresholdDecryptionClient.RequestFactory, "__init__")
 
     # ritual_id, ciphertext, conditions are obtained from the side channel
     bob.start_learning_loop(now=True)

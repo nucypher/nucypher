@@ -8,7 +8,7 @@ import pytest
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
+from nucypher.blockchain.eth.trackers.dkg import DkgRitualTracker
 
 
 # mimic blockchain block information
@@ -34,7 +34,7 @@ def ritualist(ursulas, mock_coordinator_agent) -> Operator:
 
 def test_first_scan_start_block_number_simple(ritualist):
     mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
+    active_ritual_tracker = DkgRitualTracker(operator=ritualist)
     now = maya.now()
 
     # latest block is 0 - return it
@@ -65,7 +65,11 @@ def test_first_scan_start_block_number_simple(ritualist):
 
 def test_first_scan_start_block_calc_is_perfect(ritualist):
     mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
+    # timeout
+    ritual_timeout = 60 * 60 * 24  # 24 hours
+    mocked_agent.get_timeout.return_value = ritual_timeout
+
+    active_ritual_tracker = DkgRitualTracker(operator=ritualist)
     now = maya.now()
 
     #
@@ -77,9 +81,6 @@ def test_first_scan_start_block_calc_is_perfect(ritualist):
     sample_window = 100
 
     sample_base_block_number = latest_block_number - sample_window
-    # timeout
-    ritual_timeout = 60 * 60 * 24  # 24 hours
-    mocked_agent.get_timeout.return_value = ritual_timeout
     target_average_block_time = 8  # 8s block time
     sample_base_block_timestamp = now.subtract(
         seconds=target_average_block_time * sample_window
@@ -131,7 +132,11 @@ def test_first_scan_start_block_calc_is_perfect(ritualist):
 
 def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualist):
     mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
+    # timeout
+    ritual_timeout = 60 * 60 * 24  # 24 hours
+    mocked_agent.get_timeout.return_value = ritual_timeout
+
+    active_ritual_tracker = DkgRitualTracker(operator=ritualist)
     now = maya.now()
 
     #
@@ -144,11 +149,8 @@ def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualis
     sample_window = 100
 
     sample_base_block_number = latest_block_number - sample_window
-    # timeout
-    ritual_timeout = 60 * 60 * 24  # 24 hours
-    mocked_agent.get_timeout.return_value = ritual_timeout
 
-    target_average_block_time = 12  # 12s block tim4e
+    target_average_block_time = 12  # 12s block time
     sample_base_block_timestamp = now.subtract(
         seconds=target_average_block_time * sample_window
     ).epoch
@@ -245,7 +247,7 @@ def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualis
 
 def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
     mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
+    active_ritual_tracker = DkgRitualTracker(operator=ritualist)
 
     participants = []
     # random participants
@@ -276,7 +278,7 @@ def test_get_participation_state_values_from_contract(
     ritualist, get_random_checksum_address
 ):
     mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
+    active_ritual_tracker = DkgRitualTracker(operator=ritualist)
 
     participants = []
     # random participants

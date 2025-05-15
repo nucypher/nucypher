@@ -5,8 +5,8 @@ plugins:
 
 dependencies:
   - name: nucypher-contracts
-    github: nucypher/nucypher-contracts
-    ref: main
+    github: derekpierre/nucypher-contracts
+    ref: secreto
     config_override:
       solidity:
         version: 0.8.23
