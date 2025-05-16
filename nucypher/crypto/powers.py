@@ -193,16 +193,23 @@ class TransactingPower(CryptoPowerUp):
         return result
 
     # TODO: this is only a workaround - what are we going to do with this? standardize vs not standardize?
-    def sign_message(self, message: bytes, standardize: bool = True) -> bytes:
-        """Signs the message with the private key of the TransactingPower."""
-        signature = self._signer.sign_message(account=self.__account, message=message)
+    def sign_message(
+        self, message: bytes, standardize: bool = True
+    ) -> Tuple[bytes, bytes]:
+        """
+        Signs the message with the private key of the TransactingPower.
+        Returns the message hash and the signature as bytes.
+        """
+        message, signature = self._signer.sign_message(
+            account=self.__account, message=message
+        )
 
         # This signature will need to be passed to Rust, so we are cleaning the chain identifier
         # from the recovery byte, bringing it to the standard choice of {0, 1}.
         if not standardize:
-            return signature
+            return message.body, signature
 
-        return to_standard_signature_bytes(signature)
+        return message.body, to_standard_signature_bytes(signature)
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:
         """Signs the transaction with the private key of the TransactingPower."""
