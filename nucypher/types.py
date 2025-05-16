@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 from typing import NamedTuple, NewType, Optional, TypeVar
 
 from hexbytes import HexBytes
@@ -20,6 +21,11 @@ class PhaseId(NamedTuple):
     phase: PhaseNumber
 
 
+class _SignatureTypes(Enum):
+    EIP191 = "EIP191"
+    EIP712 = "EIP712"
+
+
 class ThresholdSignatureRequest:
     """TODO: Implement this in nucypher_core"""
 
@@ -28,7 +34,13 @@ class ThresholdSignatureRequest:
         data_to_sign: bytes,
         cohort_id: int,
         context: Optional[ContextDict] = None,
+        _type: str = _SignatureTypes.EIP191.value,
     ):
+        if _type not in [t.value for t in _SignatureTypes]:
+            raise ValueError(
+                f"Invalid type: {_type}. Must be one of {[t.value for t in _SignatureTypes]}"
+            )
+        self.cohort_id = cohort_id
         self.data_to_sign = data_to_sign
         self.cohort_id = cohort_id
         self.context = context or {}
@@ -39,19 +51,25 @@ class ThresholdSignatureRequest:
             "data_to_sign": self.data_to_sign.hex(),
             "cohort_id": self.cohort_id,
             "context": self.context,
+            "type": _SignatureTypes.EIP191.value,
         }
         return json.dumps(data).encode()
 
     @staticmethod
     def from_bytes(request_data: bytes):
-        result = json.loads(request_data.decode())
-        data_to_sign = bytes(HexBytes(result["data_to_sign"]))
-        cohort_id = result["cohort_id"]
-        context = result["context"]
+        try:
+            result = json.loads(request_data.decode())
+            data_to_sign = bytes(HexBytes(result["data_to_sign"]))
+            cohort_id = result["cohort_id"]
+            context = result["context"]
+            _type = result["type"]
+        except (ValueError, KeyError) as e:
+            raise ValueError("Invalid request data") from e
         return ThresholdSignatureRequest(
-            data_to_sign=data_to_sign,
             cohort_id=cohort_id,
+            data_to_sign=data_to_sign,
             context=context,
+            _type=_type,
         )
 
 
