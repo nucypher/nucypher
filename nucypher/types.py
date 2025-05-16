@@ -57,14 +57,25 @@ class ThresholdSignatureRequest:
 
 class ThresholdSignatureResponse:
 
-    def __init__(self, data: bytes):
-        self.data = data
+    def __init__(self, message_hash: bytes, signature: bytes):
+        self.message_hash = message_hash
+        self.signature = signature
 
     def __bytes__(self) -> bytes:
         """Serialize the response to bytes in JSON format."""
-        return self.data
+        data = {
+            "message_hash": self.message_hash.hex(),
+            "signature": self.signature.hex(),
+        }
+        return json.dumps(data).encode()
 
-    @staticmethod
-    def from_bytes(response_data: bytes):
+    @classmethod
+    def from_bytes(cls, response_data: bytes):
         """Deserialize the response from bytes in JSON format."""
-        return ThresholdSignatureResponse(data=response_data)
+        result = json.loads(response_data.decode())
+        message_hash = bytes(HexBytes(result["message_hash"]))
+        signature = bytes(HexBytes(result["signature"]))
+        return cls(
+            message_hash=message_hash,
+            signature=signature,
+        )

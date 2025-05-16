@@ -4,7 +4,7 @@ import time
 import traceback
 from collections import defaultdict
 from decimal import Decimal
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import maya
 from atxm.exceptions import InsufficientFunds
@@ -76,7 +76,11 @@ from nucypher.policy.conditions.utils import (
     evaluate_condition_lingo,
 )
 from nucypher.policy.payment import ContractPayment
-from nucypher.types import PhaseId, ThresholdSignatureRequest
+from nucypher.types import (
+    PhaseId,
+    ThresholdSignatureRequest,
+    ThresholdSignatureResponse,
+)
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.warnings import render_ferveo_key_mismatch_warning
@@ -976,7 +980,7 @@ class Operator(BaseActor):
 
     def handle_threshold_signing_request(
         self, signing_request: ThresholdSignatureRequest
-    ) -> bytes:
+    ) -> ThresholdSignatureResponse:
         if not self.signing_coordinator_agent.is_cohort_active(
             signing_request.cohort_id
         ):
@@ -1004,8 +1008,14 @@ class Operator(BaseActor):
             condition_lingo, self.condition_provider_manager, context
         )
 
-        signature_share = self.generate_signature_share(signing_request.data_to_sign)
-        return signature_share
+        message_hash, signature = self.generate_signature_share(
+            signing_request.data_to_sign
+        )
+        response = ThresholdSignatureResponse(
+            message_hash=message_hash,
+            signature=signature,
+        )
+        return response
 
     def generate_signature_share(self, data: bytes) -> bytes:
         """
