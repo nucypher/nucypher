@@ -713,11 +713,11 @@ class Bob(Character):
                 f"Threshold of Ursulas unable to sign: {failures}"
             )
 
-        # Aggregate signatures
+        # Aggregate & sort signatures
         sorted_successes = sorted(
             successes.values(), key=lambda t: to_checksum_address(t[0])
         )
-        signatures = [s[1].data for s in sorted_successes]
+        signatures = [s[1].signature for s in sorted_successes]
         return signatures
 
     def threshold_decrypt(
