@@ -80,6 +80,7 @@ from nucypher.types import (
     PhaseId,
     SignatureRequest,
     SignatureResponse,
+
 )
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
@@ -987,6 +988,7 @@ class Operator(BaseActor):
     def handle_threshold_signing_request(
         self, signing_request: SignatureRequest
     ) -> SignatureResponse:
+
         if not self.signing_coordinator_agent.is_cohort_active(
             signing_request.cohort_id
         ):
