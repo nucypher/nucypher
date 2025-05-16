@@ -893,7 +893,9 @@ class Ursula(Teacher, Character, Operator):
 
     def _substantiate_stamp(self):
         transacting_power = self.transacting_power
-        signature = transacting_power.sign_message(message=bytes(self.stamp))
+        _message_hash, signature = transacting_power.sign_message(
+            message=bytes(self.stamp)
+        )
         self.__operator_signature = signature
         self.__operator_address = transacting_power.account
         message = f"Created decentralized identity evidence: {self.__operator_signature[:10].hex()}"
@@ -1451,15 +1453,15 @@ class Enrico:
 
         # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
-        authorization = bytes(
-            self.signer.sign_message(
+        _message_hash, authorization = self.signer.sign_message(
                 message=header_hash, account=self.signer.accounts[0]
             )
-        )
 
         return ThresholdMessageKit(
             ciphertext=ciphertext,
-            acp=AccessControlPolicy(auth_data=auth_data, authorization=authorization),
+            acp=AccessControlPolicy(
+                auth_data=auth_data, authorization=bytes(authorization)
+            ),
         )
 
     @classmethod

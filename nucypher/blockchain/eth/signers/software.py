@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from cytoolz.dicttoolz import dissoc
 from eth_account.account import Account
-from eth_account.messages import encode_defunct
+from eth_account.messages import SignableMessage, encode_defunct
 from eth_account.signers.local import LocalAccount
 from eth_utils.address import is_address, to_checksum_address
 from hexbytes.main import BytesLike, HexBytes
@@ -270,12 +270,15 @@ class KeystoreSigner(Signer):
         return raw_transaction
 
     @validate_checksum_address
-    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+    def sign_message(
+        self, account: str, message: bytes, **kwargs
+    ) -> Tuple[SignableMessage, HexBytes]:
         signer = self._get_signer(account=account)
+        signable_message = encode_defunct(primitive=message)
         signature = signer.sign_message(
-            signable_message=encode_defunct(primitive=message)
+            signable_message=signable_message,
         ).signature
-        return HexBytes(signature)
+        return signable_message, HexBytes(signature)
 
 
 class InMemorySigner(Signer):
@@ -341,9 +344,10 @@ class InMemorySigner(Signer):
         return raw_transaction
 
     @validate_checksum_address
-    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+    def sign_message(
+        self, account: str, message: bytes, **kwargs
+    ) -> Tuple[SignableMessage, HexBytes]:
         signer = self._get_signer(account=account)
-        signature = signer.sign_message(
-            signable_message=encode_defunct(primitive=message)
-        ).signature
-        return HexBytes(signature)
+        signable_message = encode_defunct(primitive=message)
+        signature = signer.sign_message(signable_message=signable_message).signature
+        return signable_message, HexBytes(signature)

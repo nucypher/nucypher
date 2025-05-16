@@ -1182,7 +1182,9 @@ class Operator(BaseActor):
         data_hash = self.signing_coordinator_agent.get_signing_cohort_data_hash(
             cohort_id
         )
-        signature = self.transacting_power.sign_message(data_hash, standardize=False)
+        _hash, signature = self.transacting_power.sign_message(
+            data_hash, standardize=False
+        )
 
         # TODO add async tx hooks
         async_tx_hooks = BlockchainInterface.AsyncTxHooks(
@@ -1391,13 +1393,15 @@ class Operator(BaseActor):
         )
         return response
 
-    def generate_signature_share(self, data: bytes) -> bytes:
+    def generate_signature_share(self, data: bytes) -> Tuple[bytes, bytes]:
         """
         Generate a signature share for the given cohort and data.
         Uses the node's TransactingPower to create an Ethereum-compatible signature for the data.
         """
-        signature = self.transacting_power.sign_message(message=data, standardize=False)
-        return bytes(signature)
+        message_hash, signature = self.transacting_power.sign_message(
+            message=data, standardize=False
+        )
+        return message_hash, bytes(signature)
 
     def _local_operator_address(self):
         return self.__operator_address

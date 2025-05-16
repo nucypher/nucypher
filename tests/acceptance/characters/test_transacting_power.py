@@ -41,7 +41,7 @@ def test_character_transacting_power_signing(testerchain, test_registry, account
 
     # Sign Message
     data_to_sign = b"Premium Select Luxury Pencil Holder"
-    signature = power.sign_message(message=data_to_sign)
+    message, signature = power.sign_message(message=data_to_sign)
     is_verified = verify_eip_191(
         address=eth_address, message=data_to_sign, signature=signature
     )

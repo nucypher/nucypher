@@ -129,7 +129,9 @@ def test_post_signature(
     for transacting_power in transacting_powers:
         data = encode(["uint32", "address"], [cohort_id, authority])
         digest = Web3.keccak(data)
-        signature = transacting_power.sign_message(digest, standardize=False)
+        _message_hash, signature = transacting_power.sign_message(
+            digest, standardize=False
+        )
         async_tx = agent.post_signature(
             cohort_id=cohort_id,
             signature=signature,
