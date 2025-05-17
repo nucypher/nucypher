@@ -135,7 +135,6 @@ def test_get_signers(
     cohort,
     cohort_id,
     dkg_size,
-    threshold_signing_multisig_clone_factory,
     signing_coordinator_child,
 ):
     signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
@@ -146,6 +145,11 @@ def test_get_signers(
     assert len(signing_cohort.signers) == dkg_size
 
     # check deployed multisig
+    threshold_signing_multisig_clone_factory = (
+        nucypher_dependency.ThresholdSigningMultisigCloneFactory.at(
+            signing_coordinator_child.signingMultisigFactory()
+        )
+    )
     expected_multisig_address = (
         threshold_signing_multisig_clone_factory.getCloneAddress(cohort_id)
     )
@@ -165,13 +169,13 @@ def test_signing_request_fulfilment(
     bob,
     accounts,
     signing_coordinator_agent,
+    signing_coordinator_child,
     initiator,
     cohort_id,
     cohort,
     nucypher_dependency,
     ritual_initiator,
     time_condition,
-    threshold_signing_multisig_clone_factory,
 ):
     # set condition for cohort and chain
     on_chain_condition_lingo = ConditionLingo(time_condition)
@@ -199,6 +203,11 @@ def test_signing_request_fulfilment(
     signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
     assert len(responses) >= signing_cohort.threshold
 
+    threshold_signing_multisig_clone_factory = (
+        nucypher_dependency.ThresholdSigningMultisigCloneFactory.at(
+            signing_coordinator_child.signingMultisigFactory()
+        )
+    )
     multisig_address = threshold_signing_multisig_clone_factory.getCloneAddress(
         cohort_id
     )
