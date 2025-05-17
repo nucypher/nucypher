@@ -120,7 +120,6 @@ def test_post_signature(
     clock,
     mock_async_hooks,
     nucypher_dependency,
-    threshold_signing_multisig_clone_factory,
     signing_coordinator_child,
 ):
     cohort_id = agent.number_of_cohorts() - 1
@@ -188,7 +187,12 @@ def test_post_signature(
         assert signer.operator == cohort_operators[i]
         assert signer.signature == signatures[i]
 
-    # check deployed multisig
+    # check deployed multisigs
+    threshold_signing_multisig_clone_factory = (
+        nucypher_dependency.ThresholdSigningMultisigCloneFactory.at(
+            signing_coordinator_child.signingMultisigFactory()
+        )
+    )
     deployed_multisig = nucypher_dependency.ThresholdSigningMultisig.at(
         threshold_signing_multisig_clone_factory.getCloneAddress(cohort_id)
     )
