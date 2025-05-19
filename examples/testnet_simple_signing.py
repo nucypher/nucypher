@@ -13,7 +13,7 @@ from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Bob
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
-from nucypher.types import ThresholdSignatureRequest, ThresholdSignatureResponse
+from nucypher.types import SignatureRequest, SignatureResponse
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 LOG_LEVEL = "debug"
@@ -93,7 +93,7 @@ def get_eth_multisig_address(
 
 def validate_responses_with_cohort_eth_multisig(
     signing_coordinator_agent: SigningCoordinatorAgent,
-    responses: List[ThresholdSignatureResponse],
+    responses: List[SignatureResponse],
 ):
     w3 = signing_coordinator_agent.blockchain.client.w3
     multisig_address = get_eth_multisig_address(signing_coordinator_agent)
@@ -110,7 +110,7 @@ def validate_responses_with_cohort_eth_multisig(
 
 
 def print_signing_result(
-    original_data: bytes, signature_responses: List[ThresholdSignatureResponse]
+    original_data: bytes, signature_responses: List[SignatureResponse]
 ):
     print("\n-----")
     print(f"Original Message: {original_data}")
@@ -134,7 +134,7 @@ def main():
     )
 
     data_to_sign = b"paz al amanecer"
-    signing_request = ThresholdSignatureRequest(
+    signing_request = SignatureRequest(
         cohort_id=COHORT_ID,
         chain_id=signing_coordinator_agent.blockchain.client.chain_id,
         data_to_sign=data_to_sign,
@@ -193,7 +193,7 @@ def main():
         # Decode the base64-encoded response
         signature_response_json = json.loads(base64.b64decode(r[1]).decode())
         signature_responses.append(
-            ThresholdSignatureResponse(
+            SignatureResponse(
                 message_hash=bytes(HexBytes(signature_response_json["message_hash"])),
                 signature=bytes(HexBytes(signature_response_json["signature"])),
             )

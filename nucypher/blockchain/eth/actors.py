@@ -82,8 +82,8 @@ from nucypher.policy.conditions.utils import (
 from nucypher.policy.payment import ContractPayment
 from nucypher.types import (
     PhaseId,
-    ThresholdSignatureRequest,
-    ThresholdSignatureResponse,
+    SignatureRequest,
+    SignatureResponse,
 )
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
@@ -1359,9 +1359,8 @@ class Operator(BaseActor):
         return encrypted_response
 
     def handle_threshold_signing_request(
-        self, signing_request: ThresholdSignatureRequest
-    ) -> ThresholdSignatureResponse:
-
+        self, signing_request: SignatureRequest
+    ) -> SignatureResponse:
         if not self.signing_coordinator_agent.is_cohort_active(
             signing_request.cohort_id
         ):
@@ -1398,7 +1397,7 @@ class Operator(BaseActor):
         message_hash, signature = self.generate_signature_share(
             signing_request.data_to_sign
         )
-        response = ThresholdSignatureResponse(
+        response = SignatureResponse(
             message_hash=message_hash,
             signature=signature,
         )

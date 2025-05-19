@@ -6,7 +6,7 @@ from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.characters.lawful import Ursula
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
-from nucypher.types import ThresholdSignatureRequest
+from nucypher.types import SignatureRequest
 
 
 @pytest.fixture(scope="module")
@@ -180,7 +180,8 @@ def test_signing_request_fulfilment(
 ):
     bob.start_learning_loop(now=True)
     data_to_sign = b"test_data"
-    signing_request = ThresholdSignatureRequest(
+
+    signing_request = SignatureRequest(
         cohort_id=cohort_id,
         chain_id=chain.chain_id,
         data_to_sign=data_to_sign,

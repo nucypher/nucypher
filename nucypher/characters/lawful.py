@@ -116,7 +116,7 @@ from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import ContractPayment, PaymentMethod
 from nucypher.policy.policies import Policy
-from nucypher.types import ThresholdSignatureRequest, ThresholdSignatureResponse
+from nucypher.types import SignatureRequest, SignatureResponse
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
@@ -677,10 +677,10 @@ class Bob(Character):
 
     def request_threshold_signatures(
         self,
-        signing_request: ThresholdSignatureRequest,
+        signing_request: SignatureRequest,
         ursulas: List["Ursula"] = None,
         timeout: int = ThresholdSigningClient.DEFAULT_TIMEOUT,
-    ) -> List[ThresholdSignatureResponse]:
+    ) -> List[SignatureResponse]:
         """
         Request a threshold signature from a cohort of Ursulas.
         """
@@ -714,7 +714,7 @@ class Bob(Character):
             )
 
         # Already sorted by client - just collect responses
-        # successes is of type  Dict[ChecksumAddress, Tuple[ChecksumAddress, ThresholdSignatureResponse]]
+        # successes is of type Dict[ChecksumAddress, Tuple[ChecksumAddress, ThresholdSignatureResponse]]
         responses = [s[1] for s in successes.values()]
         return responses
 
