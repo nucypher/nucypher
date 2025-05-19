@@ -960,7 +960,7 @@ def test_rpc_condition_using_eip1271(
     data = f"I'm the owner of the smart contract wallet address {eip1271_contract_wallet.address}"
     signable_message = encode_defunct(text=data)
     hash = defunct_hash_message(text=data)
-    message_signature = deployer_account.sign_message(signable_message)
+    message_signature = deployer_account.sign_message_eip191(signable_message)
     hex_signature = HexBytes(message_signature.encode_rsv()).hex()
 
     typedData = {"chain": TESTERCHAIN_CHAIN_ID, "dataHash": hash.hex()}

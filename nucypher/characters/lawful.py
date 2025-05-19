@@ -111,12 +111,13 @@ from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import PRERetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
+from nucypher.network.signing import SignatureRequest, SignatureResponse
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import ContractPayment, PaymentMethod
 from nucypher.policy.policies import Policy
-from nucypher.types import SignatureRequest, SignatureResponse
+
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
@@ -891,7 +892,7 @@ class Ursula(Teacher, Character, Operator):
 
     def _substantiate_stamp(self):
         transacting_power = self.transacting_power
-        _message_hash, signature = transacting_power.sign_message(
+        _message_hash, signature = transacting_power.sign_message_eip191(
             message=bytes(self.stamp)
         )
         self.__operator_signature = signature
@@ -1451,7 +1452,7 @@ class Enrico:
 
         # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
-        _message_hash, authorization = self.signer.sign_message(
+        _message_hash, authorization = self.signer.sign_message_eip191(
                 message=header_hash, account=self.signer.accounts[0]
             )
 

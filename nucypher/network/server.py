@@ -25,11 +25,12 @@ from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.network.signing import SignatureRequest
 from nucypher.policy.conditions.utils import (
     ConditionEvalError,
     evaluate_condition_lingo,
 )
-from nucypher.types import SignatureRequest
+
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import get_global_source_ipv4
 

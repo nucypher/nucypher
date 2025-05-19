@@ -29,7 +29,7 @@ COHORT_THRESHOLD = 3
 
 def ursula_sign_data(accounts, ursula, signable_message):
     operator_account = accounts[ursula.operator_address]
-    message_signature = operator_account.sign_message(signable_message)
+    message_signature = operator_account.sign_message_eip191(signable_message)
     signature_bytes = message_signature.encode_rsv()
     return signature_bytes
 

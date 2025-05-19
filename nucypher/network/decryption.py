@@ -10,7 +10,8 @@ from nucypher_core import (
 )
 
 from nucypher.network.client import ThresholdAccessControlClient
-from nucypher.types import SignatureRequest, SignatureResponse
+
+from nucypher.network.signing import SignatureRequest, SignatureResponse
 from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 
 

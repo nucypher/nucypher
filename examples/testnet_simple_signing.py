@@ -12,8 +12,9 @@ from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Bob
+
+from nucypher.network.signing import SignatureRequest, SignatureResponse
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
-from nucypher.types import SignatureRequest, SignatureResponse
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 LOG_LEVEL = "debug"
