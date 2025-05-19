@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 from urllib.parse import urlparse
 
 from eth_typing.evm import ChecksumAddress
@@ -81,7 +81,13 @@ class Signer(ABC):
         return NotImplemented
 
     @abstractmethod
-    def sign_message(
+    def sign_message_eip191(
         self, account: str, message: bytes, **kwargs
     ) -> Tuple[HexBytes, HexBytes]:
+        return NotImplemented
+
+    @abstractmethod
+    def sign_message_eip712(
+        self, account: str, message: Dict[str, Any], **kwargs
+    ) -> Tuple[SignableMessage, HexBytes]:
         return NotImplemented

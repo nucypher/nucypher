@@ -1,5 +1,5 @@
 import inspect
-from typing import List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
@@ -195,23 +195,41 @@ class TransactingPower(CryptoPowerUp):
         return result
 
     # TODO: this is only a workaround - what are we going to do with this? standardize vs not standardize?
-    def sign_message(
+    def sign_message_eip191(
         self, message: bytes, standardize: bool = True
-    ) -> Tuple[HexBytes, bytes]:
+    ) -> Tuple[bytes, bytes]:
         """
         Signs the message with the private key of the TransactingPower.
         Returns the message hash and the signature as bytes.
         """
-        _hash, signature = self._signer.sign_message(
+        message, signature = self._signer.sign_message_eip191(
             account=self.__account, message=message
         )
 
         # This signature will need to be passed to Rust, so we are cleaning the chain identifier
         # from the recovery byte, bringing it to the standard choice of {0, 1}.
         if not standardize:
-            return _hash, signature
+            return message.body, signature
 
-        return _hash, to_standard_signature_bytes(signature)
+        return message.body, to_standard_signature_bytes(signature)
+
+    def sign_message_eip712(
+        self, message: Dict[str, Any], standardize: bool = True
+    ) -> Tuple[bytes, bytes]:
+        """
+        Signs the message with the private key of the TransactingPower.
+        Returns the message hash and the signature as bytes.
+        """
+        message, signature = self._signer.sign_message_eip712(
+            account=self.__account, message=message
+        )
+
+        # This signature will need to be passed to Rust, so we are cleaning the chain identifier
+        # from the recovery byte, bringing it to the standard choice of {0, 1}.
+        if not standardize:
+            return message.body, signature
+
+        return message.body, to_standard_signature_bytes(signature)
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:
         """Signs the transaction with the private key of the TransactingPower."""

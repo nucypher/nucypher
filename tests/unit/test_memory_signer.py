@@ -44,7 +44,9 @@ def test_memory_signer_lock_account(signer, account):
 
 def test_memory_signer_message(signer, account):
     message = b"An in-memory signer - because sometimes, having a short-term memory is actually a superpower!"
-    _message_hash, signature = signer.sign_message(account=account, message=message)
+    _message_hash, signature = signer.sign_message_eip191(
+        account=account, message=message
+    )
     assert len(signature) == LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 
 

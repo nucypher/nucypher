@@ -99,7 +99,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
         "resources": ["ceramic://*"],
     }
     valid_message = SiweMessage(**siwe_message_data).prepare_message()
-    _message_hash, valid_message_signature = signer.sign_message(
+    _message_hash, valid_message_signature = signer.sign_message_eip191(
         account=signer.accounts[0], message=valid_message.encode()
     )
     valid_address_for_signature = signer.accounts[0]
@@ -159,7 +159,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     expiration_message_data = dict(siwe_message_data)
     expiration_message_data["expiration_time"] = maya.now().add(hours=1).iso8601()
     expiration_message = SiweMessage(**expiration_message_data).prepare_message()
-    _message_hash, expiration_message_signature = signer.sign_message(
+    _message_hash, expiration_message_signature = signer.sign_message_eip191(
         account=valid_address_for_signature, message=expiration_message.encode()
     )
     EIP4361Auth.authenticate(
@@ -179,7 +179,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     already_expired_message = SiweMessage(
         **already_expired_message_data
     ).prepare_message()
-    _message_hash, already_expired_message_signature = signer.sign_message(
+    _message_hash, already_expired_message_signature = signer.sign_message_eip191(
         account=valid_address_for_signature, message=already_expired_message.encode()
     )
     with pytest.raises(
@@ -196,7 +196,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     not_before_message_data = dict(siwe_message_data)
     not_before_message_data["not_before"] = maya.now().add(hours=1).iso8601()
     not_before_message = SiweMessage(**not_before_message_data).prepare_message()
-    _message_hash, not_before_signature = signer.sign_message(
+    _message_hash, not_before_signature = signer.sign_message_eip191(
         account=valid_address_for_signature, message=not_before_message.encode()
     )
     with pytest.raises(
@@ -211,7 +211,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     not_before_message_data = dict(siwe_message_data)
     not_before_message_data["not_before"] = maya.now().subtract(hours=1).iso8601()
     not_before_message = SiweMessage(**not_before_message_data).prepare_message()
-    _message_hash, not_before_signature = signer.sign_message(
+    _message_hash, not_before_signature = signer.sign_message_eip191(
         account=valid_address_for_signature, message=not_before_message.encode()
     )
     EIP4361Auth.authenticate(
@@ -226,7 +226,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     futuristic_issued_at_message = SiweMessage(
         **futuristic_issued_at_message_data
     ).prepare_message()
-    _message_hash, futuristic_issued_at_message_signature = signer.sign_message(
+    _message_hash, futuristic_issued_at_message_signature = signer.sign_message_eip191(
         account=valid_address_for_signature,
         message=futuristic_issued_at_message.encode(),
     )
@@ -246,7 +246,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
         f"{maya.now().subtract(hours=EIP4361Auth.FRESHNESS_IN_HOURS + 1).iso8601()}"
     )
     stale_message = SiweMessage(**stale_message_data).prepare_message()
-    _message_hash, stale_message_signature = signer.sign_message(
+    _message_hash, stale_message_signature = signer.sign_message_eip191(
         account=valid_address_for_signature, message=stale_message.encode()
     )
     with pytest.raises(
@@ -265,7 +265,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     old_but_not_stale_message = SiweMessage(
         **old_but_not_stale_message_data
     ).prepare_message()
-    _message_hash, old_not_stale_message_signature = signer.sign_message(
+    _message_hash, old_not_stale_message_signature = signer.sign_message_eip191(
         account=valid_address_for_signature, message=old_but_not_stale_message.encode()
     )
     EIP4361Auth.authenticate(
@@ -282,7 +282,7 @@ def test_authenticate_eip4361(get_random_checksum_address):
     not_stale_but_past_expiry_message = SiweMessage(
         **not_stale_but_past_expiry
     ).prepare_message()
-    _message_hash, not_stale_but_past_expiry_signature = signer.sign_message(
+    _message_hash, not_stale_but_past_expiry_signature = signer.sign_message_eip191(
         account=valid_address_for_signature,
         message=not_stale_but_past_expiry_message.encode(),
     )
@@ -306,7 +306,7 @@ def test_authenticate_eip1271(mocker, get_random_checksum_address):
     # signer for wallet
     data = f"I'm the owner of the smart contract wallet address {eip1271_mock_contract.address}"
     wallet_signer = InMemorySigner()
-    _message_hash, valid_message_signature = wallet_signer.sign_message(
+    _message_hash, valid_message_signature = wallet_signer.sign_message_eip191(
         account=wallet_signer.accounts[0], message=data.encode()
     )
     data_hash = defunct_hash_message(text=data)
@@ -375,7 +375,7 @@ def test_authenticate_eip1271(mocker, get_random_checksum_address):
 
     # use invalid signer
     invalid_signer = InMemorySigner()
-    _message_hash, invalid_message_signature = invalid_signer.sign_message(
+    _message_hash, invalid_message_signature = invalid_signer.sign_message_eip191(
         account=invalid_signer.accounts[0], message=data.encode()
     )
     with pytest.raises(EvmAuth.AuthenticationFailed):

@@ -6,7 +6,6 @@ from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.characters.lawful import Ursula
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
-from nucypher.types import SignatureRequest
 
 
 @pytest.fixture(scope="module")
