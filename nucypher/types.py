@@ -1,10 +1,3 @@
-import json
-from enum import Enum
-from typing import NamedTuple, NewType, Optional, TypeVar
-
-from hexbytes import HexBytes
-
-from nucypher.policy.conditions.types import ContextDict
 from typing import NamedTuple, NewType, TypeVar
 
 ERC20Units = NewType("ERC20Units", int)

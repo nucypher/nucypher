@@ -62,9 +62,7 @@ def test_keystore_signer_message(signer, random_account):
 
     assert (
         signature
-        == random_account.sign_message_eip191(
-            encode_defunct(primitive=message)
-        ).signature
+        == random_account.sign_message(encode_defunct(primitive=message)).signature
     )
 
 

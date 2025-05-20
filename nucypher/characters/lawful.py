@@ -117,7 +117,6 @@ from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import ContractPayment, PaymentMethod
 from nucypher.policy.policies import Policy
-
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
