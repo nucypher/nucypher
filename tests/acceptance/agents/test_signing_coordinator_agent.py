@@ -110,6 +110,7 @@ def test_initiate_signing_cohort(
 
 @pytest_twisted.inlineCallbacks
 def test_post_signature(
+    chain,
     accounts,
     agent,
     transacting_powers,
@@ -188,6 +189,10 @@ def test_post_signature(
         assert signer.signature == signatures[i]
 
     # check deployed multisigs
+    assert (
+        agent.get_signing_coordinator_child(chain.chain_id)
+        == signing_coordinator_child.address
+    )
     threshold_signing_multisig_clone_factory = (
         nucypher_dependency.ThresholdSigningMultisigCloneFactory.at(
             signing_coordinator_child.signingMultisigFactory()
