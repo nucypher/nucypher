@@ -1020,7 +1020,7 @@ class Operator(BaseActor):
         )
 
         # EIP-712 sign if the request is authorized (conditions are satisfied)
-        message_hash, signature = self.transacting_power.sign_message_eip191(
+        message_hash, signature = self.transacting_power.sign_message_eip712(
             message=signing_request.data, standardize=False
         )
 

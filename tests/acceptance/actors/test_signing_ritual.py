@@ -180,13 +180,13 @@ def test_signing_request_fulfilment(
 ):
     bob.start_learning_loop(now=True)
     user_op = UserOp(
-        sender=accounts[0],
-        destination=accounts[1],
+        sender=accounts[0].address,
+        destination=accounts[1].address,
         value=0,
         data="0xdeadbeef",
         nonce=0,
         chain_id=1,
-        contract_address=accounts[2],
+        contract_address=accounts[2].address,
     )
 
     signing_request = SignatureRequest(
