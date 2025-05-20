@@ -688,7 +688,7 @@ def valid_eip712_auth_message():
         },
     }
     signable_message = encode_typed_data(full_message=data)
-    signature = signer.sign_message_eip191(signable_message=signable_message)
+    signature = signer.sign_message(signable_message=signable_message)
 
     auth_message = {
         "signature": f"{signature.signature.hex()}",

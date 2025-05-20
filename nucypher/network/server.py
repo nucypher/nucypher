@@ -30,7 +30,6 @@ from nucypher.policy.conditions.utils import (
     ConditionEvalError,
     evaluate_condition_lingo,
 )
-
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import get_global_source_ipv4
 
@@ -317,11 +316,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         return Response(response=content, headers=headers)
 
     @rest_app.route("/sign", methods=["POST"])
-    def threshold_sign():
-        """An endpoint that handles signing requests."""
+    def sign_message():
+        """An endpoint that handles message signing requests."""
         try:
             signing_request = SignatureRequest.from_bytes(request.data)
-            signing_response = this_node.handle_threshold_signing_request(
+            signing_response = this_node.handle_signing_request(
                 signing_request=signing_request
             )
             return Response(

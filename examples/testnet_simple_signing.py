@@ -195,7 +195,8 @@ def main():
         signature_response_json = json.loads(base64.b64decode(r[1]).decode())
         signature_responses.append(
             SignatureResponse(
-                message_hash=bytes(HexBytes(signature_response_json["message_hash"])),
+                message=data_to_sign,
+                _hash=bytes(HexBytes(signature_response_json["message_hash"])),
                 signature=bytes(HexBytes(signature_response_json["signature"])),
             )
         )
