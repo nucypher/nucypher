@@ -717,8 +717,8 @@ class Bob(Character):
         sorted_successes = sorted(
             successes.values(), key=lambda t: to_checksum_address(t[0])
         )
-        signatures = [s[1].signature for s in sorted_successes]
-        return signatures
+        responses = [s[1] for s in sorted_successes]
+        return responses
 
     def threshold_decrypt(
         self,
