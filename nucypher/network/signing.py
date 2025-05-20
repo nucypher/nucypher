@@ -8,95 +8,122 @@ from nucypher.policy.conditions.types import ContextDict
 
 
 class UserOp:
+    """
+    A Python representation of the ERC-4337 PackedUserOperation as used by
+    OpenZeppelin’s ERC4337Utils.hash(…).
+    """
 
     def __init__(
         self,
         sender: str,
-        destination: str,
-        value: int,
-        data: str,
         nonce: int,
-        chain_id: int,
-        contract_address: str,
+        init_code: bytes,
+        call_data: bytes,
+        verification_gas_limit: int,
+        call_gas_limit: int,
+        pre_verification_gas: int,
+        max_fee_per_gas: int,
+        max_priority_fee_per_gas: int,
+        paymaster_and_data: bytes = b"",
+        signature: Optional[bytes] = None,
+        chain_id: int = 1,
+        entry_point: str = "",
     ):
         self.sender = sender
-        self.destination = destination
-        self.value = value
-        self.data = data
         self.nonce = nonce
-        self.chain_id = chain_id
-        self.contract_address = contract_address
+        self.initCode = init_code
+        self.callData = call_data
+        self.verificationGasLimit = verification_gas_limit
+        self.callGasLimit = call_gas_limit
+        self.preVerificationGas = pre_verification_gas
+        self.maxFeePerGas = max_fee_per_gas
+        self.maxPriorityFeePerGas = max_priority_fee_per_gas
+        self.paymasterAndData = paymaster_and_data
+        self.signature = signature or b""
+        self.chainId = chain_id
+        self.entryPoint = entry_point
 
     def to_message(self) -> dict:
-        """Returns the message payload for EIP-712 encoding."""
+        """Return the 'message' object for EIP-712 encoding (excludes signature)."""
         return {
             "sender": self.sender,
-            "destination": self.destination,
-            "value": self.value,
-            "data": self.data,
             "nonce": self.nonce,
-            "chainId": self.chain_id,
-            "contractAddress": self.contract_address,
+            "initCode": self.initCode.hex(),
+            "callData": self.callData.hex(),
+            "verificationGasLimit": self.verificationGasLimit,
+            "callGasLimit": self.callGasLimit,
+            "preVerificationGas": self.preVerificationGas,
+            "maxFeePerGas": self.maxFeePerGas,
+            "maxPriorityFeePerGas": self.maxPriorityFeePerGas,
+            "paymasterAndData": self.paymasterAndData.hex(),
         }
 
     def to_structured_data(self) -> dict:
-        """Builds the full EIP-712 structured data dict."""
+        """
+        Builds the full EIP-712 structured data dict for hashing via eth-account
+        or similar libraries.
+        """
         domain = {
-            "name": "TACoMultisig",
+            "name": "UserOperation",
             "version": "1",
-            "chainId": self.chain_id,
-            "verifyingContract": self.contract_address,
+            "chainId": self.chainId,
+            "verifyingContract": self.entryPoint,
         }
-        _types = {
+        types = {
             "EIP712Domain": [
                 {"name": "name", "type": "string"},
                 {"name": "version", "type": "string"},
                 {"name": "chainId", "type": "uint256"},
                 {"name": "verifyingContract", "type": "address"},
             ],
-            "Transaction": [
+            "UserOperation": [
                 {"name": "sender", "type": "address"},
-                {"name": "destination", "type": "address"},
-                {"name": "value", "type": "uint256"},
-                {"name": "data", "type": "bytes"},
                 {"name": "nonce", "type": "uint256"},
+                {"name": "initCode", "type": "bytes"},
+                {"name": "callData", "type": "bytes"},
+                {"name": "verificationGasLimit", "type": "uint256"},
+                {"name": "callGasLimit", "type": "uint256"},
+                {"name": "preVerificationGas", "type": "uint256"},
+                {"name": "maxFeePerGas", "type": "uint256"},
+                {"name": "maxPriorityFeePerGas", "type": "uint256"},
+                {"name": "paymasterAndData", "type": "bytes"},
             ],
         }
         return {
-            "types": _types,
+            "types": types,
             "domain": domain,
-            "primaryType": "Transaction",
+            "primaryType": "UserOperation",
             "message": self.to_message(),
         }
 
     def __bytes__(self) -> bytes:
         """
-        Serializes the UserOp to bytes in JSON format.
+        Serializes the structured data to JSON bytes for signing.
         """
-        return json.dumps(self.to_structured_data()).encode()
+        return json.dumps(self.to_structured_data(), separators=(",", ":")).encode()
 
     @staticmethod
-    def from_bytes(user_op_data: bytes):
+    def from_bytes(data: bytes) -> "UserOperation":
         """
-        Deserializes the UserOp from bytes in JSON format.
+        Deserialize a UserOperation from the same JSON format produced by __bytes__.
+        Note: signature must be set separately if present.
         """
-        result = json.loads(user_op_data.decode())
-        sender = result["message"]["sender"]
-        destination = result["message"]["destination"]
-        value = result["message"]["value"]
-        data = result["message"]["data"]
-        nonce = result["message"]["nonce"]
-        chain_id = result["domain"]["chainId"]
-        contract_address = result["domain"]["verifyingContract"]
-
-        return UserOp(
-            sender=sender,
-            destination=destination,
-            value=value,
-            data=data,
-            nonce=nonce,
-            chain_id=chain_id,
-            contract_address=contract_address,
+        obj = json.loads(data.decode())
+        msg = obj["message"]
+        return UserOperation(
+            sender=msg["sender"],
+            nonce=int(msg["nonce"]),
+            init_code=bytes.fromhex(msg["initCode"]),
+            call_data=bytes.fromhex(msg["callData"]),
+            verification_gas_limit=int(msg["verificationGasLimit"]),
+            call_gas_limit=int(msg["callGasLimit"]),
+            pre_verification_gas=int(msg["preVerificationGas"]),
+            max_fee_per_gas=int(msg["maxFeePerGas"]),
+            max_priority_fee_per_gas=int(msg["maxPriorityFeePerGas"]),
+            paymaster_and_data=bytes.fromhex(msg["paymasterAndData"]),
+            signature=None,
+            chain_id=int(obj["domain"]["chainId"]),
+            entry_point=obj["domain"]["verifyingContract"],
         )
 
 class _SignatureTypes(Enum):
