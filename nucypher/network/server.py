@@ -332,6 +332,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(e.message, status=e.status_code)
         except this_node.UnauthorizedRequest as e:
             return Response(str(e), status=HTTPStatus.UNAUTHORIZED)
+        except this_node.NoConditionConfigured as e:
+            return Response(str(e), status=HTTPStatus.FORBIDDEN)
         except ValueError as e:
             # this line is hit when the ThresholdSignatureRequest is an old version
             # ValueError: Failed to deserialize: differing major version: expected 3, got 1

@@ -3,6 +3,7 @@ import pytest_twisted
 from eth_account.messages import defunct_hash_message
 
 from nucypher.blockchain.eth.models import SigningCoordinator
+from nucypher.characters.lawful import Ursula
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.types import ThresholdSignatureRequest
@@ -177,6 +178,23 @@ def test_signing_request_fulfilment(
     ritual_initiator,
     time_condition,
 ):
+    bob.start_learning_loop(now=True)
+    data_to_sign = b"test_data"
+    signing_request = ThresholdSignatureRequest(
+        cohort_id=cohort_id,
+        chain_id=chain.chain_id,
+        data_to_sign=data_to_sign,
+        context=None,
+    )
+
+    print("============= SIGNING REQUEST (NO CONDITION)==============")
+    with pytest.raises(Ursula.NotEnoughUrsulas, match="Condition not configured"):
+        _ = yield bob.request_threshold_signatures(
+            signing_request=signing_request,
+        )
+    print("===================== SIGNING FAILED =====================")
+
+    print("==================== SIGNING REQUEST ====================")
     # set condition for cohort and chain
     on_chain_condition_lingo = ConditionLingo(time_condition)
     signing_coordinator_agent.set_signing_cohort_conditions(
@@ -186,16 +204,6 @@ def test_signing_request_fulfilment(
         ritual_initiator.transacting_power,
     )
 
-    print("==================== SIGNING REQUEST ====================")
-    bob.start_learning_loop(now=True)
-    data_to_sign = b"test_data"
-
-    signing_request = ThresholdSignatureRequest(
-        cohort_id=cohort_id,
-        chain_id=chain.chain_id,
-        data_to_sign=data_to_sign,
-        context=None,
-    )
     responses = yield bob.request_threshold_signatures(
         signing_request=signing_request,
     )
