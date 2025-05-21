@@ -1028,7 +1028,7 @@ class Operator(BaseActor):
         message_hash, signature = self.transacting_power.sign_message(
             message=data, standardize=False
         )
-        return message_hash, bytes(signature)
+        return bytes(message_hash), bytes(signature)
 
     def _local_operator_address(self):
         return self.__operator_address
