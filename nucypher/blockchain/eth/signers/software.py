@@ -270,12 +270,15 @@ class KeystoreSigner(Signer):
         return raw_transaction
 
     @validate_checksum_address
-    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+    def sign_message(
+        self, account: str, message: bytes, **kwargs
+    ) -> Tuple[HexBytes, HexBytes]:
         signer = self._get_signer(account=account)
-        signature = signer.sign_message(
-            signable_message=encode_defunct(primitive=message)
-        ).signature
-        return HexBytes(signature)
+        signable_message = encode_defunct(primitive=message)
+        signed_message = signer.sign_message(
+            signable_message=signable_message,
+        )
+        return signed_message.messageHash, signed_message.signature
 
 
 class InMemorySigner(Signer):
@@ -341,9 +344,10 @@ class InMemorySigner(Signer):
         return raw_transaction
 
     @validate_checksum_address
-    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+    def sign_message(
+        self, account: str, message: bytes, **kwargs
+    ) -> Tuple[HexBytes, HexBytes]:
         signer = self._get_signer(account=account)
-        signature = signer.sign_message(
-            signable_message=encode_defunct(primitive=message)
-        ).signature
-        return HexBytes(signature)
+        signable_message = encode_defunct(primitive=message)
+        signed_message = signer.sign_message(signable_message=signable_message)
+        return signed_message.messageHash, signed_message.signature

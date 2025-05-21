@@ -317,14 +317,12 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route("/sign", methods=["POST"])
     def threshold_sign():
-        """An endpoint that handles threshold signing requests."""
+        """An endpoint that handles signing requests."""
         try:
             signing_request = ThresholdSignatureRequest.from_bytes(request.data)
-            # Handle the signing request
             signing_response = this_node.handle_threshold_signing_request(
                 signing_request=signing_request
             )
-
             return Response(
                 response=bytes(signing_response),
                 status=HTTPStatus.OK,

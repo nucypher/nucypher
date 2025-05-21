@@ -198,8 +198,10 @@ def test_keystore_sign_message(mocker, good_signer, mock_account, mock_key):
     assert successful_unlock
 
     # sign message
-    message = b'A million tiny bubbles exploding'
-    signature = good_signer.sign_message(account=mock_account.address, message=message)
+    message = b"A million tiny bubbles exploding"
+    _message_hash, signature = good_signer.sign_message(
+        account=mock_account.address, message=message
+    )
     assert len(signature) == LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 
 
