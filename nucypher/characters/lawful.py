@@ -116,7 +116,7 @@ from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import ContractPayment, PaymentMethod
 from nucypher.policy.policies import Policy
-from nucypher.types import ThresholdSignatureRequest
+from nucypher.types import ThresholdSignatureRequest, ThresholdSignatureResponse
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
@@ -680,7 +680,7 @@ class Bob(Character):
         signing_request: ThresholdSignatureRequest,
         ursulas: List["Ursula"] = None,
         timeout: int = ThresholdSigningClient.DEFAULT_TIMEOUT,
-    ) -> List[bytes]:
+    ) -> List[ThresholdSignatureResponse]:
         """
         Request a threshold signature from a cohort of Ursulas.
         """
@@ -713,12 +713,12 @@ class Bob(Character):
                 f"Threshold of Ursulas unable to sign: {failures}"
             )
 
-        # Aggregate signatures
+        # Aggregate & sort signatures
         sorted_successes = sorted(
             successes.values(), key=lambda t: to_checksum_address(t[0])
         )
-        signatures = [s[1].data for s in sorted_successes]
-        return signatures
+        responses = [s[1] for s in sorted_successes]
+        return responses
 
     def threshold_decrypt(
         self,
@@ -893,7 +893,9 @@ class Ursula(Teacher, Character, Operator):
 
     def _substantiate_stamp(self):
         transacting_power = self.transacting_power
-        signature = transacting_power.sign_message(message=bytes(self.stamp))
+        _message_hash, signature = transacting_power.sign_message(
+            message=bytes(self.stamp)
+        )
         self.__operator_signature = signature
         self.__operator_address = transacting_power.account
         message = f"Created decentralized identity evidence: {self.__operator_signature[:10].hex()}"
@@ -1451,15 +1453,15 @@ class Enrico:
 
         # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
-        authorization = bytes(
-            self.signer.sign_message(
+        _message_hash, authorization = self.signer.sign_message(
                 message=header_hash, account=self.signer.accounts[0]
             )
-        )
 
         return ThresholdMessageKit(
             ciphertext=ciphertext,
-            acp=AccessControlPolicy(auth_data=auth_data, authorization=authorization),
+            acp=AccessControlPolicy(
+                auth_data=auth_data, authorization=bytes(authorization)
+            ),
         )
 
     @classmethod
