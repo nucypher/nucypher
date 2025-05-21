@@ -51,7 +51,6 @@ class ThresholdSignatureRequest:
             "data_to_sign": self.data_to_sign.hex(),
             "cohort_id": self.cohort_id,
             "context": self.context,
-            "type": _SignatureTypes.EIP191.value,
         }
         return json.dumps(data).encode()
 
@@ -62,14 +61,12 @@ class ThresholdSignatureRequest:
             data_to_sign = bytes(HexBytes(result["data_to_sign"]))
             cohort_id = result["cohort_id"]
             context = result["context"]
-            _type = result["type"]
         except (ValueError, KeyError) as e:
             raise ValueError("Invalid request data") from e
         return ThresholdSignatureRequest(
             cohort_id=cohort_id,
             data_to_sign=data_to_sign,
             context=context,
-            _type=_type,
         )
 
 
