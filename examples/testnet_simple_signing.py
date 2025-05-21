@@ -1,8 +1,8 @@
 import base64
+import json
 import os
 
 import requests
-from hexbytes import HexBytes
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
@@ -53,12 +53,14 @@ bob = Bob(
 print(f"BOB: {bob}")
 bob.start_learning_loop(now=True)
 
-signatures = bob.request_threshold_signatures(
+responses = bob.request_threshold_signatures(
     signing_request=signing_request,
 )
 
-print("\nData to sign: ", data_to_sign)
-print(f"\nSignatures:\n{[HexBytes(s).hex() for s in signatures]}")
+
+print(f"Signatures: {" ".join(r.signature.hex() for r in responses)}")
+print(f"\nHashes: {" ".join(r. message_hash.hex() for r in responses)}")
+print("\nOriginal Message: ", data_to_sign)
 
 print("--------- Threshold Signing Porter ---------")
 
@@ -87,8 +89,10 @@ errors = signing_results["errors"]
 assert len(errors) == 0, f"{errors}"  # no errors
 
 assert len(signing_results["signatures"]) >= threshold
-
 print("\nData to sign: ", data_to_sign)
-print(
-    f"\nSignatures:\n{[HexBytes(base64.b64decode(s[1])).hex() for s in signing_results['signatures'].values()]}"
+
+responses = signing_results["signatures"]
+responses = list(
+    json.loads(base64.b64decode(r[1]).decode()) for r in responses.values()
 )
+print(responses)
