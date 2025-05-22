@@ -713,11 +713,9 @@ class Bob(Character):
                 f"Threshold of Ursulas unable to sign: {failures}"
             )
 
-        # Aggregate & sort signatures
-        sorted_successes = sorted(
-            successes.values(), key=lambda t: to_checksum_address(t[0])
-        )
-        responses = [s[1] for s in sorted_successes]
+        # Already sorted by client - just collect responses
+        # successes is of type  Dict[ChecksumAddress, Tuple[ChecksumAddress, ThresholdSignatureResponse]]
+        responses = [s[1] for s in successes.values()]
         return responses
 
     def threshold_decrypt(
