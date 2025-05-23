@@ -1,4 +1,5 @@
 import math
+from collections import OrderedDict
 from http import HTTPStatus
 from typing import Dict, List, Tuple
 
@@ -203,5 +204,9 @@ class ThresholdSigningClient(NetworkRequestClient):
             timeout=timeout,
             stagger_timeout=stagger_timeout,
         )
+
+        # sort successes by operator address
+        # successes is of type Dict[ChecksumAddress, Tuple[ChecksumAddress, ThresholdSignatureResponse]]
+        successes = OrderedDict(sorted(successes.items(), key=lambda item: item[1][0]))
 
         return successes, failures

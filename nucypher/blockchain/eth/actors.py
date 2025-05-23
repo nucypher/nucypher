@@ -181,6 +181,9 @@ class Operator(BaseActor):
     class UnauthorizedRequest(Exception):
         """Request is not authorized."""
 
+    class NoConditionConfigured(Exception):
+        """Associated condition is not configured."""
+
     class DecryptionFailure(Exception):
         """Decryption failed."""
 
@@ -251,7 +254,7 @@ class Operator(BaseActor):
         self.signing_coordinator_agent = ContractAgency.get_agent(
             SigningCoordinatorAgent,
             registry=registry,
-            blockchain_endpoint=polygon_endpoint,
+            blockchain_endpoint=eth_endpoint,
         )
 
         # track active onchain rituals
@@ -1162,6 +1165,7 @@ class Operator(BaseActor):
     def perform_post_signature(
         self,
         cohort_id: int,
+        chain_id: int,
         authority: ChecksumAddress,
         participants: List[ChecksumAddress],
         timestamp: int,
@@ -1378,7 +1382,13 @@ class Operator(BaseActor):
         )
 
         # evaluate condition
-        condition_lingo = json.loads(signing_cohort.conditions.decode())
+        condition_string = signing_cohort.conditions[signing_request.chain_id].decode()
+        if not condition_string:
+            raise self.NoConditionConfigured(
+                f"Condition not configured on chain {signing_request.chain_id} for signing cohort {signing_request.cohort_id} "
+            )
+
+        condition_lingo = json.loads(condition_string)
         context = signing_request.context
 
         evaluate_condition_lingo(
