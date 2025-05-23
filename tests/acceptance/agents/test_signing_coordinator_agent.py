@@ -8,7 +8,6 @@ from web3 import Web3
 from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
 from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.crypto.powers import TransactingPower
-from nucypher.policy.conditions.lingo import ConditionLingo
 
 
 @pytest.fixture(scope="module")
@@ -61,6 +60,7 @@ def ritual_initiator(initiator, signing_coordinator, deployer_account):
 
 @pytest.mark.usefixtures("ursulas")
 def test_initiate_signing_cohort(
+    chain,
     accounts,
     agent,
     cohort_providers,
@@ -75,6 +75,7 @@ def test_initiate_signing_cohort(
     duration = 60 * 60 * 24
 
     receipt = agent.initiate_signing_cohort(
+        chain_id=chain.chain_id,
         authority=authority,
         providers=cohort_providers,
         threshold=len(cohort_providers) // 2 + 1,
@@ -82,19 +83,24 @@ def test_initiate_signing_cohort(
         transacting_power=ritual_initiator.transacting_power,
     )
     assert receipt["status"] == 1
-    initiate_event = agent.contract.events.InitiateSigningCohort().process_receipt(
-        receipt
-    )
-    assert initiate_event[0]["args"]["authority"] == authority
-    assert initiate_event[0]["args"]["participants"] == cohort_providers
 
     number_of_cohorts = agent.number_of_cohorts()
     assert number_of_cohorts == 1
     cohort_id = number_of_cohorts - 1
 
+    initiate_event = agent.contract.events.InitiateSigningCohort().process_receipt(
+        receipt
+    )
+    assert initiate_event[0]["args"]["cohortId"] == cohort_id
+    assert initiate_event[0]["args"]["authority"] == authority
+    assert initiate_event[0]["args"]["chainId"] == chain.chain_id
+    assert initiate_event[0]["args"]["participants"] == cohort_providers
+
     signing_cohort = agent.get_signing_cohort(cohort_id)
     assert signing_cohort.authority == authority
     assert [p.provider for p in signing_cohort.signers] == cohort_providers
+
+    assert signing_cohort.chains == [chain.chain_id]
 
     assert (
         agent.get_signing_cohort_status(cohort_id=cohort_id)
@@ -103,8 +109,8 @@ def test_initiate_signing_cohort(
 
 
 @pytest_twisted.inlineCallbacks
-@pytest.mark.usefixtures()
 def test_post_signature(
+    chain,
     accounts,
     agent,
     transacting_powers,
@@ -112,10 +118,10 @@ def test_post_signature(
     cohort_providers,
     cohort_operators,
     testerchain,
-    time_condition,
     clock,
     mock_async_hooks,
     nucypher_dependency,
+    signing_coordinator_child,
 ):
     cohort_id = agent.number_of_cohorts() - 1
 
@@ -154,6 +160,7 @@ def test_post_signature(
         )
         event = post_signature_events[0]
         assert event["args"]["cohortId"] == cohort_id
+        assert event["args"]["provider"] == cohort_providers[i]
         assert event["args"]["signature"] == signatures[i]
 
     # ensure relevant hooks are called (once for each tx) OR not called (failure ones)
@@ -168,20 +175,7 @@ def test_post_signature(
     assert mock_async_hooks.on_fault.call_count == 0
     assert mock_async_hooks.on_insufficient_funds.call_count == 0
 
-    assert (
-        agent.get_signing_cohort_status(cohort_id=cohort_id)
-        == SigningCoordinator.RitualStatus.AWAITING_CONDITIONS
-    )
-    assert not agent.is_cohort_active(cohort_id=cohort_id)
-
-    # submit condition
-    condition_lingo = ConditionLingo(time_condition)
-    authority_transacting_power = TransactingPower(
-        account=authority, signer=accounts.get_account_signer(authority)
-    )
-    agent.set_signing_cohort_conditions(
-        cohort_id, condition_lingo, transacting_power=authority_transacting_power
-    )
+    # ritual completed
     assert (
         agent.get_signing_cohort_status(cohort_id=cohort_id)
         == SigningCoordinator.RitualStatus.ACTIVE
@@ -194,10 +188,19 @@ def test_post_signature(
         assert signer.operator == cohort_operators[i]
         assert signer.signature == signatures[i]
 
-    # check deployed multisig
+    # check deployed multisigs
+    assert (
+        agent.get_signing_coordinator_child(chain.chain_id)
+        == signing_coordinator_child.address
+    )
+    threshold_signing_multisig_clone_factory = (
+        nucypher_dependency.ThresholdSigningMultisigCloneFactory.at(
+            signing_coordinator_child.signingMultisigFactory()
+        )
+    )
     deployed_multisig = nucypher_dependency.ThresholdSigningMultisig.at(
-        signing_cohort.multisig
+        threshold_signing_multisig_clone_factory.getCloneAddress(cohort_id)
     )
     assert deployed_multisig.getSigners() == cohort_operators
     assert deployed_multisig.threshold() == len(cohort_operators) // 2 + 1
-    assert deployed_multisig.owner() == authority
+    assert deployed_multisig.owner() == signing_coordinator_child.address

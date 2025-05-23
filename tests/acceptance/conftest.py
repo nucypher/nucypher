@@ -1,6 +1,7 @@
 import random
 
 import pytest
+from eth.constants import ZERO_ADDRESS
 from web3 import Web3
 
 import tests
@@ -241,51 +242,105 @@ def coordinator(
 
 
 @pytest.fixture(scope="module")
-def threshold_signing_multisig(nucypher_dependency, deployer_account):
-    contract = nucypher_dependency.ThresholdSigningMultisig.deploy(
-        sender=deployer_account,
-    )
-    return contract
-
-
-@pytest.fixture(scope="module")
-def threshold_signing_multisig_clone_factory(
-    nucypher_dependency, deployer_account, threshold_signing_multisig
-):
-    contract = nucypher_dependency.ThresholdSigningMultisigCloneFactory.deploy(
-        threshold_signing_multisig.address,
-        sender=deployer_account,
-    )
-
-    return contract
-
-
-@pytest.fixture(scope="module")
 def signing_coordinator(
     oz_dependency,
     nucypher_dependency,
     deployer_account,
-    taco_child_application,
-    threshold_signing_multisig_clone_factory,
+    taco_application,
 ):
-    _signing_coordinator = deployer_account.deploy(
-        nucypher_dependency.SigningCoordinator,
-        taco_child_application.address,
-        threshold_signing_multisig_clone_factory,
+    contract = nucypher_dependency.SigningCoordinator.deploy(
+        taco_application.address,
+        sender=deployer_account,
     )
-
-    encoded_initializer_function = _signing_coordinator.initialize.encode_input(
-        TIMEOUT, MAX_DKG_SIZE, deployer_account.address
+    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+        contract.address,
+        deployer_account,
+        b"",
+        sender=deployer_account,
     )
-    proxy = deployer_account.deploy(
-        oz_dependency.TransparentUpgradeableProxy,
-        _signing_coordinator.address,
-        deployer_account.address,
-        encoded_initializer_function,
-    )
-
     proxy_contract = nucypher_dependency.SigningCoordinator.at(proxy.address)
+
+    signing_coordinator_dispatcher = (
+        nucypher_dependency.SigningCoordinatorDispatcher.deploy(
+            proxy_contract.address,
+            sender=deployer_account,
+        )
+    )
+    proxy_contract.initialize(
+        TIMEOUT,
+        MAX_DKG_SIZE,
+        signing_coordinator_dispatcher.address,
+        deployer_account.address,
+        sender=deployer_account,
+    )
+
+    proxy_contract.grantRole(
+        proxy_contract.INITIATOR_ROLE(),
+        deployer_account.address,
+        sender=deployer_account,
+    )
+
     return proxy_contract
+
+
+def _signing_coordinator_child_deployment(
+    nucypher_dependency, oz_dependency, deployer, allowed_caller
+):
+    contract = nucypher_dependency.SigningCoordinatorChild.deploy(
+        sender=deployer,
+    )
+    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+        contract.address,
+        deployer,
+        b"",
+        sender=deployer,
+    )
+    proxy_contract = nucypher_dependency.SigningCoordinatorChild.at(proxy.address)
+
+    threshold_signing_multisig = nucypher_dependency.ThresholdSigningMultisig.deploy(
+        sender=deployer,
+    )
+    signing_factory_contract = (
+        nucypher_dependency.ThresholdSigningMultisigCloneFactory.deploy(
+            threshold_signing_multisig.address,
+            proxy_contract.address,
+            sender=deployer,
+        )
+    )
+
+    proxy_contract.initialize(
+        signing_factory_contract.address, allowed_caller, sender=deployer
+    )
+    return proxy_contract
+
+
+@pytest.fixture(scope="module")
+def signing_coordinator_child(
+    chain, nucypher_dependency, oz_dependency, deployer_account, signing_coordinator
+):
+    signing_coordinator_dispatcher = (
+        nucypher_dependency.SigningCoordinatorDispatcher.at(
+            signing_coordinator.signingCoordinatorDispatcher()
+        )
+    )
+
+    _signing_coordinator_child = _signing_coordinator_child_deployment(
+        nucypher_dependency,
+        oz_dependency,
+        deployer_account,
+        signing_coordinator_dispatcher.address,
+    )
+
+    # don't need a L1Sender for the same chain as signing coordinator
+    # current chain
+    signing_coordinator_dispatcher.register(
+        chain.chain_id,
+        ZERO_ADDRESS,
+        _signing_coordinator_child.address,
+        sender=deployer_account,
+    )
+
+    return _signing_coordinator_child
 
 
 @pytest.fixture(scope="module")
@@ -340,6 +395,7 @@ def deployed_contracts(
     taco_child_application,
     coordinator,
     signing_coordinator,
+    signing_coordinator_child,
     fee_model,
     global_allow_list,
     subscription_manager,
@@ -353,6 +409,7 @@ def deployed_contracts(
         taco_child_application,
         coordinator,
         signing_coordinator,
+        signing_coordinator_child,
         fee_model,
         global_allow_list,
         subscription_manager,
