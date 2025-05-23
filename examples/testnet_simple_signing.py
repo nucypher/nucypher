@@ -80,7 +80,6 @@ def main():
 
     print("--------- Threshold Signing Porter ---------")
 
-
     response = requests.get(f"{PORTER_BASE_URL}/get_ursulas", params={"quantity": 3})
     response.raise_for_status()
 
