@@ -4,12 +4,15 @@ import os
 from typing import List
 
 import requests
+from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
+from web3 import Web3
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Bob
+from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.types import ThresholdSignatureRequest, ThresholdSignatureResponse
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -19,12 +22,91 @@ GlobalLoggerSettings.start_console_logging()
 
 DOMAIN = domains.LYNX
 
-COHORT_ID = 0  # got this from a side channel
+COHORT_ID = 1  # got this from a side channel
 THRESHOLD = 2  # 2-of-3 signing
+
+ERC_1271_ABI = """[
+    {
+        "constant":true,
+        "inputs":[
+            {
+                "name":"_hash",
+                "type":"bytes32"
+            },
+            {
+                "name":"_signature",
+                "type":"bytes"
+            }
+        ],
+        "name":"isValidSignature",
+        "outputs":[
+            {
+                "name":"magicValue",
+                "type":"bytes4"
+            }
+        ],
+        "payable":false,
+        "stateMutability":"view",
+        "type":"function"
+    }
+]"""
 
 ETH_ENDPOINT = os.environ["DEMO_L1_PROVIDER_URI"]
 POLYGON_ENDPOINT = os.environ["DEMO_L2_PROVIDER_URI"]
 PORTER_BASE_URL = "https://porter-lynx.nucypher.io"
+
+
+def get_eth_multisig_address(
+    signing_coordinator_agent: SigningCoordinatorAgent,
+) -> ChecksumAddress:
+    abi = """[
+        {
+            "type":"function",
+            "name":"cohortMultisigs",
+            "stateMutability":"view",
+            "inputs":[
+                {
+                    "name":"",
+                    "type":"uint32",
+                    "internalType":"uint32"
+                }
+            ],
+            "outputs":[
+                {
+                    "name":"",
+                    "type":"address",
+                    "internalType":"address"
+                }
+            ]
+        }
+    ]"""
+    w3 = Web3(Web3.HTTPProvider(ETH_ENDPOINT))
+    signing_coordinator_child_eth = w3.eth.contract(
+        signing_coordinator_agent.get_signing_coordinator_child(DOMAIN.eth_chain.id),
+        abi=abi,
+    )
+    multisig_address = signing_coordinator_child_eth.functions.cohortMultisigs(
+        COHORT_ID
+    ).call()
+    return multisig_address
+
+
+def validate_responses_with_cohort_eth_multisig(
+    signing_coordinator_agent: SigningCoordinatorAgent,
+    responses: List[ThresholdSignatureResponse],
+):
+    w3 = signing_coordinator_agent.blockchain.client.w3
+    multisig_address = get_eth_multisig_address(signing_coordinator_agent)
+    er1271_contract = w3.eth.contract(address=multisig_address, abi=ERC_1271_ABI)
+    assert (
+        er1271_contract.functions.isValidSignature(
+            responses[0].message_hash, b"".join([r.signature for r in responses])
+        ).call()
+        == EIP1271Auth.MAGIC_VALUE_BYTES
+    )
+    print(
+        f"✓ Signatures validated by multisig contract on ETH-Sepolia: {multisig_address}"
+    )
 
 
 def print_signing_result(
@@ -77,6 +159,7 @@ def main():
     )
 
     print_signing_result(data_to_sign, responses)
+    validate_responses_with_cohort_eth_multisig(signing_coordinator_agent, responses)
 
     print("--------- Threshold Signing Porter ---------")
 
@@ -117,6 +200,7 @@ def main():
         )
 
     print_signing_result(data_to_sign, signature_responses)
+    validate_responses_with_cohort_eth_multisig(signing_coordinator_agent, responses)
 
 
 if __name__ == "__main__":
