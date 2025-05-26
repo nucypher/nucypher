@@ -953,12 +953,12 @@ class SigningCoordinatorAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def get_signing_cohort_data_hash(self, cohort_id: int):
+    def get_signing_cohort_data_hash(self, cohort_id: int) -> bytes:
         result = self.contract.functions.getSigningCohortDataHash(cohort_id).call()
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_signing_coordinator_child(self, chain_id: int):
+    def get_signing_coordinator_child(self, chain_id: int) -> ChecksumAddress:
         result = self.contract.functions.getSigningCoordinatorChild(chain_id).call()
         return result
 
