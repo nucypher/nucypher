@@ -14,7 +14,7 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.cli.types import ChecksumAddress
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.powers import ThresholdRequestDecryptingPower
-from nucypher.network.decryption import ThresholdDecryptionClient
+from nucypher.network.concurrency import ThresholdDecryptionClient
 from nucypher.network.middleware import RestMiddleware
 
 

@@ -101,7 +101,7 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.crypto.utils import keccak_digest
-from nucypher.network.decryption import (
+from nucypher.network.concurrency import (
     ThresholdDecryptionClient,
     ThresholdSigningClient,
 )
