@@ -1,6 +1,5 @@
 import pytest
 import pytest_twisted
-from eth_account.messages import encode_typed_data
 from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.models import SigningCoordinator
@@ -8,7 +7,7 @@ from nucypher.characters.lawful import Ursula
 from nucypher.network.signing import SignatureRequest, SignatureType
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
-from nucypher.utilities.erc4337_utils import PackedUserOperation
+from nucypher.utilities.erc4337_utils import EntryPointContracts, PackedUserOperation
 
 
 @pytest.fixture(scope="module")
@@ -195,14 +194,10 @@ def test_signing_request_fulfilment(
         max_fee_per_gas=2000000000,  # 2 gwei
     )
 
-    # Use the proper entrypoint address and chain_id for EIP-712 structured data
-    entrypoint = accounts[2].address  # Using accounts[2] as entrypoint
     chain_id = testerchain.w3.eth.chain_id
 
-    user_operation = user_op.to_eip712_struct(entrypoint, chain_id)
-
     signing_request = SignatureRequest(
-        data=user_operation,
+        data=user_op.to_eip712_struct(EntryPointContracts.ENTRYPOINT_V08, chain_id),
         cohort_id=cohort_id,
         chain_id=chain.chain_id,
         context=None,
@@ -243,7 +238,7 @@ def test_signing_request_fulfilment(
     )
     multisig = nucypher_dependency.ThresholdSigningMultisig.at(multisig_address)
     result = multisig.isValidSignature(
-        encode_typed_data(full_message=user_operation).body,
+        user_op.hash(entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id),
         b"".join(r.signature for r in responses),
     )
     magic_value = EIP1271Auth.MAGIC_VALUE_BYTES

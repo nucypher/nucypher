@@ -3,7 +3,12 @@ from dataclasses import dataclass, field
 
 import eth_abi
 from eth_account import Account
-from eth_account.messages import SignableMessage, encode_typed_data
+from eth_account.messages import (
+    SignableMessage,
+    _hash_eip191_message,
+    encode_typed_data,
+)
+from eth_typing import Hash32
 from eth_utils import keccak, to_bytes, to_checksum_address
 from hexbytes import HexBytes
 
@@ -13,8 +18,17 @@ def empty_hexbytes() -> HexBytes:
     return HexBytes(b"")
 
 
+class EntryPointContracts:
+    """Constants for EntryPoint contract addresses."""
+
+    ENTRYPOINT_V07 = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"
+    ENTRYPOINT_V08 = "0x4337084d9e255ff0702461cf8895ce9e3b5ff108"
+
+
 @dataclass
 class PackedUserOperation:
+    """Represents a packed UserOperation for ERC-4337."""
+
     sender: str
     nonce: int
     init_code: HexBytes = field(default_factory=empty_hexbytes)
@@ -38,9 +52,32 @@ class PackedUserOperation:
     # Signature placeholder
     signature: HexBytes = field(default_factory=empty_hexbytes)
 
-    def encode(self, entrypoint: str, chain_id: int) -> SignableMessage:
-        return encode_typed_data(
-            self.to_eip712_struct(entrypoint=entrypoint, chain_id=chain_id)
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, PackedUserOperation):
+            return False
+        return self.to_dict() == other.to_dict()
+
+    def __bytes__(self) -> bytes:
+        return json.dumps(self.to_dict(), sort_keys=True).encode("utf-8")
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "PackedUserOperation":
+        d = json.loads(data.decode("utf-8"))
+        return cls(
+            sender=d["sender"],
+            nonce=d["nonce"],
+            init_code=HexBytes(d["init_code"] or b""),
+            call_data=HexBytes(d["call_data"] or b""),
+            verification_gas_limit=d["verification_gas_limit"],
+            call_gas_limit=d["call_gas_limit"],
+            pre_verification_gas=d["pre_verification_gas"],
+            max_priority_fee_per_gas=d["max_priority_fee_per_gas"],
+            max_fee_per_gas=d["max_fee_per_gas"],
+            paymaster=d["paymaster"],
+            paymaster_verification_gas_limit=d["paymaster_verification_gas_limit"],
+            paymaster_post_op_gas_limit=d["paymaster_post_op_gas_limit"],
+            paymaster_data=HexBytes(d["paymaster_data"] or b""),
+            signature=HexBytes(d["signature"] or b""),
         )
 
     def _pack_account_gas_limits(self) -> HexBytes:
@@ -59,11 +96,28 @@ class PackedUserOperation:
             16, byteorder="big"
         )
         post_op_bytes = self.paymaster_post_op_gas_limit.to_bytes(16, byteorder="big")
-        return (
+        return HexBytes(
             paymaster_bytes + verification_bytes + post_op_bytes + self.paymaster_data
         )
 
+    def encode(self, entrypoint: str, chain_id: int) -> SignableMessage:
+        return encode_typed_data(
+            self.to_eip712_struct(entrypoint=entrypoint, chain_id=chain_id)
+        )
+
+    def hash(self, entrypoint: str, chain_id: int) -> Hash32:
+        return _hash_eip191_message(
+            self.encode(entrypoint=entrypoint, chain_id=chain_id)
+        )
+
+    def sign(self, private_key: str, entrypoint: str, chain_id: int):
+        message = self.encode(entrypoint=entrypoint, chain_id=chain_id)
+        signed = Account.sign_message(message, private_key=private_key)
+        self.signature = HexBytes(signed.signature)
+        return signed
+
     def pack(self) -> dict:
+        """OZ calldata-optimized format"""
         return {
             "sender": self.sender,
             "nonce": self.nonce,
@@ -74,6 +128,22 @@ class PackedUserOperation:
             "gasFees": self._pack_gas_fees(),
             "paymasterAndData": self._pack_paymaster_and_data().hex(),
             "signature": self.signature.hex(),
+        }
+
+    def pack_raw(self) -> dict:
+        """Infinitism raw struct layout"""
+        return {
+            "sender": self.sender,
+            "nonce": self.nonce,
+            "initCode": self.init_code,
+            "callData": self.call_data,
+            "verificationGasLimit": self.verification_gas_limit,
+            "callGasLimit": self.call_gas_limit,
+            "preVerificationGas": self.pre_verification_gas,
+            "maxFeePerGas": self.max_fee_per_gas,
+            "maxPriorityFeePerGas": self.max_priority_fee_per_gas,
+            "paymasterAndData": self._pack_paymaster_and_data(),
+            "signature": self.signature,
         }
 
     def to_eip712_struct(self, entrypoint: str, chain_id: int) -> dict:
@@ -122,14 +192,8 @@ class PackedUserOperation:
             "message": message,
         }
 
-    def sign(self, private_key: str, entrypoint: str, chain_id: int):
-        message = self.encode(entrypoint=entrypoint, chain_id=chain_id)
-        signed = Account.sign_message(message, private_key=private_key)
-        self.signature = signed.signature
-        return signed
-
     def to_dict(self) -> dict:
-        data = {
+        return {
             "sender": self.sender,
             "nonce": self.nonce,
             "init_code": self.init_code.hex(),
@@ -145,93 +209,6 @@ class PackedUserOperation:
             "paymaster_data": self.paymaster_data.hex(),
             "signature": self.signature.hex(),
         }
-        return data
-
-    def __bytes__(self) -> bytes:
-        """Serialize the PackedUserOperation to bytes."""
-        data = self.to_dict()
-        json_str = json.dumps(data, sort_keys=True)
-        return json_str.encode("utf-8")
-
-    @classmethod
-    def from_bytes(cls, data: bytes) -> "PackedUserOperation":
-        """Deserialize bytes to a PackedUserOperation instance."""
-        # Decode bytes to JSON string
-        json_str = data.decode("utf-8")
-        data_dict = json.loads(json_str)
-
-        # Convert hex strings back to bytes
-        init_code = (
-            HexBytes(data_dict["init_code"])
-            if data_dict["init_code"]
-            else empty_hexbytes()
-        )
-        call_data = (
-            HexBytes(data_dict["call_data"])
-            if data_dict["call_data"]
-            else empty_hexbytes()
-        )
-        paymaster_data = (
-            HexBytes(data_dict["paymaster_data"])
-            if data_dict["paymaster_data"]
-            else empty_hexbytes()
-        )
-        signature = (
-            HexBytes(data_dict["signature"])
-            if data_dict["signature"]
-            else empty_hexbytes()
-        )
-
-        # Create and return the instance
-        return cls(
-            sender=data_dict["sender"],
-            nonce=data_dict["nonce"],
-            init_code=init_code,
-            call_data=call_data,
-            verification_gas_limit=data_dict["verification_gas_limit"],
-            call_gas_limit=data_dict["call_gas_limit"],
-            pre_verification_gas=data_dict["pre_verification_gas"],
-            max_priority_fee_per_gas=data_dict["max_priority_fee_per_gas"],
-            max_fee_per_gas=data_dict["max_fee_per_gas"],
-            paymaster=data_dict["paymaster"],
-            paymaster_verification_gas_limit=data_dict[
-                "paymaster_verification_gas_limit"
-            ],
-            paymaster_post_op_gas_limit=data_dict["paymaster_post_op_gas_limit"],
-            paymaster_data=paymaster_data,
-            signature=signature,
-        )
-
-    def to_hex(self) -> str:
-        """Serialize to hex string (useful for storage/transmission)."""
-        return bytes(self).hex()
-
-    @classmethod
-    def from_hex(cls, hex_str: str) -> "PackedUserOperation":
-        """Deserialize from hex string."""
-        return cls.from_bytes(bytes.fromhex(hex_str))
-
-    def __eq__(self, other) -> bool:
-        """Enable equality comparison between PackedUserOperation instances."""
-        if not isinstance(other, PackedUserOperation):
-            return False
-        return (
-            self.sender == other.sender
-            and self.nonce == other.nonce
-            and self.init_code == other.init_code
-            and self.call_data == other.call_data
-            and self.verification_gas_limit == other.verification_gas_limit
-            and self.call_gas_limit == other.call_gas_limit
-            and self.pre_verification_gas == other.pre_verification_gas
-            and self.max_priority_fee_per_gas == other.max_priority_fee_per_gas
-            and self.max_fee_per_gas == other.max_fee_per_gas
-            and self.paymaster == other.paymaster
-            and self.paymaster_verification_gas_limit
-            == other.paymaster_verification_gas_limit
-            and self.paymaster_post_op_gas_limit == other.paymaster_post_op_gas_limit
-            and self.paymaster_data == other.paymaster_data
-            and self.signature == other.signature
-        )
 
 
 def encode_function_call(signature: str, args: list) -> HexBytes:
@@ -246,7 +223,7 @@ def encode_function_call(signature: str, args: list) -> HexBytes:
 
 def create_eth_transfer(
     sender: str, nonce: int, to: str, value: int, **kwargs
-) -> PackedUserOperation:
+) -> "PackedUserOperation":
     data = encode_function_call(
         "execute(address,uint256,bytes)",
         [to_checksum_address(to), value, empty_hexbytes()],
@@ -256,7 +233,7 @@ def create_eth_transfer(
 
 def create_erc20_transfer(
     sender: str, nonce: int, token: str, to: str, amount: int, **kwargs
-) -> PackedUserOperation:
+) -> "PackedUserOperation":
     call = encode_function_call(
         "transfer(address,uint256)", [to_checksum_address(to), amount]
     )
@@ -268,7 +245,7 @@ def create_erc20_transfer(
 
 def create_erc20_approve(
     sender: str, nonce: int, token: str, spender: str, amount: int, **kwargs
-) -> PackedUserOperation:
+) -> "PackedUserOperation":
     call = encode_function_call(
         "approve(address,uint256)", [to_checksum_address(spender), amount]
     )
@@ -278,74 +255,9 @@ def create_erc20_approve(
     return PackedUserOperation(sender, nonce, empty_hexbytes(), data, **kwargs)
 
 
-def create_erc721_transfer(
-    sender: str, nonce: int, token: str, to: str, token_id: int, **kwargs
-) -> PackedUserOperation:
-    call = encode_function_call(
-        "safeTransferFrom(address,address,uint256)",
-        [to_checksum_address(sender), to_checksum_address(to), token_id],
-    )
-    data = encode_function_call(
-        "execute(address,uint256,bytes)", [to_checksum_address(token), 0, call]
-    )
-    return PackedUserOperation(sender, nonce, empty_hexbytes(), data, **kwargs)
-
-
-def create_erc721_set_approval_for_all(
-    sender: str, nonce: int, token: str, operator: str, approved: bool, **kwargs
-) -> PackedUserOperation:
-    call = encode_function_call(
-        "setApprovalForAll(address,bool)", [to_checksum_address(operator), approved]
-    )
-    data = encode_function_call(
-        "execute(address,uint256,bytes)", [to_checksum_address(token), 0, call]
-    )
-    return PackedUserOperation(sender, nonce, empty_hexbytes(), data, **kwargs)
-
-
-def create_erc1155_transfer_single(
-    sender: str,
-    nonce: int,
-    token: str,
-    to: str,
-    id: int,
-    value: int,
-    data_bytes: HexBytes = empty_hexbytes(),
-    **kwargs
-) -> PackedUserOperation:
-    call = encode_function_call(
-        "safeTransferFrom(address,address,uint256,uint256,bytes)",
-        [to_checksum_address(sender), to_checksum_address(to), id, value, data_bytes],
-    )
-    data = encode_function_call(
-        "execute(address,uint256,bytes)", [to_checksum_address(token), 0, call]
-    )
-    return PackedUserOperation(sender, nonce, empty_hexbytes(), data, **kwargs)
-
-
-def create_erc1155_transfer_batch(
-    sender: str,
-    nonce: int,
-    token: str,
-    to: str,
-    ids: list,
-    values: list,
-    data_bytes: HexBytes = empty_hexbytes(),
-    **kwargs
-) -> PackedUserOperation:
-    call = encode_function_call(
-        "safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)",
-        [to_checksum_address(sender), to_checksum_address(to), ids, values, data_bytes],
-    )
-    data = encode_function_call(
-        "execute(address,uint256,bytes)", [to_checksum_address(token), 0, call]
-    )
-    return PackedUserOperation(sender, nonce, empty_hexbytes(), data, **kwargs)
-
-
 def create_contract_call(
     sender: str, nonce: int, target: str, data: HexBytes, value: int = 0, **kwargs
-) -> PackedUserOperation:
+) -> "PackedUserOperation":
     payload = encode_function_call(
         "execute(address,uint256,bytes)", [to_checksum_address(target), value, data]
     )
