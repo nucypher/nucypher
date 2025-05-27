@@ -1,12 +1,14 @@
 import pytest
 import pytest_twisted
 from eth_account.messages import encode_typed_data
+from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.characters.lawful import Ursula
-from nucypher.network.signing import SignatureRequest, UserOp
+from nucypher.network.signing import SignatureRequest, SignatureType
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.utilities.erc4337_utils import PackedUserOperation
 
 
 @pytest.fixture(scope="module")
@@ -177,23 +179,34 @@ def test_signing_request_fulfilment(
     nucypher_dependency,
     ritual_initiator,
     time_condition,
+    testerchain,
 ):
     bob.start_learning_loop(now=True)
-    user_op = UserOp(
+
+    # Create a proper PackedUserOperation using the helper function
+    user_op = PackedUserOperation(
         sender=accounts[0].address,
-        destination=accounts[1].address,
-        value=0,
-        data="0xdeadbeef",
         nonce=0,
-        chain_id=1,
-        contract_address=accounts[2].address,
+        call_data=HexBytes("deadbeef"),
+        verification_gas_limit=100000,
+        call_gas_limit=100000,
+        pre_verification_gas=21000,
+        max_priority_fee_per_gas=1000000000,  # 1 gwei
+        max_fee_per_gas=2000000000,  # 2 gwei
     )
 
+    # Use the proper entrypoint address and chain_id for EIP-712 structured data
+    entrypoint = accounts[2].address  # Using accounts[2] as entrypoint
+    chain_id = testerchain.w3.eth.chain_id
+
+    user_operation = user_op.to_eip712_struct(entrypoint, chain_id)
+
     signing_request = SignatureRequest(
-        data=bytes(user_op),
+        data=user_operation,
         cohort_id=cohort_id,
         chain_id=chain.chain_id,
         context=None,
+        signature_type=SignatureType.EIP_712,
     )
 
     print("============= SIGNING REQUEST (NO CONDITION)==============")
@@ -230,7 +243,7 @@ def test_signing_request_fulfilment(
     )
     multisig = nucypher_dependency.ThresholdSigningMultisig.at(multisig_address)
     result = multisig.isValidSignature(
-        encode_typed_data(full_message=user_op.to_structured_data()),
+        encode_typed_data(full_message=user_operation).body,
         b"".join(r.signature for r in responses),
     )
     magic_value = EIP1271Auth.MAGIC_VALUE_BYTES

@@ -10,6 +10,7 @@ import maya
 from atxm.exceptions import InsufficientFunds
 from atxm.tx import AsyncTx, FaultedTx, FinalizedTx, FutureTx, PendingTx
 from eth_typing import ChecksumAddress
+from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
@@ -71,7 +72,7 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.datastore.dkg import DKGStorage
-from nucypher.network.signing import SignatureRequest, SignatureResponse
+from nucypher.network.signing import SignatureRequest, SignatureResponse, SignatureType
 from nucypher.policy.conditions.utils import (
     ConditionProviderManager,
     evaluate_condition_lingo,
@@ -1019,15 +1020,29 @@ class Operator(BaseActor):
             condition_lingo, self.condition_provider_manager, signing_request.context
         )
 
-        # EIP-712 sign if the request is authorized (conditions are satisfied)
-        message_hash, signature = self.transacting_power.sign_message_eip712(
-            message=signing_request.data, standardize=False
-        )
+        # sign if the request is authorized (conditions are satisfied)
+        if signing_request.signature_type == SignatureType.EIP_712:
+            if not signing_request.data:
+                raise self.UnauthorizedRequest("EIP-712 signing request data is empty")
+            message_hash, signature = self.transacting_power.sign_message_eip712(
+                message=signing_request.data, standardize=False
+            )
+        elif signing_request.signature_type == SignatureType.EIP_191:
+            if not signing_request.data:
+                raise self.UnauthorizedRequest("EIP-191 signing request data is empty")
+            message_hash, signature = self.transacting_power.sign_message_eip191(
+                message=signing_request.data, standardize=False
+            )
+        else:
+            raise self.UnauthorizedRequest(
+                f"Unsupported signature type: {signing_request.signature_type}"
+            )
 
         response = SignatureResponse(
             message=signing_request.data,
-            _hash=message_hash,
-            signature=bytes(signature),
+            _hash=HexBytes(message_hash),
+            signature=HexBytes(signature),
+            signature_type=signing_request.signature_type,
         )
         return response
 
