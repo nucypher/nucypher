@@ -20,7 +20,6 @@ def empty_hexbytes() -> HexBytes:
 
 class EntryPointContracts:
     """Constants for EntryPoint contract addresses."""
-
     ENTRYPOINT_V07 = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"
     ENTRYPOINT_V08 = "0x4337084d9e255ff0702461cf8895ce9e3b5ff108"
 
@@ -102,7 +101,7 @@ class PackedUserOperation:
 
     def encode(self, entrypoint: str, chain_id: int) -> SignableMessage:
         return encode_typed_data(
-            self.to_eip712_struct(entrypoint=entrypoint, chain_id=chain_id)
+            full_message=self.to_eip712_struct(entrypoint=entrypoint, chain_id=chain_id)
         )
 
     def hash(self, entrypoint: str, chain_id: int) -> Hash32:
