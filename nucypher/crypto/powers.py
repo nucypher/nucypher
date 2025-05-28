@@ -196,7 +196,7 @@ class TransactingPower(CryptoPowerUp):
     # TODO: this is only a workaround - what are we going to do with this? standardize vs not standardize?
     def sign_message_eip191(
         self, message: bytes, standardize: bool = True
-    ) -> Tuple[bytes, bytes]:
+    ) -> Tuple[bytes, HexBytes]:
         """
         Signs the message with the private key of the TransactingPower.
         Returns the message hash and the signature as bytes.
@@ -210,7 +210,7 @@ class TransactingPower(CryptoPowerUp):
         if not standardize:
             return message.body, signature
 
-        return message.body, to_standard_signature_bytes(signature)
+        return message.body, HexBytes(to_standard_signature_bytes(signature))
 
     def sign_message_eip712(
         self, message: Dict[str, Any], standardize: bool = True

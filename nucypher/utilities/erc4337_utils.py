@@ -1,8 +1,8 @@
 import json
 from dataclasses import dataclass, field
+from typing import Tuple
 
 import eth_abi
-from eth_account import Account
 from eth_account.messages import (
     SignableMessage,
     _hash_eip191_message,
@@ -109,11 +109,13 @@ class PackedUserOperation:
             self.encode(entrypoint=entrypoint, chain_id=chain_id)
         )
 
-    def sign(self, private_key: str, entrypoint: str, chain_id: int):
+    def sign(
+        self, transacting_power, entrypoint: str, chain_id: int
+    ) -> Tuple[Hash32, HexBytes]:
         message = self.encode(entrypoint=entrypoint, chain_id=chain_id)
-        signed = Account.sign_message(message, private_key=private_key)
-        self.signature = HexBytes(signed.signature)
-        return signed
+        message, signature = transacting_power.sign_message_eip712(message)
+        self.signature = HexBytes(signature)
+        return self.hash(entrypoint=entrypoint, chain_id=chain_id), self.signature
 
     def pack(self) -> dict:
         """OZ calldata-optimized format"""
