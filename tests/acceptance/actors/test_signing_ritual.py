@@ -7,7 +7,12 @@ from nucypher.characters.lawful import Ursula
 from nucypher.network.signing import SignatureRequest, SignatureType
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
-from nucypher.utilities.erc4337_utils import EntryPointContracts, PackedUserOperation
+from nucypher.utilities.erc4337_utils import (
+    EntryPointContracts,
+    PackedUserOperation,
+    create_erc20_transfer,
+    create_eth_transfer,
+)
 
 
 @pytest.fixture(scope="module")
@@ -245,5 +250,99 @@ def test_signing_request_fulfilment(
     )
     magic_value = EIP1271Auth.MAGIC_VALUE_BYTES
     assert result == magic_value, f"Invalid signature: {result} != {magic_value}"
+
+    print("==================== TESTING USER OPERATION SIGNING ====================")
+
+    # Test create_eth_transfer helper
+    eth_transfer_op = create_eth_transfer(
+        sender=accounts[0].address,
+        nonce=1,
+        to=accounts[1].address,
+        value=1000000000000000000,  # 1 ETH in wei
+        verification_gas_limit=100000,
+        call_gas_limit=100000,
+        pre_verification_gas=21000,
+        max_priority_fee_per_gas=1000000000,
+        max_fee_per_gas=2000000000,
+    )
+
+    # Test that the ETH transfer operation was created correctly
+    assert eth_transfer_op.sender == accounts[0].address
+    assert eth_transfer_op.nonce == 1
+    assert len(eth_transfer_op.call_data) > 0  # Should have encoded call data
+
+    # Test signing the ETH transfer operation
+    eth_signing_request = SignatureRequest(
+        data=eth_transfer_op.to_eip712_struct(
+            entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
+        ),
+        cohort_id=cohort_id,
+        context=None,
+        signature_type=SignatureType.EIP_712,
+    )
+    eth_signatures = yield bob.request_threshold_signatures(
+        signing_request=eth_signing_request,
+    )
+
+    # Verify ETH transfer signatures
+    assert len(eth_signatures) >= signing_cohort.threshold
+    eth_result = multisig.isValidSignature(
+        eth_transfer_op.hash(
+            entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
+        ),
+        b"".join(eth_signatures),
+    )
+    assert (
+        eth_result == magic_value
+    ), f"Invalid ETH transfer signature: {eth_result} != {magic_value}"
+    print("ETH transfer signing successful")
+
+    # Test create_erc20_transfer helper
+    # Using a mock ERC20 token address
+    mock_token_address = "0x1234567890123456789012345678901234567890"
+    erc20_transfer_op = create_erc20_transfer(
+        sender=accounts[0].address,
+        nonce=2,
+        token=mock_token_address,
+        to=accounts[1].address,
+        amount=1000000000000000000,  # 1 token (assuming 18 decimals)
+        verification_gas_limit=100000,
+        call_gas_limit=100000,
+        pre_verification_gas=21000,
+        max_priority_fee_per_gas=1000000000,
+        max_fee_per_gas=2000000000,
+    )
+
+    # Test that the ERC20 transfer operation was created correctly
+    assert erc20_transfer_op.sender == accounts[0].address
+    assert erc20_transfer_op.nonce == 2
+    assert len(erc20_transfer_op.call_data) > 0  # Should have encoded call data
+
+    # Test signing the ERC20 transfer operation
+    erc20_signing_request = SignatureRequest(
+        data=erc20_transfer_op.to_eip712_struct(
+            entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
+        ),
+        cohort_id=cohort_id,
+        context=None,
+        signature_type=SignatureType.EIP_712,
+    )
+    erc20_signatures = yield bob.request_threshold_signatures(
+        signing_request=erc20_signing_request,
+    )
+
+    # Verify ERC20 transfer signatures
+    assert len(erc20_signatures) >= signing_cohort.threshold
+    erc20_result = multisig.isValidSignature(
+        erc20_transfer_op.hash(
+            entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
+        ),
+        b"".join(erc20_signatures),
+    )
+    assert (
+        erc20_result == magic_value
+    ), f"Invalid ERC20 transfer signature: {erc20_result} != {magic_value}"
+    print("ERC20 transfer signing successful")
     print("===================== SIGNING SUCCESSFUL =====================")
+
     yield
