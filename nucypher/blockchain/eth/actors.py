@@ -72,7 +72,11 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.datastore.dkg import DKGStorage
-from nucypher.network.signing import SignatureRequest, SignatureResponse, SignatureType
+from nucypher.network.signing import (
+    SignatureRequest,
+    SignatureRequestType,
+    SignatureResponse,
+)
 from nucypher.policy.conditions.utils import (
     ConditionProviderManager,
     evaluate_condition_lingo,
@@ -82,6 +86,7 @@ from nucypher.types import (
     PhaseId,
 )
 from nucypher.utilities.emitters import StdoutEmitter
+from nucypher.utilities.erc4337_utils import PackedUserOperation
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.warnings import render_ferveo_key_mismatch_warning
 
@@ -987,6 +992,10 @@ class Operator(BaseActor):
     def handle_signing_request(
         self, signing_request: SignatureRequest
     ) -> SignatureResponse:
+
+        if not signing_request.data:
+            raise self.UnauthorizedRequest("Signing request data is empty")
+
         if not self.signing_coordinator_agent.is_cohort_active(
             signing_request.cohort_id
         ):
@@ -1021,15 +1030,17 @@ class Operator(BaseActor):
         )
 
         # sign if the request is authorized (conditions are satisfied)
-        if signing_request.signature_type == SignatureType.EIP_712:
-            if not signing_request.data:
-                raise self.UnauthorizedRequest("EIP-712 signing request data is empty")
+        if signing_request.signature_type is SignatureRequestType.USEROP:
+            userop = PackedUserOperation.from_bytes(signing_request.data)
+            # TODO: userop stuff (validate?)
+            message_hash, signature = userop.sign(
+                transacting_power=self.transacting_power
+            )
+        elif signing_request.signature_type == SignatureRequestType.EIP_712:
             message_hash, signature = self.transacting_power.sign_message_eip712(
                 message=signing_request.data, standardize=False
             )
-        elif signing_request.signature_type == SignatureType.EIP_191:
-            if not signing_request.data:
-                raise self.UnauthorizedRequest("EIP-191 signing request data is empty")
+        elif signing_request.signature_type == SignatureRequestType.EIP_191:
             message_hash, signature = self.transacting_power.sign_message_eip191(
                 message=signing_request.data, standardize=False
             )
