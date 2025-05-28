@@ -4,7 +4,7 @@ from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.characters.lawful import Ursula
-from nucypher.network.signing import SignatureRequest, SignatureType
+from nucypher.network.signing import SignatureRequest, SignatureRequestType
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.erc4337_utils import (
@@ -208,7 +208,7 @@ def test_signing_request_fulfilment(
         cohort_id=cohort_id,
         chain_id=chain.chain_id,
         context=None,
-        signature_type=SignatureType.EIP_712,
+        signature_type=SignatureRequestType.EIP_712,
     )
 
     print("============= SIGNING REQUEST (NO CONDITION)==============")
@@ -278,7 +278,7 @@ def test_signing_request_fulfilment(
         ),
         cohort_id=cohort_id,
         context=None,
-        signature_type=SignatureType.EIP_712,
+        signature_type=SignatureRequestType.EIP_712,
     )
     eth_signatures = yield bob.request_threshold_signatures(
         signing_request=eth_signing_request,
@@ -325,7 +325,7 @@ def test_signing_request_fulfilment(
         ),
         cohort_id=cohort_id,
         context=None,
-        signature_type=SignatureType.EIP_712,
+        signature_type=SignatureRequestType.EIP_712,
     )
     erc20_signatures = yield bob.request_threshold_signatures(
         signing_request=erc20_signing_request,

@@ -9,9 +9,10 @@ from nucypher.policy.conditions.types import ContextDict
 EIP712Dict = Dict[str, Union[str, int, float, bool, Dict, list]]
 
 
-class SignatureType(Enum):
+class SignatureRequestType(Enum):
     """Enum for different signature types."""
 
+    USEROP = "userop"
     EIP_191 = "eip-191"
     EIP_712 = "eip-712"
 
@@ -23,14 +24,18 @@ class SignatureRequest:
         data: Union[bytes, EIP712Dict],
         cohort_id: int,
         chain_id: int,
-        signature_type: SignatureType,
+        signature_type: SignatureRequestType,
         context: Optional[ContextDict] = None,
     ):
-        if signature_type not in SignatureType:
+        if signature_type not in SignatureRequestType:
             raise ValueError(f"Invalid signature type: {signature_type}")
-        if signature_type == SignatureType.EIP_712 and not isinstance(data, dict):
+        if signature_type == SignatureRequestType.EIP_712 and not isinstance(
+            data, dict
+        ):
             raise ValueError("EIP-712 signature type requires data to be a dictionary.")
-        if signature_type == SignatureType.EIP_191 and not isinstance(data, bytes):
+        if signature_type == SignatureRequestType.EIP_191 and not isinstance(
+            data, bytes
+        ):
             raise ValueError("EIP-191 signature type requires data to be bytes.")
         self.data = data
         self.cohort_id = cohort_id
@@ -40,7 +45,7 @@ class SignatureRequest:
 
     def __bytes__(self) -> bytes:
         """Serialize the request to bytes in JSON format."""
-        if self.signature_type == SignatureType.EIP_712:
+        if self.signature_type == SignatureRequestType.EIP_712:
             # Convert dict to JSON string for EIP-712
             data = json.dumps(self.data).encode()
         else:
@@ -63,12 +68,12 @@ class SignatureRequest:
             chain_id = result["chain_id"]
             context = result["context"]
             signature_type_str = result["signature_type"]
-            signature_type = SignatureType(signature_type_str)
+            signature_type = SignatureRequestType(signature_type_str)
             data = HexBytes(result["data"])
         except (ValueError, KeyError) as e:
             raise ValueError("Invalid request data") from e
 
-        if signature_type == SignatureType.EIP_712:
+        if signature_type == SignatureRequestType.EIP_712:
             # Deserialize data from JSON string for EIP-712
             data = json.loads(data.decode())
         return SignatureRequest(
@@ -87,7 +92,7 @@ class SignatureResponse:
         message: Union[HexBytes, EIP712Dict],
         _hash: HexBytes,
         signature: HexBytes,
-        signature_type: SignatureType,
+        signature_type: SignatureRequestType,
     ):
         self.message = message
         self.hash = _hash
@@ -96,7 +101,7 @@ class SignatureResponse:
 
     def __bytes__(self) -> bytes:
         """Serialize the response to bytes in JSON format."""
-        if self.signature_type == SignatureType.EIP_712:
+        if self.signature_type == SignatureRequestType.EIP_712:
             # Convert dict to JSON string for EIP-712
             message = HexBytes(json.dumps(self.message).encode())
         else:
@@ -116,9 +121,9 @@ class SignatureResponse:
         result = json.loads(response_data.decode())
         _hash = HexBytes(result["message_hash"])
         signature = HexBytes(result["signature"])
-        signature_type = SignatureType(result["signature_type"])
+        signature_type = SignatureRequestType(result["signature_type"])
         message = HexBytes(result["message"])
-        if signature_type == SignatureType.EIP_712:
+        if signature_type == SignatureRequestType.EIP_712:
             # Deserialize message from JSON string for EIP-712
             message = json.loads(message.decode())
         return cls(
