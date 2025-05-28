@@ -169,7 +169,7 @@ class PackedUserOperation:
             ],
         }
         domain = {
-            "name": "UserOperation",
+            "name": "ERC4337",
             "version": "1",
             "chainId": chain_id,
             "verifyingContract": entrypoint,
