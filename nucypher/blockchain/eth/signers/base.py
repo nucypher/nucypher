@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple
 from urllib.parse import urlparse
 
-from eth_account.messages import SignableMessage
 from eth_typing.evm import ChecksumAddress
 from hexbytes.main import HexBytes
 
@@ -84,11 +83,11 @@ class Signer(ABC):
     @abstractmethod
     def sign_message_eip191(
         self, account: str, message: bytes, **kwargs
-    ) -> Tuple[SignableMessage, HexBytes]:
+    ) -> Tuple[HexBytes, HexBytes]:
         return NotImplemented
 
     @abstractmethod
     def sign_message_eip712(
         self, account: str, message: Dict[str, Any], **kwargs
-    ) -> Tuple[SignableMessage, HexBytes]:
+    ) -> Tuple[HexBytes, HexBytes]:
         return NotImplemented

@@ -113,8 +113,8 @@ class PackedUserOperation:
         self, transacting_power, entrypoint: str, chain_id: int
     ) -> Tuple[Hash32, HexBytes]:
         message = self.encode(entrypoint=entrypoint, chain_id=chain_id)
-        message, signature = transacting_power.sign_message_eip712(message)
-        self.signature = HexBytes(signature)
+        message_hash, signature = transacting_power.sign_message_eip712(message)
+        self.signature = signature
         return self.hash(entrypoint=entrypoint, chain_id=chain_id), self.signature
 
     def pack(self) -> dict:

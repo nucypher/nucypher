@@ -89,9 +89,9 @@ class SignatureResponse:
 
     def __init__(
         self,
-        message: Union[HexBytes, EIP712Dict],
-        _hash: HexBytes,
-        signature: HexBytes,
+        message: Union[bytes, EIP712Dict],
+        _hash: bytes,
+        signature: bytes,
         signature_type: SignatureRequestType,
     ):
         self.message = message
@@ -108,9 +108,9 @@ class SignatureResponse:
             # Convert bytes to hex string for EIP-191
             message = HexBytes(self.message)
         data = {
-            "message": message.hex(),
-            "message_hash": self.hash.hex(),
-            "signature": self.signature.hex(),
+            "message": HexBytes(message).hex(),
+            "message_hash": HexBytes(self.hash).hex(),
+            "signature": HexBytes(self.signature).hex(),
             "signature_type": self.signature_type.value,
         }
         return json.dumps(data).encode()
@@ -119,10 +119,10 @@ class SignatureResponse:
     def from_bytes(cls, response_data: bytes):
         """Deserialize the response from bytes in JSON format."""
         result = json.loads(response_data.decode())
-        _hash = HexBytes(result["message_hash"])
-        signature = HexBytes(result["signature"])
+        _hash = bytes(HexBytes(result["message_hash"]))
+        signature = bytes(HexBytes(result["signature"]))
         signature_type = SignatureRequestType(result["signature_type"])
-        message = HexBytes(result["message"])
+        message = bytes(HexBytes(result["message"]))
         if signature_type == SignatureRequestType.EIP_712:
             # Deserialize message from JSON string for EIP-712
             message = json.loads(message.decode())
