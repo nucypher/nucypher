@@ -278,13 +278,13 @@ class KeystoreSigner(Signer):
     @validate_checksum_address
     def sign_message_eip191(
         self, account: str, message: bytes, **kwargs
-    ) -> Tuple[HexBytes, HexBytes]:
+    ) -> Tuple[SignableMessage, HexBytes]:
         signer = self._get_signer(account=account)
         signable_message = encode_defunct(primitive=message)
-        signed_message = signer.sign_message(
+        signature = signer.sign_message(
             signable_message=signable_message,
-        )
-        return signed_message.messageHash, signed_message.signature
+        ).signature
+        return signable_message, HexBytes(signature)
 
     @validate_checksum_address
     def sign_message_eip712(
@@ -363,11 +363,11 @@ class InMemorySigner(Signer):
     @validate_checksum_address
     def sign_message_eip191(
         self, account: str, message: bytes, **kwargs
-    ) -> Tuple[HexBytes, HexBytes]:
+    ) -> Tuple[SignableMessage, HexBytes]:
         signer = self._get_signer(account=account)
         signable_message = encode_defunct(primitive=message)
-        signed_message = signer.sign_message(signable_message=signable_message)
-        return signed_message.messageHash, signed_message.signature
+        signature = signer.sign_message(signable_message=signable_message).signature
+        return signable_message, HexBytes(signature)
 
     @validate_checksum_address
     def sign_message_eip712(
