@@ -8,10 +8,6 @@ from nucypher.utilities.erc4337_utils import (
     create_contract_call,
     create_erc20_approve,
     create_erc20_transfer,
-    create_erc721_set_approval_for_all,
-    create_erc721_transfer,
-    create_erc1155_transfer_batch,
-    create_erc1155_transfer_single,
     create_eth_transfer,
     encode_function_call,
 )
@@ -417,94 +413,6 @@ class TestHelperFunctions:
             token,
             spender,
             amount,
-            **{k: v for k, v in common_params.items() if k not in ["sender", "nonce"]},
-        )
-
-        assert isinstance(user_op, PackedUserOperation)
-        assert user_op.sender == common_params["sender"]
-        assert user_op.nonce == common_params["nonce"]
-        assert len(user_op.call_data) > 0
-
-    def test_create_erc721_transfer(self, common_params):
-        """Test creating ERC721 transfer UserOperation"""
-        token = "0xA0b86a33E6441b8435b662f0E2d0B8A0E6E6E6E6"
-        to = "0x9876543210987654321098765432109876543210"
-        token_id = 123
-
-        user_op = create_erc721_transfer(
-            common_params["sender"],
-            common_params["nonce"],
-            token,
-            to,
-            token_id,
-            **{k: v for k, v in common_params.items() if k not in ["sender", "nonce"]},
-        )
-
-        assert isinstance(user_op, PackedUserOperation)
-        assert user_op.sender == common_params["sender"]
-        assert user_op.nonce == common_params["nonce"]
-        assert len(user_op.call_data) > 0
-
-    def test_create_erc721_set_approval_for_all(self, common_params):
-        """Test creating ERC721 setApprovalForAll UserOperation"""
-        token = "0xA0b86a33E6441b8435b662f0E2d0B8A0E6E6E6E6"
-        operator = "0x9876543210987654321098765432109876543210"
-        approved = True
-
-        user_op = create_erc721_set_approval_for_all(
-            common_params["sender"],
-            common_params["nonce"],
-            token,
-            operator,
-            approved,
-            **{k: v for k, v in common_params.items() if k not in ["sender", "nonce"]},
-        )
-
-        assert isinstance(user_op, PackedUserOperation)
-        assert user_op.sender == common_params["sender"]
-        assert user_op.nonce == common_params["nonce"]
-        assert len(user_op.call_data) > 0
-
-    def test_create_erc1155_transfer_single(self, common_params):
-        """Test creating ERC1155 single transfer UserOperation"""
-        token = "0xA0b86a33E6441b8435b662f0E2d0B8A0E6E6E6E6"
-        to = "0x9876543210987654321098765432109876543210"
-        token_id = 123
-        value = 5
-        data_bytes = b"\x12\x34"
-
-        user_op = create_erc1155_transfer_single(
-            common_params["sender"],
-            common_params["nonce"],
-            token,
-            to,
-            token_id,
-            value,
-            data_bytes,
-            **{k: v for k, v in common_params.items() if k not in ["sender", "nonce"]},
-        )
-
-        assert isinstance(user_op, PackedUserOperation)
-        assert user_op.sender == common_params["sender"]
-        assert user_op.nonce == common_params["nonce"]
-        assert len(user_op.call_data) > 0
-
-    def test_create_erc1155_transfer_batch(self, common_params):
-        """Test creating ERC1155 batch transfer UserOperation"""
-        token = "0xA0b86a33E6441b8435b662f0E2d0B8A0E6E6E6E6"
-        to = "0x9876543210987654321098765432109876543210"
-        ids = [1, 2, 3]
-        values = [10, 20, 30]
-        data_bytes = b""
-
-        user_op = create_erc1155_transfer_batch(
-            common_params["sender"],
-            common_params["nonce"],
-            token,
-            to,
-            ids,
-            values,
-            data_bytes,
             **{k: v for k, v in common_params.items() if k not in ["sender", "nonce"]},
         )
 

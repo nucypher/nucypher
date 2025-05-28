@@ -86,7 +86,7 @@ from nucypher.types import (
     PhaseId,
 )
 from nucypher.utilities.emitters import StdoutEmitter
-from nucypher.utilities.erc4337_utils import PackedUserOperation
+from nucypher.utilities.erc4337_utils import EntryPointContracts, PackedUserOperation
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.warnings import render_ferveo_key_mismatch_warning
 
@@ -1023,7 +1023,6 @@ class Operator(BaseActor):
             )
 
         condition_lingo = json.loads(condition_string)
-        context = signing_request.context
 
         evaluate_condition_lingo(
             condition_lingo, self.condition_provider_manager, signing_request.context
@@ -1034,7 +1033,9 @@ class Operator(BaseActor):
             userop = PackedUserOperation.from_bytes(signing_request.data)
             # TODO: userop stuff (validate?)
             message_hash, signature = userop.sign(
-                transacting_power=self.transacting_power
+                transacting_power=self.transacting_power,
+                entrypoint=EntryPointContracts.ENTRYPOINT_V08,
+                chain_id=signing_request.chain_id,
             )
         elif signing_request.signature_type == SignatureRequestType.EIP_712:
             message_hash, signature = self.transacting_power.sign_message_eip712(

@@ -276,21 +276,22 @@ def test_signing_request_fulfilment(
         data=eth_transfer_op.to_eip712_struct(
             entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
         ),
+        chain_id=chain.chain_id,
         cohort_id=cohort_id,
         context=None,
         signature_type=SignatureRequestType.EIP_712,
     )
-    eth_signatures = yield bob.request_threshold_signatures(
+    responses = yield bob.request_threshold_signatures(
         signing_request=eth_signing_request,
     )
 
     # Verify ETH transfer signatures
-    assert len(eth_signatures) >= signing_cohort.threshold
+    assert len(responses) >= signing_cohort.threshold
     eth_result = multisig.isValidSignature(
         eth_transfer_op.hash(
             entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
         ),
-        b"".join(eth_signatures),
+        b"".join(r.signature for r in responses),
     )
     assert (
         eth_result == magic_value
@@ -323,21 +324,22 @@ def test_signing_request_fulfilment(
         data=erc20_transfer_op.to_eip712_struct(
             entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
         ),
+        chain_id=chain.chain_id,
         cohort_id=cohort_id,
         context=None,
         signature_type=SignatureRequestType.EIP_712,
     )
-    erc20_signatures = yield bob.request_threshold_signatures(
+    responses = yield bob.request_threshold_signatures(
         signing_request=erc20_signing_request,
     )
 
     # Verify ERC20 transfer signatures
-    assert len(erc20_signatures) >= signing_cohort.threshold
+    assert len(responses) >= signing_cohort.threshold
     erc20_result = multisig.isValidSignature(
         erc20_transfer_op.hash(
             entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
         ),
-        b"".join(erc20_signatures),
+        b"".join(r.signature for r in responses),
     )
     assert (
         erc20_result == magic_value
