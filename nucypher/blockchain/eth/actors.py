@@ -10,7 +10,6 @@ import maya
 from atxm.exceptions import InsufficientFunds
 from atxm.tx import AsyncTx, FaultedTx, FinalizedTx, FutureTx, PendingTx
 from eth_typing import ChecksumAddress
-from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
@@ -1052,8 +1051,8 @@ class Operator(BaseActor):
 
         response = SignatureResponse(
             message=signing_request.data,
-            _hash=HexBytes(message_hash),
-            signature=HexBytes(signature),
+            _hash=message_hash,
+            signature=signature,
             signature_type=signing_request.signature_type,
         )
         return response

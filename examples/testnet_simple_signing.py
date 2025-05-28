@@ -12,8 +12,11 @@ from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Bob
-
-from nucypher.network.signing import SignatureRequest, SignatureResponse
+from nucypher.network.signing import (
+    SignatureRequest,
+    SignatureRequestType,
+    SignatureResponse,
+)
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -138,8 +141,9 @@ def main():
     signing_request = SignatureRequest(
         cohort_id=COHORT_ID,
         chain_id=signing_coordinator_agent.blockchain.client.chain_id,
-        data_to_sign=data_to_sign,
+        data=data_to_sign,
         context=None,
+        signature_type=SignatureRequestType.EIP_191,
     )
 
     print("--------- Threshold Signing Bob ---------")

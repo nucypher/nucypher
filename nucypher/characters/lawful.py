@@ -1451,14 +1451,14 @@ class Enrico:
 
         # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
-        _message_hash, authorization = self.signer.sign_message_eip191(
+        _message_hash, signature = self.signer.sign_message_eip191(
                 message=header_hash, account=self.signer.accounts[0]
             )
 
         return ThresholdMessageKit(
             ciphertext=ciphertext,
             acp=AccessControlPolicy(
-                auth_data=auth_data, authorization=bytes(authorization)
+                auth_data=auth_data, authorization=bytes(signature)
             ),
         )
 

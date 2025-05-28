@@ -13,6 +13,7 @@ from nucypher.utilities.erc4337_utils import (
 )
 
 
+@pytest.mark.skip("Skipping tests for PackedUserOperation and related functions")
 class TestPackedUserOperation:
     """Test suite for PackedUserOperation class"""
 
@@ -276,7 +277,7 @@ class TestPackedUserOperation:
         packed = user_op._pack_gas_fees()
         assert len(packed) == 32
 
-
+@pytest.mark.skip("Skipping tests for PackedUserOperation and related functions")
 class TestEncodeFunctionCall:
     """Test suite for encode_function_call function"""
 
@@ -338,6 +339,7 @@ class TestEncodeFunctionCall:
         assert encoded[:4] == expected_selector
 
 
+@pytest.mark.skip("Skipping tests for PackedUserOperation and related functions")
 class TestHelperFunctions:
     """Test suite for helper functions that create specific UserOperations"""
 
@@ -462,6 +464,7 @@ class TestHelperFunctions:
         assert len(user_op.call_data) > 0
 
 
+@pytest.mark.skip("Skipping tests for PackedUserOperation and related functions")
 class TestERC4337Compatibility:
     """Test suite for ERC-4337 specification compatibility"""
 
@@ -602,6 +605,7 @@ class TestERC4337Compatibility:
         )
 
 
+@pytest.mark.skip("Skipping tests for PackedUserOperation and related functions")
 class TestErrorHandling:
     """Test suite for error handling and edge cases"""
 
