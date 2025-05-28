@@ -197,7 +197,9 @@ def test_signing_request_fulfilment(
     chain_id = testerchain.w3.eth.chain_id
 
     signing_request = SignatureRequest(
-        data=user_op.to_eip712_struct(EntryPointContracts.ENTRYPOINT_V08, chain_id),
+        data=user_op.to_eip712_struct(
+            entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
+        ),
         cohort_id=cohort_id,
         chain_id=chain.chain_id,
         context=None,
