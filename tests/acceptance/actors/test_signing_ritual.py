@@ -1,15 +1,14 @@
 import pytest
 import pytest_twisted
-from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.characters.lawful import Ursula
-from nucypher.network.signing import UserOperationSigningRequest
+from nucypher.network.signing import UserOperationSignatureRequest
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.erc4337_utils import (
-    EntryPointContracts,
-    PackedUserOperation,
+    EntryPointVersion,
+    UserOperation,
     create_erc20_transfer,
     create_eth_transfer,
 )
@@ -183,15 +182,14 @@ def test_signing_request_fulfilment(
     nucypher_dependency,
     ritual_initiator,
     time_condition,
-    testerchain,
 ):
     bob.start_learning_loop(now=True)
 
     # Create a proper PackedUserOperation using the helper function
-    user_op = PackedUserOperation(
+    user_op = UserOperation(
         sender=accounts[0].address,
         nonce=0,
-        call_data=HexBytes("deadbeef"),
+        call_data=b"deadbeef",
         verification_gas_limit=100000,
         call_gas_limit=100000,
         pre_verification_gas=21000,
@@ -199,11 +197,9 @@ def test_signing_request_fulfilment(
         max_fee_per_gas=2000000000,  # 2 gwei
     )
 
-    chain_id = testerchain.w3.eth.chain_id
-
-    signing_request = UserOperationSigningRequest(
-        userop=user_op,
-        entrypoint=EntryPointContracts.ENTRYPOINT_V08,
+    signing_request = UserOperationSignatureRequest(
+        user_op=user_op,
+        entrypoint_version=EntryPointVersion.V08,
         cohort_id=cohort_id,
         chain_id=chain.chain_id,
         context=None,
@@ -242,10 +238,17 @@ def test_signing_request_fulfilment(
         cohort_id
     )
     multisig = nucypher_dependency.ThresholdSigningMultisig.at(multisig_address)
-    result = multisig.isValidSignature(
-        user_op.hash(entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id),
-        b"".join(r.signature for r in responses),
-    )
+
+    message_hash = None
+    aggregated_signature = b""
+    for r in responses:
+        if message_hash is None:
+            message_hash = r.hash
+        assert message_hash == r.hash, "All hashes must be the same"
+        aggregated_signature += r.signature
+
+    result = multisig.isValidSignature(message_hash, aggregated_signature)
+
     magic_value = EIP1271Auth.MAGIC_VALUE_BYTES
     assert result == magic_value, f"Invalid signature: {result} != {magic_value}"
 
@@ -270,9 +273,9 @@ def test_signing_request_fulfilment(
     assert len(eth_transfer_op.call_data) > 0  # Should have encoded call data
 
     # Test signing the ETH transfer operation
-    eth_signing_request = UserOperationSigningRequest(
-        userop=eth_transfer_op,
-        entrypoint=EntryPointContracts.ENTRYPOINT_V08,
+    eth_signing_request = UserOperationSignatureRequest(
+        user_op=eth_transfer_op,
+        entrypoint_version=EntryPointVersion.V08,
         chain_id=chain.chain_id,
         cohort_id=cohort_id,
         context=None,
@@ -283,12 +286,15 @@ def test_signing_request_fulfilment(
 
     # Verify ETH transfer signatures
     assert len(responses) >= signing_cohort.threshold
-    eth_result = multisig.isValidSignature(
-        eth_transfer_op.hash(
-            entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
-        ),
-        b"".join(r.signature for r in responses),
-    )
+    message_hash = None
+    aggregated_signature = b""
+    for r in responses:
+        if message_hash is None:
+            message_hash = r.hash
+        assert message_hash == r.hash, "All hashes must be the same"
+        aggregated_signature += r.signature
+
+    eth_result = multisig.isValidSignature(message_hash, aggregated_signature)
     assert (
         eth_result == magic_value
     ), f"Invalid ETH transfer signature: {eth_result} != {magic_value}"
@@ -316,9 +322,9 @@ def test_signing_request_fulfilment(
     assert len(erc20_transfer_op.call_data) > 0  # Should have encoded call data
 
     # Test signing the ERC20 transfer operation
-    erc20_signing_request = UserOperationSigningRequest(
-        userop=erc20_transfer_op,
-        entrypoint=EntryPointContracts.ENTRYPOINT_V08,
+    erc20_signing_request = UserOperationSignatureRequest(
+        user_op=erc20_transfer_op,
+        entrypoint_version=EntryPointVersion.V08,
         chain_id=chain.chain_id,
         cohort_id=cohort_id,
         context=None,
@@ -329,12 +335,15 @@ def test_signing_request_fulfilment(
 
     # Verify ERC20 transfer signatures
     assert len(responses) >= signing_cohort.threshold
-    erc20_result = multisig.isValidSignature(
-        erc20_transfer_op.hash(
-            entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
-        ),
-        b"".join(r.signature for r in responses),
-    )
+    message_hash = None
+    aggregated_signature = b""
+    for r in responses:
+        if message_hash is None:
+            message_hash = r.hash
+        assert message_hash == r.hash, "All hashes must be the same"
+        aggregated_signature += r.signature
+
+    erc20_result = multisig.isValidSignature(message_hash, aggregated_signature)
     assert (
         erc20_result == magic_value
     ), f"Invalid ERC20 transfer signature: {erc20_result} != {magic_value}"

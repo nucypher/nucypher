@@ -1,11 +1,9 @@
 import base64
-import json
 import os
 from typing import List
 
 import requests
 from eth_typing import ChecksumAddress
-from hexbytes import HexBytes
 from web3 import Web3
 
 from nucypher.blockchain.eth import domains
@@ -13,8 +11,7 @@ from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Bob
 from nucypher.network.signing import (
-    BaseSignatureRequest,
-    SignatureRequestType,
+    EIP191SignatureRequest,
     SignatureResponse,
 )
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
@@ -138,12 +135,11 @@ def main():
     )
 
     data_to_sign = b"paz al amanecer"
-    signing_request = BaseSignatureRequest(
+    signing_request = EIP191SignatureRequest(
         cohort_id=COHORT_ID,
         chain_id=signing_coordinator_agent.blockchain.client.chain_id,
         data=data_to_sign,
         context=None,
-        signature_type=SignatureRequestType.EIP_191,
     )
 
     print("--------- Threshold Signing Bob ---------")
@@ -196,14 +192,7 @@ def main():
     signature_responses = []
     for r in signing_results["signatures"].values():
         # Decode the base64-encoded response
-        signature_response_json = json.loads(base64.b64decode(r[1]).decode())
-        signature_responses.append(
-            SignatureResponse(
-                message=data_to_sign,
-                _hash=bytes(HexBytes(signature_response_json["message_hash"])),
-                signature=bytes(HexBytes(signature_response_json["signature"])),
-            )
-        )
+        signature_responses.append(SignatureResponse.from_bytes(base64.b64decode(r[1])))
 
     print_signing_result(data_to_sign, signature_responses)
     validate_responses_with_cohort_eth_multisig(signing_coordinator_agent, responses)
