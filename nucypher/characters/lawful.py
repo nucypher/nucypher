@@ -102,8 +102,8 @@ from nucypher.crypto.powers import (
 )
 from nucypher.crypto.utils import keccak_digest
 from nucypher.network.concurrency import (
+    SigningRequestClient,
     ThresholdDecryptionClient,
-    ThresholdSigningClient,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -679,7 +679,7 @@ class Bob(Character):
         self,
         signing_request: SignatureRequest,
         ursulas: List["Ursula"] = None,
-        timeout: int = ThresholdSigningClient.DEFAULT_TIMEOUT,
+        timeout: int = SigningRequestClient.DEFAULT_TIMEOUT,
     ) -> List[SignatureResponse]:
         """
         Request a threshold signature from a cohort of Ursulas.
@@ -701,7 +701,7 @@ class Bob(Character):
         for provider in providers:
             signing_requests[provider] = signing_request
 
-        signing_client = ThresholdSigningClient(learner=self)
+        signing_client = SigningRequestClient(learner=self)
         successes, failures = signing_client.gather_signatures(
             signing_requests=signing_requests,
             threshold=threshold,
