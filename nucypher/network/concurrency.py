@@ -10,7 +10,7 @@ from nucypher_core import (
 )
 
 from nucypher.network.client import ThresholdAccessControlClient
-from nucypher.network.signing import SignatureRequest, SignatureResponse
+from nucypher.network.signing import BaseSignatureRequest, SignatureResponse
 from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 
 
@@ -155,7 +155,7 @@ class SigningRequestClient(NetworkRequestClient):
 
     def gather_signatures(
         self,
-        signing_requests: Dict[ChecksumAddress, SignatureRequest],
+        signing_requests: Dict[ChecksumAddress, BaseSignatureRequest],
         threshold: int,
         timeout: int = NetworkRequestClient.DEFAULT_TIMEOUT,
         stagger_timeout: int = NetworkRequestClient.DEFAULT_STAGGER_TIMEOUT,

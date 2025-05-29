@@ -76,9 +76,8 @@ from nucypher.crypto.powers import (
 )
 from nucypher.datastore.dkg import DKGStorage
 from nucypher.network.signing import (
-    SignatureRequest,
-    SignatureRequestType,
     SignatureResponse,
+    UserOperationSigningRequest,
 )
 from nucypher.policy.conditions.utils import (
     ConditionProviderManager,
@@ -89,7 +88,6 @@ from nucypher.types import (
     PhaseId,
 )
 from nucypher.utilities.emitters import StdoutEmitter
-from nucypher.utilities.erc4337_utils import EntryPointContracts, PackedUserOperation
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.warnings import render_ferveo_key_mismatch_warning
 
@@ -1363,7 +1361,7 @@ class Operator(BaseActor):
         return encrypted_response
 
     def handle_signing_request(
-        self, signing_request: SignatureRequest
+        self, signing_request: UserOperationSigningRequest
     ) -> SignatureResponse:
 
         if not signing_request.data:
@@ -1396,33 +1394,14 @@ class Operator(BaseActor):
             )
 
         condition_lingo = json.loads(condition_string)
-
         evaluate_condition_lingo(
             condition_lingo, self.condition_provider_manager, signing_request.context
         )
 
         # sign if the request is authorized (conditions are satisfied)
-        if signing_request.signature_type is SignatureRequestType.USEROP:
-            userop = PackedUserOperation.from_bytes(signing_request.data)
-            # TODO: userop stuff (validate?)
-            message_hash, signature = userop.sign(
-                transacting_power=self.transacting_power,
-                entrypoint=EntryPointContracts.ENTRYPOINT_V08,
-                chain_id=signing_request.chain_id,
-            )
-        elif signing_request.signature_type == SignatureRequestType.EIP_712:
-            message_hash, signature = self.transacting_power.sign_message_eip712(
-                message=signing_request.data, standardize=False
-            )
-        elif signing_request.signature_type == SignatureRequestType.EIP_191:
-            message_hash, signature = self.transacting_power.sign_message_eip191(
-                message=signing_request.data, standardize=False
-            )
-        else:
-            raise self.UnauthorizedRequest(
-                f"Unsupported signature type: {signing_request.signature_type}"
-            )
-
+        message_hash, signature = signing_request.sign(
+            transacting_power=self.transacting_power
+        )
         response = SignatureResponse(
             message=signing_request.data,
             _hash=message_hash,

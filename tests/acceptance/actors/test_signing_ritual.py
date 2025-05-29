@@ -4,7 +4,7 @@ from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.characters.lawful import Ursula
-from nucypher.network.signing import SignatureRequest, SignatureRequestType
+from nucypher.network.signing import UserOperationSigningRequest
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.erc4337_utils import (
@@ -201,14 +201,12 @@ def test_signing_request_fulfilment(
 
     chain_id = testerchain.w3.eth.chain_id
 
-    signing_request = SignatureRequest(
-        data=user_op.to_eip712_struct(
-            entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
-        ),
+    signing_request = UserOperationSigningRequest(
+        userop=user_op,
+        entrypoint=EntryPointContracts.ENTRYPOINT_V08,
         cohort_id=cohort_id,
         chain_id=chain.chain_id,
         context=None,
-        signature_type=SignatureRequestType.EIP_712,
     )
 
     print("============= SIGNING REQUEST (NO CONDITION)==============")
@@ -272,14 +270,12 @@ def test_signing_request_fulfilment(
     assert len(eth_transfer_op.call_data) > 0  # Should have encoded call data
 
     # Test signing the ETH transfer operation
-    eth_signing_request = SignatureRequest(
-        data=eth_transfer_op.to_eip712_struct(
-            entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
-        ),
+    eth_signing_request = UserOperationSigningRequest(
+        userop=eth_transfer_op,
+        entrypoint=EntryPointContracts.ENTRYPOINT_V08,
         chain_id=chain.chain_id,
         cohort_id=cohort_id,
         context=None,
-        signature_type=SignatureRequestType.EIP_712,
     )
     responses = yield bob.request_threshold_signatures(
         signing_request=eth_signing_request,
@@ -320,14 +316,12 @@ def test_signing_request_fulfilment(
     assert len(erc20_transfer_op.call_data) > 0  # Should have encoded call data
 
     # Test signing the ERC20 transfer operation
-    erc20_signing_request = SignatureRequest(
-        data=erc20_transfer_op.to_eip712_struct(
-            entrypoint=EntryPointContracts.ENTRYPOINT_V08, chain_id=chain_id
-        ),
+    erc20_signing_request = UserOperationSigningRequest(
+        userop=erc20_transfer_op,
+        entrypoint=EntryPointContracts.ENTRYPOINT_V08,
         chain_id=chain.chain_id,
         cohort_id=cohort_id,
         context=None,
-        signature_type=SignatureRequestType.EIP_712,
     )
     responses = yield bob.request_threshold_signatures(
         signing_request=erc20_signing_request,
