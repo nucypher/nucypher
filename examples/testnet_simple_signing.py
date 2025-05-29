@@ -13,7 +13,7 @@ from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Bob
 from nucypher.network.signing import (
-    SignatureRequest,
+    BaseSignatureRequest,
     SignatureRequestType,
     SignatureResponse,
 )
@@ -138,7 +138,7 @@ def main():
     )
 
     data_to_sign = b"paz al amanecer"
-    signing_request = SignatureRequest(
+    signing_request = BaseSignatureRequest(
         cohort_id=COHORT_ID,
         chain_id=signing_coordinator_agent.blockchain.client.chain_id,
         data=data_to_sign,
