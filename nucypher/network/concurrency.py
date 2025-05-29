@@ -145,9 +145,9 @@ class ThresholdDecryptionClient(NetworkRequestClient):
         return successes, failures
 
 
-class ThresholdSigningClient(NetworkRequestClient):
+class SigningRequestClient(NetworkRequestClient):
 
-    class ThresholdSigningRequestFailed(Exception):
+    class SigningRequestFailed(Exception):
         """Raised when a signing request returns a non-zero status code."""
 
     def __init__(self, *args, **kwargs):
@@ -191,11 +191,11 @@ class ThresholdSigningClient(NetworkRequestClient):
             except Exception as e:
                 message = f"Node {ursula_address} raised {e}"
                 self.log.warn(message)
-                raise self.ThresholdSigningRequestFailed(message)
+                raise self.SigningRequestFailed(message)
 
             message = f"Node {ursula_address} returned {response.status_code} - {response.content}."
             self.log.warn(message)
-            raise self.ThresholdSigningRequestFailed(message)
+            raise self.SigningRequestFailed(message)
 
         successes, failures = self.execute(
             requests=signing_requests,
