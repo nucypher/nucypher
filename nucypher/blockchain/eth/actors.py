@@ -76,8 +76,8 @@ from nucypher.crypto.powers import (
 )
 from nucypher.datastore.dkg import DKGStorage
 from nucypher.network.signing import (
+    BaseSignatureRequest,
     SignatureResponse,
-    UserOperationSigningRequest,
 )
 from nucypher.policy.conditions.utils import (
     ConditionProviderManager,
@@ -1361,11 +1361,8 @@ class Operator(BaseActor):
         return encrypted_response
 
     def handle_signing_request(
-        self, signing_request: UserOperationSigningRequest
+        self, signing_request: BaseSignatureRequest
     ) -> SignatureResponse:
-
-        if not signing_request.data:
-            raise self.UnauthorizedRequest("Signing request data is empty")
 
         if not self.signing_coordinator_agent.is_cohort_active(
             signing_request.cohort_id
@@ -1403,7 +1400,6 @@ class Operator(BaseActor):
             transacting_power=self.transacting_power
         )
         response = SignatureResponse(
-            message=signing_request.data,
             _hash=message_hash,
             signature=signature,
             signature_type=signing_request.signature_type,
