@@ -1,13 +1,17 @@
+import os
 from unittest.mock import Mock
 
 import pytest
 from eth_account import Account
-from eth_account.messages import encode_typed_data
-from eth_utils import keccak, to_bytes
-from hexbytes import HexBytes
+from eth_account.messages import _hash_eip191_message, encode_typed_data
+from eth_utils import keccak
 
+from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.erc4337_utils import (
+    EntryPointContracts,
+    EntryPointVersion,
     PackedUserOperation,
+    UserOperation,
     create_contract_call,
     create_erc20_approve,
     create_erc20_transfer,
@@ -22,31 +26,28 @@ class TestPackedUserOperation:
     @pytest.fixture
     def sample_user_op(self):
         """Create a sample PackedUserOperation for testing"""
-        return PackedUserOperation(
+        return UserOperation(
             sender="0x1234567890123456789012345678901234567890",
             nonce=1,
-            init_code=HexBytes(b"\x12\x34"),
-            call_data=HexBytes(b"\x56\x78"),
+            init_code=b"\x12\x34",
+            call_data=b"\x56\x78",
             verification_gas_limit=100000,
             call_gas_limit=200000,
             pre_verification_gas=21000,
             max_priority_fee_per_gas=1000000000,  # 1 gwei
             max_fee_per_gas=2000000000,  # 2 gwei
-            paymaster="0x9876543210987654321098765432109876543210",
-            paymaster_verification_gas_limit=50000,
-            paymaster_post_op_gas_limit=30000,
-            paymaster_data=HexBytes(b"\xab\xcd"),
-            signature=HexBytes(b"\xde\xad\xbe\xef"),
+            paymaster_and_data=b"My whole life is consistent - SGA",
+            signature=b"\xde\xad\xbe\xef",
         )
 
     @pytest.fixture
     def minimal_user_op(self):
         """Create a minimal PackedUserOperation for testing"""
-        return PackedUserOperation(
+        return UserOperation(
             sender="0x1234567890123456789012345678901234567890", nonce=0
         )
 
-    def test_packed_user_operation_initialization(self, sample_user_op):
+    def test_user_operation_initialization(self, sample_user_op):
         """Test PackedUserOperation initialization with all fields"""
         assert sample_user_op.sender == "0x1234567890123456789012345678901234567890"
         assert sample_user_op.nonce == 1
@@ -57,10 +58,7 @@ class TestPackedUserOperation:
         assert sample_user_op.pre_verification_gas == 21000
         assert sample_user_op.max_priority_fee_per_gas == 1000000000
         assert sample_user_op.max_fee_per_gas == 2000000000
-        assert sample_user_op.paymaster == "0x9876543210987654321098765432109876543210"
-        assert sample_user_op.paymaster_verification_gas_limit == 50000
-        assert sample_user_op.paymaster_post_op_gas_limit == 30000
-        assert sample_user_op.paymaster_data == b"\xab\xcd"
+        assert sample_user_op.paymaster_and_data == b"My whole life is consistent - SGA"
         assert sample_user_op.signature == b"\xde\xad\xbe\xef"
 
     def test_minimal_user_operation_initialization(self, minimal_user_op):
@@ -74,108 +72,71 @@ class TestPackedUserOperation:
         assert minimal_user_op.pre_verification_gas == 0
         assert minimal_user_op.max_priority_fee_per_gas == 0
         assert minimal_user_op.max_fee_per_gas == 0
-        assert minimal_user_op.paymaster is None
-        assert minimal_user_op.paymaster_verification_gas_limit == 0
-        assert minimal_user_op.paymaster_post_op_gas_limit == 0
-        assert minimal_user_op.paymaster_data == b""
+        assert minimal_user_op.paymaster_and_data == b""
         assert minimal_user_op.signature == b""
 
     def test_pack_account_gas_limits(self, sample_user_op):
         """Test _pack_account_gas_limits method"""
-        packed = sample_user_op._pack_account_gas_limits()
+        packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
 
         # Should be 32 bytes
-        assert len(packed) == 32
+        assert len(packed_user_op.account_gas_limits) == 32
 
         # Verify the packing: verification_gas_limit (16 bytes) + call_gas_limit (16 bytes)
         expected = (
             sample_user_op.verification_gas_limit << 128
         ) | sample_user_op.call_gas_limit
-        assert packed == expected.to_bytes(32, byteorder="big")
+        assert packed_user_op.account_gas_limits == expected.to_bytes(
+            32, byteorder="big"
+        )
 
     def test_pack_gas_fees(self, sample_user_op):
         """Test _pack_gas_fees method"""
-        packed = sample_user_op._pack_gas_fees()
+        packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
 
         # Should be 32 bytes
-        assert len(packed) == 32
+        assert len(packed_user_op.gas_fees) == 32
 
         # Verify the packing: max_priority_fee_per_gas (16 bytes) + max_fee_per_gas (16 bytes)
         expected = (
             sample_user_op.max_priority_fee_per_gas << 128
         ) | sample_user_op.max_fee_per_gas
-        assert packed == expected.to_bytes(32, byteorder="big")
-
-    def test_pack_paymaster_and_data_with_paymaster(self, sample_user_op):
-        """Test _pack_paymaster_and_data method with paymaster"""
-        packed = sample_user_op._pack_paymaster_and_data()
-
-        # Should contain: paymaster (20 bytes) + verification_gas_limit (16 bytes) + post_op_gas_limit (16 bytes) + data
-        expected_length = 20 + 16 + 16 + len(sample_user_op.paymaster_data)
-        assert len(packed) == expected_length
-
-        # Verify components
-        paymaster_bytes = to_bytes(hexstr=sample_user_op.paymaster)
-        verification_bytes = sample_user_op.paymaster_verification_gas_limit.to_bytes(
-            16, byteorder="big"
-        )
-        post_op_bytes = sample_user_op.paymaster_post_op_gas_limit.to_bytes(
-            16, byteorder="big"
-        )
-
-        expected = (
-            paymaster_bytes
-            + verification_bytes
-            + post_op_bytes
-            + sample_user_op.paymaster_data
-        )
-        assert packed == expected
-
-    def test_pack_paymaster_and_data_without_paymaster(self, minimal_user_op):
-        """Test _pack_paymaster_and_data method without paymaster"""
-        packed = minimal_user_op._pack_paymaster_and_data()
-        assert packed == b""
+        assert packed_user_op.gas_fees == expected.to_bytes(32, byteorder="big")
 
     def test_pack_method(self, sample_user_op):
         """Test the pack method returns correct dictionary structure"""
-        packed = sample_user_op.pack()
-
-        # Verify all required keys are present
-        expected_keys = {
-            "sender",
-            "nonce",
-            "initCode",
-            "callData",
-            "accountGasLimits",
-            "preVerificationGas",
-            "gasFees",
-            "paymasterAndData",
-            "signature",
-        }
-        assert set(packed.keys()) == expected_keys
+        packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
 
         # Verify types and values
-        assert packed["sender"] == sample_user_op.sender
-        assert packed["nonce"] == sample_user_op.nonce
-        assert packed["initCode"] == sample_user_op.init_code.hex()
-        assert packed["callData"] == sample_user_op.call_data.hex()
-        assert packed["preVerificationGas"] == sample_user_op.pre_verification_gas
-        assert packed["signature"] == sample_user_op.signature.hex()
+        assert packed_user_op.sender == sample_user_op.sender
+        assert packed_user_op.nonce == sample_user_op.nonce
+        assert packed_user_op.init_code == sample_user_op.init_code
+        assert packed_user_op.call_data == sample_user_op.call_data
+        assert (
+            packed_user_op.pre_verification_gas == sample_user_op.pre_verification_gas
+        )
+        assert packed_user_op.signature == sample_user_op.signature
+        assert packed_user_op.paymaster_and_data == sample_user_op.paymaster_and_data
 
         # Verify packed fields
-        assert packed["accountGasLimits"] == sample_user_op._pack_account_gas_limits()
-        assert packed["gasFees"] == sample_user_op._pack_gas_fees()
         assert (
-            packed["paymasterAndData"]
-            == sample_user_op._pack_paymaster_and_data().hex()
+            packed_user_op.account_gas_limits
+            == PackedUserOperation._pack_account_gas_limits(
+                sample_user_op.call_gas_limit, sample_user_op.verification_gas_limit
+            )
+        )
+        assert packed_user_op.gas_fees == PackedUserOperation._pack_gas_fees(
+            sample_user_op.max_fee_per_gas, sample_user_op.max_priority_fee_per_gas
         )
 
     def test_to_eip712_struct(self, sample_user_op):
         """Test EIP-712 struct generation"""
-        entrypoint = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+        packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
+
+        entrypoint_version = EntryPointVersion.V08
         chain_id = 1
 
-        eip712_struct = sample_user_op.to_eip712_struct(entrypoint, chain_id)
+        eip712_struct = packed_user_op.to_eip712_struct(entrypoint_version, chain_id)
 
         # Verify structure
         assert "types" in eip712_struct
@@ -186,17 +147,17 @@ class TestPackedUserOperation:
         # Verify types
         types = eip712_struct["types"]
         assert "EIP712Domain" in types
-        assert "UserOperation" in types
+        assert "PackedUserOperation" in types
 
         # Verify domain
         domain = eip712_struct["domain"]
         assert domain["name"] == "ERC4337"
         assert domain["version"] == "1"
         assert domain["chainId"] == chain_id
-        assert domain["verifyingContract"] == entrypoint
+        assert domain["verifyingContract"] == EntryPointContracts.ENTRYPOINT_V08
 
         # Verify primary type
-        assert eip712_struct["primaryType"] == "UserOperation"
+        assert eip712_struct["primaryType"] == "PackedUserOperation"
 
         # Verify message contains all required fields
         message = eip712_struct["message"]
@@ -205,28 +166,25 @@ class TestPackedUserOperation:
             "nonce",
             "initCode",
             "callData",
-            "callGasLimit",
-            "verificationGasLimit",
+            "accountGasLimits",
             "preVerificationGas",
-            "maxPriorityFeePerGas",
-            "maxFeePerGas",
+            "gasFees",
             "paymasterAndData",
         }
         assert set(message.keys()) == expected_fields
 
     def test_sign_method(self, sample_user_op):
         """Test signing functionality with transacting power"""
-
         # Create a test private key and account
         private_key = "0x" + "1" * 64
         account = Account.from_key(private_key)
-        entrypoint = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+        entrypoint_version = EntryPointVersion.V08
         chain_id = 1
 
         # Create a mock transacting power that behaves like the real one
         mock_transacting_power = Mock()
 
-        def mock_sign_message_eip712(message):
+        def mock_sign_message_eip712(message, standardize):
             # Sign the message using the test private key
             # message is now the EIP-712 struct dictionary
             signable_message = encode_typed_data(full_message=message)
@@ -235,20 +193,21 @@ class TestPackedUserOperation:
 
         mock_transacting_power.sign_message_eip712 = mock_sign_message_eip712
 
-        # Sign the user operation
-        message_hash, signature = sample_user_op.sign(
-            mock_transacting_power, entrypoint, chain_id
+        # Sign the packed user operation
+        packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
+        message_hash, signature = packed_user_op.sign(
+            mock_transacting_power, entrypoint_version, chain_id
         )
 
         # Verify signature was set
-        assert sample_user_op.signature == signature
-        assert len(sample_user_op.signature) == 65  # Standard ECDSA signature length
+        assert packed_user_op.signature == signature
+        assert len(packed_user_op.signature) == 65  # Standard ECDSA signature length
 
         # Verify the signature is valid by reconstructing the message
-        eip712_struct = sample_user_op.to_eip712_struct(entrypoint, chain_id)
+        eip712_struct = packed_user_op.to_eip712_struct(entrypoint_version, chain_id)
         # Temporarily clear signature for verification
-        original_signature = sample_user_op.signature
-        sample_user_op.signature = HexBytes(b"")
+        original_signature = packed_user_op.signature
+        packed_user_op.signature = b""
 
         msg = encode_typed_data(full_message=eip712_struct)
         recovered_address = Account.recover_message(msg, signature=original_signature)
@@ -257,56 +216,54 @@ class TestPackedUserOperation:
         assert recovered_address == expected_address
 
         # Verify the returned message hash matches
-        assert message_hash == sample_user_op.hash(entrypoint, chain_id)
+        assert message_hash == _hash_eip191_message(msg)
 
-        # Restore signature
-        sample_user_op.signature = original_signature
 
     def test_gas_limits_edge_cases(self):
         """Test edge cases for gas limits"""
         # Test maximum values
         max_uint128 = (2**128) - 1
-        user_op = PackedUserOperation(
+        user_op = UserOperation(
             sender="0x1234567890123456789012345678901234567890",
             nonce=0,
             verification_gas_limit=max_uint128,
             call_gas_limit=max_uint128,
         )
 
-        packed = user_op._pack_account_gas_limits()
-        assert len(packed) == 32
+        packed_user_op = PackedUserOperation.from_user_operation(user_op)
+        assert len(packed_user_op.account_gas_limits) == 32
 
         # Test zero values
-        user_op_zero = PackedUserOperation(
+        user_op_zero = UserOperation(
             sender="0x1234567890123456789012345678901234567890",
             nonce=0,
             verification_gas_limit=0,
             call_gas_limit=0,
         )
 
-        packed_zero = user_op_zero._pack_account_gas_limits()
-        assert packed_zero == b"\x00" * 32
+        packed_user_op = PackedUserOperation.from_user_operation(user_op_zero)
+        assert packed_user_op.account_gas_limits == b"\x00" * 32
 
     def test_fee_edge_cases(self):
         """Test edge cases for fee values"""
         # Test maximum values
         max_uint128 = (2**128) - 1
-        user_op = PackedUserOperation(
+        user_op = UserOperation(
             sender="0x1234567890123456789012345678901234567890",
             nonce=0,
             max_priority_fee_per_gas=max_uint128,
             max_fee_per_gas=max_uint128,
         )
 
-        packed = user_op._pack_gas_fees()
-        assert len(packed) == 32
+        packed_user_op = PackedUserOperation.from_user_operation(user_op)
+        assert len(packed_user_op.gas_fees) == 32
 
     def test_oversized_gas_limits(self):
         """Test handling of gas limit values"""
         # Test with maximum values that can fit in the packing format (uint128 each)
         max_uint128 = (2**128) - 1
 
-        user_op = PackedUserOperation(
+        user_op = UserOperation(
             sender="0x1234567890123456789012345678901234567890",
             nonce=1,
             verification_gas_limit=max_uint128,  # Should work
@@ -314,8 +271,8 @@ class TestPackedUserOperation:
         )
 
         # Should be able to pack without error
-        packed = user_op._pack_account_gas_limits()
-        assert len(packed) == 32
+        packed_user_op = PackedUserOperation.from_user_operation(user_op)
+        assert len(packed_user_op.account_gas_limits) == 32
 
 
 class TestEncodeFunctionCall:
@@ -408,7 +365,7 @@ class TestHelperFunctions:
             **{k: v for k, v in common_params.items() if k not in ["sender", "nonce"]},
         )
 
-        assert isinstance(user_op, PackedUserOperation)
+        assert isinstance(user_op, UserOperation)
         assert user_op.sender == common_params["sender"]
         assert user_op.nonce == common_params["nonce"]
         assert user_op.init_code == b""
@@ -433,7 +390,7 @@ class TestHelperFunctions:
             **{k: v for k, v in common_params.items() if k not in ["sender", "nonce"]},
         )
 
-        assert isinstance(user_op, PackedUserOperation)
+        assert isinstance(user_op, UserOperation)
         assert user_op.sender == common_params["sender"]
         assert user_op.nonce == common_params["nonce"]
         assert len(user_op.call_data) > 0
@@ -457,7 +414,7 @@ class TestHelperFunctions:
             **{k: v for k, v in common_params.items() if k not in ["sender", "nonce"]},
         )
 
-        assert isinstance(user_op, PackedUserOperation)
+        assert isinstance(user_op, UserOperation)
         assert user_op.sender == common_params["sender"]
         assert user_op.nonce == common_params["nonce"]
         assert len(user_op.call_data) > 0
@@ -477,7 +434,7 @@ class TestHelperFunctions:
             **{k: v for k, v in common_params.items() if k not in ["sender", "nonce"]},
         )
 
-        assert isinstance(user_op, PackedUserOperation)
+        assert isinstance(user_op, UserOperation)
         assert user_op.sender == common_params["sender"]
         assert user_op.nonce == common_params["nonce"]
         assert len(user_op.call_data) > 0
@@ -497,7 +454,7 @@ class TestHelperFunctions:
             **{k: v for k, v in common_params.items() if k not in ["sender", "nonce"]},
         )
 
-        assert isinstance(user_op, PackedUserOperation)
+        assert isinstance(user_op, UserOperation)
         assert user_op.sender == common_params["sender"]
         assert user_op.nonce == common_params["nonce"]
         assert len(user_op.call_data) > 0
@@ -508,7 +465,7 @@ class TestERC4337Compatibility:
 
     def test_packed_user_operation_fields_match_spec(self):
         """Test that PackedUserOperation fields match ERC-4337 specification"""
-        user_op = PackedUserOperation(
+        user_op = UserOperation(
             sender="0x1234567890123456789012345678901234567890", nonce=1
         )
 
@@ -523,10 +480,7 @@ class TestERC4337Compatibility:
             "pre_verification_gas",
             "max_priority_fee_per_gas",
             "max_fee_per_gas",
-            "paymaster",
-            "paymaster_verification_gas_limit",
-            "paymaster_post_op_gas_limit",
-            "paymaster_data",
+            "paymaster_and_data",
             "signature",
         ]
 
@@ -535,7 +489,7 @@ class TestERC4337Compatibility:
 
     def test_pack_output_format_matches_spec(self, sample_user_op):
         """Test that pack() output matches ERC-4337 PackedUserOperation format"""
-        packed = sample_user_op.pack()
+        packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
 
         # According to ERC-4337, packed format should have these exact keys
         expected_keys = {
@@ -550,54 +504,55 @@ class TestERC4337Compatibility:
             "signature",
         }
 
-        assert set(packed.keys()) == expected_keys
+        for field in expected_keys:
+            assert hasattr(
+                packed_user_op, camel_case_to_snake(field)
+            ), f"Missing required field: {field}"
 
         # Verify data types
-        assert isinstance(packed["sender"], str)
-        assert isinstance(packed["nonce"], int)
-        assert isinstance(packed["initCode"], str)
-        assert isinstance(packed["callData"], str)
-        assert isinstance(packed["accountGasLimits"], bytes)
-        assert isinstance(packed["preVerificationGas"], int)
-        assert isinstance(packed["gasFees"], bytes)
-        assert isinstance(packed["paymasterAndData"], str)
-        assert isinstance(packed["signature"], str)
+        assert isinstance(packed_user_op.sender, str)
+        assert isinstance(packed_user_op.nonce, int)
+        assert isinstance(packed_user_op.init_code, bytes)
+        assert isinstance(packed_user_op.call_data, bytes)
+        assert isinstance(packed_user_op.account_gas_limits, bytes)
+        assert isinstance(packed_user_op.pre_verification_gas, int)
+        assert isinstance(packed_user_op.gas_fees, bytes)
+        assert isinstance(packed_user_op.paymaster_and_data, bytes)
+        assert isinstance(packed_user_op.signature, bytes)
 
         # Verify packed field lengths
-        assert len(packed["accountGasLimits"]) == 32
-        assert len(packed["gasFees"]) == 32
+        assert len(packed_user_op.account_gas_limits) == 32
+        assert len(packed_user_op.gas_fees) == 32
 
     def test_eip712_domain_matches_spec(self, sample_user_op):
         """Test that EIP-712 domain matches ERC-4337 specification"""
-        entrypoint = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
         chain_id = 1
 
-        eip712_struct = sample_user_op.to_eip712_struct(entrypoint, chain_id)
+        packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
+        eip712_struct = packed_user_op.to_eip712_struct(EntryPointVersion.V08, chain_id)
 
         # Verify EIP-712 domain according to ERC-4337
         domain = eip712_struct["domain"]
         assert domain["name"] == "ERC4337"
         assert domain["version"] == "1"
         assert domain["chainId"] == chain_id
-        assert domain["verifyingContract"] == entrypoint
+        assert domain["verifyingContract"] == EntryPointContracts.ENTRYPOINT_V08
 
         # Verify types structure
         types = eip712_struct["types"]
         assert "EIP712Domain" in types
-        assert "UserOperation" in types
+        assert "PackedUserOperation" in types
 
         # Verify UserOperation type fields match specification
-        user_op_type = types["UserOperation"]
+        user_op_type = types["PackedUserOperation"]
         expected_fields = [
             "sender",
             "nonce",
             "initCode",
             "callData",
-            "callGasLimit",
-            "verificationGasLimit",
+            "accountGasLimits",
             "preVerificationGas",
-            "maxPriorityFeePerGas",
-            "maxFeePerGas",
+            "gasFees",
             "paymasterAndData",
         ]
 
@@ -607,7 +562,7 @@ class TestERC4337Compatibility:
     def test_address_checksum_validation(self):
         """Test that addresses are properly checksummed"""
         # Test with non-checksummed address
-        user_op = PackedUserOperation(
+        user_op = UserOperation(
             sender="0x1234567890123456789012345678901234567890", nonce=1
         )
 
@@ -616,16 +571,16 @@ class TestERC4337Compatibility:
 
         # Test ERC20 transfer
         erc20_op = create_erc20_transfer(user_op.sender, 1, to_addr, to_addr, 1000)
-        assert isinstance(erc20_op, PackedUserOperation)
+        assert isinstance(erc20_op, UserOperation)
 
         # Test ETH transfer
         eth_op = create_eth_transfer(user_op.sender, 1, to_addr, 1000)
-        assert isinstance(eth_op, PackedUserOperation)
+        assert isinstance(eth_op, UserOperation)
 
     @pytest.fixture
     def sample_user_op(self):
         """Create a sample PackedUserOperation for testing"""
-        return PackedUserOperation(
+        return UserOperation(
             sender="0x1234567890123456789012345678901234567890",
             nonce=1,
             init_code=b"\x12\x34",
@@ -634,11 +589,7 @@ class TestERC4337Compatibility:
             call_gas_limit=200000,
             pre_verification_gas=21000,
             max_priority_fee_per_gas=1000000000,
-            max_fee_per_gas=2000000000,
-            paymaster="0x9876543210987654321098765432109876543210",
-            paymaster_verification_gas_limit=50000,
-            paymaster_post_op_gas_limit=30000,
-            paymaster_data=b"\xab\xcd",
+            paymaster_and_data=os.urandom(32),  # Random bytes for paymaster data
             signature=b"\xde\xad\xbe\xef",
         )
 
@@ -649,20 +600,19 @@ class TestErrorHandling:
     def test_empty_signature_signing(self):
         """Test signing with empty initial signature using transacting power"""
 
-        user_op = PackedUserOperation(
+        user_op = UserOperation(
             sender="0x1234567890123456789012345678901234567890", nonce=1
         )
 
         # Create a test private key and account
         private_key = "0x" + "1" * 64
         account = Account.from_key(private_key)
-        entrypoint = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
         chain_id = 1
 
         # Create a mock transacting power that behaves like the real one
         mock_transacting_power = Mock()
 
-        def mock_sign_message_eip712(message):
+        def mock_sign_message_eip712(message, standardize):
             # Sign the message using the test private key
             # message is now the EIP-712 struct dictionary
             signable_message = encode_typed_data(full_message=message)
@@ -672,9 +622,16 @@ class TestErrorHandling:
         mock_transacting_power.sign_message_eip712 = mock_sign_message_eip712
 
         # Should work even with empty initial signature
-        message_hash, signature = user_op.sign(
-            mock_transacting_power, entrypoint, chain_id
+        packed_user_op = PackedUserOperation.from_user_operation(user_op)
+        message_hash, signature = packed_user_op.sign(
+            mock_transacting_power, EntryPointVersion.V08, chain_id
         )
-        assert len(user_op.signature) == 65
-        assert signature == user_op.signature
-        assert message_hash == user_op.hash(entrypoint, chain_id)
+        assert len(packed_user_op.signature) == 65
+        assert signature == packed_user_op.signature
+        assert message_hash == _hash_eip191_message(
+            encode_typed_data(
+                full_message=packed_user_op.to_eip712_struct(
+                    EntryPointVersion.V08, chain_id
+                )
+            )
+        )
