@@ -112,8 +112,8 @@ class PackedUserOperation:
     def sign(
         self, transacting_power, entrypoint: str, chain_id: int
     ) -> Tuple[Hash32, HexBytes]:
-        message = self.encode(entrypoint=entrypoint, chain_id=chain_id)
-        message_hash, signature = transacting_power.sign_message_eip712(message)
+        eip712_struct = self.to_eip712_struct(entrypoint=entrypoint, chain_id=chain_id)
+        message_hash, signature = transacting_power.sign_message_eip712(eip712_struct)
         self.signature = signature
         return self.hash(entrypoint=entrypoint, chain_id=chain_id), self.signature
 
