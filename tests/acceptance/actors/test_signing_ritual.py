@@ -3,12 +3,14 @@ import pytest_twisted
 
 from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.characters.lawful import Ursula
-from nucypher.network.signing import UserOperationSignatureRequest
+from nucypher.network.signing import (
+    EIP191SignatureRequest,
+    UserOperationSignatureRequest,
+)
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.erc4337_utils import (
     EntryPointVersion,
-    UserOperation,
     create_erc20_transfer,
     create_eth_transfer,
 )
@@ -185,21 +187,8 @@ def test_signing_request_fulfilment(
 ):
     bob.start_learning_loop(now=True)
 
-    # Create a proper PackedUserOperation using the helper function
-    user_op = UserOperation(
-        sender=accounts[0].address,
-        nonce=0,
-        call_data=b"deadbeef",
-        verification_gas_limit=100000,
-        call_gas_limit=100000,
-        pre_verification_gas=21000,
-        max_priority_fee_per_gas=1000000000,  # 1 gwei
-        max_fee_per_gas=2000000000,  # 2 gwei
-    )
-
-    signing_request = UserOperationSignatureRequest(
-        user_op=user_op,
-        entrypoint_version=EntryPointVersion.V08,
+    signing_request = EIP191SignatureRequest(
+        data=b"Test data for signing",
         cohort_id=cohort_id,
         chain_id=chain.chain_id,
         context=None,
@@ -212,7 +201,7 @@ def test_signing_request_fulfilment(
         )
     print("===================== SIGNING FAILED =====================")
 
-    print("==================== SIGNING REQUEST ====================")
+    print("==================== TEST EIP-191 SIGNING REQUEST ====================")
     # set condition for cohort and chain
     on_chain_condition_lingo = ConditionLingo(time_condition)
     signing_coordinator_agent.set_signing_cohort_conditions(
@@ -251,6 +240,7 @@ def test_signing_request_fulfilment(
 
     magic_value = EIP1271Auth.MAGIC_VALUE_BYTES
     assert result == magic_value, f"Invalid signature: {result} != {magic_value}"
+    print("===================== SIGNING SUCCESSFUL =====================")
 
     print("==================== TESTING USER OPERATION SIGNING ====================")
 
