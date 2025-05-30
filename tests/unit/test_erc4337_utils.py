@@ -1,4 +1,3 @@
-import os
 from unittest.mock import Mock
 
 import pytest
@@ -36,7 +35,10 @@ class TestPackedUserOperation:
             pre_verification_gas=21000,
             max_priority_fee_per_gas=1000000000,  # 1 gwei
             max_fee_per_gas=2000000000,  # 2 gwei
-            paymaster_and_data=b"My whole life is consistent - SGA",
+            paymaster="0x9876543210987654321098765432109876543210",
+            paymaster_verification_gas_limit=50000,
+            paymaster_post_op_gas_limit=30000,
+            paymaster_data=b"My whole life is consistent - SGA",
             signature=b"\xde\xad\xbe\xef",
         )
 
@@ -58,7 +60,10 @@ class TestPackedUserOperation:
         assert sample_user_op.pre_verification_gas == 21000
         assert sample_user_op.max_priority_fee_per_gas == 1000000000
         assert sample_user_op.max_fee_per_gas == 2000000000
-        assert sample_user_op.paymaster_and_data == b"My whole life is consistent - SGA"
+        assert sample_user_op.paymaster == "0x9876543210987654321098765432109876543210"
+        assert sample_user_op.paymaster_verification_gas_limit == 50000
+        assert sample_user_op.paymaster_post_op_gas_limit == 30000
+        assert sample_user_op.paymaster_data == b"My whole life is consistent - SGA"
         assert sample_user_op.signature == b"\xde\xad\xbe\xef"
 
     def test_minimal_user_operation_initialization(self, minimal_user_op):
@@ -72,10 +77,13 @@ class TestPackedUserOperation:
         assert minimal_user_op.pre_verification_gas == 0
         assert minimal_user_op.max_priority_fee_per_gas == 0
         assert minimal_user_op.max_fee_per_gas == 0
-        assert minimal_user_op.paymaster_and_data == b""
+        assert minimal_user_op.paymaster is None
+        assert minimal_user_op.paymaster_verification_gas_limit == 0
+        assert minimal_user_op.paymaster_post_op_gas_limit == 0
+        assert minimal_user_op.paymaster_data == b""
         assert minimal_user_op.signature == b""
 
-    def test_pack_account_gas_limits(self, sample_user_op):
+    def test_packed_user_op_account_gas_limits(self, sample_user_op):
         """Test _pack_account_gas_limits method"""
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
 
@@ -90,7 +98,7 @@ class TestPackedUserOperation:
             32, byteorder="big"
         )
 
-    def test_pack_gas_fees(self, sample_user_op):
+    def test_packed_user_op_fees(self, sample_user_op):
         """Test _pack_gas_fees method"""
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
 
@@ -103,7 +111,7 @@ class TestPackedUserOperation:
         ) | sample_user_op.max_fee_per_gas
         assert packed_user_op.gas_fees == expected.to_bytes(32, byteorder="big")
 
-    def test_pack_method(self, sample_user_op):
+    def test_packed_user_op_methods(self, sample_user_op):
         """Test the pack method returns correct dictionary structure"""
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
 
@@ -116,7 +124,6 @@ class TestPackedUserOperation:
             packed_user_op.pre_verification_gas == sample_user_op.pre_verification_gas
         )
         assert packed_user_op.signature == sample_user_op.signature
-        assert packed_user_op.paymaster_and_data == sample_user_op.paymaster_and_data
 
         # Verify packed fields
         assert (
@@ -127,6 +134,15 @@ class TestPackedUserOperation:
         )
         assert packed_user_op.gas_fees == PackedUserOperation._pack_gas_fees(
             sample_user_op.max_fee_per_gas, sample_user_op.max_priority_fee_per_gas
+        )
+        assert (
+            packed_user_op.paymaster_and_data
+            == PackedUserOperation._pack_paymaster_and_data(
+                sample_user_op.paymaster,
+                sample_user_op.paymaster_verification_gas_limit,
+                sample_user_op.paymaster_post_op_gas_limit,
+                sample_user_op.paymaster_data,
+            )
         )
 
     @pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
@@ -469,8 +485,8 @@ class TestHelperFunctions:
 class TestERC4337Compatibility:
     """Test suite for ERC-4337 specification compatibility"""
 
-    def test_packed_user_operation_fields_match_spec(self):
-        """Test that PackedUserOperation fields match ERC-4337 specification"""
+    def test_user_operation_fields_match_spec(self):
+        """Test that UserOperation fields match ERC-4337 specification"""
         user_op = UserOperation(
             sender="0x1234567890123456789012345678901234567890", nonce=1
         )
@@ -486,15 +502,18 @@ class TestERC4337Compatibility:
             "pre_verification_gas",
             "max_priority_fee_per_gas",
             "max_fee_per_gas",
-            "paymaster_and_data",
+            "paymaster",
+            "paymaster_verification_gas_limit",
+            "paymaster_post_op_gas_limit",
+            "paymaster_data",
             "signature",
         ]
 
         for field in required_fields:
             assert hasattr(user_op, field), f"Missing required field: {field}"
 
-    def test_pack_output_format_matches_spec(self, sample_user_op):
-        """Test that pack() output matches ERC-4337 PackedUserOperation format"""
+    def test_packed_user_op_matches_spec(self, sample_user_op):
+        """Test that PackedUserOperation matches ERC-4337 packed format"""
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
 
         # According to ERC-4337, packed format should have these exact keys
@@ -595,7 +614,11 @@ class TestERC4337Compatibility:
             call_gas_limit=200000,
             pre_verification_gas=21000,
             max_priority_fee_per_gas=1000000000,
-            paymaster_and_data=os.urandom(32),  # Random bytes for paymaster data
+            max_fee_per_gas=2000000000,
+            paymaster="0x9876543210987654321098765432109876543210",
+            paymaster_verification_gas_limit=50000,
+            paymaster_post_op_gas_limit=30000,
+            paymaster_data=b"\xab\xcd",
             signature=b"\xde\xad\xbe\xef",
         )
 

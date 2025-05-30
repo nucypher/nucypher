@@ -274,6 +274,7 @@ def test_user_op_signing_request_fulfilment(
         pre_verification_gas=21000,
         max_priority_fee_per_gas=1000000000,
         max_fee_per_gas=2000000000,
+        # no paymaster data
     )
 
     # Test that the ETH transfer operation was created correctly
@@ -326,6 +327,11 @@ def test_user_op_signing_request_fulfilment(
         pre_verification_gas=21000,
         max_priority_fee_per_gas=1000000000,
         max_fee_per_gas=2000000000,
+        # paymaster data
+        paymaster=accounts[1].address,
+        paymaster_post_op_gas_limit=100000,
+        paymaster_verification_gas_limit=200000,
+        paymaster_data=b"",
     )
 
     # Test that the ERC20 transfer operation was created correctly
