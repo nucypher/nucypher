@@ -12,7 +12,7 @@ dependencies:
         version: 0.8.23
         evm_version: paris
 
-  - name: openzeppelin
+  - name: openzeppelin530
     github: OpenZeppelin/openzeppelin-contracts
     version: 5.3.0
 
