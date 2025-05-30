@@ -14,12 +14,12 @@ from nucypher.crypto.powers import TransactingPower
 class EntryPointContracts:
     """Constants for EntryPoint contract addresses."""
 
-    # TODO: not sure if we should keep v07 (the hash is different and not eip-127
     ENTRYPOINT_V08 = "0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108"
 
 
 class AAVersion(Enum):
     """Constants for AA versions."""
+
     V08 = "0.8.0"
     MDT = "mdt"
 
@@ -130,6 +130,7 @@ PACKED_USER_OPERATION_MDT_TYPES = {
     )
     + [{"name": "entryPoint", "type": "address"}],
 }
+
 
 @dataclass
 class PackedUserOperation:

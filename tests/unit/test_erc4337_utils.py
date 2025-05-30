@@ -240,7 +240,6 @@ class TestPackedUserOperation:
         # Verify the returned message hash matches
         assert message_hash == _hash_eip191_message(msg)
 
-
     def test_gas_limits_edge_cases(self):
         """Test edge cases for gas limits"""
         # Test maximum values
