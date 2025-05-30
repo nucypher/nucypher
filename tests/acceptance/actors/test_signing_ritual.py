@@ -10,7 +10,7 @@ from nucypher.network.signing import (
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.erc4337_utils import (
-    EntryPointVersion,
+    AAVersion,
     create_erc20_transfer,
     create_eth_transfer,
 )
@@ -61,6 +61,19 @@ def ritual_initiator(initiator, signing_coordinator, deployer_account):
         sender=deployer_account,
     )
     return initiator
+
+
+def get_cohort_multisig(cohort_id, nucypher_dependency, signing_coordinator_child):
+    threshold_signing_multisig_clone_factory = (
+        nucypher_dependency.ThresholdSigningMultisigCloneFactory.at(
+            signing_coordinator_child.signingMultisigFactory()
+        )
+    )
+    multisig_address = threshold_signing_multisig_clone_factory.getCloneAddress(
+        cohort_id
+    )
+    multisig = nucypher_dependency.ThresholdSigningMultisig.at(multisig_address)
+    return multisig
 
 
 def test_signing_cohort_initiation(
@@ -153,16 +166,8 @@ def test_get_signers(
     assert len(signing_cohort.signers) == dkg_size
 
     # check deployed multisig
-    threshold_signing_multisig_clone_factory = (
-        nucypher_dependency.ThresholdSigningMultisigCloneFactory.at(
-            signing_coordinator_child.signingMultisigFactory()
-        )
-    )
-    expected_multisig_address = (
-        threshold_signing_multisig_clone_factory.getCloneAddress(cohort_id)
-    )
-    cohort_multisig = nucypher_dependency.ThresholdSigningMultisig.at(
-        expected_multisig_address
+    cohort_multisig = get_cohort_multisig(
+        cohort_id, nucypher_dependency, signing_coordinator_child
     )
     operator_addresses = [u.operator_address for u in cohort]
 
@@ -218,15 +223,9 @@ def test_signing_request_fulfilment(
     signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
     assert len(responses) >= signing_cohort.threshold
 
-    threshold_signing_multisig_clone_factory = (
-        nucypher_dependency.ThresholdSigningMultisigCloneFactory.at(
-            signing_coordinator_child.signingMultisigFactory()
-        )
+    multisig = get_cohort_multisig(
+        cohort_id, nucypher_dependency, signing_coordinator_child
     )
-    multisig_address = threshold_signing_multisig_clone_factory.getCloneAddress(
-        cohort_id
-    )
-    multisig = nucypher_dependency.ThresholdSigningMultisig.at(multisig_address)
 
     message_hash = None
     aggregated_signature = b""
@@ -238,9 +237,29 @@ def test_signing_request_fulfilment(
 
     result = multisig.isValidSignature(message_hash, aggregated_signature)
 
-    magic_value = EIP1271Auth.MAGIC_VALUE_BYTES
-    assert result == magic_value, f"Invalid signature: {result} != {magic_value}"
+    assert (
+        result == EIP1271Auth.MAGIC_VALUE_BYTES
+    ), f"Invalid signature: {result} != {EIP1271Auth.MAGIC_VALUE_BYTES}"
     print("===================== SIGNING SUCCESSFUL =====================")
+    yield
+
+
+@pytest_twisted.inlineCallbacks
+@pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
+def test_user_op_signing_request_fulfilment(
+    aa_version,
+    chain,
+    bob,
+    accounts,
+    signing_coordinator_agent,
+    signing_coordinator_child,
+    initiator,
+    cohort_id,
+    cohort,
+    nucypher_dependency,
+    ritual_initiator,
+):
+    signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
 
     print("==================== TESTING USER OPERATION SIGNING ====================")
 
@@ -265,7 +284,7 @@ def test_signing_request_fulfilment(
     # Test signing the ETH transfer operation
     eth_signing_request = UserOperationSignatureRequest(
         user_op=eth_transfer_op,
-        entrypoint_version=EntryPointVersion.V08,
+        aa_version=aa_version,
         chain_id=chain.chain_id,
         cohort_id=cohort_id,
         context=None,
@@ -284,10 +303,13 @@ def test_signing_request_fulfilment(
         assert message_hash == r.hash, "All hashes must be the same"
         aggregated_signature += r.signature
 
+    multisig = get_cohort_multisig(
+        cohort_id, nucypher_dependency, signing_coordinator_child
+    )
     eth_result = multisig.isValidSignature(message_hash, aggregated_signature)
     assert (
-        eth_result == magic_value
-    ), f"Invalid ETH transfer signature: {eth_result} != {magic_value}"
+        eth_result == EIP1271Auth.MAGIC_VALUE_BYTES
+    ), f"Invalid ETH transfer signature: {eth_result} != {EIP1271Auth.MAGIC_VALUE_BYTES}"
     print("ETH transfer signing successful")
 
     # Test create_erc20_transfer helper
@@ -314,7 +336,7 @@ def test_signing_request_fulfilment(
     # Test signing the ERC20 transfer operation
     erc20_signing_request = UserOperationSignatureRequest(
         user_op=erc20_transfer_op,
-        entrypoint_version=EntryPointVersion.V08,
+        aa_version=aa_version,
         chain_id=chain.chain_id,
         cohort_id=cohort_id,
         context=None,
@@ -335,8 +357,8 @@ def test_signing_request_fulfilment(
 
     erc20_result = multisig.isValidSignature(message_hash, aggregated_signature)
     assert (
-        erc20_result == magic_value
-    ), f"Invalid ERC20 transfer signature: {erc20_result} != {magic_value}"
+        erc20_result == EIP1271Auth.MAGIC_VALUE_BYTES
+    ), f"Invalid ERC20 transfer signature: {erc20_result} != {EIP1271Auth.MAGIC_VALUE_BYTES}"
     print("ERC20 transfer signing successful")
     print("===================== SIGNING SUCCESSFUL =====================")
 

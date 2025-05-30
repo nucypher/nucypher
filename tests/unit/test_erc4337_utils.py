@@ -8,8 +8,8 @@ from eth_utils import keccak
 
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.erc4337_utils import (
+    AAVersion,
     EntryPointContracts,
-    EntryPointVersion,
     PackedUserOperation,
     UserOperation,
     create_contract_call,
@@ -129,14 +129,13 @@ class TestPackedUserOperation:
             sample_user_op.max_fee_per_gas, sample_user_op.max_priority_fee_per_gas
         )
 
-    def test_to_eip712_struct(self, sample_user_op):
+    @pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
+    def test_to_eip712_struct(self, aa_version, sample_user_op):
         """Test EIP-712 struct generation"""
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
 
-        entrypoint_version = EntryPointVersion.V08
         chain_id = 1
-
-        eip712_struct = packed_user_op.to_eip712_struct(entrypoint_version, chain_id)
+        eip712_struct = packed_user_op.to_eip712_struct(aa_version, chain_id)
 
         # Verify structure
         assert "types" in eip712_struct
@@ -151,7 +150,11 @@ class TestPackedUserOperation:
 
         # Verify domain
         domain = eip712_struct["domain"]
-        assert domain["name"] == "ERC4337"
+        assert (
+            domain["name"] == "ERC4337"
+            if aa_version != AAVersion.MDT
+            else "MultiSigDeleGator"
+        )
         assert domain["version"] == "1"
         assert domain["chainId"] == chain_id
         assert domain["verifyingContract"] == EntryPointContracts.ENTRYPOINT_V08
@@ -171,6 +174,9 @@ class TestPackedUserOperation:
             "gasFees",
             "paymasterAndData",
         }
+        if aa_version == AAVersion.MDT:
+            expected_fields.add("entryPoint")
+
         assert set(message.keys()) == expected_fields
 
     def test_sign_method(self, sample_user_op):
@@ -178,7 +184,7 @@ class TestPackedUserOperation:
         # Create a test private key and account
         private_key = "0x" + "1" * 64
         account = Account.from_key(private_key)
-        entrypoint_version = EntryPointVersion.V08
+        aa_version = AAVersion.V08
         chain_id = 1
 
         # Create a mock transacting power that behaves like the real one
@@ -196,7 +202,7 @@ class TestPackedUserOperation:
         # Sign the packed user operation
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
         message_hash, signature = packed_user_op.sign(
-            mock_transacting_power, entrypoint_version, chain_id
+            mock_transacting_power, aa_version, chain_id
         )
 
         # Verify signature was set
@@ -204,7 +210,7 @@ class TestPackedUserOperation:
         assert len(packed_user_op.signature) == 65  # Standard ECDSA signature length
 
         # Verify the signature is valid by reconstructing the message
-        eip712_struct = packed_user_op.to_eip712_struct(entrypoint_version, chain_id)
+        eip712_struct = packed_user_op.to_eip712_struct(aa_version, chain_id)
         # Temporarily clear signature for verification
         original_signature = packed_user_op.signature
         packed_user_op.signature = b""
@@ -529,7 +535,7 @@ class TestERC4337Compatibility:
         chain_id = 1
 
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
-        eip712_struct = packed_user_op.to_eip712_struct(EntryPointVersion.V08, chain_id)
+        eip712_struct = packed_user_op.to_eip712_struct(AAVersion.V08, chain_id)
 
         # Verify EIP-712 domain according to ERC-4337
         domain = eip712_struct["domain"]
@@ -624,14 +630,12 @@ class TestErrorHandling:
         # Should work even with empty initial signature
         packed_user_op = PackedUserOperation.from_user_operation(user_op)
         message_hash, signature = packed_user_op.sign(
-            mock_transacting_power, EntryPointVersion.V08, chain_id
+            mock_transacting_power, AAVersion.V08, chain_id
         )
         assert len(packed_user_op.signature) == 65
         assert signature == packed_user_op.signature
         assert message_hash == _hash_eip191_message(
             encode_typed_data(
-                full_message=packed_user_op.to_eip712_struct(
-                    EntryPointVersion.V08, chain_id
-                )
+                full_message=packed_user_op.to_eip712_struct(AAVersion.V08, chain_id)
             )
         )
