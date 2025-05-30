@@ -101,7 +101,7 @@ def validate_responses_with_cohort_eth_multisig(
     er1271_contract = w3.eth.contract(address=multisig_address, abi=ERC_1271_ABI)
     assert (
         er1271_contract.functions.isValidSignature(
-            responses[0].message_hash, b"".join([r.signature for r in responses])
+            responses[0].hash, b"".join([r.signature for r in responses])
         ).call()
         == EIP1271Auth.MAGIC_VALUE_BYTES
     )
@@ -116,7 +116,7 @@ def print_signing_result(
     print("\n-----")
     print(f"Original Message: {original_data}")
 
-    hash_set = set([r.message_hash.hex() for r in signature_responses])
+    hash_set = set([r.hash.hex() for r in signature_responses])
     assert len(hash_set) == 1, f"Expected one message hash, got {len(hash_set)}"
     print(f"\tMessage Hash: {list(hash_set)[0]}")
     print("\tSignatures:")
