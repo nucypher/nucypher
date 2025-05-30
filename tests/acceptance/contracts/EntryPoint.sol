@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import "@openzeppelin530/contracts/account/utils/draft-ERC4337Utils.sol";
 import "@openzeppelin530/contracts/interfaces/draft-IERC4337.sol";
 import "@openzeppelin530/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin530/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -80,5 +81,27 @@ contract EntryPoint is EIP712 {
         PackedUserOperation calldata userOp
     ) public view returns (bytes32) {
          return MessageHashUtils.toTypedDataHash(getDomainSeparatorMDT(), hashMDT(userOp));
+    }
+
+    // Testing of PackedUserOperation packing
+
+    /// @dev Returns `verificationGasLimit` from the {PackedUserOperation}.
+    function verificationGasLimit(PackedUserOperation calldata userOp) public pure returns (uint256) {
+        return ERC4337Utils.verificationGasLimit(userOp);
+    }
+
+    /// @dev Returns `callGasLimit` from the {PackedUserOperation}.
+    function callGasLimit(PackedUserOperation calldata userOp) public pure returns (uint256) {
+        return ERC4337Utils.callGasLimit(userOp);
+    }
+
+    /// @dev Returns the first section of `gasFees` from the {PackedUserOperation}.
+    function maxPriorityFeePerGas(PackedUserOperation calldata userOp) public pure returns (uint256) {
+        return ERC4337Utils.maxPriorityFeePerGas(userOp);
+    }
+
+    /// @dev Returns the second section of `gasFees` from the {PackedUserOperation}.
+    function maxFeePerGas(PackedUserOperation calldata userOp) public pure returns (uint256) {
+        return ERC4337Utils.maxFeePerGas(userOp);
     }
 }
