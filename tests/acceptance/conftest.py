@@ -112,7 +112,7 @@ def nucypher_dependency(project):
 
 @pytest.fixture(scope="session", autouse=True)
 def oz_dependency(project):
-    _oz_dependency = project.dependencies["openzeppelin"]["5.3.0"]
+    _oz_dependency = project.dependencies["openzeppelin530"]["5.3.0"]
     return _oz_dependency
 
 
