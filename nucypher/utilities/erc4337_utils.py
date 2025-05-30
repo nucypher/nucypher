@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Tuple
 
 import eth_abi
-from eth_utils import keccak, to_checksum_address
+from eth_utils import keccak, to_bytes, to_checksum_address
 from hexbytes import HexBytes
 
 from nucypher.crypto.powers import TransactingPower
@@ -45,7 +45,10 @@ class UserOperation:
     max_priority_fee_per_gas: int = 0
 
     # Paymaster (optional)
-    paymaster_and_data: bytes = b""
+    paymaster: str = None
+    paymaster_verification_gas_limit: int = 0
+    paymaster_post_op_gas_limit: int = 0
+    paymaster_data: bytes = b""
 
     # Signature placeholder
     signature: bytes = b""
@@ -64,15 +67,18 @@ class UserOperation:
         return cls(
             sender=d["sender"],
             nonce=d["nonce"],
-            init_code=bytes(HexBytes(d["init_code"]) or b""),
-            call_data=bytes(HexBytes(d["call_data"]) or b""),
+            init_code=bytes(HexBytes(d["init_code"] or b"")),
+            call_data=bytes(HexBytes(d["call_data"] or b"")),
             call_gas_limit=d["call_gas_limit"],
             verification_gas_limit=d["verification_gas_limit"],
             pre_verification_gas=d["pre_verification_gas"],
             max_fee_per_gas=d["max_fee_per_gas"],
             max_priority_fee_per_gas=d["max_priority_fee_per_gas"],
-            paymaster_and_data=bytes(HexBytes(d["paymaster_and_data"]) or b""),
-            signature=bytes(HexBytes(d["signature"]) or b""),
+            paymaster=d["paymaster"],
+            paymaster_verification_gas_limit=d["paymaster_verification_gas_limit"],
+            paymaster_post_op_gas_limit=d["paymaster_post_op_gas_limit"],
+            paymaster_data=bytes(HexBytes(d["paymaster_data"] or b"")),
+            signature=bytes(HexBytes(d["signature"] or b"")),
         )
 
     def to_dict(self) -> dict:
@@ -86,7 +92,10 @@ class UserOperation:
             "pre_verification_gas": self.pre_verification_gas,
             "max_fee_per_gas": self.max_fee_per_gas,
             "max_priority_fee_per_gas": self.max_priority_fee_per_gas,
-            "paymaster_and_data": HexBytes(self.paymaster_and_data).hex(),
+            "paymaster": self.paymaster,
+            "paymaster_verification_gas_limit": self.paymaster_verification_gas_limit,
+            "paymaster_post_op_gas_limit": self.paymaster_post_op_gas_limit,
+            "paymaster_data": HexBytes(self.paymaster_data).hex(),
             "signature": HexBytes(self.signature).hex(),
         }
 
@@ -151,6 +160,23 @@ class PackedUserOperation:
         return combined.to_bytes(32, byteorder="big")
 
     @classmethod
+    def _pack_paymaster_and_data(
+        cls,
+        paymaster: str,
+        paymaster_verification_gas_limit: int,
+        paymaster_post_op_gas_limit: int,
+        paymaster_data: bytes,
+    ) -> bytes:
+        if not paymaster:
+            return b""
+        paymaster_bytes = to_bytes(hexstr=paymaster)
+        verification_bytes = paymaster_verification_gas_limit.to_bytes(
+            16, byteorder="big"
+        )
+        post_op_bytes = paymaster_post_op_gas_limit.to_bytes(16, byteorder="big")
+        return paymaster_bytes + verification_bytes + post_op_bytes + paymaster_data
+
+    @classmethod
     def from_user_operation(cls, user_op: UserOperation) -> "PackedUserOperation":
         """Convert a UserOperation to a PackedUserOperation."""
         return cls(
@@ -165,7 +191,12 @@ class PackedUserOperation:
             gas_fees=cls._pack_gas_fees(
                 user_op.max_fee_per_gas, user_op.max_priority_fee_per_gas
             ),
-            paymaster_and_data=user_op.paymaster_and_data,
+            paymaster_and_data=cls._pack_paymaster_and_data(
+                user_op.paymaster,
+                user_op.paymaster_verification_gas_limit,
+                user_op.paymaster_post_op_gas_limit,
+                user_op.paymaster_data,
+            ),
             signature=user_op.signature,
         )
 
