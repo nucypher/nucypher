@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Tuple
 
 from hexbytes import HexBytes
 
@@ -12,8 +12,6 @@ from nucypher.utilities.erc4337_utils import (
     PackedUserOperation,
     UserOperation,
 )
-
-EIP712Dict = Dict[str, Union[str, int, float, bool, Dict, list]]
 
 
 class SignatureRequestType(Enum):
@@ -44,10 +42,6 @@ class BaseSignatureRequest(ABC):
 
     @abstractmethod
     def __bytes__(self) -> bytes:
-        raise NotImplementedError
-
-    @abstractmethod
-    def sign(self, transacting_power: TransactingPower) -> Tuple[HexBytes, HexBytes]:
         raise NotImplementedError
 
     @classmethod
@@ -99,21 +93,13 @@ class EIP191SignatureRequest(BaseSignatureRequest):
         chain_id: int,
         context: Optional[ContextDict] = None,
     ):
+        self.data = data
         super().__init__(
             cohort_id=cohort_id,
             chain_id=chain_id,
             signature_type=SignatureRequestType.EIP_191,
             context=context,
         )
-
-        self.data = data
-
-    def sign(self, transacting_power: TransactingPower) -> Tuple[HexBytes, HexBytes]:
-        return transacting_power.sign_message_eip191(
-            self.data,
-            standardize=False,
-        )
-
     def __bytes__(self) -> bytes:
         """Serialize the UserOperation request to bytes in JSON format."""
         # Serialize the UserOperation data
@@ -131,7 +117,7 @@ class EIP191SignatureRequest(BaseSignatureRequest):
         """Deserialize the UserOperation request from bytes in JSON format."""
         try:
             result = json.loads(request_data.decode())
-            data = result["data"]
+            data = bytes(HexBytes(result["data"]))
             cohort_id = result["cohort_id"]
             chain_id = result["chain_id"]
             context = result["context"]
@@ -179,14 +165,6 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
             chain_id=chain_id,
             signature_type=SignatureRequestType.USEROP,
             context=context,
-        )
-
-    def sign(self, transacting_power: TransactingPower) -> Tuple[HexBytes, HexBytes]:
-        packed_user_operation = PackedUserOperation.from_user_operation(self.user_op)
-        return packed_user_operation.sign(
-            transacting_power=transacting_power,
-            entrypoint_version=self.entrypoint_version,
-            chain_id=self.chain_id,
         )
 
     def __bytes__(self) -> bytes:
@@ -243,9 +221,35 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
         )
 
 
+#
+# Logic for using SignatureRequest data classes
+# This will stay in nucypher, while the data classes will move to nucypher-core
+#
+def sign_signature_request_data(
+    request: BaseSignatureRequest,
+    transacting_power: TransactingPower,
+) -> Tuple[HexBytes, HexBytes]:
+    """Sign a signature request using the provided transacting power."""
+    if isinstance(request, UserOperationSignatureRequest):
+        # Special handling for UserOperation requests
+        packed_user_operation = PackedUserOperation.from_user_operation(request.user_op)
+        return packed_user_operation.sign(
+            transacting_power=transacting_power,
+            entrypoint_version=request.entrypoint_version,
+            chain_id=request.chain_id,
+        )
+    elif isinstance(request, EIP191SignatureRequest):
+        return transacting_power.sign_message_eip191(
+            request.data,
+            standardize=False,
+        )
+
+    raise ValueError(f"Unsupported signature request: {request.__class__.__name__}")
+
+
 def deserialize_signature_request(
     request_data: bytes,
-) -> Union[UserOperationSignatureRequest]:
+) -> BaseSignatureRequest:
     """Deserialize a signature request from bytes."""
     try:
         result = json.loads(request_data.decode())
@@ -254,6 +258,8 @@ def deserialize_signature_request(
 
         if signature_type == SignatureRequestType.USEROP:
             return UserOperationSignatureRequest.from_bytes(request_data)
+        elif signature_type == SignatureRequestType.EIP_191:
+            return EIP191SignatureRequest.from_bytes(request_data)
 
         raise ValueError(f"Invalid signature request type: {signature_type}")
     except (json.JSONDecodeError, ValueError) as e:

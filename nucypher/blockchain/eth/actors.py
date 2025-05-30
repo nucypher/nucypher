@@ -74,6 +74,7 @@ from nucypher.datastore.dkg import DKGStorage
 from nucypher.network.signing import (
     BaseSignatureRequest,
     SignatureResponse,
+    sign_signature_request_data,
 )
 from nucypher.policy.conditions.utils import (
     ConditionProviderManager,
@@ -1022,8 +1023,8 @@ class Operator(BaseActor):
         )
 
         # sign if the request is authorized (conditions are satisfied)
-        message_hash, signature = signing_request.sign(
-            transacting_power=self.transacting_power
+        message_hash, signature = sign_signature_request_data(
+            request=signing_request, transacting_power=self.transacting_power
         )
         response = SignatureResponse(
             _hash=message_hash,
