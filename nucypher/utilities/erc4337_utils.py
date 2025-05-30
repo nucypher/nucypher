@@ -7,13 +7,15 @@ import eth_abi
 from eth_utils import keccak, to_checksum_address
 from hexbytes import HexBytes
 
+from nucypher.crypto.powers import TransactingPower
+
 
 class EntryPointContracts:
     """Constants for EntryPoint contract addresses."""
 
     # TODO: not sure if we should keep v07 (the hash is different and not eip-127
     ENTRYPOINT_V07 = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"
-    ENTRYPOINT_V08 = "0x4337084d9e255ff0702461cf8895ce9e3b5ff108"
+    ENTRYPOINT_V08 = "0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108"
 
 
 class EntryPointVersion(Enum):
@@ -179,7 +181,10 @@ class PackedUserOperation:
         }
 
     def sign(
-        self, transacting_power, entrypoint_version: EntryPointVersion, chain_id: int
+        self,
+        transacting_power: TransactingPower,
+        entrypoint_version: EntryPointVersion,
+        chain_id: int,
     ) -> Tuple[HexBytes, HexBytes]:
         eip_712_message = self.to_eip712_struct(entrypoint_version, chain_id)
         message_hash, signature = transacting_power.sign_message_eip712(

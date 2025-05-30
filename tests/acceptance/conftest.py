@@ -557,3 +557,13 @@ def mock_multichain_configuration(module_mocker, testerchain):
     module_mocker.patch.object(
         Operator, "_make_condition_provider", return_value=testerchain.provider
     )
+
+
+#
+# AA contract
+#
+@pytest.fixture(scope="module")
+def aa_entry_point(project, deployer_account):
+    """Returns the AA entry point contract."""
+    entry_point = deployer_account.deploy(project.EntryPoint)
+    return entry_point
