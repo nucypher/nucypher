@@ -1,3 +1,4 @@
+import copy
 import json
 from dataclasses import dataclass
 from enum import Enum
@@ -14,26 +15,13 @@ class EntryPointContracts:
     """Constants for EntryPoint contract addresses."""
 
     # TODO: not sure if we should keep v07 (the hash is different and not eip-127
-    ENTRYPOINT_V07 = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"
     ENTRYPOINT_V08 = "0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108"
 
 
-class EntryPointVersion(Enum):
-    """Constants for EntryPoint versions."""
+class AAVersion(Enum):
+    """Constants for AA versions."""
     V08 = "0.8.0"
-
-    def get_domain_data(self, chain_id: int) -> dict:
-        """Returns the domain for the EntryPoint version."""
-        result = {
-            "name": "ERC4337",
-            "version": "1",
-            "chainId": chain_id,
-        }
-        if self == EntryPointVersion.V08:
-            result["verifyingContract"] = EntryPointContracts.ENTRYPOINT_V08
-            return result
-
-        raise ValueError(f"Unsupported EntryPoint version: {self}")
+    MDT = "mdt"
 
 
 @dataclass
@@ -103,13 +91,17 @@ class UserOperation:
         }
 
 
-PACKED_USER_OPERATION_EIP_712_TYPES = {
+PACKED_USER_OPERATION_DOMAIN_TYPE = {
     "EIP712Domain": [
         {"name": "name", "type": "string"},
         {"name": "version", "type": "string"},
         {"name": "chainId", "type": "uint256"},
         {"name": "verifyingContract", "type": "address"},
-    ],
+    ]
+}
+
+PACKED_USER_OPERATION_V08_TYPES = {
+    **PACKED_USER_OPERATION_DOMAIN_TYPE,
     "PackedUserOperation": [
         {"name": "sender", "type": "address"},
         {"name": "nonce", "type": "uint256"},
@@ -122,6 +114,13 @@ PACKED_USER_OPERATION_EIP_712_TYPES = {
     ],
 }
 
+PACKED_USER_OPERATION_MDT_TYPES = {
+    **PACKED_USER_OPERATION_DOMAIN_TYPE,
+    "PackedUserOperation": copy.deepcopy(
+        PACKED_USER_OPERATION_V08_TYPES["PackedUserOperation"]
+    )
+    + [{"name": "entryPoint", "type": "address"}],
+}
 
 @dataclass
 class PackedUserOperation:
@@ -170,31 +169,8 @@ class PackedUserOperation:
             signature=user_op.signature,
         )
 
-    def to_eip712_struct(
-        self, entrypoint_version: EntryPointVersion, chain_id: int
-    ) -> dict:
-        return {
-            "types": PACKED_USER_OPERATION_EIP_712_TYPES,
-            "primaryType": "PackedUserOperation",
-            "domain": entrypoint_version.get_domain_data(chain_id),
-            "message": self._to_message(),
-        }
-
-    def sign(
-        self,
-        transacting_power: TransactingPower,
-        entrypoint_version: EntryPointVersion,
-        chain_id: int,
-    ) -> Tuple[HexBytes, HexBytes]:
-        eip_712_message = self.to_eip712_struct(entrypoint_version, chain_id)
-        message_hash, signature = transacting_power.sign_message_eip712(
-            eip_712_message, standardize=False
-        )
-        self.signature = bytes(signature)
-        return message_hash, signature
-
-    def _to_message(self) -> dict:
-        return {
+    def _to_eip712_message(self, aa_version: AAVersion) -> dict:
+        result = {
             "sender": self.sender,
             "nonce": self.nonce,
             "initCode": self.init_code,
@@ -204,6 +180,48 @@ class PackedUserOperation:
             "gasFees": self.gas_fees,
             "paymasterAndData": self.paymaster_and_data,
         }
+        if aa_version == AAVersion.MDT:
+            result["entryPoint"] = EntryPointContracts.ENTRYPOINT_V08
+        return result
+
+    @staticmethod
+    def _get_domain(aa_version: AAVersion, chain_id: int) -> dict:
+        result = {
+            # TODO: Gross workaround for MDT (Hopefully this can be removed in the future)
+            "name": "ERC4337" if aa_version != AAVersion.MDT else "MultiSigDeleGator",
+            "version": "1",
+            "chainId": chain_id,
+            "verifyingContract": EntryPointContracts.ENTRYPOINT_V08,
+        }
+        return result
+
+    def to_eip712_struct(self, aa_version: AAVersion, chain_id: int) -> dict:
+        types = (
+            PACKED_USER_OPERATION_V08_TYPES
+            if aa_version == AAVersion.V08
+            else PACKED_USER_OPERATION_MDT_TYPES
+        )
+        return {
+            "types": types,
+            "primaryType": "PackedUserOperation",
+            "domain": self._get_domain(aa_version, chain_id),
+            "message": self._to_eip712_message(aa_version),
+        }
+
+    def sign(
+        self,
+        transacting_power: TransactingPower,
+        aa_version: AAVersion,
+        chain_id: int,
+    ) -> Tuple[HexBytes, HexBytes]:
+        """Sign the PackedUserOperation."""
+        eip_712_message = self.to_eip712_struct(aa_version, chain_id)
+        message_hash, signature = transacting_power.sign_message_eip712(
+            eip_712_message, standardize=False
+        )
+
+        self.signature = bytes(signature)
+        return message_hash, signature
 
 
 def encode_function_call(signature: str, args: list) -> HexBytes:

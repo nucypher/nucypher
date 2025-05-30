@@ -8,7 +8,7 @@ from hexbytes import HexBytes
 from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.types import ContextDict
 from nucypher.utilities.erc4337_utils import (
-    EntryPointVersion,
+    AAVersion,
     PackedUserOperation,
     UserOperation,
 )
@@ -147,19 +147,19 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
         user_op: UserOperation,
         cohort_id: int,
         chain_id: int,
-        entrypoint_version: EntryPointVersion,
+        aa_version: AAVersion,
         context: Optional[ContextDict] = None,
     ):
 
         if not isinstance(user_op, UserOperation):
             raise ValueError("UserOp must be an instance of UserOperation.")
-        if entrypoint_version is None:
+        if aa_version is None:
             raise ValueError(
-                "Entry point must be specified for UserOperation signing request."
+                "AA version must be specified for UserOperation signing request."
             )
 
         self.user_op = user_op
-        self.entrypoint_version = entrypoint_version
+        self.aa_version = aa_version
         super().__init__(
             cohort_id=cohort_id,
             chain_id=chain_id,
@@ -174,7 +174,7 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
 
         data = {
             "user_op": user_op_data,
-            "entrypoint": self.entrypoint_version.value,
+            "aa_version": self.aa_version.value,
             "cohort_id": self.cohort_id,
             "chain_id": self.chain_id,
             "context": self.context,
@@ -188,7 +188,7 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
         try:
             result = json.loads(request_data.decode())
             user_op_data = result["user_op"]
-            entrypoint_version = EntryPointVersion(result["entrypoint"])
+            aa_version_str = AAVersion(result["aa_version"])
             cohort_id = result["cohort_id"]
             chain_id = result["chain_id"]
             context = result["context"]
@@ -198,6 +198,8 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
             raise ValueError("Invalid UserOperation request data") from e
 
         try:
+            aa_version = AAVersion(aa_version_str)
+
             # Validate signature type
             signature_type = SignatureRequestType(signature_type_str)
             if signature_type != SignatureRequestType.USEROP:
@@ -217,7 +219,7 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
             cohort_id=cohort_id,
             chain_id=chain_id,
             context=context,
-            entrypoint_version=entrypoint_version,
+            aa_version=aa_version,
         )
 
 
@@ -235,7 +237,7 @@ def sign_signature_request_data(
         packed_user_operation = PackedUserOperation.from_user_operation(request.user_op)
         return packed_user_operation.sign(
             transacting_power=transacting_power,
-            entrypoint_version=request.entrypoint_version,
+            aa_version=request.aa_version,
             chain_id=request.chain_id,
         )
     elif isinstance(request, EIP191SignatureRequest):

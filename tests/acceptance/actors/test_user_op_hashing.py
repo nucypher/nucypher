@@ -2,8 +2,8 @@ import pytest
 from eth_account import Account
 
 from nucypher.utilities.erc4337_utils import (
+    AAVersion,
     EntryPointContracts,
-    EntryPointVersion,
     PackedUserOperation,
     UserOperation,
 )
@@ -20,10 +20,8 @@ def mock_entry_point_contract_address(monkeypatch, aa_entry_point):
 def transactor(initiator):
     return initiator
 
-
-def test_entry_point_v08_hashing(
-    accounts, chain, aa_entry_point, transactor, mock_entry_point_contract_address
-):
+@pytest.fixture(scope="module")
+def user_op(accounts):
     user_op = UserOperation(
         sender=accounts[0].address,
         nonce=0,
@@ -34,19 +32,48 @@ def test_entry_point_v08_hashing(
         max_priority_fee_per_gas=1000000000,  # 1 gwei
         max_fee_per_gas=2000000000,  # 2 gwei
     )
+    return user_op
 
+
+def test_aa_version_v08_hashing(
+    user_op, chain, aa_entry_point, transactor, mock_entry_point_contract_address
+):
     packed_user_op = PackedUserOperation.from_user_operation(user_op)
     message_hash, signature = packed_user_op.sign(
-        transactor.transacting_power, EntryPointVersion.V08, chain.chain_id
+        transactor.transacting_power, AAVersion.V08, chain.chain_id
     )
 
     packed_user_op_dict = packed_user_op.to_eip712_struct(
-        EntryPointVersion.V08, chain.chain_id
+        AAVersion.V08, chain.chain_id
     )["message"]
     packed_user_op_dict["signature"] = b""
 
     # verify hash matches expected entry point hash
     expected_hash = aa_entry_point.getUserOpHashV8(packed_user_op_dict)
+    assert message_hash == expected_hash
+
+    # signature is correct for calculated hash
+    recovered_address = Account._recover_hash(
+        message_hash=message_hash, signature=signature
+    )
+    assert recovered_address == transactor.transacting_power.account
+
+
+def test_aa_version_mdt_hashing(
+    user_op, chain, aa_entry_point, transactor, mock_entry_point_contract_address
+):
+    packed_user_op = PackedUserOperation.from_user_operation(user_op)
+    message_hash, signature = packed_user_op.sign(
+        transactor.transacting_power, AAVersion.MDT, chain.chain_id
+    )
+
+    packed_user_op_dict = packed_user_op.to_eip712_struct(
+        AAVersion.MDT, chain.chain_id
+    )["message"]
+    packed_user_op_dict["signature"] = b""
+
+    # verify hash matches expected entry point hash
+    expected_hash = aa_entry_point.getUserOpHashMDT(packed_user_op_dict)
     assert message_hash == expected_hash
 
     # signature is correct for calculated hash
