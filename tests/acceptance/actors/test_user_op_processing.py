@@ -20,6 +20,7 @@ def mock_entry_point_contract_address(monkeypatch, aa_entry_point):
 def transactor(initiator):
     return initiator
 
+
 @pytest.fixture(scope="module")
 def user_op(accounts):
     user_op = UserOperation(
