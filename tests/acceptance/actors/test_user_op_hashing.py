@@ -27,6 +27,7 @@ def user_op(accounts):
         nonce=0,
         call_data=b"deadbeef",
         verification_gas_limit=100000,
+        # these should all be unique values (for proper testing)
         call_gas_limit=100000,
         pre_verification_gas=21000,
         max_priority_fee_per_gas=1000000000,  # 1 gwei
@@ -81,3 +82,26 @@ def test_aa_version_mdt_hashing(
         message_hash=message_hash, signature=signature
     )
     assert recovered_address == transactor.transacting_power.account
+
+
+def test_packed_user_operation_packing(chain, user_op, aa_entry_point):
+    packed_user_op = PackedUserOperation.from_user_operation(user_op)
+
+    packed_user_op_dict = packed_user_op.to_eip712_struct(
+        AAVersion.V08, chain.chain_id
+    )["message"]
+    packed_user_op_dict["signature"] = b""
+
+    # retrieved gas limits packed into accountGasLimits should match
+    assert (
+        aa_entry_point.verificationGasLimit(packed_user_op_dict)
+        == user_op.verification_gas_limit
+    )
+    assert aa_entry_point.callGasLimit(packed_user_op_dict) == user_op.call_gas_limit
+
+    # retrieved individual gas fees packed into gasFees should match
+    assert aa_entry_point.maxFeePerGas(packed_user_op_dict) == user_op.max_fee_per_gas
+    assert (
+        aa_entry_point.maxPriorityFeePerGas(packed_user_op_dict)
+        == user_op.max_priority_fee_per_gas
+    )
