@@ -100,6 +100,7 @@ class EIP191SignatureRequest(BaseSignatureRequest):
             signature_type=SignatureRequestType.EIP_191,
             context=context,
         )
+
     def __bytes__(self) -> bytes:
         """Serialize the UserOperation request to bytes in JSON format."""
         # Serialize the UserOperation data
