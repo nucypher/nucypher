@@ -67,18 +67,20 @@ class UserOperation:
         return cls(
             sender=d["sender"],
             nonce=d["nonce"],
-            init_code=bytes(HexBytes(d["init_code"] or b"")),
-            call_data=bytes(HexBytes(d["call_data"] or b"")),
-            call_gas_limit=d["call_gas_limit"],
-            verification_gas_limit=d["verification_gas_limit"],
-            pre_verification_gas=d["pre_verification_gas"],
-            max_fee_per_gas=d["max_fee_per_gas"],
-            max_priority_fee_per_gas=d["max_priority_fee_per_gas"],
-            paymaster=d["paymaster"],
-            paymaster_verification_gas_limit=d["paymaster_verification_gas_limit"],
-            paymaster_post_op_gas_limit=d["paymaster_post_op_gas_limit"],
-            paymaster_data=bytes(HexBytes(d["paymaster_data"] or b"")),
-            signature=bytes(HexBytes(d["signature"] or b"")),
+            init_code=bytes(HexBytes(d.get("init_code") or b"")),
+            call_data=bytes(HexBytes(d.get("call_data") or b"")),
+            call_gas_limit=d.get("call_gas_limit", 0),
+            verification_gas_limit=d.get("verification_gas_limit", 0),
+            pre_verification_gas=d.get("pre_verification_gas", 0),
+            max_fee_per_gas=d.get("max_fee_per_gas", 0),
+            max_priority_fee_per_gas=d.get("max_priority_fee_per_gas", 0),
+            paymaster=d.get("paymaster"),
+            paymaster_verification_gas_limit=d.get(
+                "paymaster_verification_gas_limit", 0
+            ),
+            paymaster_post_op_gas_limit=d.get("paymaster_post_op_gas_limit", 0),
+            paymaster_data=bytes(HexBytes(d.get("paymaster_data") or b"")),
+            signature=bytes(HexBytes(d.get("signature") or b"")),
         )
 
     def to_dict(self) -> dict:
