@@ -14,6 +14,8 @@ from nucypher.crypto.powers import TransactingPower
 class EntryPointContracts:
     """Constants for EntryPoint contract addresses."""
 
+    ENTRYPOINT_MDT = "0x56a9EdB16a0105eb5a4C54f4C062e2868844f3A7"
+    ENTRYPOINT_V07 = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"
     ENTRYPOINT_V08 = "0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108"
 
 
@@ -215,7 +217,7 @@ class PackedUserOperation:
             "paymasterAndData": self.paymaster_and_data,
         }
         if aa_version == AAVersion.MDT:
-            result["entryPoint"] = EntryPointContracts.ENTRYPOINT_V08
+            result["entryPoint"] = EntryPointContracts.ENTRYPOINT_V07
         return result
 
     @staticmethod
@@ -225,7 +227,11 @@ class PackedUserOperation:
             "name": "ERC4337" if aa_version != AAVersion.MDT else "MultiSigDeleGator",
             "version": "1",
             "chainId": chain_id,
-            "verifyingContract": EntryPointContracts.ENTRYPOINT_V08,
+            "verifyingContract": (
+                EntryPointContracts.ENTRYPOINT_V08
+                if aa_version != AAVersion.MDT
+                else EntryPointContracts.ENTRYPOINT_MDT
+            ),
         }
         return result
 

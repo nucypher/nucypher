@@ -204,7 +204,11 @@ class TestPackedUserOperation:
         )
         assert domain["version"] == "1"
         assert domain["chainId"] == chain_id
-        assert domain["verifyingContract"] == EntryPointContracts.ENTRYPOINT_V08
+        assert (
+            domain["verifyingContract"] == EntryPointContracts.ENTRYPOINT_V08
+            if aa_version != AAVersion.MDT
+            else EntryPointContracts.ENTRYPOINT_MDT
+        )
 
         # Verify primary type
         assert eip712_struct["primaryType"] == "PackedUserOperation"

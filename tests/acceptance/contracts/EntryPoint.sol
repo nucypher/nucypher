@@ -10,6 +10,9 @@ import "@openzeppelin530/contracts/utils/cryptography/MessageHashUtils.sol";
 contract EntryPoint is EIP712 {
     string constant internal DOMAIN_NAME = "ERC4337";
     string constant internal DOMAIN_VERSION = "1";
+    address constant internal V_07 = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+    address constant internal V_08 = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108;
+    address constant internal MDT = 0x56a9EdB16a0105eb5a4C54f4C062e2868844f3A7;
 
     bytes32 private constant TYPE_HASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
@@ -46,11 +49,17 @@ contract EntryPoint is EIP712 {
         ));
     }
 
+    function getDomainSeparatorV8() public view returns (bytes32) {
+        bytes32 _hashedName = keccak256(bytes(DOMAIN_NAME));
+        bytes32 _hashedVersion = keccak256(bytes(DOMAIN_VERSION));
+        return keccak256(abi.encode(TYPE_HASH, _hashedName, _hashedVersion, block.chainid, V_08));
+    }
+
     /// @dev Mimics hashing functionality of EntryPoint v0.8.0
     function getUserOpHashV8(
         PackedUserOperation calldata userOp
     ) public view returns (bytes32) {
-        return _hashTypedDataV4(hashV8(userOp));
+        return MessageHashUtils.toTypedDataHash(getDomainSeparatorV8(), hashV8(userOp));
     }
 
     function hashMDT(
@@ -67,7 +76,7 @@ contract EntryPoint is EIP712 {
                 userOp.preVerificationGas,
                 userOp.gasFees,
                 keccak256(userOp.paymasterAndData),
-                address(this)
+                V_07
             )
         );
     }
@@ -75,7 +84,7 @@ contract EntryPoint is EIP712 {
     function getDomainSeparatorMDT() public view returns (bytes32) {
         bytes32 _hashedName = keccak256(bytes("MultiSigDeleGator"));
         bytes32 _hashedVersion = keccak256(bytes("1"));
-        return keccak256(abi.encode(TYPE_HASH, _hashedName, _hashedVersion, block.chainid, address(this)));
+        return keccak256(abi.encode(TYPE_HASH, _hashedName, _hashedVersion, block.chainid, MDT));
     }
 
     /// @dev Mimics hashing functionality of MDT 1.3.0
