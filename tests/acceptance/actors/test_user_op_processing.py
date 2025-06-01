@@ -3,17 +3,9 @@ from eth_account import Account
 
 from nucypher.utilities.erc4337_utils import (
     AAVersion,
-    EntryPointContracts,
     PackedUserOperation,
     UserOperation,
 )
-
-
-@pytest.fixture
-def mock_entry_point_contract_address(monkeypatch, aa_entry_point):
-    # entry point contract uses its own address (not the canonical one) for domain so patch
-    # needed to adjust address used for domain when signing UserOperation eip712 message
-    monkeypatch.setattr(EntryPointContracts, "ENTRYPOINT_V08", aa_entry_point.address)
 
 
 @pytest.fixture(scope="module")
@@ -37,9 +29,7 @@ def user_op(accounts):
     return user_op
 
 
-def test_aa_version_v08_hashing(
-    user_op, chain, aa_entry_point, transactor, mock_entry_point_contract_address
-):
+def test_aa_version_v08_hashing(user_op, chain, aa_entry_point, transactor):
     packed_user_op = PackedUserOperation.from_user_operation(user_op)
     message_hash, signature = packed_user_op.sign(
         transactor.transacting_power, AAVersion.V08, chain.chain_id
@@ -61,9 +51,7 @@ def test_aa_version_v08_hashing(
     assert recovered_address == transactor.transacting_power.account
 
 
-def test_aa_version_mdt_hashing(
-    user_op, chain, aa_entry_point, transactor, mock_entry_point_contract_address
-):
+def test_aa_version_mdt_hashing(user_op, chain, aa_entry_point, transactor):
     packed_user_op = PackedUserOperation.from_user_operation(user_op)
     message_hash, signature = packed_user_op.sign(
         transactor.transacting_power, AAVersion.MDT, chain.chain_id
