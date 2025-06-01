@@ -114,6 +114,26 @@ class TestPackedUserOperation:
             assert deserialized_op.paymaster_data == user_op.paymaster_data
             assert deserialized_op.signature == user_op.signature
 
+    def test_packed_user_op_serialization(self, sample_user_op, minimal_user_op):
+        for user_op in [sample_user_op, minimal_user_op]:
+            packed_user_op = PackedUserOperation.from_user_operation(user_op)
+            serialized_bytes = bytes(packed_user_op)
+            deserialized_op = PackedUserOperation.from_bytes(serialized_bytes)
+
+            assert deserialized_op.sender == packed_user_op.sender
+            assert deserialized_op.nonce == packed_user_op.nonce
+            assert deserialized_op.init_code == packed_user_op.init_code
+            assert deserialized_op.call_data == packed_user_op.call_data
+            assert (
+                deserialized_op.pre_verification_gas
+                == packed_user_op.pre_verification_gas
+            )
+            assert deserialized_op.gas_fees == packed_user_op.gas_fees
+            assert (
+                deserialized_op.paymaster_and_data == packed_user_op.paymaster_and_data
+            )
+            assert deserialized_op.signature == packed_user_op.signature
+
     def test_packed_user_op_account_gas_limits(self, sample_user_op):
         """Test _pack_account_gas_limits method"""
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)

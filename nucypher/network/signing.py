@@ -18,6 +18,7 @@ class SignatureRequestType(Enum):
     """Enum for different signature types."""
 
     USEROP = "userop"
+    PACKED_USER_OP = "packedUserOp"
     EIP_191 = "eip-191"
     EIP_712 = "eip-712"
 
@@ -224,6 +225,92 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
         )
 
 
+class PackedUserOperationSignatureRequest(BaseSignatureRequest):
+    """A specialized signature request for UserOperation."""
+
+    def __init__(
+        self,
+        packed_user_op: PackedUserOperation,
+        cohort_id: int,
+        chain_id: int,
+        aa_version: AAVersion,
+        context: Optional[ContextDict] = None,
+    ):
+
+        if not isinstance(packed_user_op, PackedUserOperation):
+            raise ValueError("UserOp must be an instance of PackedUserOperation.")
+        if aa_version is None:
+            raise ValueError(
+                "AA version must be specified for UserOperation signing request."
+            )
+
+        self.packed_user_op = packed_user_op
+        self.aa_version = aa_version
+        super().__init__(
+            cohort_id=cohort_id,
+            chain_id=chain_id,
+            signature_type=SignatureRequestType.PACKED_USER_OP,
+            context=context,
+        )
+
+    def __bytes__(self) -> bytes:
+        """Serialize the UserOperation request to bytes in JSON format."""
+        # Serialize the UserOperation data
+        user_op_data = bytes(self.packed_user_op).decode("utf-8")
+
+        data = {
+            "packed_user_op": user_op_data,
+            "aa_version": self.aa_version.value,
+            "cohort_id": self.cohort_id,
+            "chain_id": self.chain_id,
+            "context": self.context,
+            "signature_type": self.signature_type.value,
+        }
+        return json.dumps(data).encode()
+
+    @classmethod
+    def from_bytes(cls, request_data: bytes):
+        """Deserialize the UserOperation request from bytes in JSON format."""
+        try:
+            result = json.loads(request_data.decode())
+            user_op_data = result["packed_user_op"]
+            aa_version_str = AAVersion(result["aa_version"])
+            cohort_id = result["cohort_id"]
+            chain_id = result["chain_id"]
+            context = result["context"]
+            signature_type_str = result["signature_type"]
+
+        except (json.JSONDecodeError, KeyError) as e:
+            raise ValueError("Invalid PackedUserOperation request data") from e
+
+        try:
+            aa_version = AAVersion(aa_version_str)
+
+            # Validate signature type
+            signature_type = SignatureRequestType(signature_type_str)
+            if signature_type != SignatureRequestType.PACKED_USER_OP:
+                raise ValueError(
+                    f"Expected PACKED_USER_OP signature type, got {signature_type}"
+                )
+
+            # Reconstruct the UserOperation
+            packed_user_op = PackedUserOperation.from_bytes(
+                user_op_data.encode("utf-8")
+            )
+
+        except ValueError:
+            # Re-raise ValueError as-is (includes our validation errors)
+            raise
+
+        return cls(
+            packed_user_op=packed_user_op,
+            cohort_id=cohort_id,
+            chain_id=chain_id,
+            context=context,
+            aa_version=aa_version,
+        )
+
+
 #
 # Logic for using SignatureRequest data classes
 # This will stay in nucypher, while the data classes will move to nucypher-core
@@ -237,6 +324,12 @@ def sign_signature_request_data(
         # Special handling for UserOperation requests
         packed_user_operation = PackedUserOperation.from_user_operation(request.user_op)
         return packed_user_operation.sign(
+            transacting_power=transacting_power,
+            aa_version=request.aa_version,
+            chain_id=request.chain_id,
+        )
+    elif isinstance(request, PackedUserOperationSignatureRequest):
+        return request.packed_user_op.sign(
             transacting_power=transacting_power,
             aa_version=request.aa_version,
             chain_id=request.chain_id,
@@ -261,6 +354,8 @@ def deserialize_signature_request(
 
         if signature_type == SignatureRequestType.USEROP:
             return UserOperationSignatureRequest.from_bytes(request_data)
+        elif signature_type == SignatureRequestType.PACKED_USER_OP:
+            return PackedUserOperationSignatureRequest.from_bytes(request_data)
         elif signature_type == SignatureRequestType.EIP_191:
             return EIP191SignatureRequest.from_bytes(request_data)
 

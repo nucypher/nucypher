@@ -205,6 +205,37 @@ class PackedUserOperation:
             signature=user_op.signature,
         )
 
+    def __bytes__(self) -> bytes:
+        return json.dumps(self.to_dict(), sort_keys=True).encode("utf-8")
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "PackedUserOperation":
+        d = json.loads(data.decode("utf-8"))
+        return cls(
+            sender=d["sender"],
+            nonce=d["nonce"],
+            init_code=bytes(HexBytes(d.get("init_code") or b"")),
+            call_data=bytes(HexBytes(d.get("call_data") or b"")),
+            account_gas_limits=bytes(HexBytes(d.get("account_gas_limits") or b"")),
+            pre_verification_gas=d.get("pre_verification_gas", 0),
+            gas_fees=bytes(HexBytes(d.get("gas_fees") or b"")),
+            paymaster_and_data=bytes(HexBytes(d.get("paymaster_and_data") or b"")),
+            signature=bytes(HexBytes(d.get("signature") or b"")),
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "sender": self.sender,
+            "nonce": self.nonce,
+            "init_code": HexBytes(self.init_code).hex(),
+            "call_data": HexBytes(self.call_data).hex(),
+            "account_gas_limits": HexBytes(self.account_gas_limits).hex(),
+            "pre_verification_gas": self.pre_verification_gas,
+            "gas_fees": HexBytes(self.gas_fees).hex(),
+            "paymaster_and_data": HexBytes(self.paymaster_and_data).hex(),
+            "signature": HexBytes(self.signature).hex(),
+        }
+
     def _to_eip712_message(self, aa_version: AAVersion) -> dict:
         result = {
             "sender": self.sender,
