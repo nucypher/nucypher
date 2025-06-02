@@ -217,17 +217,15 @@ class TestPackedUserOperation:
 
         # Verify domain
         domain = eip712_struct["domain"]
-        assert (
-            domain["name"] == "ERC4337"
-            if aa_version != AAVersion.MDT
-            else "MultiSigDeleGator"
+        assert domain["name"] == (
+            "ERC4337" if aa_version != AAVersion.MDT else "MultiSigDeleGator"
         )
         assert domain["version"] == "1"
         assert domain["chainId"] == chain_id
-        assert (
-            domain["verifyingContract"] == EntryPointContracts.ENTRYPOINT_V08
+        assert domain["verifyingContract"] == (
+            EntryPointContracts.ENTRYPOINT_V08
             if aa_version != AAVersion.MDT
-            else EntryPointContracts.ENTRYPOINT_MDT
+            else packed_user_op.sender
         )
 
         # Verify primary type
