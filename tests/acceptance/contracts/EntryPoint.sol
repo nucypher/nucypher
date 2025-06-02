@@ -12,7 +12,6 @@ contract EntryPoint is EIP712 {
     string constant internal DOMAIN_VERSION = "1";
     address constant internal V_07 = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
     address constant internal V_08 = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108;
-    address constant internal MDT = 0x56a9EdB16a0105eb5a4C54f4C062e2868844f3A7;
 
     bytes32 private constant TYPE_HASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
@@ -81,17 +80,17 @@ contract EntryPoint is EIP712 {
         );
     }
 
-    function getDomainSeparatorMDT() public view returns (bytes32) {
+    function getDomainSeparatorMDT(PackedUserOperation calldata userOp) public view returns (bytes32) {
         bytes32 _hashedName = keccak256(bytes("MultiSigDeleGator"));
         bytes32 _hashedVersion = keccak256(bytes("1"));
-        return keccak256(abi.encode(TYPE_HASH, _hashedName, _hashedVersion, block.chainid, MDT));
+        return keccak256(abi.encode(TYPE_HASH, _hashedName, _hashedVersion, block.chainid, userOp.sender));
     }
 
     /// @dev Mimics hashing functionality of MDT 1.3.0
     function getUserOpHashMDT(
         PackedUserOperation calldata userOp
     ) public view returns (bytes32) {
-         return MessageHashUtils.toTypedDataHash(getDomainSeparatorMDT(), hashMDT(userOp));
+         return MessageHashUtils.toTypedDataHash(getDomainSeparatorMDT(userOp), hashMDT(userOp));
     }
 
     //
