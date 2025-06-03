@@ -114,7 +114,7 @@ def nucypher_dependency(project):
 
 @pytest.fixture(scope="session", autouse=True)
 def oz_dependency(project):
-    _oz_dependency = project.dependencies["openzeppelin"]["5.0.0"]
+    _oz_dependency = project.dependencies["openzeppelin530"]["5.3.0"]
     return _oz_dependency
 
 
@@ -579,3 +579,13 @@ def mock_multichain_configuration(module_mocker, testerchain):
     module_mocker.patch.object(
         Operator, "_make_condition_provider", return_value=testerchain.provider
     )
+
+
+#
+# AA contract
+#
+@pytest.fixture(scope="module")
+def aa_entry_point(project, deployer_account):
+    """Returns the AA entry point contract."""
+    entry_point = deployer_account.deploy(project.EntryPoint)
+    return entry_point

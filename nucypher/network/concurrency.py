@@ -10,7 +10,7 @@ from nucypher_core import (
 )
 
 from nucypher.network.client import ThresholdAccessControlClient
-from nucypher.types import ThresholdSignatureRequest, ThresholdSignatureResponse
+from nucypher.network.signing import BaseSignatureRequest, SignatureResponse
 from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 
 
@@ -145,9 +145,9 @@ class ThresholdDecryptionClient(NetworkRequestClient):
         return successes, failures
 
 
-class ThresholdSigningClient(NetworkRequestClient):
+class SigningRequestClient(NetworkRequestClient):
 
-    class ThresholdSigningRequestFailed(Exception):
+    class SigningRequestFailed(Exception):
         """Raised when a signing request returns a non-zero status code."""
 
     def __init__(self, *args, **kwargs):
@@ -155,12 +155,12 @@ class ThresholdSigningClient(NetworkRequestClient):
 
     def gather_signatures(
         self,
-        signing_requests: Dict[ChecksumAddress, ThresholdSignatureRequest],
+        signing_requests: Dict[ChecksumAddress, BaseSignatureRequest],
         threshold: int,
         timeout: int = NetworkRequestClient.DEFAULT_TIMEOUT,
         stagger_timeout: int = NetworkRequestClient.DEFAULT_STAGGER_TIMEOUT,
     ) -> Tuple[
-        Dict[ChecksumAddress, Tuple[ChecksumAddress, ThresholdSignatureResponse]],
+        Dict[ChecksumAddress, Tuple[ChecksumAddress, SignatureResponse]],
         Dict[ChecksumAddress, str],
     ]:
         self._ensure_ursula_availability(
@@ -171,7 +171,7 @@ class ThresholdSigningClient(NetworkRequestClient):
 
         def worker(
             ursula_address: ChecksumAddress,
-        ) -> Tuple[ChecksumAddress, ThresholdSignatureResponse]:
+        ) -> Tuple[ChecksumAddress, SignatureResponse]:
 
             encrypted_request = signing_requests[ursula_address]
 
@@ -184,18 +184,18 @@ class ThresholdSigningClient(NetworkRequestClient):
                     timeout=timeout,
                 )
                 if response.status_code == HTTPStatus.OK:
-                    response = ThresholdSignatureResponse.from_bytes(response.content)
+                    response = SignatureResponse.from_bytes(response.content)
                     operator_address = node_or_sprout.operator_address
                     return operator_address, response
 
             except Exception as e:
                 message = f"Node {ursula_address} raised {e}"
                 self.log.warn(message)
-                raise self.ThresholdSigningRequestFailed(message)
+                raise self.SigningRequestFailed(message)
 
             message = f"Node {ursula_address} returned {response.status_code} - {response.content}."
             self.log.warn(message)
-            raise self.ThresholdSigningRequestFailed(message)
+            raise self.SigningRequestFailed(message)
 
         successes, failures = self.execute(
             requests=signing_requests,

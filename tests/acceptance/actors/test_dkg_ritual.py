@@ -12,7 +12,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.network.decryption import ThresholdDecryptionClient
+from nucypher.network.concurrency import ThresholdDecryptionClient
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
