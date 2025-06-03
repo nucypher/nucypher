@@ -4,7 +4,7 @@ import time
 import traceback
 from collections import defaultdict
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import maya
 from atxm.exceptions import InsufficientFunds
@@ -71,6 +71,11 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.datastore.dkg import DKGStorage
+from nucypher.network.signing import (
+    BaseSignatureRequest,
+    SignatureResponse,
+    sign_signature_request_data,
+)
 from nucypher.policy.conditions.utils import (
     ConditionProviderManager,
     evaluate_condition_lingo,
@@ -78,8 +83,6 @@ from nucypher.policy.conditions.utils import (
 from nucypher.policy.payment import ContractPayment
 from nucypher.types import (
     PhaseId,
-    ThresholdSignatureRequest,
-    ThresholdSignatureResponse,
 )
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
@@ -819,7 +822,7 @@ class Operator(BaseActor):
         data_hash = self.signing_coordinator_agent.get_signing_cohort_data_hash(
             cohort_id
         )
-        _hash, signature = self.transacting_power.sign_message(
+        _hash, signature = self.transacting_power.sign_message_eip191(
             data_hash, standardize=False
         )
 
@@ -984,9 +987,9 @@ class Operator(BaseActor):
         )
         return encrypted_response
 
-    def handle_threshold_signing_request(
-        self, signing_request: ThresholdSignatureRequest
-    ) -> ThresholdSignatureResponse:
+    def handle_signing_request(
+        self, signing_request: BaseSignatureRequest
+    ) -> SignatureResponse:
 
         if not self.signing_coordinator_agent.is_cohort_active(
             signing_request.cohort_id
@@ -1015,30 +1018,20 @@ class Operator(BaseActor):
             )
 
         condition_lingo = json.loads(condition_string)
-        context = signing_request.context
-
         evaluate_condition_lingo(
-            condition_lingo, self.condition_provider_manager, context
+            condition_lingo, self.condition_provider_manager, signing_request.context
         )
 
-        message_hash, signature = self.generate_signature_share(
-            signing_request.data_to_sign
+        # sign if the request is authorized (conditions are satisfied)
+        message_hash, signature = sign_signature_request_data(
+            request=signing_request, transacting_power=self.transacting_power
         )
-        response = ThresholdSignatureResponse(
-            message_hash=message_hash,
+        response = SignatureResponse(
+            _hash=message_hash,
             signature=signature,
+            signature_type=signing_request.signature_type,
         )
         return response
-
-    def generate_signature_share(self, data: bytes) -> Tuple[bytes, bytes]:
-        """
-        Generate a signature share for the given cohort and data.
-        Uses the node's TransactingPower to create an Ethereum-compatible signature for the data.
-        """
-        message_hash, signature = self.transacting_power.sign_message(
-            message=data, standardize=False
-        )
-        return bytes(message_hash), bytes(signature)
 
     def _local_operator_address(self):
         return self.__operator_address

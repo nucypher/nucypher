@@ -715,7 +715,7 @@ def valid_eip4361_auth_message_factory():
             "issued_at": f"{maya.now().iso8601()}",
         }
         siwe_message = SiweMessage(**siwe_message_data).prepare_message()
-        _message_hash, signature = signer.sign_message(
+        _message_hash, signature = signer.sign_message_eip191(
             account=signer.accounts[0], message=siwe_message.encode()
         )
         auth_message = {

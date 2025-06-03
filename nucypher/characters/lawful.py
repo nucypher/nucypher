@@ -101,9 +101,9 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.crypto.utils import keccak_digest
-from nucypher.network.decryption import (
+from nucypher.network.concurrency import (
+    SigningRequestClient,
     ThresholdDecryptionClient,
-    ThresholdSigningClient,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -111,12 +111,12 @@ from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import PRERetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
+from nucypher.network.signing import BaseSignatureRequest, SignatureResponse
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import ContractPayment, PaymentMethod
 from nucypher.policy.policies import Policy
-from nucypher.types import ThresholdSignatureRequest, ThresholdSignatureResponse
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
@@ -677,10 +677,10 @@ class Bob(Character):
 
     def request_threshold_signatures(
         self,
-        signing_request: ThresholdSignatureRequest,
+        signing_request: BaseSignatureRequest,
         ursulas: List["Ursula"] = None,
-        timeout: int = ThresholdSigningClient.DEFAULT_TIMEOUT,
-    ) -> List[ThresholdSignatureResponse]:
+        timeout: int = SigningRequestClient.DEFAULT_TIMEOUT,
+    ) -> List[SignatureResponse]:
         """
         Request a threshold signature from a cohort of Ursulas.
         """
@@ -701,7 +701,7 @@ class Bob(Character):
         for provider in providers:
             signing_requests[provider] = signing_request
 
-        signing_client = ThresholdSigningClient(learner=self)
+        signing_client = SigningRequestClient(learner=self)
         successes, failures = signing_client.gather_signatures(
             signing_requests=signing_requests,
             threshold=threshold,
@@ -714,7 +714,7 @@ class Bob(Character):
             )
 
         # Already sorted by client - just collect responses
-        # successes is of type  Dict[ChecksumAddress, Tuple[ChecksumAddress, ThresholdSignatureResponse]]
+        # successes is of type Dict[ChecksumAddress, Tuple[ChecksumAddress, ThresholdSignatureResponse]]
         responses = [s[1] for s in successes.values()]
         return responses
 
@@ -891,7 +891,7 @@ class Ursula(Teacher, Character, Operator):
 
     def _substantiate_stamp(self):
         transacting_power = self.transacting_power
-        _message_hash, signature = transacting_power.sign_message(
+        _message_hash, signature = transacting_power.sign_message_eip191(
             message=bytes(self.stamp)
         )
         self.__operator_signature = signature
@@ -1451,14 +1451,14 @@ class Enrico:
 
         # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
-        _message_hash, authorization = self.signer.sign_message(
+        _message_hash, signature = self.signer.sign_message_eip191(
                 message=header_hash, account=self.signer.accounts[0]
             )
 
         return ThresholdMessageKit(
             ciphertext=ciphertext,
             acp=AccessControlPolicy(
-                auth_data=auth_data, authorization=bytes(authorization)
+                auth_data=auth_data, authorization=bytes(signature)
             ),
         )
 

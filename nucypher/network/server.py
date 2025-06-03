@@ -25,11 +25,13 @@ from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.network.signing import (
+    deserialize_signature_request,
+)
 from nucypher.policy.conditions.utils import (
     ConditionEvalError,
     evaluate_condition_lingo,
 )
-from nucypher.types import ThresholdSignatureRequest
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import get_global_source_ipv4
 
@@ -316,11 +318,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         return Response(response=content, headers=headers)
 
     @rest_app.route("/sign", methods=["POST"])
-    def threshold_sign():
-        """An endpoint that handles signing requests."""
+    def sign_message():
+        """An endpoint that handles message signing requests."""
         try:
-            signing_request = ThresholdSignatureRequest.from_bytes(request.data)
-            signing_response = this_node.handle_threshold_signing_request(
+            signing_request = deserialize_signature_request(request_data=request.data)
+            signing_response = this_node.handle_signing_request(
                 signing_request=signing_request
             )
             return Response(

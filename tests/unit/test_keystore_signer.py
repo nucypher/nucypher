@@ -55,7 +55,7 @@ def test_keystore_signer_lock_account(signer, random_account):
 
 def test_keystore_signer_message(signer, random_account):
     message = b"Our attitude toward life determines life's attitude towards us."  # - Earl Nightingale
-    _message_hash, signature = signer.sign_message(
+    _message_hash, signature = signer.sign_message_eip191(
         account=random_account.address, message=message
     )
     assert len(signature) == LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY

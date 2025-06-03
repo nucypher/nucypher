@@ -199,7 +199,7 @@ def test_keystore_sign_message(mocker, good_signer, mock_account, mock_key):
 
     # sign message
     message = b"A million tiny bubbles exploding"
-    _message_hash, signature = good_signer.sign_message(
+    _message_hash, signature = good_signer.sign_message_eip191(
         account=mock_account.address, message=message
     )
     assert len(signature) == LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
