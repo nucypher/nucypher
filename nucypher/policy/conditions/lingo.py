@@ -119,6 +119,7 @@ class ConditionType(Enum):
     COMPOUND = "compound"
     SEQUENTIAL = "sequential"
     IF_THEN_ELSE = "if-then-else"
+    WALLET_ALLOWLIST = "wallet-allowlist"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -750,6 +751,7 @@ class ConditionLingo(_Serializable):
         from nucypher.policy.conditions.json.rpc import JsonRpcCondition
         from nucypher.policy.conditions.jwt import JWTCondition
         from nucypher.policy.conditions.time import TimeCondition
+        from nucypher.policy.conditions.wallet import WalletAllowlistCondition
 
         # version logical adjustments can be made here as required
 
@@ -764,6 +766,7 @@ class ConditionLingo(_Serializable):
             JWTCondition,
             SequentialAccessControlCondition,
             IfThenElseCondition,
+            WalletAllowlistCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition
