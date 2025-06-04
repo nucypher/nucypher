@@ -81,6 +81,17 @@ class JWTConditionDict(_AccessControlCondition):
     expectedIssuer: NotRequired[str]
 
 
+# 
+# WalletAllowlistCondition represents:
+# {
+#     "conditionType": "wallet-allowlist",
+#     "addresses": List[str] (Ethereum addresses)
+# }
+#
+class WalletAllowlistConditionDict(_AccessControlCondition):
+    addresses: List[str]
+
+
 #
 # CompoundCondition represents:
 # {
@@ -149,6 +160,7 @@ ConditionDict = Union[
     JWTConditionDict,
     SequentialConditionDict,
     IfThenElseConditionDict,
+    WalletAllowlistConditionDict,
 ]
 
 
