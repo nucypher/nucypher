@@ -136,10 +136,10 @@ def get_context_value(
 def extract_user_address_from_context(context: Dict[str, Any]) -> ChecksumAddress:
     """
     Extract the user's wallet address from the context.
-    
+
     Args:
         context: The context containing the user's address under 'address' or 'userAddress' key
-        
+
     Returns:
         The user's wallet address as a ChecksumAddress
     """
@@ -149,8 +149,10 @@ def extract_user_address_from_context(context: Dict[str, Any]) -> ChecksumAddres
     elif "userAddress" in context:
         address_key = "userAddress"
     else:
-        raise RequiredContextVariable("User address is required in context (as 'address' or 'userAddress')")
-    
+        raise RequiredContextVariable(
+            "User address is required in context (as 'address' or 'userAddress')"
+        )
+
     try:
         return to_checksum_address(context[address_key])
     except Exception as e:
