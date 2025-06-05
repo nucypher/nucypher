@@ -18,16 +18,16 @@ from nucypher.policy.conditions.lingo import (
 )
 
 
-class WalletAllowlistCondition(AccessControlCondition):
+class AddressAllowlistCondition(AccessControlCondition):
     """
     A condition that checks if a user's wallet address is in a list of allowed addresses.
     The user must provide a signed message to prove ownership of the wallet.
     """
 
-    CONDITION_TYPE = ConditionType.WALLET_ALLOWLIST.value
+    CONDITION_TYPE = ConditionType.ADDRESS_ALLOWLIST.value
 
     class Schema(AccessControlCondition.Schema):
-        condition_type = fields.Constant(ConditionType.WALLET_ALLOWLIST.value)
+        condition_type = fields.Constant(ConditionType.ADDRESS_ALLOWLIST.value)
         addresses = fields.List(
             fields.String(required=True),
             required=True,
@@ -40,7 +40,7 @@ class WalletAllowlistCondition(AccessControlCondition):
         name: Optional[str] = None,
     ):
         """
-        Initialize a WalletAllowlistCondition.
+        Initialize a AddressAllowlistCondition.
 
         Args:
             addresses: List of checksummed wallet addresses that are allowed to decrypt (must be
@@ -85,7 +85,7 @@ class WalletAllowlistCondition(AccessControlCondition):
         """
         if not context:
             raise InvalidConditionContext(
-                "Context is required for wallet-allowlist condition"
+                "Context is required for address-allowlist condition"
             )
 
         # Get user's address using resolve_any_context_variables
@@ -99,7 +99,7 @@ class WalletAllowlistCondition(AccessControlCondition):
 
     def __eq__(self, other):
         return (
-            isinstance(other, WalletAllowlistCondition)
+            isinstance(other, AddressAllowlistCondition)
             and self.condition_type == other.condition_type
             and set(self.addresses) == set(other.addresses)
             and self.name == other.name
@@ -114,13 +114,13 @@ class WalletAllowlistCondition(AccessControlCondition):
     @classmethod
     def from_dict(cls, data):
         """
-        Create a WalletAllowlistCondition from a dictionary.
+        Create a AddressAllowlistCondition from a dictionary.
 
         Args:
             data: Dictionary containing the condition data
 
         Returns:
-            WalletAllowlistCondition instance
+            AddressAllowlistCondition instance
         """
         # Extract values from the dict (camelCase keys are converted to snake_case by marshmallow)
         addresses = data.get("addresses", [])
@@ -132,13 +132,13 @@ class WalletAllowlistCondition(AccessControlCondition):
     @classmethod
     def from_json(cls, data):
         """
-        Create a WalletAllowlistCondition from a JSON string.
+        Create a AddressAllowlistCondition from a JSON string.
 
         Args:
             data: JSON string containing the condition data
 
         Returns:
-            WalletAllowlistCondition instance
+            AddressAllowlistCondition instance
         """
         # Parse JSON to dict
         if isinstance(data, str):
