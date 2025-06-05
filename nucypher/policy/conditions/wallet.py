@@ -5,7 +5,10 @@ from eth_utils import to_checksum_address
 from marshmallow import fields, validate
 
 from nucypher.policy.conditions.base import AccessControlCondition
-from nucypher.policy.conditions.context import extract_user_address_from_context
+from nucypher.policy.conditions.context import (
+    USER_ADDRESS_CONTEXT,
+    resolve_any_context_variables,
+)
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionContext,
@@ -85,9 +88,10 @@ class WalletAllowlistCondition(AccessControlCondition):
                 "Context is required for wallet-allowlist condition"
             )
 
-        # Extract the user's address from the context
-        user_address = extract_user_address_from_context(context)
-
+        # Get user's address using resolve_any_context_variables
+        user_address = resolve_any_context_variables(context[USER_ADDRESS_CONTEXT])[
+            "address"
+        ]
         # Simply check if the normalized address is in the allowlist
         is_allowed = to_checksum_address(user_address) in self.addresses
 
