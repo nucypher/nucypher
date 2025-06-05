@@ -119,7 +119,7 @@ class ConditionType(Enum):
     COMPOUND = "compound"
     SEQUENTIAL = "sequential"
     IF_THEN_ELSE = "if-then-else"
-    WALLET_ALLOWLIST = "wallet-allowlist"
+    ADDRESS_ALLOWLIST = "address-allowlist"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -140,6 +140,7 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
             "operands": [CONDITION*]
         }
     """
+
     AND_OPERATOR = "and"
     OR_OPERATOR = "or"
     NOT_OPERATOR = "not"
@@ -746,12 +747,12 @@ class ConditionLingo(_Serializable):
         Inspects a given block of JSON and attempts to resolve it's intended datatype within the
         conditions expression framework.
         """
+        from nucypher.policy.conditions.address import AddressAllowlistCondition
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
         from nucypher.policy.conditions.json.api import JsonApiCondition
         from nucypher.policy.conditions.json.rpc import JsonRpcCondition
         from nucypher.policy.conditions.jwt import JWTCondition
         from nucypher.policy.conditions.time import TimeCondition
-        from nucypher.policy.conditions.wallet import WalletAllowlistCondition
 
         # version logical adjustments can be made here as required
 
@@ -766,7 +767,7 @@ class ConditionLingo(_Serializable):
             JWTCondition,
             SequentialAccessControlCondition,
             IfThenElseCondition,
-            WalletAllowlistCondition,
+            AddressAllowlistCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition

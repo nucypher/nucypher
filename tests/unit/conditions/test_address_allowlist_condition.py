@@ -1,7 +1,7 @@
 import pytest
 from eth_account import Account
 
-from nucypher.policy.conditions.wallet import WalletAllowlistCondition
+from nucypher.policy.conditions.address import AddressAllowlistCondition
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionContext,
@@ -9,8 +9,8 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 
 
-def test_wallet_allowlist_condition_init():
-    """Test the initialization of WalletAllowlistCondition."""
+def test_address_allowlist_condition_init():
+    """Test the initialization of AddressAllowlistCondition."""
     # Create test addresses
     account1 = Account.create()
     account2 = Account.create()
@@ -18,25 +18,25 @@ def test_wallet_allowlist_condition_init():
     addresses = [account1.address, account2.address]
 
     # Test successful initialization
-    condition = WalletAllowlistCondition(addresses=addresses)
-    assert condition.condition_type == "wallet-allowlist"
+    condition = AddressAllowlistCondition(addresses=addresses)
+    assert condition.condition_type == "address-allowlist"
     assert set(condition.addresses) == set(addresses)
 
     # Test with empty addresses list
     with pytest.raises(InvalidCondition):
-        WalletAllowlistCondition(addresses=[])
+        AddressAllowlistCondition(addresses=[])
 
     # Test with invalid address
     with pytest.raises(InvalidCondition):
-        WalletAllowlistCondition(addresses=["not-an-ethereum-address"])
+        AddressAllowlistCondition(addresses=["not-an-ethereum-address"])
 
     # Test with duplicate addresses
     with pytest.raises(InvalidCondition):
-        WalletAllowlistCondition(addresses=[account1.address, account1.address])
+        AddressAllowlistCondition(addresses=[account1.address, account1.address])
 
 
-def test_wallet_allowlist_condition_verify():
-    """Test the verification of WalletAllowlistCondition."""
+def test_address_allowlist_condition_verify():
+    """Test the verification of AddressAllowlistCondition."""
     # Create test accounts
     allowed_account1 = Account.create()
     allowed_account2 = Account.create()
@@ -44,7 +44,7 @@ def test_wallet_allowlist_condition_verify():
 
     # Create condition with allowed accounts
     addresses = [allowed_account1.address, allowed_account2.address]
-    condition = WalletAllowlistCondition(addresses=addresses)
+    condition = AddressAllowlistCondition(addresses=addresses)
 
     # Test successful verification with allowed account
     context = {USER_ADDRESS_CONTEXT: {"address": allowed_account1.address}}
@@ -72,15 +72,15 @@ def test_wallet_allowlist_condition_verify():
     assert result is True
 
 
-def test_wallet_allowlist_condition_serialization():
-    """Test the serialization and deserialization of WalletAllowlistCondition."""
+def test_address_allowlist_condition_serialization():
+    """Test the serialization and deserialization of AddressAllowlistCondition."""
     # Create test accounts
     account1 = Account.create()
     account2 = Account.create()
 
     # Create condition
     addresses = [account1.address, account2.address]
-    original_condition = WalletAllowlistCondition(
+    original_condition = AddressAllowlistCondition(
         addresses=addresses, name="Test Condition"
     )
 
@@ -88,12 +88,12 @@ def test_wallet_allowlist_condition_serialization():
     condition_dict = original_condition.to_dict()
 
     # Check dict structure
-    assert condition_dict["conditionType"] == "wallet-allowlist"
+    assert condition_dict["conditionType"] == "address-allowlist"
     assert set(condition_dict["addresses"]) == set(addresses)
     assert condition_dict["name"] == "Test Condition"
 
     # Deserialize from dict
-    deserialized_condition = WalletAllowlistCondition.from_dict(condition_dict)
+    deserialized_condition = AddressAllowlistCondition.from_dict(condition_dict)
 
     # Check equality
     assert original_condition == deserialized_condition
@@ -102,7 +102,7 @@ def test_wallet_allowlist_condition_serialization():
     json_str = original_condition.to_json()
 
     # Deserialize from JSON
-    deserialized_condition = WalletAllowlistCondition.from_json(json_str)
+    deserialized_condition = AddressAllowlistCondition.from_json(json_str)
 
     # Check equality
     assert original_condition == deserialized_condition
