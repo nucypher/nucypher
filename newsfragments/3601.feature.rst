@@ -1,0 +1,1 @@
+Added new WalletAllowlistCondition for access control, allowing policies to restrict decryption to specific Ethereum addresses. Users can now define conditions that only permit decryption by pre-approved wallet addresses.

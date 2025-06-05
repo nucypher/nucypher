@@ -81,7 +81,7 @@ class JWTConditionDict(_AccessControlCondition):
     expectedIssuer: NotRequired[str]
 
 
-# 
+#
 # WalletAllowlistCondition represents:
 # {
 #     "conditionType": "wallet-allowlist",
