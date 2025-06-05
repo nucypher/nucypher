@@ -1,8 +1,8 @@
 import json
 from typing import Dict, List, Optional, Tuple, Union
 
-from marshmallow import fields
-from web3 import Web3
+from eth_utils import to_checksum_address
+from marshmallow import fields, validate
 
 from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.context import extract_user_address_from_context
@@ -28,7 +28,7 @@ class WalletAllowlistCondition(AccessControlCondition):
         addresses = fields.List(
             fields.String(required=True),
             required=True,
-            validate=lambda addresses: 1 <= len(addresses) <= 25,
+            validate=validate.Length(min=1, max=25),
         )
 
     def __init__(
@@ -52,7 +52,7 @@ class WalletAllowlistCondition(AccessControlCondition):
         for address in addresses:
             try:
                 # Ensure addresses have proper checksum
-                normalized_address = Web3.to_checksum_address(address)
+                normalized_address = to_checksum_address(address)
             except ValueError as e:
                 raise InvalidCondition(f"Invalid Ethereum address: {address}") from e
             if normalized_address != address:
@@ -80,7 +80,7 @@ class WalletAllowlistCondition(AccessControlCondition):
                 - Boolean indicating if verification passed
                 - None (no additional data returned)
         """
-        if context is None:
+        if not context:
             raise InvalidConditionContext(
                 "Context is required for wallet-allowlist condition"
             )
@@ -89,7 +89,7 @@ class WalletAllowlistCondition(AccessControlCondition):
         user_address = extract_user_address_from_context(context)
 
         # Simply check if the normalized address is in the allowlist
-        is_allowed = Web3.to_checksum_address(user_address) in self.addresses
+        is_allowed = to_checksum_address(user_address) in self.addresses
 
         return is_allowed, None
 
