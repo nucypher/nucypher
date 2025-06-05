@@ -6,6 +6,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionContext,
 )
+from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 
 
 def test_wallet_allowlist_condition_init():
@@ -46,19 +47,19 @@ def test_wallet_allowlist_condition_verify():
     condition = WalletAllowlistCondition(addresses=addresses)
 
     # Test successful verification with allowed account
-    context = {"userAddress": allowed_account1.address}
+    context = {USER_ADDRESS_CONTEXT: {"address": allowed_account1.address}}
 
     result, _ = condition.verify(**context)
     assert result is True
 
     # Test verification with not allowed account
-    context = {"userAddress": not_allowed_account.address}
+    context = {USER_ADDRESS_CONTEXT: {"address": not_allowed_account.address}}
 
     result, _ = condition.verify(**context)
     assert result is False
 
     # Test with another allowed account
-    context = {"userAddress": allowed_account2.address}
+    context = {USER_ADDRESS_CONTEXT: {"address": allowed_account2.address}}
 
     result, _ = condition.verify(**context)
     assert result is True
@@ -66,9 +67,6 @@ def test_wallet_allowlist_condition_verify():
     # Test verification with missing context
     with pytest.raises(InvalidConditionContext):
         condition.verify()
-
-    # Test verification with 'address' in context instead of 'userAddress'
-    context = {"address": allowed_account2.address}
 
     result, _ = condition.verify(**context)
     assert result is True
