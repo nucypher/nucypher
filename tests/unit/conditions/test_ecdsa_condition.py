@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from ecdsa.curves import SECP256k1
+from ecdsa.curves import SECP256k1, NIST192p
 from ecdsa.keys import SigningKey
 from ecdsa.util import sigencode_string
 from marshmallow import validates
@@ -155,6 +155,73 @@ def test_ecdsa_condition_verify_invalid_signature():
     assert result is False
 
 
+def test_ecdsa_condition_different_curves():
+    # Test with SECP256k1 curve
+    secp256k1_key = SigningKey.generate(curve=SECP256k1)
+    secp256k1_verifying_key = secp256k1_key.verifying_key
+    secp256k1_verifying_key_hex = secp256k1_verifying_key.to_string().hex()
+
+    secp256k1_message = b"Test message for SECP256k1"
+    secp256k1_signature = secp256k1_key.sign(
+        secp256k1_message,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    # Test with NIST192p curve
+    nist192p_key = SigningKey.generate(curve=NIST192p)
+    nist192p_verifying_key = nist192p_key.verifying_key
+    nist192p_verifying_key_hex = nist192p_verifying_key.to_string().hex()
+
+    nist192p_message = b"Test message for NIST192p"
+    nist192p_signature = nist192p_key.sign(
+        nist192p_message,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    # Test SECP256k1 condition
+    secp256k1_condition = ECDSACondition(
+        message=":message_variable",
+        signature=":signature_variable",
+        verifying_key=secp256k1_verifying_key_hex,
+        curve=SECP256k1.name,
+    )
+
+    secp256k1_context = {
+        ":message_variable": secp256k1_message,
+        ":signature_variable": secp256k1_signature,
+    }
+    success, result = secp256k1_condition.verify(**secp256k1_context)
+    assert success
+    assert result is True
+
+    # Test NIST192p condition
+    nist192p_condition = ECDSACondition(
+        message=":message_variable",
+        signature=":signature_variable",
+        verifying_key=nist192p_verifying_key_hex,
+        curve=NIST192p.name,
+    )
+
+    nist192p_context = {
+        ":message_variable": nist192p_message,
+        ":signature_variable": nist192p_signature,
+    }
+    success, result = nist192p_condition.verify(**nist192p_context)
+    assert success
+    assert result is True
+
+    # Test that signatures don't work with wrong curves
+    wrong_curve_context = {
+        ":message_variable": secp256k1_message,
+        ":signature_variable": secp256k1_signature,
+    }
+    success, result = nist192p_condition.verify(**wrong_curve_context)
+    assert not success
+    assert result is False
+
+
 def test_ecdsa_condition_bytes_context():
     """Test that ECDSA conditions can handle bytes in context through serialization.
 
@@ -166,7 +233,7 @@ def test_ecdsa_condition_bytes_context():
     # Create a test message and sign it
     message_bytes = b"This is a test message that requires ECDSA verification"
     signature = TEST_SIGNING_KEY.sign(
-        data=message_bytes,
+        message_bytes,
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -223,3 +290,4 @@ def test_ecdsa_condition_bytes_context():
     success, result = ecdsa_condition.verify(**deserialized_context)
     assert success, "Verification should succeed with deserialized mixed context"
     assert result is True
+

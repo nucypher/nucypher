@@ -25,8 +25,7 @@ def test_ecdsa_lingo_basic_verification():
         TEST_MESSAGE,
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
-    )
-    signature_b64 = base64.b64encode(signature).decode("utf-8")
+    ).hex()
 
     # Create condition
     ecdsa_condition = ECDSACondition(
@@ -39,7 +38,7 @@ def test_ecdsa_lingo_basic_verification():
     lingo = ConditionLingo(ecdsa_condition)
 
     # Valid context
-    context = {":message": TEST_MESSAGE, ":signature": signature_b64}
+    context = {":message": TEST_MESSAGE, ":signature": signature}
     result = lingo.eval(**context)
     assert result is True
 
@@ -49,10 +48,9 @@ def test_ecdsa_lingo_basic_verification():
         different_message,
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
-    )
-    invalid_signature_b64 = base64.b64encode(invalid_signature).decode("utf-8")
+    ).hex()
 
-    context[":signature"] = invalid_signature_b64
+    context[":signature"] = invalid_signature
     result = lingo.eval(**context)
     assert result is False
 
