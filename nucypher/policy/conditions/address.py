@@ -43,8 +43,7 @@ class AddressAllowlistCondition(AccessControlCondition):
         Initialize a AddressAllowlistCondition.
 
         Args:
-            addresses: List of checksummed wallet addresses that are allowed to decrypt (must be
-             properly checksummed Ethereum addresses or an exception will be raised)
+            addresses: List of checksummed Ethereum addresses that are allowed to decrypt
             name: Optional name for the condition
         """
         # Check for duplicates
@@ -84,9 +83,7 @@ class AddressAllowlistCondition(AccessControlCondition):
                 - None (no additional data returned)
         """
         if not context:
-            raise InvalidConditionContext(
-                "Context is required for address-allowlist condition"
-            )
+            raise RequiredContextVariable("No value provided for context variable")
 
         # Get user's address using resolve_any_context_variables
         user_address = resolve_any_context_variables(context[USER_ADDRESS_CONTEXT])[
