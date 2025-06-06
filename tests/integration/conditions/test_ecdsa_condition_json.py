@@ -2,7 +2,7 @@ import base64
 import json
 
 from ecdsa import SECP256k1, SigningKey
-from ecdsa.util import sigencode_der
+from ecdsa.util import sigencode_string
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
 from nucypher.policy.conditions.lingo import (
@@ -23,7 +23,9 @@ def test_ecdsa_condition_json_serialization():
     """Test serializing and deserializing ECDSA conditions to/from JSON"""
     # Sign the test message
     signature = TEST_SIGNING_KEY.sign(
-        TEST_MESSAGE, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_der
+        TEST_MESSAGE,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
     )
     signature_b64 = base64.b64encode(signature).decode("utf-8")
 
@@ -62,7 +64,9 @@ def test_ecdsa_condition_lingo_json_serialization():
     """Test serializing and deserializing a condition lingo with ECDSA condition"""
     # Sign the test message
     signature = TEST_SIGNING_KEY.sign(
-        TEST_MESSAGE, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_der
+        TEST_MESSAGE,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
     )
     signature_b64 = base64.b64encode(signature).decode("utf-8")
 
@@ -108,12 +112,12 @@ def test_complex_condition_with_ecdsa_json_serialization():
     message2 = b"Message for second key"
 
     sig1 = key1.sign(
-        message1, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_der
+        message1, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_string
     )
     sig1_b64 = base64.b64encode(sig1).decode("utf-8")
 
     sig2 = key2.sign(
-        message2, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_der
+        message2, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_string
     )
     sig2_b64 = base64.b64encode(sig2).decode("utf-8")
 
@@ -189,7 +193,7 @@ def test_complex_condition_with_ecdsa_json_serialization():
     invalid_sig2 = key2.sign(
         b"Wrong message",
         hashfunc=ECDSAVerificationCall._hash_func,
-        sigencode=sigencode_der,
+        sigencode=sigencode_string,
     )
     invalid_sig2_b64 = base64.b64encode(invalid_sig2).decode("utf-8")
 
@@ -260,7 +264,9 @@ def test_real_world_example_json():
     # ---- Scenario 1: API user with valid signature ----
     request_data = b'{"action": "read", "resource": "secret-data-123"}'
     request_signature = service_key.sign(
-        request_data, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_der
+        request_data,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
     )
     request_signature_b64 = base64.b64encode(request_signature).decode("utf-8")
 
@@ -278,7 +284,7 @@ def test_real_world_example_json():
     admin_signature = TEST_SIGNING_KEY.sign(
         admin_request,
         hashfunc=ECDSAVerificationCall._hash_func,
-        sigencode=sigencode_der,
+        sigencode=sigencode_string,
     )
     admin_signature_b64 = base64.b64encode(admin_signature).decode("utf-8")
 
