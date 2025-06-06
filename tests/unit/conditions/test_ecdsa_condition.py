@@ -1,9 +1,9 @@
-import base64
 import json
 
 import pytest
-from ecdsa import SECP256k1, SigningKey
-from ecdsa.util import sigencode_der
+from ecdsa.curves import SECP256k1
+from ecdsa.keys import SigningKey
+from ecdsa.util import sigencode_string
 from marshmallow import validates
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
@@ -15,15 +15,15 @@ from nucypher.policy.conditions.exceptions import (
 TEST_SIGNING_KEY = SigningKey.generate(curve=SECP256k1)
 TEST_VERIFYING_KEY = TEST_SIGNING_KEY.verifying_key
 
-# Get the PEM encoded verifying key
-TEST_VERIFYING_KEY_PEM = TEST_VERIFYING_KEY.to_pem().decode("utf-8")
+# Get the hex encoded verifying key
+TEST_VERIFYING_KEY_HEX = TEST_VERIFYING_KEY.to_string().hex()
 
 # Test message and signature
 TEST_MESSAGE = b"This is a test message for ECDSA verification"
 TEST_SIGNATURE = TEST_SIGNING_KEY.sign(
-    TEST_MESSAGE, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_der
+    TEST_MESSAGE, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_string
 )
-TEST_SIGNATURE_B64 = base64.b64encode(TEST_SIGNATURE).decode("utf-8")
+TEST_SIGNATURE_HEX = TEST_SIGNATURE.hex()
 
 
 class TestECDSAVerificationCall(ECDSAVerificationCall):
@@ -40,8 +40,9 @@ class TestECDSAVerificationCall(ECDSAVerificationCall):
 def test_ecdsa_verification_call_valid():
     call = TestECDSAVerificationCall(
         message=TEST_MESSAGE,
-        signature=TEST_SIGNATURE_B64,
-        verifying_key=TEST_VERIFYING_KEY_PEM,
+        signature=TEST_SIGNATURE_HEX,
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1,
     )
     assert call.execute()
 
@@ -51,14 +52,14 @@ def test_ecdsa_verification_call_invalid_signature():
     invalid_signature = TEST_SIGNING_KEY.sign(
         b"Different message",
         hashfunc=ECDSAVerificationCall._hash_func,
-        sigencode=sigencode_der,
-    )
-    invalid_signature_b64 = base64.b64encode(invalid_signature).decode("utf-8")
+        sigencode=sigencode_string,
+    ).hex()
 
     call = TestECDSAVerificationCall(
         message=TEST_MESSAGE,
-        signature=invalid_signature_b64,
-        verifying_key=TEST_VERIFYING_KEY_PEM,
+        signature=invalid_signature,
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1,
     )
     assert not call.execute()
 
@@ -105,12 +106,12 @@ def test_ecdsa_condition_initialization():
     condition = ECDSACondition(
         message=":message_variable",
         signature=":signature_variable",
-        verifying_key=TEST_VERIFYING_KEY_PEM,
+        verifying_key=TEST_VERIFYING_KEY_HEX,
     )
 
     assert condition.message == ":message_variable"
     assert condition.signature == ":signature_variable"
-    assert condition.verifying_key == TEST_VERIFYING_KEY_PEM
+    assert condition.verifying_key == TEST_VERIFYING_KEY_HEX
     assert condition.condition_type == ECDSACondition.CONDITION_TYPE
 
 
@@ -118,12 +119,13 @@ def test_ecdsa_condition_verify():
     condition = ECDSACondition(
         message=":message_variable",
         signature=":signature_variable",
-        verifying_key=TEST_VERIFYING_KEY_PEM,
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
     )
 
     context = {
         ":message_variable": TEST_MESSAGE,
-        ":signature_variable": TEST_SIGNATURE_B64,
+        ":signature_variable": TEST_SIGNATURE_HEX,
     }
     success, result = condition.verify(**context)
     assert success
@@ -135,19 +137,18 @@ def test_ecdsa_condition_verify_invalid_signature():
     invalid_signature = TEST_SIGNING_KEY.sign(
         b"Different message",
         hashfunc=ECDSAVerificationCall._hash_func,
-        sigencode=sigencode_der,
-    )
-    invalid_signature_b64 = base64.b64encode(invalid_signature).decode("utf-8")
+        sigencode=sigencode_string,
+    ).hex()
 
     condition = ECDSACondition(
         message=":message_variable",
         signature=":signature_variable",
-        verifying_key=TEST_VERIFYING_KEY_PEM,
+        verifying_key=TEST_VERIFYING_KEY_HEX,
     )
 
     context = {
         ":message_variable": TEST_MESSAGE,
-        ":signature_variable": invalid_signature_b64,
+        ":signature_variable": invalid_signature,
     }
     success, result = condition.verify(**context)
     assert not success
@@ -167,22 +168,21 @@ def test_ecdsa_condition_bytes_context():
     signature = TEST_SIGNING_KEY.sign(
         data=message_bytes,
         hashfunc=ECDSAVerificationCall._hash_func,
-        sigencode=sigencode_der,
-    )
-
-    signature_b64 = base64.b64encode(signature).decode("utf-8")
+        sigencode=sigencode_string,
+    ).hex()
 
     # Create an ECDSA condition
     ecdsa_condition = ECDSACondition(
         message=":bytes:message",
         signature=":signature",
-        verifying_key=TEST_VERIFYING_KEY_PEM,
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
     )
 
     # Test with raw bytes in context
     context_with_bytes = {
         ":bytes:message": message_bytes.hex(),
-        ":signature": signature_b64,
+        ":signature": signature,
     }
 
     # The context should be serializable
@@ -197,7 +197,7 @@ def test_ecdsa_condition_bytes_context():
     # Test with hex string in context (backwards compatibility)
     context_with_hex = {
         ":bytes:message": message_bytes.hex(),
-        ":signature": signature_b64,
+        ":signature": signature,
     }
 
     # The context should be serializable
@@ -212,7 +212,7 @@ def test_ecdsa_condition_bytes_context():
     # Test with mixed types (some bytes, some hex)
     context_mixed = {
         ":bytes:message": message_bytes.hex(),
-        ":signature": signature_b64,
+        ":signature": signature,
     }
 
     # The context should be serializable

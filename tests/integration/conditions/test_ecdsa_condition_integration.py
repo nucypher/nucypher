@@ -1,7 +1,7 @@
 import base64
 
 from ecdsa import SECP256k1, SigningKey
-from ecdsa.util import sigencode_der
+from ecdsa.util import sigencode_string
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
 from nucypher.policy.conditions.lingo import (
@@ -22,7 +22,9 @@ def test_ecdsa_lingo_basic_verification():
     """Test a basic ECDSA verification using condition lingo"""
     # Sign the test message
     signature = TEST_SIGNING_KEY.sign(
-        TEST_MESSAGE, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_der
+        TEST_MESSAGE,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
     )
     signature_b64 = base64.b64encode(signature).decode("utf-8")
 
@@ -46,7 +48,7 @@ def test_ecdsa_lingo_basic_verification():
     invalid_signature = TEST_SIGNING_KEY.sign(
         different_message,
         hashfunc=ECDSAVerificationCall._hash_func,
-        sigencode=sigencode_der,
+        sigencode=sigencode_string,
     )
     invalid_signature_b64 = base64.b64encode(invalid_signature).decode("utf-8")
 
@@ -59,7 +61,9 @@ def test_ecdsa_in_compound_condition():
     """Test ECDSA as part of a compound condition"""
     # Sign the message
     signature = TEST_SIGNING_KEY.sign(
-        TEST_MESSAGE, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_der
+        TEST_MESSAGE,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
     )
     signature_b64 = base64.b64encode(signature).decode("utf-8")
 
@@ -100,7 +104,7 @@ def test_ecdsa_in_compound_condition():
     second_signature = second_key.sign(
         second_message,
         hashfunc=ECDSAVerificationCall._hash_func,
-        sigencode=sigencode_der,
+        sigencode=sigencode_string,
     )
     second_signature_b64 = base64.b64encode(second_signature).decode("utf-8")
 
