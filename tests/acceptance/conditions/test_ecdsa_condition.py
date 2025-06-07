@@ -64,7 +64,7 @@ def test_ecdsa_condition_in_compound_condition():
     Test using an ECDSA condition in a compound condition with another condition
     """
     from nucypher.policy.conditions.lingo import (
-        CompoundAccessControlCondition,
+        CompoundCondition,
         Operator,
     )
 
@@ -94,7 +94,7 @@ def test_ecdsa_condition_in_compound_condition():
     )
 
     # Create a compound condition with OR operator
-    compound_condition = CompoundAccessControlCondition(
+    compound_condition = CompoundCondition(
         operator=Operator.OR.value, operands=[ecdsa_condition, second_ecdsa_condition]
     )
 
@@ -116,7 +116,7 @@ def test_ecdsa_condition_in_compound_condition():
     ), "Compound OR condition should succeed if at least one ECDSA verification is true"
 
     # Create a compound condition with AND operator
-    compound_condition = CompoundAccessControlCondition(
+    compound_condition = CompoundCondition(
         operator=Operator.AND.value, operands=[ecdsa_condition, second_ecdsa_condition]
     )
 

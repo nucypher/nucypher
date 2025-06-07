@@ -19,7 +19,7 @@ from nucypher.policy.conditions.json.base import (
 from nucypher.policy.conditions.lingo import (
     AnyField,
     ConditionType,
-    ExecutionCallAccessControlCondition,
+    ExecutionCallCondition,
     ReturnValueTest,
 )
 
@@ -121,9 +121,7 @@ class JsonRpcCondition(BaseJsonRequestCondition):
     EXECUTION_CALL_TYPE = JsonEndpointRPCCall
     CONDITION_TYPE = ConditionType.JSONRPC.value
 
-    class Schema(
-        ExecutionCallAccessControlCondition.Schema, JsonEndpointRPCCall.Schema
-    ):
+    class Schema(ExecutionCallCondition.Schema, JsonEndpointRPCCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JSONRPC.value), required=True
         )

@@ -35,7 +35,7 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.policy.conditions.lingo import (
     AnyField,
     ConditionType,
-    ExecutionCallAccessControlCondition,
+    ExecutionCallCondition,
     ReturnValueTest,
 )
 from nucypher.policy.conditions.utils import (
@@ -140,11 +140,11 @@ class RPCCall(ExecutionCall):
         return rpc_result
 
 
-class RPCCondition(ExecutionCallAccessControlCondition):
+class RPCCondition(ExecutionCallCondition):
     EXECUTION_CALL_TYPE = RPCCall
     CONDITION_TYPE = ConditionType.RPC.value
 
-    class Schema(ExecutionCallAccessControlCondition.Schema, RPCCall.Schema):
+    class Schema(ExecutionCallCondition.Schema, RPCCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.RPC.value), required=True
         )

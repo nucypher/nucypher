@@ -54,7 +54,7 @@ class _Serializable:
         return instance
 
 
-class AccessControlCondition(_Serializable, ABC):
+class Condition(_Serializable, ABC):
     CONDITION_TYPE = NotImplemented
 
     class Schema(CamelCaseSchema):
@@ -84,33 +84,33 @@ class AccessControlCondition(_Serializable, ABC):
             )
 
     @classmethod
-    def from_dict(cls, data) -> "AccessControlCondition":
+    def from_dict(cls, data) -> "Condition":
         try:
             return super().from_dict(data)
         except ValidationError as e:
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}") from e
 
     @classmethod
-    def from_json(cls, data) -> "AccessControlCondition":
+    def from_json(cls, data) -> "Condition":
         try:
             return super().from_json(data)
         except ValidationError as e:
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}") from e
 
 
-class MultiConditionAccessControl(AccessControlCondition):
+class MultiCondition(Condition):
     MAX_NUM_CONDITIONS = 5
     MAX_MULTI_CONDITION_NESTED_LEVEL = 2
 
     @property
     @abstractmethod
-    def conditions(self) -> List[AccessControlCondition]:
+    def conditions(self) -> List[Condition]:
         raise NotImplementedError
 
     @classmethod
     def _validate_multi_condition_nesting(
         cls,
-        conditions: List[AccessControlCondition],
+        conditions: List[Condition],
         field_name: str,
         current_level: int = 1,
     ):
@@ -121,7 +121,7 @@ class MultiConditionAccessControl(AccessControlCondition):
             )
 
         for condition in conditions:
-            if not isinstance(condition, MultiConditionAccessControl):
+            if not isinstance(condition, MultiCondition):
                 continue
 
             level = current_level + 1

@@ -4,7 +4,7 @@ import pytest
 
 from nucypher.policy.conditions.evm import RPCCall, RPCCondition
 from nucypher.policy.conditions.lingo import (
-    CompoundAccessControlCondition,
+    CompoundCondition,
     ConditionLingo,
     ConditionType,
     ReturnValueTest,
@@ -21,7 +21,7 @@ def make_multichain_evm_conditions(bob, chain_ids):
     """This is a helper function to make a set of conditions that are valid on multiple chains."""
     operands = list()
     for chain_id in chain_ids:
-        compound_and_condition = CompoundAccessControlCondition(
+        compound_and_condition = CompoundCondition(
             operator="and",
             operands=[
                 TimeCondition(
