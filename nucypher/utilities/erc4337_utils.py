@@ -8,6 +8,7 @@ import eth_abi
 from eth_utils import keccak, to_bytes, to_checksum_address
 from hexbytes import HexBytes
 
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.crypto.powers import TransactingPower
 
 
@@ -33,7 +34,8 @@ class UserOperation:
     # Base
     sender: str
     nonce: int
-    init_code: bytes = b""
+    factory: str = None
+    factory_data: bytes = b""
     call_data: bytes = b""
 
     # Gas limits
@@ -68,7 +70,8 @@ class UserOperation:
         return cls(
             sender=d["sender"],
             nonce=d["nonce"],
-            init_code=bytes(HexBytes(d.get("init_code") or b"")),
+            factory=d.get("factory"),
+            factory_data=bytes(HexBytes(d.get("factory_data") or b"")),
             call_data=bytes(HexBytes(d.get("call_data") or b"")),
             call_gas_limit=d.get("call_gas_limit", 0),
             verification_gas_limit=d.get("verification_gas_limit", 0),
@@ -88,7 +91,8 @@ class UserOperation:
         return {
             "sender": self.sender,
             "nonce": self.nonce,
-            "init_code": HexBytes(self.init_code).hex(),
+            "factory": self.factory,
+            "factory_data": HexBytes(self.factory_data).hex(),
             "call_data": HexBytes(self.call_data).hex(),
             "call_gas_limit": self.call_gas_limit,
             "verification_gas_limit": self.verification_gas_limit,
@@ -181,12 +185,23 @@ class PackedUserOperation:
         return paymaster_bytes + verification_bytes + post_op_bytes + paymaster_data
 
     @classmethod
+    def _pack_init_code(cls, factory: str, factory_data: bytes) -> bytes:
+        if not factory:
+            return b""
+
+        factory_bytes = to_bytes(hexstr=factory)
+        if not factory_bytes or factory_bytes == bytes(HexBytes(NULL_ADDRESS)):
+            return b""
+
+        return factory_bytes + factory_data
+
+    @classmethod
     def from_user_operation(cls, user_op: UserOperation) -> "PackedUserOperation":
         """Convert a UserOperation to a PackedUserOperation."""
         return cls(
             sender=user_op.sender,
             nonce=user_op.nonce,
-            init_code=user_op.init_code,
+            init_code=cls._pack_init_code(user_op.factory, user_op.factory_data),
             call_data=user_op.call_data,
             account_gas_limits=cls._pack_account_gas_limits(
                 user_op.call_gas_limit, user_op.verification_gas_limit
@@ -310,7 +325,7 @@ def create_eth_transfer(
         "execute(address,uint256,bytes)",
         [to_checksum_address(to), value, b""],
     )
-    return UserOperation(sender, nonce, b"", data, **kwargs)
+    return UserOperation(sender, nonce, None, b"", data, **kwargs)
 
 
 def create_erc20_transfer(
@@ -322,7 +337,7 @@ def create_erc20_transfer(
     data = encode_function_call(
         "execute(address,uint256,bytes)", [to_checksum_address(token), 0, call]
     )
-    return UserOperation(sender, nonce, b"", data, **kwargs)
+    return UserOperation(sender, nonce, None, b"", data, **kwargs)
 
 
 def create_erc20_approve(
@@ -334,7 +349,7 @@ def create_erc20_approve(
     data = encode_function_call(
         "execute(address,uint256,bytes)", [to_checksum_address(token), 0, call]
     )
-    return UserOperation(sender, nonce, b"", data, **kwargs)
+    return UserOperation(sender, nonce, None, b"", data, **kwargs)
 
 
 def create_contract_call(
@@ -343,4 +358,4 @@ def create_contract_call(
     payload = encode_function_call(
         "execute(address,uint256,bytes)", [to_checksum_address(target), value, data]
     )
-    return UserOperation(sender, nonce, b"", payload, **kwargs)
+    return UserOperation(sender, nonce, None, b"", payload, **kwargs)
