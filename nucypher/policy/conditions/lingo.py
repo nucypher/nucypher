@@ -21,9 +21,9 @@ from marshmallow.validate import OneOf, Range
 from packaging.version import parse as parse_version
 
 from nucypher.policy.conditions.base import (
-    AccessControlCondition,
+    Condition,
     ExecutionCall,
-    MultiConditionAccessControl,
+    MultiCondition,
     _Serializable,
 )
 from nucypher.policy.conditions.context import (
@@ -141,7 +141,7 @@ class Operator(Enum):
         return [op.value for op in cls]
 
 
-class CompoundAccessControlCondition(MultiConditionAccessControl):
+class CompoundCondition(MultiCondition):
     """
     A combination of two or more conditions connected by logical operators such as AND, OR, NOT.
 
@@ -167,7 +167,7 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
     def _validate_operator_and_operands(
         cls,
         operator: str,
-        operands: List[AccessControlCondition],
+        operands: List[Condition],
     ):
         if operator not in cls.OPERATORS:
             raise ValidationError(
@@ -192,7 +192,7 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
                 message="Maximum of {cls.MAX_NUM_CONDITIONS} operands allowed for '{operator}' compound condition",
             )
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.COMPOUND.value), required=True
         )
@@ -207,21 +207,19 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         def validate_operator_and_operands(self, data, **kwargs):
             operator = data["operator"]
             operands = data["operands"]
-            CompoundAccessControlCondition._validate_operator_and_operands(
-                operator, operands
-            )
-            CompoundAccessControlCondition._validate_multi_condition_nesting(
+            CompoundCondition._validate_operator_and_operands(operator, operands)
+            CompoundCondition._validate_multi_condition_nesting(
                 conditions=operands, field_name="operands"
             )
 
         @post_load
         def make(self, data, **kwargs):
-            return CompoundAccessControlCondition(**data)
+            return CompoundCondition(**data)
 
     def __init__(
         self,
         operator: str,
-        operands: List[AccessControlCondition],
+        operands: List[Condition],
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
@@ -271,18 +269,18 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         return self.operands
 
 
-class OrCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operands: List[AccessControlCondition]):
+class OrCompoundCondition(CompoundCondition):
+    def __init__(self, operands: List[Condition]):
         super().__init__(operator=self.OR_OPERATOR, operands=operands)
 
 
-class AndCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operands: List[AccessControlCondition]):
+class AndCompoundCondition(CompoundCondition):
+    def __init__(self, operands: List[Condition]):
         super().__init__(operator=self.AND_OPERATOR, operands=operands)
 
 
-class NotCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operand: AccessControlCondition):
+class NotCompoundCondition(CompoundCondition):
+    def __init__(self, operand: Condition):
         super().__init__(operator=self.NOT_OPERATOR, operands=[operand])
 
 
@@ -305,12 +303,12 @@ class ConditionVariable(_Serializable):
         def make(self, data, **kwargs):
             return ConditionVariable(**data)
 
-    def __init__(self, var_name: str, condition: AccessControlCondition):
+    def __init__(self, var_name: str, condition: Condition):
         self.var_name = var_name
         self.condition = condition
 
 
-class SequentialAccessControlCondition(MultiConditionAccessControl):
+class SequentialCondition(MultiCondition):
     """
     A series of conditions that are evaluated in a specific order, where the result of one
     condition can be used in subsequent conditions.
@@ -359,7 +357,7 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
                 )
             var_names.add(condition_variable.var_name)
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.SEQUENTIAL.value), required=True
         )
@@ -373,15 +371,15 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
 
         @validates("condition_variables")
         def validate_condition_variables(self, value):
-            SequentialAccessControlCondition._validate_condition_variables(value)
+            SequentialCondition._validate_condition_variables(value)
             conditions = [cv.condition for cv in value]
-            SequentialAccessControlCondition._validate_multi_condition_nesting(
+            SequentialCondition._validate_multi_condition_nesting(
                 conditions=conditions, field_name="condition_variables"
             )
 
         @post_load
         def make(self, data, **kwargs):
-            return SequentialAccessControlCondition(**data)
+            return SequentialCondition(**data)
 
     def __init__(
         self,
@@ -457,7 +455,7 @@ class _ElseConditionField(fields.Field):
         return instance
 
 
-class IfThenElseCondition(MultiConditionAccessControl):
+class IfThenElseCondition(MultiCondition):
     """
     A condition that represents simple if-then-else logic.
 
@@ -473,7 +471,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
 
     MAX_NUM_CONDITIONS = 3  # only ever max of 3 (if, then, else)
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.IF_THEN_ELSE.value), required=True
         )
@@ -502,7 +500,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
 
         @validates("else_condition")
         def validate_else_condition(self, value):
-            if isinstance(value, AccessControlCondition):
+            if isinstance(value, Condition):
                 self._validate_nested_conditions("else_condition", value)
 
         @post_load
@@ -511,9 +509,9 @@ class IfThenElseCondition(MultiConditionAccessControl):
 
     def __init__(
         self,
-        if_condition: AccessControlCondition,
-        then_condition: AccessControlCondition,
-        else_condition: Union[AccessControlCondition, bool],
+        if_condition: Condition,
+        then_condition: Condition,
+        else_condition: Union[Condition, bool],
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
@@ -535,7 +533,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
     @property
     def conditions(self):
         values = [self.if_condition, self.then_condition]
-        if isinstance(self.else_condition, AccessControlCondition):
+        if isinstance(self.else_condition, Condition):
             values.append(self.else_condition)
 
         return values
@@ -554,7 +552,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
             return then_result, values
 
         # else
-        if isinstance(self.else_condition, AccessControlCondition):
+        if isinstance(self.else_condition, Condition):
             # actual condition
             else_result, else_value = self.else_condition.verify(*args, **kwargs)
         else:
@@ -713,7 +711,7 @@ class ConditionLingo(_Serializable):
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    def __init__(self, condition: AccessControlCondition, version: str = VERSION):
+    def __init__(self, condition: Condition, version: str = VERSION):
         self.condition = condition
         self.check_version_compatibility(version)
         self.version = version
@@ -763,7 +761,7 @@ class ConditionLingo(_Serializable):
     @classmethod
     def resolve_condition_class(
         cls, condition: ConditionDict, version: int = None
-    ) -> Type[AccessControlCondition]:
+    ) -> Type[Condition]:
         """
         Inspects a given block of JSON and attempts to resolve it's intended datatype within the
         conditions expression framework.
@@ -783,11 +781,11 @@ class ConditionLingo(_Serializable):
             TimeCondition,
             ContractCondition,
             RPCCondition,
-            CompoundAccessControlCondition,
+            CompoundCondition,
             JsonApiCondition,
             JsonRpcCondition,
             JWTCondition,
-            SequentialAccessControlCondition,
+            SequentialCondition,
             IfThenElseCondition,
             AddressAllowlistCondition,
             ECDSACondition,
@@ -807,14 +805,14 @@ class ConditionLingo(_Serializable):
             )
 
 
-class ExecutionCallAccessControlCondition(AccessControlCondition):
+class ExecutionCallCondition(Condition):
     """
     Conditions that utilize underlying ExecutionCall objects.
     """
 
     EXECUTION_CALL_TYPE = NotImplemented
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
         )
