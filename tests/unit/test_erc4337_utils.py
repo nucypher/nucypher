@@ -1,10 +1,13 @@
+import os
 from unittest.mock import Mock
 
 import pytest
 from eth_account import Account
 from eth_account.messages import _hash_eip191_message, encode_typed_data
 from eth_utils import keccak
+from hexbytes import HexBytes
 
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.erc4337_utils import (
     AAVersion,
@@ -23,12 +26,13 @@ class TestPackedUserOperation:
     """Test suite for PackedUserOperation class"""
 
     @pytest.fixture
-    def sample_user_op(self):
+    def sample_user_op(self, get_random_checksum_address):
         """Create a sample PackedUserOperation for testing"""
         return UserOperation(
             sender="0x1234567890123456789012345678901234567890",
             nonce=1,
-            init_code=b"\x12\x34",
+            factory="0x27BbA3872e3e00632A200C08F7CD9E999a36BA85",
+            factory_data=b"\x12\x34",
             call_data=b"\x56\x78",
             verification_gas_limit=100000,
             call_gas_limit=200000,
@@ -53,7 +57,8 @@ class TestPackedUserOperation:
         """Test PackedUserOperation initialization with all fields"""
         assert sample_user_op.sender == "0x1234567890123456789012345678901234567890"
         assert sample_user_op.nonce == 1
-        assert sample_user_op.init_code == b"\x12\x34"
+        assert sample_user_op.factory == "0x27BbA3872e3e00632A200C08F7CD9E999a36BA85"
+        assert sample_user_op.factory_data == b"\x12\x34"
         assert sample_user_op.call_data == b"\x56\x78"
         assert sample_user_op.verification_gas_limit == 100000
         assert sample_user_op.call_gas_limit == 200000
@@ -70,7 +75,8 @@ class TestPackedUserOperation:
         """Test PackedUserOperation initialization with minimal fields"""
         assert minimal_user_op.sender == "0x1234567890123456789012345678901234567890"
         assert minimal_user_op.nonce == 0
-        assert minimal_user_op.init_code == b""
+        assert minimal_user_op.factory is None
+        assert minimal_user_op.factory_data == b""
         assert minimal_user_op.call_data == b""
         assert minimal_user_op.verification_gas_limit == 0
         assert minimal_user_op.call_gas_limit == 0
@@ -90,7 +96,8 @@ class TestPackedUserOperation:
 
             assert deserialized_op.sender == user_op.sender
             assert deserialized_op.nonce == user_op.nonce
-            assert deserialized_op.init_code == user_op.init_code
+            assert deserialized_op.factory == user_op.factory
+            assert deserialized_op.factory_data == user_op.factory_data
             assert deserialized_op.call_data == user_op.call_data
             assert (
                 deserialized_op.verification_gas_limit == user_op.verification_gas_limit
@@ -162,6 +169,53 @@ class TestPackedUserOperation:
         ) | sample_user_op.max_fee_per_gas
         assert packed_user_op.gas_fees == expected.to_bytes(32, byteorder="big")
 
+    def test_get_init_code(
+        self, get_random_checksum_address, sample_user_op, minimal_user_op
+    ):
+        # no factory or factory data
+        init_code = PackedUserOperation._pack_init_code(None, b"")
+        assert init_code == b""
+
+        # factory as zero address, no factory data
+        init_code = PackedUserOperation._pack_init_code(NULL_ADDRESS, b"")
+        assert init_code == b""
+
+        # factory as zero address, w/ factory data (should never happen but we still handle this case)
+        init_code = PackedUserOperation._pack_init_code(NULL_ADDRESS, os.urandom(15))
+        assert init_code == b""
+
+        # factory as 0x str, no factory data (should never happen but we still handle this case)
+        factory = "0x"
+        init_code = PackedUserOperation._pack_init_code(factory, b"")
+        assert init_code == b""
+
+        # factory as 0x str, w/ factory data (should never happen but we still handle this case)
+        factory = "0x"
+        init_code = PackedUserOperation._pack_init_code(factory, os.urandom(15))
+        assert init_code == b""
+
+        # factory, no factory data
+        factory = get_random_checksum_address()
+        init_code = PackedUserOperation._pack_init_code(factory, b"")
+        assert init_code == bytes(HexBytes(factory))
+
+        # factory, factory data
+        factory = get_random_checksum_address()
+        factory_data = os.urandom(23)
+        init_code = PackedUserOperation._pack_init_code(factory, factory_data)
+        assert init_code == bytes(HexBytes(factory)) + factory_data
+
+        # when generating from user operations
+        packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
+        assert packed_user_op.init_code == (
+            bytes(HexBytes(sample_user_op.factory)) + sample_user_op.factory_data
+        )
+
+        packed_user_op_minimal = PackedUserOperation.from_user_operation(
+            minimal_user_op
+        )
+        assert packed_user_op_minimal.init_code == b""
+
     def test_packed_user_op_methods(self, sample_user_op):
         """Test the pack method returns correct dictionary structure"""
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
@@ -169,7 +223,9 @@ class TestPackedUserOperation:
         # Verify types and values
         assert packed_user_op.sender == sample_user_op.sender
         assert packed_user_op.nonce == sample_user_op.nonce
-        assert packed_user_op.init_code == sample_user_op.init_code
+        assert packed_user_op.init_code == (
+            bytes(HexBytes(sample_user_op.factory)) + sample_user_op.factory_data
+        )
         assert packed_user_op.call_data == sample_user_op.call_data
         assert (
             packed_user_op.pre_verification_gas == sample_user_op.pre_verification_gas
@@ -442,7 +498,8 @@ class TestHelperFunctions:
         assert isinstance(user_op, UserOperation)
         assert user_op.sender == common_params["sender"]
         assert user_op.nonce == common_params["nonce"]
-        assert user_op.init_code == b""
+        assert user_op.factory is None
+        assert user_op.factory_data == b""
         assert len(user_op.call_data) > 0
 
         # Verify the call data contains the execute function call
@@ -547,7 +604,8 @@ class TestERC4337Compatibility:
         required_fields = [
             "sender",
             "nonce",
-            "init_code",
+            "factory",
+            "factory_data",
             "call_data",
             "verification_gas_limit",
             "call_gas_limit",
@@ -660,7 +718,8 @@ class TestERC4337Compatibility:
         return UserOperation(
             sender="0x1234567890123456789012345678901234567890",
             nonce=1,
-            init_code=b"\x12\x34",
+            factory="0x27BbA3872e3e00632A200C08F7CD9E999a36BA85",
+            factory_data=b"\x12\x34",
             call_data=b"\x56\x78",
             verification_gas_limit=100000,
             call_gas_limit=200000,
