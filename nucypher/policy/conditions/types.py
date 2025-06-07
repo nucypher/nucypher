@@ -155,6 +155,19 @@ class ECDSAConditionDict(_Condition):
 
 
 #
+# AttributeCondition represents:
+# {
+#     "attributeName": str
+#     "objectContextVar": str
+#     "returnValueTest: <>
+# }
+class AttributeCondition(_Condition):
+    attributeName: str
+    objectContextVar: str
+    returnValueTest: ReturnValueTestDict
+
+
+#
 # ConditionDict is a dictionary of:
 # - TimeCondition
 # - RPCCondition
@@ -166,6 +179,7 @@ class ECDSAConditionDict(_Condition):
 # - SequentialCondition
 # - IfThenElseCondition
 # - ECDSACondition
+# - AttributeCondition
 ConditionDict = Union[
     TimeConditionDict,
     RPCConditionDict,
@@ -178,6 +192,7 @@ ConditionDict = Union[
     IfThenElseConditionDict,
     AddressAllowlistConditionDict,
     ECDSAConditionDict,
+    AttributeCondition,
 ]
 
 
