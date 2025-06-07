@@ -13,7 +13,7 @@ from nucypher.policy.conditions.json.base import (
 )
 from nucypher.policy.conditions.lingo import (
     ConditionType,
-    ExecutionCallAccessControlCondition,
+    ExecutionCallCondition,
     ReturnValueTest,
 )
 from nucypher.utilities.logging import Logger
@@ -71,7 +71,7 @@ class JsonApiCondition(BaseJsonRequestCondition):
     EXECUTION_CALL_TYPE = JsonApiCall
     CONDITION_TYPE = ConditionType.JSONAPI.value
 
-    class Schema(ExecutionCallAccessControlCondition.Schema, JsonApiCall.Schema):
+    class Schema(ExecutionCallCondition.Schema, JsonApiCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
