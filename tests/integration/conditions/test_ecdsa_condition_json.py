@@ -1,7 +1,6 @@
-import base64
 import json
 
-from ecdsa import SECP256k1, SigningKey
+from ecdsa import SigningKey
 from ecdsa.util import sigencode_string
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
@@ -11,9 +10,9 @@ from nucypher.policy.conditions.lingo import (
 )
 
 # Create test key pair for ECDSA signing
-TEST_SIGNING_KEY = SigningKey.generate(curve=SECP256k1)
+TEST_SIGNING_KEY = SigningKey.generate()
 TEST_VERIFYING_KEY = TEST_SIGNING_KEY.verifying_key
-TEST_VERIFYING_KEY_PEM = TEST_VERIFYING_KEY.to_pem().decode("utf-8")
+TEST_VERIFYING_KEY_HEX = TEST_VERIFYING_KEY.to_string().hex()
 
 # Test message
 TEST_MESSAGE = b"This is a test message that requires ECDSA verification"
@@ -26,14 +25,13 @@ def test_ecdsa_condition_json_serialization():
         TEST_MESSAGE,
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
-    )
-    signature_b64 = base64.b64encode(signature).decode("utf-8")
+    ).hex()
 
     # Create condition
     ecdsa_condition = ECDSACondition(
         message=":message",
         signature=":signature",
-        verifying_key=TEST_VERIFYING_KEY_PEM,
+        verifying_key=TEST_VERIFYING_KEY_HEX,
     )
 
     # Convert condition to JSON
@@ -44,7 +42,7 @@ def test_ecdsa_condition_json_serialization():
     assert condition_dict["conditionType"] == "ecdsa"
     assert condition_dict["message"] == ":message"
     assert condition_dict["signature"] == ":signature"
-    assert condition_dict["verifyingKey"] == TEST_VERIFYING_KEY_PEM
+    assert condition_dict["verifyingKey"] == TEST_VERIFYING_KEY_HEX
 
     # Recreate condition from JSON
     recreated_condition = ECDSACondition.from_json(condition_json)
@@ -52,10 +50,10 @@ def test_ecdsa_condition_json_serialization():
     # Verify the recreated condition
     assert recreated_condition.message == ":message"
     assert recreated_condition.signature == ":signature"
-    assert recreated_condition.verifying_key == TEST_VERIFYING_KEY_PEM
+    assert recreated_condition.verifying_key == TEST_VERIFYING_KEY_HEX
 
     # Check that the recreated condition works
-    context = {":message": TEST_MESSAGE, ":signature": signature_b64}
+    context = {":message": TEST_MESSAGE, ":signature": signature}
     success, result = recreated_condition.verify(**context)
     assert success is True
 
@@ -67,14 +65,13 @@ def test_ecdsa_condition_lingo_json_serialization():
         TEST_MESSAGE,
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
-    )
-    signature_b64 = base64.b64encode(signature).decode("utf-8")
+    ).hex()
 
     # Create condition
     ecdsa_condition = ECDSACondition(
         message=":message",
         signature=":signature",
-        verifying_key=TEST_VERIFYING_KEY_PEM,
+        verifying_key=TEST_VERIFYING_KEY_HEX,
     )
 
     # Create condition lingo
@@ -92,7 +89,7 @@ def test_ecdsa_condition_lingo_json_serialization():
     recreated_lingo = ConditionLingo.from_json(lingo_json)
 
     # Verify the recreated lingo works
-    context = {":message": TEST_MESSAGE, ":signature": signature_b64}
+    context = {":message": TEST_MESSAGE, ":signature": signature}
     result = recreated_lingo.eval(**context)
     assert result is True
 
@@ -101,11 +98,11 @@ def test_complex_condition_with_ecdsa_json_serialization():
     """Test a complex condition with ECDSA JSON serialization"""
     # Create two key pairs for the test
     key1 = TEST_SIGNING_KEY
-    key1_vk_pem = TEST_VERIFYING_KEY_PEM
+    key1_vk_hex = TEST_VERIFYING_KEY_HEX
 
-    key2 = SigningKey.generate(curve=SECP256k1)
+    key2 = SigningKey.generate()
     key2_vk = key2.verifying_key
-    key2_vk_pem = key2_vk.to_pem().decode("utf-8")
+    key2_vk_hex = key2_vk.to_string().hex()
 
     # Sign the messages
     message1 = b"Message for first key"
@@ -113,26 +110,24 @@ def test_complex_condition_with_ecdsa_json_serialization():
 
     sig1 = key1.sign(
         message1, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_string
-    )
-    sig1_b64 = base64.b64encode(sig1).decode("utf-8")
+    ).hex()
 
     sig2 = key2.sign(
         message2, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_string
-    )
-    sig2_b64 = base64.b64encode(sig2).decode("utf-8")
+    ).hex()
 
     # Create ECDSA conditions
     condition1 = ECDSACondition(
         message=":msg1",
         signature=":sig1",
-        verifying_key=key1_vk_pem,
+        verifying_key=key1_vk_hex,
         name="First Signer",
     )
 
     condition2 = ECDSACondition(
         message=":msg2",
         signature=":sig2",
-        verifying_key=key2_vk_pem,
+        verifying_key=key2_vk_hex,
         name="Second Signer",
     )
 
@@ -155,14 +150,14 @@ def test_complex_condition_with_ecdsa_json_serialization():
                 "conditionType": "ecdsa",
                 "message": ":msg1",
                 "signature": ":sig1",
-                "verifyingKey": key1_vk_pem,
+                "verifyingKey": key1_vk_hex,
             },
             {
                 "name": "Second Signer",
                 "conditionType": "ecdsa",
                 "message": ":msg2",
                 "signature": ":sig2",
-                "verifyingKey": key2_vk_pem,
+                "verifyingKey": key2_vk_hex,
             },
         ],
     }
@@ -180,9 +175,9 @@ def test_complex_condition_with_ecdsa_json_serialization():
     # Create a context with valid signatures
     context = {
         ":msg1": message1,
-        ":sig1": sig1_b64,
+        ":sig1": sig1,
         ":msg2": message2,
-        ":sig2": sig2_b64,
+        ":sig2": sig2,
     }
 
     # Verify the condition
@@ -194,10 +189,9 @@ def test_complex_condition_with_ecdsa_json_serialization():
         b"Wrong message",
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
-    )
-    invalid_sig2_b64 = base64.b64encode(invalid_sig2).decode("utf-8")
+    ).hex()
 
-    context[":sig2"] = invalid_sig2_b64
+    context[":sig2"] = invalid_sig2
     success, _ = recreated_condition.verify(**context)
     assert success is False
 
@@ -209,9 +203,9 @@ def test_real_world_example_json():
     # - In a compound condition with other potential access methods
 
     # Create a sample service key for verification
-    service_key = SigningKey.generate(curve=SECP256k1)
+    service_key = SigningKey.generate()
     service_vk = service_key.verifying_key
-    service_vk_pem = service_vk.to_pem().decode("utf-8")
+    service_vk_hex = service_vk.to_string().hex()
 
     # JSON representation of the condition - this is what would typically
     # be stored in a database or config file
@@ -228,7 +222,7 @@ def test_real_world_example_json():
                         "name": "API Key Signature",
                         "message": ":request_data",
                         "signature": ":request_signature",
-                        "verifyingKey": service_vk_pem,
+                        "verifyingKey": service_vk_hex,
                     },
                     # Option 2: Could combine with other conditions
                     # (e.g., a time-based condition as a fallback)
@@ -241,7 +235,7 @@ def test_real_world_example_json():
                                 "name": "Admin Signature",
                                 "message": ":admin_request",
                                 "signature": ":admin_signature",
-                                "verifyingKey": TEST_VERIFYING_KEY_PEM,
+                                "verifyingKey": TEST_VERIFYING_KEY_HEX,
                             },
                             # Add a second condition to satisfy the minimum requirement
                             {
@@ -249,7 +243,7 @@ def test_real_world_example_json():
                                 "name": "Extra Verification",
                                 "message": ":admin_request",
                                 "signature": ":admin_signature",
-                                "verifyingKey": TEST_VERIFYING_KEY_PEM,
+                                "verifyingKey": TEST_VERIFYING_KEY_HEX,
                             },
                         ],
                     },
@@ -267,12 +261,11 @@ def test_real_world_example_json():
         request_data,
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
-    )
-    request_signature_b64 = base64.b64encode(request_signature).decode("utf-8")
+    ).hex()
 
     context = {
         ":request_data": request_data,
-        ":request_signature": request_signature_b64,
+        ":request_signature": request_signature,
     }
 
     # Evaluate condition
@@ -285,8 +278,7 @@ def test_real_world_example_json():
         admin_request,
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
-    )
-    admin_signature_b64 = base64.b64encode(admin_signature).decode("utf-8")
+    ).hex()
 
     context = {
         # API key authentication fails
@@ -294,7 +286,7 @@ def test_real_world_example_json():
         ":request_signature": "invalid-signature",
         # But admin authentication succeeds
         ":admin_request": admin_request,
-        ":admin_signature": admin_signature_b64,
+        ":admin_signature": admin_signature,
     }
 
     result = lingo.eval(**context)
