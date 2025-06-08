@@ -4,7 +4,14 @@ from typing import Any, Optional, Tuple
 from ecdsa import BadSignatureError, NIST192p, VerifyingKey
 from ecdsa.curves import Curve, curves
 from ecdsa.util import sigdecode_string
-from marshmallow import ValidationError, fields, post_load, validate, validates
+from marshmallow import (
+    ValidationError,
+    fields,
+    post_load,
+    validate,
+    validates,
+    validates_schema,
+)
 
 from nucypher.policy.conditions.base import AccessControlCondition, ExecutionCall
 from nucypher.policy.conditions.context import (
@@ -52,10 +59,15 @@ class ECDSAVerificationCall(ExecutionCall):
                         f"Invalid signature format, must be hex encoded: {str(e)}"
                     )
 
-        @validates("verifying_key")
-        def validate_verifying_key(self, value):
+        @validates_schema
+        def validate_verifying_key(self, data, **kwargs):
+            value = data.get("verifying_key")
+            curve = data.get("curve", NIST192p.name)
             try:
-                bytes.fromhex(value)
+                VerifyingKey.from_string(
+                    string=bytes.fromhex(value),
+                    curve={c.name: c for c in curves}[curve],
+                )
             except Exception as e:
                 raise ValidationError(
                     f"Invalid verifying key format, must be hex encoded: {str(e)}"
