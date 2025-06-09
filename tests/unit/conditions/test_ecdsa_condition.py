@@ -1,4 +1,5 @@
 import base64
+import json
 
 import pytest
 from ecdsa import SECP256k1, SigningKey
@@ -151,3 +152,74 @@ def test_ecdsa_condition_verify_invalid_signature():
     success, result = condition.verify(**context)
     assert not success
     assert result is False
+
+
+def test_ecdsa_condition_bytes_context():
+    """Test that ECDSA conditions can handle bytes in context through serialization.
+
+    This test verifies that:
+    1. Bytes can be passed in context and will be properly [de]serialized
+    2. The condition can handle both raw bytes and hex strings
+    3. The verification works correctly after serialization/deserialization
+    """
+    # Create a test message and sign it
+    message_bytes = b"This is a test message that requires ECDSA verification"
+    signature = TEST_SIGNING_KEY.sign(
+        data=message_bytes,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_der,
+    )
+
+    signature_b64 = base64.b64encode(signature).decode("utf-8")
+
+    # Create an ECDSA condition
+    ecdsa_condition = ECDSACondition(
+        message=":bytes:message",
+        signature=":signature",
+        verifying_key=TEST_VERIFYING_KEY_PEM,
+    )
+
+    # Test with raw bytes in context
+    context_with_bytes = {
+        ":bytes:message": message_bytes.hex(),
+        ":signature": signature_b64,
+    }
+
+    # The context should be serializable
+    serialized_context = json.dumps(context_with_bytes)
+    deserialized_context = json.loads(serialized_context)
+
+    # Verification should work with the deserialized context
+    success, result = ecdsa_condition.verify(**deserialized_context)
+    assert success, "Verification should succeed with deserialized bytes context"
+    assert result is True
+
+    # Test with hex string in context (backwards compatibility)
+    context_with_hex = {
+        ":bytes:message": message_bytes.hex(),
+        ":signature": signature_b64,
+    }
+
+    # The context should be serializable
+    serialized_context = json.dumps(context_with_hex)
+    deserialized_context = json.loads(serialized_context)
+
+    # Verification should work with the deserialized context
+    success, result = ecdsa_condition.verify(**deserialized_context)
+    assert success, "Verification should succeed with deserialized hex context"
+    assert result is True
+
+    # Test with mixed types (some bytes, some hex)
+    context_mixed = {
+        ":bytes:message": message_bytes.hex(),
+        ":signature": signature_b64,
+    }
+
+    # The context should be serializable
+    serialized_context = json.dumps(context_mixed)
+    deserialized_context = json.loads(serialized_context)
+
+    # Verification should work with the deserialized context
+    success, result = ecdsa_condition.verify(**deserialized_context)
+    assert success, "Verification should succeed with deserialized mixed context"
+    assert result is True

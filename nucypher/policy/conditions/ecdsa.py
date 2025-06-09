@@ -90,7 +90,7 @@ class ECDSAVerificationCall(ExecutionCall):
             if isinstance(message, str):
                 message = message.encode("utf-8")
 
-            # Decode the base64 signature
+            # Decode the b64 signature
             try:
                 signature = base64.b64decode(signature_b64)
             except Exception as e:
