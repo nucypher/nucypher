@@ -1,9 +1,10 @@
 import hashlib
 import json
+
 import nacl.exceptions
 import nacl.signing
 import pytest
-from ecdsa.curves import SECP256k1, NIST192p
+from ecdsa.curves import NIST192p, SECP256k1
 from ecdsa.keys import SigningKey
 from ecdsa.util import sigencode_string
 from marshmallow import validates
@@ -95,7 +96,7 @@ def test_ecdsa_condition_missing_verifying_key():
 
 def test_ecdsa_condition_invalid_verifying_key():
     with pytest.raises(
-        InvalidCondition, match="'verifying_key' field - Invalid verifying key format"
+        InvalidCondition, match="Invalid verifying key format, must be hex encoded"
     ):
         _ = ECDSACondition(
             message=":message_variable",
@@ -109,6 +110,7 @@ def test_ecdsa_condition_initialization():
         message=":message_variable",
         signature=":signature_variable",
         verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
     )
 
     assert condition.message == ":message_variable"
@@ -146,6 +148,7 @@ def test_ecdsa_condition_verify_invalid_signature():
         message=":message_variable",
         signature=":signature_variable",
         verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
     )
 
     context = {
