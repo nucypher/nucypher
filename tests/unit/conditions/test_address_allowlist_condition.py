@@ -5,6 +5,7 @@ from nucypher.policy.conditions.address import AddressAllowlistCondition
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionContext,
+    InvalidConditionLingo,
 )
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 
@@ -72,37 +73,50 @@ def test_address_allowlist_condition_verify():
     assert result is True
 
 
-def test_address_allowlist_condition_serialization():
-    """Test the serialization and deserialization of AddressAllowlistCondition."""
+def test_address_allowlist_condition_schema_validation():
+    """Test the schema validation of AddressAllowlistCondition."""
     # Create test accounts
     account1 = Account.create()
     account2 = Account.create()
-
-    # Create condition
     addresses = [account1.address, account2.address]
-    original_condition = AddressAllowlistCondition(
-        addresses=addresses, name="Test Condition"
-    )
+    
+    # Create condition
+    condition = AddressAllowlistCondition(addresses=addresses)
+    condition_dict = condition.to_dict()
 
-    # Serialize to dict
-    condition_dict = original_condition.to_dict()
+    # No issues here
+    AddressAllowlistCondition.from_dict(condition_dict)
 
-    # Check dict structure
-    assert condition_dict["conditionType"] == "address-allowlist"
-    assert set(condition_dict["addresses"]) == set(addresses)
-    assert condition_dict["name"] == "Test Condition"
+    # No issues with optional name
+    condition_dict["name"] = "my_address_allowlist"
+    AddressAllowlistCondition.from_dict(condition_dict)
 
-    # Deserialize from dict
-    deserialized_condition = AddressAllowlistCondition.from_dict(condition_dict)
+    with pytest.raises(InvalidConditionLingo):
+        # No conditionType
+        condition_dict = condition.to_dict()
+        del condition_dict["conditionType"]
+        AddressAllowlistCondition.from_dict(condition_dict)
 
-    # Check equality
-    assert original_condition == deserialized_condition
+    with pytest.raises(InvalidConditionLingo):
+        # No addresses defined
+        condition_dict = condition.to_dict()
+        del condition_dict["addresses"]
+        AddressAllowlistCondition.from_dict(condition_dict)
 
-    # Serialize to JSON
-    json_str = original_condition.to_json()
+    with pytest.raises(InvalidConditionLingo):
+        # Invalid condition type
+        condition_dict = condition.to_dict()
+        condition_dict["conditionType"] = "invalid-condition-type"
+        AddressAllowlistCondition.from_dict(condition_dict)
 
-    # Deserialize from JSON
-    deserialized_condition = AddressAllowlistCondition.from_json(json_str)
+    with pytest.raises(InvalidConditionLingo):
+        # Empty addresses list
+        condition_dict = condition.to_dict()
+        condition_dict["addresses"] = []
+        AddressAllowlistCondition.from_dict(condition_dict)
 
-    # Check equality
-    assert original_condition == deserialized_condition
+    with pytest.raises(InvalidConditionLingo):
+        # Invalid address format
+        condition_dict = condition.to_dict()
+        condition_dict["addresses"] = ["not-an-ethereum-address"]
+        AddressAllowlistCondition.from_dict(condition_dict)
