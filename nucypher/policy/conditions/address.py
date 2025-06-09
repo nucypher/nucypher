@@ -1,4 +1,3 @@
-import json
 from typing import Dict, List, Optional, Tuple, Union
 
 from eth_utils import to_checksum_address
@@ -11,7 +10,7 @@ from nucypher.policy.conditions.context import (
 )
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
-    InvalidConditionContext,
+    RequiredContextVariable,
 )
 from nucypher.policy.conditions.lingo import (
     ConditionType,
@@ -94,51 +93,5 @@ class AddressAllowlistCondition(AccessControlCondition):
 
         return is_allowed, None
 
-    def __eq__(self, other):
-        return (
-            isinstance(other, AddressAllowlistCondition)
-            and self.condition_type == other.condition_type
-            and set(self.addresses) == set(other.addresses)
-            and self.name == other.name
-        )
-
     def __repr__(self):
-        addresses_str = ", ".join(self.addresses[:3])
-        if len(self.addresses) > 3:
-            addresses_str += f"... (+{len(self.addresses) - 3} more)"
-        return f"{self.__class__.__name__}(addresses=[{addresses_str}])"
-
-    @classmethod
-    def from_dict(cls, data):
-        """
-        Create a AddressAllowlistCondition from a dictionary.
-
-        Args:
-            data: Dictionary containing the condition data
-
-        Returns:
-            AddressAllowlistCondition instance
-        """
-        # Extract values from the dict (camelCase keys are converted to snake_case by marshmallow)
-        addresses = data.get("addresses", [])
-        name = data.get("name")
-
-        # Create a new instance
-        return cls(addresses=addresses, name=name)
-
-    @classmethod
-    def from_json(cls, data):
-        """
-        Create a AddressAllowlistCondition from a JSON string.
-
-        Args:
-            data: JSON string containing the condition data
-
-        Returns:
-            AddressAllowlistCondition instance
-        """
-        # Parse JSON to dict
-        if isinstance(data, str):
-            data = json.loads(data)
-
-        return cls.from_dict(data)
+        return f"{self.__class__.__name__}(addresses_count={len(self.addresses)})"
