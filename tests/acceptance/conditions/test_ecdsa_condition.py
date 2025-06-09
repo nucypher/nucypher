@@ -8,7 +8,7 @@ from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCa
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 # Create test key pair for ECDSA signing
-TEST_SIGNING_KEY = SigningKey.generate(curve=SECP256k1)
+TEST_SIGNING_KEY = SigningKey.generate()
 TEST_VERIFYING_KEY = TEST_SIGNING_KEY.verifying_key
 TEST_VERIFYING_KEY_PEM = TEST_VERIFYING_KEY.to_pem().decode("utf-8")
 
