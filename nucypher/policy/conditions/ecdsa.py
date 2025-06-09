@@ -24,6 +24,9 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.utilities.logging import Logger
 
+SUPPORTED_ECDSA_CONDITION_CURVES = {c.name: c for c in curves}
+DEFAULT_ECDSA_CONDITION_CURVE = NIST192p
+
 
 class ECDSAVerificationCall(ExecutionCall):
     # Use SHA-256 for hashing
@@ -35,7 +38,7 @@ class ECDSAVerificationCall(ExecutionCall):
         verifying_key = fields.Str(required=True)
         curve = fields.Str(
             required=False,
-            validate=validate.OneOf([curve.name for curve in curves]),
+            validate=validate.OneOf(list(SUPPORTED_ECDSA_CONDITION_CURVES)),
         )
 
         @post_load
@@ -62,15 +65,29 @@ class ECDSAVerificationCall(ExecutionCall):
         @validates_schema
         def validate_verifying_key(self, data, **kwargs):
             value = data.get("verifying_key")
-            curve = data.get("curve", NIST192p.name)
+            curve_name = data.get("curve")
+            if curve_name:
+                if curve_name not in SUPPORTED_ECDSA_CONDITION_CURVES:
+                    raise ValidationError(
+                        f"Unsupported curve: {curve_name}. Supported curves are: {SUPPORTED_ECDSA_CONDITION_CURVES.keys()}"
+                    )
+                curve = SUPPORTED_ECDSA_CONDITION_CURVES[curve_name]
+            else:
+                curve = DEFAULT_ECDSA_CONDITION_CURVE
+            try:
+                verifying_key_bytes = bytes.fromhex(value)
+            except ValueError:
+                raise ValidationError(
+                    "Invalid verifying key format, must be hex encoded"
+                )
             try:
                 VerifyingKey.from_string(
-                    string=bytes.fromhex(value),
-                    curve={c.name: c for c in curves}[curve],
+                    verifying_key_bytes,
+                    curve=curve,
                 )
             except Exception as e:
                 raise ValidationError(
-                    f"Invalid verifying key format, must be hex encoded: {str(e)}"
+                    f"Invalid verifying key for curve {curve_name}: {str(e)}"
                 )
 
     def __init__(self, message: Any, signature: str, verifying_key: str, curve: Curve):
@@ -146,7 +163,6 @@ class ECDSACondition(AccessControlCondition):
     """
 
     CONDITION_TYPE = "ecdsa"  # Add this to ConditionType enum
-    SUPPORTED_CURVES = {c.name: c for c in curves}
 
     class Schema(AccessControlCondition.Schema, ECDSAVerificationCall.Schema):
         condition_type = fields.Str(validate=validate.Equal("ecdsa"), required=True)
@@ -160,13 +176,13 @@ class ECDSACondition(AccessControlCondition):
         message: Any,
         signature: str,
         verifying_key: str,
-        curve: Optional[str] = NIST192p.name,
+        curve: Optional[str] = DEFAULT_ECDSA_CONDITION_CURVE.name,
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
-        if curve not in self.SUPPORTED_CURVES:
+        if curve not in SUPPORTED_ECDSA_CONDITION_CURVES:
             raise InvalidCondition(
-                f"Unsupported curve: {curve}. Supported curves are: {list(self.SUPPORTED_CURVES.keys())}"
+                f"Unsupported curve: {curve}. Supported curves are: {list(SUPPORTED_ECDSA_CONDITION_CURVES.keys())}"
             )
 
         try:
@@ -174,7 +190,7 @@ class ECDSACondition(AccessControlCondition):
                 message=message,
                 signature=signature,
                 verifying_key=verifying_key,
-                curve=self.SUPPORTED_CURVES[curve],
+                curve=SUPPORTED_ECDSA_CONDITION_CURVES[curve],
             )
         except ExecutionCall.InvalidExecutionCall as e:
             raise InvalidCondition(str(e)) from e
@@ -192,6 +208,10 @@ class ECDSACondition(AccessControlCondition):
     @property
     def verifying_key(self):
         return self.execution_call.verifying_key
+
+    @property
+    def curve(self):
+        return self.execution_call.curve
 
     def verify(self, **context) -> Tuple[bool, Any]:
         result = self.execution_call.execute(**context)
