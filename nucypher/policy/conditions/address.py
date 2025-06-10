@@ -15,7 +15,7 @@ from nucypher.policy.conditions.context import (
     resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
-    RequiredContextVariable,
+    InvalidConditionContext,
 )
 from nucypher.policy.conditions.lingo import (
     ConditionType,
@@ -106,7 +106,7 @@ class AddressAllowlistCondition(AccessControlCondition):
                 - None (no additional data returned)
         """
         if not context:
-            raise RequiredContextVariable("No value provided for context variable")
+            raise InvalidConditionContext("No value provided for context variable")
 
         # Get user's address using resolve_any_context_variables
         user_address = resolve_any_context_variables(USER_ADDRESS_CONTEXT, **context)
