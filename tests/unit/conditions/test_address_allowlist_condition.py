@@ -1,16 +1,13 @@
 import pytest
 from eth_account import Account
-from eth_account.messages import encode_defunct, encode_typed_data
-from hexbytes import HexBytes
 
 from nucypher.policy.conditions.address import AddressAllowlistCondition
+from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionContext,
     InvalidConditionLingo,
 )
-from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
-from nucypher.policy.conditions.auth.evm import EvmAuth
 
 
 def test_address_allowlist_condition_init():
@@ -47,69 +44,24 @@ def test_address_allowlist_condition_init():
         )
 
 
-def test_address_allowlist_condition_verify():
+def test_address_allowlist_condition_verify(valid_eip4361_auth_message_factory):
     """Test the verification of AddressAllowlistCondition."""
     # Create test accounts
-    allowed_account1 = Account.create()
-    allowed_account2 = Account.create()
-    not_allowed_account = Account.create()
+
+    auth_message1 = valid_eip4361_auth_message_factory()
+    allowed_account1 = auth_message1["address"]
+
+    auth_message2 = valid_eip4361_auth_message_factory()
+    allowed_account2 = auth_message2["address"]
+
+    auth_message_not_allowed = valid_eip4361_auth_message_factory()
 
     # Create condition with allowed accounts
-    addresses = [allowed_account1.address, allowed_account2.address]
+    addresses = [allowed_account1, allowed_account2]
     condition = AddressAllowlistCondition(
         user_address=USER_ADDRESS_CONTEXT,
         addresses=addresses,
     )
-
-    # Create proper EIP712 typed data structures for each account
-    def create_auth_message_for_account(account):
-        # Create a proper EIP712 typed data structure
-        typed_data = {
-            "primaryType": "Wallet",
-            "types": {
-                "EIP712Domain": [
-                    {"name": "name", "type": "string"},
-                    {"name": "version", "type": "string"},
-                    {"name": "chainId", "type": "uint256"},
-                    {"name": "salt", "type": "bytes32"},
-                ],
-                "Wallet": [
-                    {"name": "address", "type": "string"},
-                    {"name": "blockNumber", "type": "uint256"},
-                    {"name": "blockHash", "type": "bytes32"},
-                    {"name": "signatureText", "type": "string"},
-                ],
-            },
-            "domain": {
-                "name": "TestDomain",
-                "version": "1",
-                "chainId": 1,
-                "salt": "0x3e6365d35fd4e53cbc00b080b0742b88f8b735352ea54c0534ed6a2e44a83ff0",
-            },
-            "message": {
-                "address": account.address,
-                "blockNumber": 12345678,
-                "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
-                "signatureText": f"I'm the owner of address {account.address}",
-            },
-        }
-
-        # Sign the typed data
-        signable_message = encode_typed_data(full_message=typed_data)
-        signature = account.sign_message(signable_message=signable_message)
-
-        # Return the auth message structure
-        return {
-            "signature": signature.signature.hex(),
-            "address": account.address,
-            "scheme": EvmAuth.AuthScheme.EIP712.value,
-            "typedData": typed_data,
-        }
-
-    # Create auth messages for each account
-    auth_message1 = create_auth_message_for_account(allowed_account1)
-    auth_message2 = create_auth_message_for_account(allowed_account2)
-    auth_message_not_allowed = create_auth_message_for_account(not_allowed_account)
 
     # Test successful verification with allowed account
     context = {USER_ADDRESS_CONTEXT: auth_message1}
