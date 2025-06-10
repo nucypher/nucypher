@@ -136,4 +136,14 @@ contract EntryPoint is EIP712 {
     function paymasterData(PackedUserOperation calldata userOp) public pure returns (bytes calldata) {
         return ERC4337Utils.paymasterData(userOp);
     }
+
+    /// @dev Returns `factory` from the {PackedUserOperation}, or address(0) if the initCode is empty or not properly formatted.
+    function factory(PackedUserOperation calldata userOp) public pure returns (address) {
+        return ERC4337Utils.factory(userOp);
+    }
+
+    /// @dev Returns `factoryData` from the {PackedUserOperation}, or empty bytes if the initCode is empty or not properly formatted.
+    function factoryData(PackedUserOperation calldata userOp) public pure returns (bytes calldata) {
+        return ERC4337Utils.factoryData(userOp);
+    }
 }
