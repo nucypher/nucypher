@@ -39,6 +39,7 @@ from nucypher.policy.conditions.types import ConditionDict, Lingo
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     ConditionProviderManager,
+    check_and_convert_any_big_ints,
     check_and_convert_big_int_string_to_int,
 )
 
@@ -50,23 +51,11 @@ class AnyField(fields.Field):
     numbers as integers, so those need converting to integers.
     """
 
-    def _convert_any_big_ints_from_string(self, value):
-        if isinstance(value, list):
-            return [self._convert_any_big_ints_from_string(item) for item in value]
-        elif isinstance(value, dict):
-            return {
-                k: self._convert_any_big_ints_from_string(v) for k, v in value.items()
-            }
-        elif isinstance(value, str):
-            return check_and_convert_big_int_string_to_int(value)
-
-        return value
-
     def _serialize(self, value, attr, obj, **kwargs):
         return value
 
     def _deserialize(self, value, attr, data, **kwargs):
-        return self._convert_any_big_ints_from_string(value)
+        return check_and_convert_any_big_ints(value)
 
 
 class AnyLargeIntegerField(fields.Int):

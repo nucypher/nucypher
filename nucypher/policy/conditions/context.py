@@ -13,7 +13,7 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.policy.conditions.utils import (
     ConditionProviderManager,
-    check_and_convert_big_int_string_to_int,
+    check_and_convert_any_big_ints,
 )
 
 USER_ADDRESS_CONTEXT = ":userAddress"
@@ -138,9 +138,9 @@ def get_context_value(
                 raise InvalidContextVariableData(
                     f'Invalid bytes context variable "{context_variable}"; expected a hex string'
                 )
-        elif isinstance(value, str):
-            # possible big int value
-            value = check_and_convert_big_int_string_to_int(value)
+
+        # possibly contains big int value(s)
+        value = check_and_convert_any_big_ints(value)
 
     return value
 
