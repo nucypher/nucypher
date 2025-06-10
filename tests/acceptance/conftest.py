@@ -1,7 +1,6 @@
 import random
 
 import pytest
-from eth.constants import ZERO_ADDRESS
 from web3 import Web3
 
 import tests
@@ -13,6 +12,7 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
 from nucypher.crypto.powers import TransactingPower
@@ -339,7 +339,7 @@ def signing_coordinator_child(
     # current chain
     signing_coordinator_dispatcher.register(
         chain.chain_id,
-        ZERO_ADDRESS,
+        NULL_ADDRESS,
         _signing_coordinator_child.address,
         sender=deployer_account,
     )
