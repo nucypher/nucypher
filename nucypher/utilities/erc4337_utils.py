@@ -262,6 +262,7 @@ class PackedUserOperation:
             "paymasterAndData": self.paymaster_and_data,
         }
         if aa_version == AAVersion.MDT:
+            # TODO how extensible is this, if MDT eventually switches to v0.8.0?
             result["entryPoint"] = EntryPointContracts.ENTRYPOINT_V07
         return result
 
