@@ -1,7 +1,13 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 from eth_utils import to_checksum_address
-from marshmallow import fields, validate
+from marshmallow import (
+    ValidationError,
+    fields,
+    post_load,
+    validate,
+    validates,
+)
 
 from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.context import (
@@ -9,12 +15,14 @@ from nucypher.policy.conditions.context import (
     resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
-    InvalidCondition,
     RequiredContextVariable,
 )
 from nucypher.policy.conditions.lingo import (
     ConditionType,
 )
+
+# Maximum number of addresses allowed in the address allowlist
+MAX_ALLOWLIST_ADDRESSES = 25
 
 
 class AddressAllowlistCondition(AccessControlCondition):
@@ -26,17 +34,46 @@ class AddressAllowlistCondition(AccessControlCondition):
     CONDITION_TYPE = ConditionType.ADDRESS_ALLOWLIST.value
 
     class Schema(AccessControlCondition.Schema):
-        condition_type = fields.Constant(ConditionType.ADDRESS_ALLOWLIST.value)
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.ADDRESS_ALLOWLIST.value),
+            required=True,
+        )
+
         addresses = fields.List(
             fields.String(required=True),
             required=True,
-            validate=validate.Length(min=1, max=25),
+            validate=validate.Length(min=1, max=MAX_ALLOWLIST_ADDRESSES),
         )
+
+        @validates("addresses")
+        def validate_addresses(self, addresses):
+            # Check for duplicates
+            if len(set(addresses)) != len(addresses):
+                raise ValidationError("Duplicate addresses are not allowed")
+
+            # Validate all addresses
+            for address in addresses:
+                try:
+                    # Ensure addresses have proper checksum
+                    normalized_address = to_checksum_address(address)
+                except ValueError as e:
+                    raise ValidationError(f"Invalid Ethereum address: {address}") from e
+                if normalized_address != address:
+                    raise ValidationError(
+                        f"Address {address} is not a checksummed address"
+                    )
+
+        @post_load
+        def make(self, data, **kwargs):
+            return AddressAllowlistCondition(**data)
 
     def __init__(
         self,
         addresses: List[str],
         name: Optional[str] = None,
+        condition_type: str = ConditionType.ADDRESS_ALLOWLIST.value,
+        *args,
+        **kwargs,
     ):
         """
         Initialize a AddressAllowlistCondition.
@@ -45,28 +82,15 @@ class AddressAllowlistCondition(AccessControlCondition):
             addresses: List of checksummed Ethereum addresses that are allowed to decrypt
             name: Optional name for the condition
         """
-        # Check for duplicates
-        if len(set(addresses)) != len(addresses):
-            raise InvalidCondition("Duplicate addresses are not allowed")
-
-        # Validate all addresses
-        for address in addresses:
-            try:
-                # Ensure addresses have proper checksum
-                normalized_address = to_checksum_address(address)
-            except ValueError as e:
-                raise InvalidCondition(f"Invalid Ethereum address: {address}") from e
-            if normalized_address != address:
-                raise InvalidCondition(
-                    f"Address {address} is not a checksummed address"
-                )
 
         # Store the validated addresses
         self.addresses = addresses
 
         super().__init__(
-            condition_type=self.CONDITION_TYPE,
+            condition_type=condition_type,
             name=name,
+            *args,
+            **kwargs,
         )
 
     def verify(self, **context) -> Tuple[bool, Union[None, Dict]]:
@@ -85,11 +109,9 @@ class AddressAllowlistCondition(AccessControlCondition):
             raise RequiredContextVariable("No value provided for context variable")
 
         # Get user's address using resolve_any_context_variables
-        user_address = resolve_any_context_variables(context[USER_ADDRESS_CONTEXT])[
-            "address"
-        ]
+        user_address = resolve_any_context_variables(USER_ADDRESS_CONTEXT, **context)
         # Simply check if the normalized address is in the allowlist
-        is_allowed = to_checksum_address(user_address) in self.addresses
+        is_allowed = user_address in self.addresses
 
         return is_allowed, None
 
