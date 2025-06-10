@@ -700,31 +700,39 @@ def valid_eip712_auth_message():
     return auth_message
 
 
-@pytest.fixture(scope="function")
-def valid_eip4361_auth_message():
-    signer = InMemorySigner()
-    siwe_message_data = {
-        "domain": "login.xyz",
-        "address": f"{signer.accounts[0]}",
-        "statement": "Sign-In With Ethereum Example Statement",
-        "uri": "https://login.xyz",
-        "version": "1",
-        "nonce": "bTyXgcQxn2htgkjJn",
-        "chain_id": 1,
-        "issued_at": f"{maya.now().iso8601()}",
-    }
-    siwe_message = SiweMessage(**siwe_message_data).prepare_message()
-    signature = signer.sign_message(
-        account=signer.accounts[0], message=siwe_message.encode()
-    )
-    auth_message = {
-        "signature": f"{signature.hex()}",
-        "address": f"{signer.accounts[0]}",
-        "scheme": f"{EvmAuth.AuthScheme.EIP4361.value}",
-        "typedData": f"{siwe_message}",
-    }
+@pytest.fixture
+def valid_eip4361_auth_message_factory():
+    def _valid_eip4361_auth_message():
+        signer = InMemorySigner()
+        siwe_message_data = {
+            "domain": "login.xyz",
+            "address": f"{signer.accounts[0]}",
+            "statement": "Sign-In With Ethereum Example Statement",
+            "uri": "https://login.xyz",
+            "version": "1",
+            "nonce": "bTyXgcQxn2htgkjJn",
+            "chain_id": 1,
+            "issued_at": f"{maya.now().iso8601()}",
+        }
+        siwe_message = SiweMessage(**siwe_message_data).prepare_message()
+        signature = signer.sign_message(
+            account=signer.accounts[0], message=siwe_message.encode()
+        )
+        auth_message = {
+            "signature": f"{signature.hex()}",
+            "address": f"{signer.accounts[0]}",
+            "scheme": f"{EvmAuth.AuthScheme.EIP4361.value}",
+            "typedData": f"{siwe_message}",
+        }
 
-    return auth_message
+        return auth_message
+
+    return _valid_eip4361_auth_message
+
+
+@pytest.fixture
+def valid_eip4361_auth_message(valid_eip4361_auth_message_factory):
+    return valid_eip4361_auth_message_factory()
 
 
 @pytest.fixture(scope="session", autouse=True)
