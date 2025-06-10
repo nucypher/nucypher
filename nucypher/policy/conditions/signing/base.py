@@ -3,7 +3,10 @@ from typing import Any, Optional, Tuple
 from marshmallow import ValidationError, fields, post_load, validate, validates
 
 from nucypher.policy.conditions.base import Condition
-from nucypher.policy.conditions.context import is_context_variable
+from nucypher.policy.conditions.context import (
+    is_context_variable,
+    resolve_any_context_variables,
+)
 from nucypher.policy.conditions.exceptions import (
     InvalidContextVariableData,
     RequiredContextVariable,
@@ -60,7 +63,9 @@ class AttributeCondition(Condition):
             providers=providers, **context
         )
 
-        object_dict = context.get(self.object_context_var)
+        object_dict = resolve_any_context_variables(
+            self.object_context_var, providers=providers, **context
+        )
         if not object_dict:
             raise RequiredContextVariable(
                 f"No object entry for context variable {self.object_context_var}"
