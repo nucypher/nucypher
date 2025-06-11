@@ -59,7 +59,7 @@ class UserOperation:
     def __eq__(self, other) -> bool:
         if not isinstance(other, UserOperation):
             return False
-        return self.to_dict() == other.to_dict()
+        return bytes(self) == bytes(other)
 
     def __bytes__(self) -> bytes:
         return json.dumps(self.to_dict(), sort_keys=True).encode("utf-8")
@@ -221,6 +221,11 @@ class PackedUserOperation:
 
     def __bytes__(self) -> bytes:
         return json.dumps(self.to_dict(), sort_keys=True).encode("utf-8")
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, PackedUserOperation):
+            return False
+        return bytes(self) == bytes(other)
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "PackedUserOperation":
