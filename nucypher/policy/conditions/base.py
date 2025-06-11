@@ -53,6 +53,12 @@ class _Serializable:
         instance = cls.from_json(json_payload)
         return instance
 
+    def _validate(self, **kwargs):
+        errors = self.Schema().validate(data=self.to_dict())
+        if errors:
+            error_message = extract_single_error_message_from_schema_errors(errors)
+            raise ValueError(f"Invalid {self.__class__.__name__}: {error_message}")
+
 
 class Condition(_Serializable, ABC):
     CONDITION_TYPE = NotImplemented
@@ -68,20 +74,15 @@ class Condition(_Serializable, ABC):
         self.condition_type = condition_type
         self.name = name
 
-        self._validate()
+        try:
+            self._validate()
+        except ValueError as e:
+            raise InvalidCondition(f"{e}")
 
     @abstractmethod
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         """Returns the boolean result of the evaluation and the returned value in a two-tuple."""
         raise NotImplementedError
-
-    def _validate(self, **kwargs):
-        errors = self.Schema().validate(data=self.to_dict())
-        if errors:
-            error_message = extract_single_error_message_from_schema_errors(errors)
-            raise InvalidCondition(
-                f"Invalid {self.__class__.__name__}: {error_message}"
-            )
 
     @classmethod
     def from_dict(cls, data) -> "Condition":
@@ -146,10 +147,10 @@ class ExecutionCall(_Serializable, ABC):
 
     def __init__(self):
         # validate call using marshmallow schema before creating
-        errors = self.Schema().validate(data=self.to_dict())
-        if errors:
-            error_message = extract_single_error_message_from_schema_errors(errors)
-            raise self.InvalidExecutionCall(f"{error_message}")
+        try:
+            self._validate()
+        except ValueError as e:
+            raise self.InvalidExecutionCall(f"{e}")
 
     @abstractmethod
     def execute(self, *args, **kwargs) -> Any:
