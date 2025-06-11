@@ -141,16 +141,19 @@ class ECDSAConditionDict(_Condition):
     verifyingKey: str
 
 
+class _SigningObjectCondition(_Condition):
+    signing_object_context_var: str
+
+
 #
-# AttributeCondition represents:
+# AttributeSigningObjectCondition represents:
 # {
 #     "attributeName": str
 #     "objectContextVar": str
 #     "returnValueTest: <>
 # }
-class AttributeCondition(_Condition):
+class AttributeSigningObjectCondition(_SigningObjectCondition):
     attributeName: str
-    objectContextVar: str
     returnValueTest: ReturnValueTestDict
 
 
@@ -166,7 +169,7 @@ class AttributeCondition(_Condition):
 # - SequentialCondition
 # - IfThenElseCondition
 # - ECDSACondition
-# - AttributeCondition
+# - AttributeSigningObjectCondition
 ConditionDict = Union[
     TimeConditionDict,
     RPCConditionDict,
@@ -178,7 +181,7 @@ ConditionDict = Union[
     SequentialConditionDict,
     IfThenElseConditionDict,
     ECDSAConditionDict,
-    AttributeCondition,
+    AttributeSigningObjectCondition,
 ]
 
 

@@ -754,7 +754,9 @@ class ConditionLingo(_Serializable):
         from nucypher.policy.conditions.json.api import JsonApiCondition
         from nucypher.policy.conditions.json.rpc import JsonRpcCondition
         from nucypher.policy.conditions.jwt import JWTCondition
-        from nucypher.policy.conditions.signing.base import AttributeCondition
+        from nucypher.policy.conditions.signing.base import (
+            AttributeSigningObjectCondition,
+        )
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
@@ -771,7 +773,7 @@ class ConditionLingo(_Serializable):
             SequentialCondition,
             IfThenElseCondition,
             ECDSACondition,
-            AttributeCondition,
+            AttributeSigningObjectCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition

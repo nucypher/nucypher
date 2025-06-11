@@ -1,11 +1,12 @@
 import json
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from hexbytes import HexBytes
 
 from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.conditions.signing.base import SIGNING_CONDITION_OBJECT_CONTEXT_VAR
 from nucypher.policy.conditions.types import ContextDict
 from nucypher.utilities.erc4337_utils import (
     AAVersion,
@@ -352,13 +353,36 @@ def deserialize_signature_request(
         signature_type_str = result["signature_type"]
         signature_type = SignatureRequestType(signature_type_str)
 
+        signature_request = None
         if signature_type == SignatureRequestType.USEROP:
-            return UserOperationSignatureRequest.from_bytes(request_data)
+            signature_request = UserOperationSignatureRequest.from_bytes(request_data)
         elif signature_type == SignatureRequestType.PACKED_USER_OP:
-            return PackedUserOperationSignatureRequest.from_bytes(request_data)
+            signature_request = PackedUserOperationSignatureRequest.from_bytes(
+                request_data
+            )
         elif signature_type == SignatureRequestType.EIP_191:
-            return EIP191SignatureRequest.from_bytes(request_data)
+            signature_request = EIP191SignatureRequest.from_bytes(request_data)
 
-        raise ValueError(f"Invalid signature request type: {signature_type}")
+        if not signature_request:
+            raise ValueError(f"Invalid signature request type: {signature_type}")
+
+        # add the signing object to the context
+        signing_object = get_signature_request_object(signature_request)
+        signature_request.context[SIGNING_CONDITION_OBJECT_CONTEXT_VAR] = signing_object
+
+        return signature_request
+
     except (json.JSONDecodeError, ValueError) as e:
         raise ValueError("Invalid signature request data") from e
+
+
+def get_signature_request_object(request: BaseSignatureRequest) -> Any:
+    """Get the signature request object based on the request type."""
+    if isinstance(request, UserOperationSignatureRequest):
+        return request.user_op
+    elif isinstance(request, PackedUserOperationSignatureRequest):
+        return request.packed_user_op
+    elif isinstance(request, EIP191SignatureRequest):
+        return request.data
+
+    raise ValueError(f"Unsupported signature request: {request.__class__.__name__}")

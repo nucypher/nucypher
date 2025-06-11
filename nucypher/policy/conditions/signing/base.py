@@ -1,10 +1,10 @@
+from abc import ABC
 from typing import Any, Optional, Tuple
 
-from marshmallow import ValidationError, fields, post_load, validate, validates
+from marshmallow import fields, post_load, validate
 
 from nucypher.policy.conditions.base import Condition
 from nucypher.policy.conditions.context import (
-    is_context_variable,
     resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
@@ -14,16 +14,38 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 from nucypher.policy.conditions.utils import ConditionProviderManager
 
+SIGNING_CONDITION_OBJECT_CONTEXT_VAR = ":signingConditionObject"
 
-class AttributeCondition(Condition):
-    CONDITION_TYPE = ConditionType.ATTRIBUTE.value
+
+class SigningObjectCondition(Condition, ABC):
+    """
+    Base class for signing conditions.
+    This class is abstract and should not be instantiated directly.
+    """
 
     class Schema(Condition.Schema):
+        signing_object_context_var = fields.Str(
+            required=True, validate=validate.Equal(SIGNING_CONDITION_OBJECT_CONTEXT_VAR)
+        )
+
+    def __init__(
+        self,
+        signing_object_context_var: str = SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
+        *args,
+        **kwargs,
+    ):
+        self.signing_object_context_var = signing_object_context_var
+        super().__init__(*args, **kwargs)
+
+
+class AttributeSigningObjectCondition(SigningObjectCondition):
+    CONDITION_TYPE = ConditionType.ATTRIBUTE.value
+
+    class Schema(SigningObjectCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.ATTRIBUTE.value), required=True
         )
         attribute_name = fields.String(required=True)
-        object_context_var = fields.String(required=True)
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
         )
@@ -32,29 +54,25 @@ class AttributeCondition(Condition):
         class Meta:
             ordered = True
 
-        @validates("object_context_var")
-        def validate_object_context_var(self, value):
-            if not is_context_variable(value):
-                raise ValidationError(
-                    f"Invalid value for context variable; expected a context variable, but got '{value}'"
-                )
-
         @post_load
         def make(self, data, **kwargs):
-            return AttributeCondition(**data)
+            return AttributeSigningObjectCondition(**data)
 
     def __init__(
         self,
         attribute_name: str,
-        object_context_var: str,
         return_value_test: ReturnValueTest,
+        signing_object_context_var: str = SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
         condition_type: str = ConditionType.ATTRIBUTE.value,
         name: Optional[str] = None,
     ):
         self.attribute_name = attribute_name
-        self.object_context_var = object_context_var
         self.return_value_test = return_value_test
-        super().__init__(condition_type=condition_type, name=name)
+        super().__init__(
+            signing_object_context_var=signing_object_context_var,
+            condition_type=condition_type,
+            name=name,
+        )
 
     def verify(
         self, providers: ConditionProviderManager, **context
@@ -63,26 +81,23 @@ class AttributeCondition(Condition):
             providers=providers, **context
         )
 
-        object_dict = resolve_any_context_variables(
-            self.object_context_var, providers=providers, **context
+        signing_object = resolve_any_context_variables(
+            self.signing_object_context_var, providers=providers, **context
         )
-        if not object_dict:
+        if not signing_object:
             raise RequiredContextVariable(
-                f"No object entry for context variable {self.object_context_var}"
-            )
-
-        if not isinstance(object_dict, dict):
-            raise InvalidContextVariableData(
-                f"Object provided for context var {self.object_context_var} is not a dictionary"
+                f"No object entry for context variable {self.signing_object_context_var}"
             )
 
         try:
-            attribute_value = object_dict[self.attribute_name]
-        except KeyError:
+            # TODO for EIP191SignatureRequest, the object is just bytes, so that would fail here
+            #  how do we handle that?
+            attribute_value = getattr(signing_object, self.attribute_name)
+        except AttributeError:
             # makes it clear that entry not present - allows possibility that
             # attribute value could be None as a legit value
             raise InvalidContextVariableData(
-                f"Object provided for context var {self.object_context_var} does not have attribute {self.attribute_name}"
+                f"Object provided does not have attribute {self.attribute_name}"
             )
 
         result = resolved_return_value_test.eval(attribute_value)
