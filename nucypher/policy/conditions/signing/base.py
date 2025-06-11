@@ -9,7 +9,6 @@ from nucypher.policy.conditions.context import (
 )
 from nucypher.policy.conditions.exceptions import (
     InvalidContextVariableData,
-    RequiredContextVariable,
 )
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 from nucypher.policy.conditions.utils import ConditionProviderManager
@@ -82,10 +81,6 @@ class SigningObjectAttributeCondition(SigningObjectCondition):
         signing_object = resolve_any_context_variables(
             self.signing_object_context_var, providers=providers, **context
         )
-        if not signing_object:
-            raise RequiredContextVariable(
-                f"No object entry for context variable {self.signing_object_context_var}"
-            )
 
         try:
             # TODO for EIP191SignatureRequest, the object is just bytes, so that would fail here
@@ -95,8 +90,18 @@ class SigningObjectAttributeCondition(SigningObjectCondition):
             # makes it clear that entry not present - allows possibility that
             # attribute value could be None as a legit value
             raise InvalidContextVariableData(
-                f"Object provided does not have attribute {self.attribute_name}"
+                f"Object of type {type(signing_object)} provided does not have attribute {self.attribute_name}"
             )
 
-        result = resolved_return_value_test.eval(attribute_value)
+        # TODO: not the cleanest way to handle a string value needing to be quoted
+        #  for evaluation checking
+        modified_attribute_value_to_check = attribute_value
+        if isinstance(modified_attribute_value_to_check, str):
+            if not modified_attribute_value_to_check.startswith("0x"):
+                # value needs to be double-quoted
+                modified_attribute_value_to_check = (
+                    f'"{modified_attribute_value_to_check}"'
+                )
+
+        result = resolved_return_value_test.eval(modified_attribute_value_to_check)
         return result, attribute_value
