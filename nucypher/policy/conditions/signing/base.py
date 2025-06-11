@@ -38,7 +38,7 @@ class SigningObjectCondition(Condition, ABC):
         super().__init__(*args, **kwargs)
 
 
-class AttributeSigningObjectCondition(SigningObjectCondition):
+class SigningObjectAttributeCondition(SigningObjectCondition):
     CONDITION_TYPE = ConditionType.ATTRIBUTE.value
 
     class Schema(SigningObjectCondition.Schema):
@@ -54,7 +54,7 @@ class AttributeSigningObjectCondition(SigningObjectCondition):
 
         @post_load
         def make(self, data, **kwargs):
-            return AttributeSigningObjectCondition(**data)
+            return SigningObjectAttributeCondition(**data)
 
     def __init__(
         self,

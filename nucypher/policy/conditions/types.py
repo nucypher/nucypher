@@ -146,13 +146,13 @@ class _SigningObjectCondition(_Condition):
 
 
 #
-# AttributeSigningObjectCondition represents:
+# SigningObjectAttributeCondition represents:
 # {
 #     "attributeName": str
 #     "objectContextVar": str
 #     "returnValueTest: <>
 # }
-class AttributeSigningObjectCondition(_SigningObjectCondition):
+class SigningObjectAttributeCondition(_SigningObjectCondition):
     attributeName: str
     returnValueTest: ReturnValueTestDict
 
@@ -169,7 +169,7 @@ class AttributeSigningObjectCondition(_SigningObjectCondition):
 # - SequentialCondition
 # - IfThenElseCondition
 # - ECDSACondition
-# - AttributeSigningObjectCondition
+# - SigningObjectAttributeCondition
 ConditionDict = Union[
     TimeConditionDict,
     RPCConditionDict,
@@ -181,7 +181,7 @@ ConditionDict = Union[
     SequentialConditionDict,
     IfThenElseConditionDict,
     ECDSAConditionDict,
-    AttributeSigningObjectCondition,
+    SigningObjectAttributeCondition,
 ]
 
 
