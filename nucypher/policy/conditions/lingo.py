@@ -93,7 +93,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA  | ATTRIBUTE
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -281,6 +281,7 @@ _COMPARATOR_FUNCTIONS = {
     "<": pyoperator.lt,
     "<=": pyoperator.le,
     ">=": pyoperator.ge,
+    "in": pyoperator.contains,
 }
 
 
@@ -553,37 +554,48 @@ class IfThenElseCondition(MultiCondition):
         return else_result, values
 
 
-class ReturnValueTest:
+class ReturnValueTest(_Serializable):
     class InvalidExpression(ValueError):
         pass
 
     COMPARATORS = tuple(_COMPARATOR_FUNCTIONS)
 
-    class ReturnValueTestSchema(CamelCaseSchema):
+    class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
-        comparator = fields.Str(required=True, validate=OneOf(_COMPARATOR_FUNCTIONS))
+        comparator = fields.Str(
+            required=True,
+            validate=OneOf(_COMPARATOR_FUNCTIONS, error="Not a permitted comparator"),
+        )
         value = AnyField(
             allow_none=False, required=True
         )  # any valid type (excludes None)
         index = fields.Int(
-            strict=True, required=False, validate=Range(min=0), allow_none=True
+            strict=True,
+            required=False,
+            validate=Range(
+                min=0, error="Not a permitted index. Must be a an non-negative integer."
+            ),
+            allow_none=True,
         )
+
+        @validates_schema
+        def validate_comparator_and_value(self, data, **kwargs):
+            value = data.get("value")
+            if is_context_variable(value):
+                return
+
+            comparator = data.get("comparator")
+            if comparator == "in" and not isinstance(value, list):
+                raise ValidationError(
+                    field_name="value",
+                    message=f'"{type(value)}" is not a valid type for the "in" comparator; only list is allowed.',
+                )
 
         @post_load
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
     def __init__(self, comparator: str, value: Any, index: int = None):
-        if comparator not in self.COMPARATORS:
-            raise self.InvalidExpression(
-                f'"{comparator}" is not a permitted comparator.'
-            )
-
-        if index is not None and (not isinstance(index, int) or index < 0):
-            raise self.InvalidExpression(
-                f'"{index}" is not a permitted index. Must be a an non-negative integer.'
-            )
-
         if not is_context_variable(value):
             # adjust stored value to be JSON serializable
             if isinstance(value, (tuple, set)):
@@ -606,6 +618,11 @@ class ReturnValueTest:
         self.comparator = comparator
         self.value = value
         self.index = index
+
+        try:
+            self._validate()
+        except ValueError as e:
+            raise self.InvalidExpression(f"{e}")
 
     @classmethod
     def _sanitize_value(cls, value):
@@ -657,9 +674,22 @@ class ReturnValueTest:
             )
 
         processed_data = self._process_data(data, self.index)
-        left_operand = self._sanitize_value(processed_data)
-        right_operand = self._sanitize_value(self.value)
-        result = _COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
+        comparator_function = _COMPARATOR_FUNCTIONS.get(self.comparator)
+        if comparator_function == pyoperator.contains:
+            # for 'contains' operator, the left operand is the value and
+            # right operand is the data to check
+
+            # first need to sanitize all values in list
+            sanitized_list = [self._sanitize_value(v) for v in self.value]
+            left_operand = sanitized_list
+
+            right_operand = self._sanitize_value(processed_data)
+        else:
+            left_operand = self._sanitize_value(processed_data)
+            right_operand = self._sanitize_value(self.value)
+
+        result = comparator_function(left_operand, right_operand)
+
         return result
 
     def with_resolved_context(
@@ -807,9 +837,7 @@ class ExecutionCallCondition(Condition):
     EXECUTION_CALL_TYPE = NotImplemented
 
     class Schema(Condition.Schema):
-        return_value_test = fields.Nested(
-            ReturnValueTest.ReturnValueTestSchema(), required=True
-        )
+        return_value_test = fields.Nested(ReturnValueTest.Schema(), required=True)
 
     def __init__(
         self,
