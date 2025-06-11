@@ -46,9 +46,7 @@ class AttributeSigningObjectCondition(SigningObjectCondition):
             validate=validate.Equal(ConditionType.ATTRIBUTE.value), required=True
         )
         attribute_name = fields.String(required=True)
-        return_value_test = fields.Nested(
-            ReturnValueTest.ReturnValueTestSchema(), required=True
-        )
+        return_value_test = fields.Nested(ReturnValueTest.Schema(), required=True)
 
         # maintain field declaration ordering
         class Meta:
