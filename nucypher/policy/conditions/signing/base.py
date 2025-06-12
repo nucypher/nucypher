@@ -11,7 +11,11 @@ from nucypher.policy.conditions.exceptions import (
     InvalidContextVariableData,
 )
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
-from nucypher.policy.conditions.utils import ConditionProviderManager
+from nucypher.policy.conditions.utils import (
+    ConditionProviderManager,
+    camel_case_to_snake,
+    is_camel_case,
+)
 
 SIGNING_CONDITION_OBJECT_CONTEXT_VAR = ":signingConditionObject"
 
@@ -63,7 +67,15 @@ class SigningObjectAttributeCondition(SigningObjectCondition):
         condition_type: str = ConditionType.ATTRIBUTE.value,
         name: Optional[str] = None,
     ):
-        self.attribute_name = attribute_name
+        # TODO what about camel case (from library) vs snake case (python) for
+        #  attribute names (is this sufficient?)
+        #  At the moment since there will be a python object, can we assume snake case conversion always?
+        self.attribute_name = (
+            camel_case_to_snake(attribute_name)
+            # TODO should attribute name ever be a context variable? Likely not...
+            if (attribute_name and is_camel_case(attribute_name))
+            else attribute_name
+        )
         self.return_value_test = return_value_test
         super().__init__(
             signing_object_context_var=signing_object_context_var,
