@@ -15,9 +15,8 @@ from nucypher.policy.conditions.signing.base import SigningObjectAttributeCondit
 from nucypher.utilities.erc4337_utils import (
     AAVersion,
     PackedUserOperation,
-    create_erc20_transfer,
-    create_eth_transfer,
 )
+from tests.utils.erc4337 import create_erc20_transfer, create_eth_transfer
 
 
 @pytest.fixture(scope="module")

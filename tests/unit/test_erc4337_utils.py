@@ -14,6 +14,8 @@ from nucypher.utilities.erc4337_utils import (
     EntryPointContracts,
     PackedUserOperation,
     UserOperation,
+)
+from tests.utils.erc4337 import (
     create_contract_call,
     create_erc20_approve,
     create_erc20_transfer,
