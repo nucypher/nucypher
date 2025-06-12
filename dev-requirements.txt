@@ -130,8 +130,10 @@ pynacl==1.5.0 ; python_version >= "3.9" and python_version < "4" and (implementa
 pyopenssl==25.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 pytest-cov==6.0.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 pytest-mock==3.14.0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pytest-sugar==1.0.0 ; python_version >= "3.9" and python_version < "4"
 pytest-timeout==2.3.1 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 pytest-twisted==1.14.3 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
+pytest-xdist==3.7.0 ; python_version >= "3.9" and python_version < "4"
 pytest==8.3.5 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 python-baseconv==1.2.2 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
 python-dateutil==2.9.0.post0 ; python_version >= "3.9" and python_version < "4" and (implementation_name == "cpython" or implementation_name == "pypy")
