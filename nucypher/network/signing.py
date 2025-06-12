@@ -35,8 +35,6 @@ class BaseSignatureRequest(ABC):
         signature_type: SignatureRequestType,
         context: Optional[ContextDict] = None,
     ):
-        if not isinstance(signature_type, SignatureRequestType):
-            raise ValueError(f"Invalid signature type: {signature_type}")
         self.cohort_id = cohort_id
         self.chain_id = chain_id
         self.context = context or {}
@@ -153,14 +151,6 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
         aa_version: AAVersion,
         context: Optional[ContextDict] = None,
     ):
-
-        if not isinstance(user_op, UserOperation):
-            raise ValueError("UserOp must be an instance of UserOperation.")
-        if aa_version is None:
-            raise ValueError(
-                "AA version must be specified for UserOperation signing request."
-            )
-
         self.user_op = user_op
         self.aa_version = aa_version
         super().__init__(
@@ -200,22 +190,15 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
         except (json.JSONDecodeError, KeyError) as e:
             raise ValueError("Invalid UserOperation request data") from e
 
-        try:
-            aa_version = AAVersion(aa_version_str)
+        aa_version = AAVersion(aa_version_str)
 
-            # Validate signature type
-            signature_type = SignatureRequestType(signature_type_str)
-            if signature_type != SignatureRequestType.USEROP:
-                raise ValueError(
-                    f"Expected USEROP signature type, got {signature_type}"
-                )
+        # Validate signature type
+        signature_type = SignatureRequestType(signature_type_str)
+        if signature_type != SignatureRequestType.USEROP:
+            raise ValueError(f"Expected USEROP signature type, got {signature_type}")
 
-            # Reconstruct the UserOperation
-            user_op = UserOperation.from_bytes(user_op_data.encode("utf-8"))
-
-        except ValueError:
-            # Re-raise ValueError as-is (includes our validation errors)
-            raise
+        # Reconstruct the UserOperation
+        user_op = UserOperation.from_bytes(user_op_data.encode("utf-8"))
 
         return cls(
             user_op=user_op,
@@ -237,13 +220,6 @@ class PackedUserOperationSignatureRequest(BaseSignatureRequest):
         aa_version: AAVersion,
         context: Optional[ContextDict] = None,
     ):
-
-        if not isinstance(packed_user_op, PackedUserOperation):
-            raise ValueError("UserOp must be an instance of PackedUserOperation.")
-        if aa_version is None:
-            raise ValueError(
-                "AA version must be specified for UserOperation signing request."
-            )
 
         self.packed_user_op = packed_user_op
         self.aa_version = aa_version
@@ -284,24 +260,17 @@ class PackedUserOperationSignatureRequest(BaseSignatureRequest):
         except (json.JSONDecodeError, KeyError) as e:
             raise ValueError("Invalid PackedUserOperation request data") from e
 
-        try:
-            aa_version = AAVersion(aa_version_str)
+        aa_version = AAVersion(aa_version_str)
 
-            # Validate signature type
-            signature_type = SignatureRequestType(signature_type_str)
-            if signature_type != SignatureRequestType.PACKED_USER_OP:
-                raise ValueError(
-                    f"Expected PACKED_USER_OP signature type, got {signature_type}"
-                )
-
-            # Reconstruct the UserOperation
-            packed_user_op = PackedUserOperation.from_bytes(
-                user_op_data.encode("utf-8")
+        # Validate signature type
+        signature_type = SignatureRequestType(signature_type_str)
+        if signature_type != SignatureRequestType.PACKED_USER_OP:
+            raise ValueError(
+                f"Expected PACKED_USER_OP signature type, got {signature_type}"
             )
 
-        except ValueError:
-            # Re-raise ValueError as-is (includes our validation errors)
-            raise
+        # Reconstruct the UserOperation
+        packed_user_op = PackedUserOperation.from_bytes(user_op_data.encode("utf-8"))
 
         return cls(
             packed_user_op=packed_user_op,
