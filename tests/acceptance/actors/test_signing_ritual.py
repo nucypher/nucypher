@@ -519,9 +519,7 @@ def test_signing_request_with_signing_object_attribute_condition(
 
     # set condition
     signing_object_condition = SigningObjectAttributeCondition(
-        # TODO currently this considers snake case (python) as opposed to camel
-        #  case (thinking of client-side)
-        attribute_name="call_data",
+        attribute_name="callData",
         return_value_test=ReturnValueTest(
             comparator="==",
             value=HexBytes(erc20_transfer_op.call_data).hex(),
