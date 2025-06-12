@@ -93,6 +93,11 @@ def camel_case_to_snake(data: str) -> str:
     return data
 
 
+def is_camel_case(data: str) -> bool:
+    # Must start with lowercase, contain no underscores/spaces, and have at least one uppercase after the first char
+    return bool(re.fullmatch(r"[a-z]+(?:[A-Z][a-z0-9]*)*", data))
+
+
 class CamelCaseSchema(Schema):
     """Schema that uses camel-case for its external representation
     and snake-case for its internal representation.

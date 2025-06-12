@@ -162,7 +162,7 @@ class _SigningObjectCondition(_Condition):
 # SigningObjectAttributeCondition represents:
 # {
 #     "attributeName": str
-#     "objectContextVar": str
+#     "signingObjectContextVar": ":signingConditionObject"
 #     "returnValueTest: <>
 # }
 class SigningObjectAttributeCondition(_SigningObjectCondition):
