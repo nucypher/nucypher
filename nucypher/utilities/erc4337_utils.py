@@ -4,12 +4,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Tuple
 
-import eth_abi
-from eth_utils import keccak, to_bytes, to_checksum_address
+from eth_utils import to_bytes, to_checksum_address
 from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.crypto.powers import TransactingPower
+from nucypher.utilities.abi import encode_human_readable_call
 
 
 class EntryPointContracts:
@@ -315,13 +315,7 @@ class PackedUserOperation:
 
 
 def encode_function_call(signature: str, args: list) -> HexBytes:
-    selector = HexBytes(keccak(text=signature)[:4])
-    types = [
-        t
-        for t in signature[signature.find("(") + 1 : signature.find(")")].split(",")
-        if t
-    ]
-    return selector + HexBytes(eth_abi.encode(types, args))
+    return HexBytes(encode_human_readable_call(signature, args))
 
 
 def create_eth_transfer(
