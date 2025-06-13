@@ -133,26 +133,21 @@ def test_registry(module_mocker):
 
 
 @pytest.fixture(scope='module', autouse=True)
-def mock_contract_agency():
-    # Patch
-
-    # Monkeypatch # TODO: Use better tooling for this monkeypatch?
-    get_agent = ContractAgency.get_agent
-    get_agent_by_name = ContractAgency.get_agent_by_contract_name
-    ContractAgency.get_agent = MockContractAgency.get_agent
-    ContractAgency.get_agent_by_contract_name = MockContractAgency.get_agent_by_contract_name
-
-    # Test
-    yield MockContractAgency()
-
-    # Restore the monkey patching
-    ContractAgency.get_agent = get_agent
-    ContractAgency.get_agent_by_contract_name = get_agent_by_name
+def mock_contract_agency(module_mocker):
+    module_mocker.patch.object(
+        ContractAgency, "get_agent", MockContractAgency.get_agent
+    )
+    module_mocker.patch.object(
+        ContractAgency,
+        "get_agent_by_contract_name",
+        MockContractAgency.get_agent_by_contract_name,
+    )
+    return MockContractAgency()
 
 
 @pytest.fixture(scope='module')
 def agency(mock_contract_agency):
-    yield mock_contract_agency
+    return mock_contract_agency
 
 
 @pytest.fixture(scope="function")
@@ -206,7 +201,7 @@ def custom_config_filepath(custom_filepath: Path):
 
 
 @pytest.fixture(scope='function')
-def patch_keystore(mock_accounts, monkeypatch, mocker):
+def patch_keystore(mock_accounts, mocker):
     def successful_mock_keyfile_reader(_keystore, path):
 
         # Ensure the absolute path is passed to the keyfile reader
@@ -221,11 +216,12 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
             raise FileNotFoundError(f"No such file {full_path}")
         return account.address, dict(version=3, address=account.address)
 
-    mocker.patch('pathlib.Path.iterdir', return_value=[Path(key) for key in mock_accounts.keys()])
-    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keystore', successful_mock_keyfile_reader)
-    yield
-    monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keystore')
-
+    mocker.patch(
+        "pathlib.Path.iterdir", return_value=[Path(key) for key in mock_accounts.keys()]
+    )
+    mocker.patch.object(
+        KeystoreSigner, "_KeystoreSigner__read_keystore", successful_mock_keyfile_reader
+    )
 
 @pytest.fixture(scope='function')
 def mock_keystore(mocker):
@@ -233,7 +229,7 @@ def mock_keystore(mocker):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_substantiate_stamp(module_mocker, monkeymodule):
+def mock_substantiate_stamp(module_mocker):
     fake_signature = b'\xb1W5?\x9b\xbaix>\'\xfe`\x1b\x9f\xeb*9l\xc0\xa7\xb9V\x9a\x83\x84\x04\x97\x0c\xad\x99\x86\x81W\x93l\xc3\xbde\x03\xcd"Y\xce\xcb\xf7\x02z\xf6\x9c\xac\x84\x05R\x9a\x9f\x97\xf7\xa02\xb2\xda\xa1Gv\x01'
     module_mocker.patch.object(Ursula, "_substantiate_stamp", autospec=True)
     module_mocker.patch.object(Ursula, "operator_signature", fake_signature)
@@ -241,7 +237,7 @@ def mock_substantiate_stamp(module_mocker, monkeymodule):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_transacting_power(module_mocker, monkeymodule):
+def mock_transacting_power(module_mocker):
     module_mocker.patch.object(TransactingPower, "unlock")
 
 
@@ -251,7 +247,6 @@ def real_operator_get_staking_provider_address():
     return _real_get_staking_provider_address
 
 
-@pytest.mark.usefixtures("monkeymodule")
 @pytest.fixture(scope="module", autouse=True)
 def staking_providers(real_operator_get_staking_provider_address, accounts):
     def faked(self, *args, **kwargs):
@@ -264,8 +259,8 @@ def staking_providers(real_operator_get_staking_provider_address, accounts):
 
 
 @pytest.fixture(scope="module")
-def monkeypatch_get_staking_provider_from_operator(monkeymodule):
-    monkeymodule.setattr(
+def mocker_patch_get_staking_provider_from_operator(module_mocker):
+    module_mocker.patch.object(
         Operator,
         "get_staking_provider_address",
         lambda self: self.transacting_power.account,

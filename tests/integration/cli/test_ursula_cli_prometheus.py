@@ -4,7 +4,7 @@ from nucypher.config.characters import UrsulaConfiguration
 from tests.constants import FAKE_PASSWORD_CONFIRMED, MOCK_IP_ADDRESS
 
 
-def mock_ursula_run(mocker, ursulas, monkeypatch, ursula_test_config, mock_prometheus):
+def mock_ursula_run(mocker, ursulas, ursula_test_config, mock_prometheus):
     # Mock IP determination
     target = "nucypher.cli.actions.configure.determine_external_ip_address"
     mocker.patch(target, return_value=MOCK_IP_ADDRESS)
@@ -18,7 +18,7 @@ def mock_ursula_run(mocker, ursulas, monkeypatch, ursula_test_config, mock_prome
         operator.checksum_address = worker.checksum_address
         return True
 
-    monkeypatch.setattr(Operator, "block_until_ready", set_staking_provider_address)
+    mocker.patch.object(Operator, "block_until_ready", set_staking_provider_address)
 
     # Mock migration
     mocker.patch("nucypher.cli.commands.ursula.migrate", return_value=None)
@@ -38,12 +38,11 @@ def test_ursula_cli_prometheus(
     click_runner,
     mocker,
     ursulas,
-    monkeypatch,
     ursula_test_config,
     tempfile_path,
     mock_prometheus,
 ):
-    mock_ursula_run(mocker, ursulas, monkeypatch, ursula_test_config, mock_prometheus)
+    mock_ursula_run(mocker, ursulas, ursula_test_config, mock_prometheus)
 
     run_args = (
         "ursula",
@@ -83,7 +82,6 @@ def test_ursula_cli_prometheus_metrics_non_default_config(
     click_runner,
     mocker,
     ursulas,
-    monkeypatch,
     ursula_test_config,
     tempfile_path,
     mock_prometheus,
@@ -92,7 +90,7 @@ def test_ursula_cli_prometheus_metrics_non_default_config(
     interval = 30
     listen_address = "192.0.2.101"
 
-    mock_ursula_run(mocker, ursulas, monkeypatch, ursula_test_config, mock_prometheus)
+    mock_ursula_run(mocker, ursulas, ursula_test_config, mock_prometheus)
 
     run_args = (
         "ursula",

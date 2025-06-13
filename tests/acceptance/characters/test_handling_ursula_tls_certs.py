@@ -13,7 +13,7 @@ GlobalLoggerSettings.start_console_logging()
 
 
 @pytest_twisted.inlineCallbacks
-def test_cert_changed_for_service(monkeypatch, ursulas):
+def test_cert_changed_for_service(ursulas):
     ursula = ursulas[0]
     deployer = ursula.get_deployer()
     deployer.addServices()

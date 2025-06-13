@@ -32,7 +32,6 @@ def test_initialize_via_cli(
     config_class,
     custom_filepath: Path,
     click_runner,
-    monkeypatch,
 ):
     command = config_class.CHARACTER_CLASS.__name__.lower()
 
@@ -70,12 +69,12 @@ def test_initialize_via_cli(
 
 @pytest.mark.parametrize("config_class", CONFIG_CLASSES)
 def test_reconfigure_via_cli(
-    click_runner, custom_filepath: Path, config_class, monkeypatch, test_registry
+    click_runner, custom_filepath: Path, config_class, mocker, test_registry
 ):
     def fake_get_latest_registry(*args, **kwargs):
         return test_registry
 
-    monkeypatch.setattr(
+    mocker.patch.object(
         ContractRegistry, "from_latest_publication", fake_get_latest_registry
     )
 

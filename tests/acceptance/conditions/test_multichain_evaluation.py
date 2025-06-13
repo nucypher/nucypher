@@ -62,7 +62,7 @@ def conditions(bob, multichain_ids):
 
 
 def test_single_retrieve_with_multichain_conditions(
-    enacted_policy, bob, multichain_ursulas, conditions, monkeymodule, testerchain
+    enacted_policy, bob, multichain_ursulas, conditions, mocker, testerchain
 ):
     bob.remember_node(multichain_ursulas[0])
     bob.start_learning_loop()
@@ -72,7 +72,7 @@ def test_single_retrieve_with_multichain_conditions(
         encrypted_treasure_map=enacted_policy.treasure_map,
         alice_verifying_key=enacted_policy.publisher_verifying_key,
     )
-    monkeymodule.setattr(
+    mocker.patch.object(
         ConditionProviderManager,
         "web3_endpoints",
         lambda *args, **kwargs: [testerchain.w3],
@@ -87,7 +87,7 @@ def test_single_retrieve_with_multichain_conditions(
 
 
 def test_single_decryption_request_with_faulty_rpc_endpoint(
-    monkeymodule, testerchain, enacted_policy, bob, multichain_ursulas, conditions
+    mocker, testerchain, enacted_policy, bob, multichain_ursulas, conditions
 ):
     bob.remember_node(multichain_ursulas[0])
     bob.start_learning_loop()
@@ -98,7 +98,7 @@ def test_single_decryption_request_with_faulty_rpc_endpoint(
         alice_verifying_key=enacted_policy.publisher_verifying_key,
     )
 
-    monkeymodule.setattr(
+    mocker.patch.object(
         ConditionProviderManager,
         "web3_endpoints",
         lambda *args, **kwargs: [testerchain.w3, testerchain.w3],
@@ -119,7 +119,7 @@ def test_single_decryption_request_with_faulty_rpc_endpoint(
         # make original call
         return original_execute_call(*args, **kwargs)
 
-    monkeymodule.setattr(RPCCall, "_execute", faulty_rpc_execute_call)
+    mocker.patch.object(RPCCall, "_execute", faulty_rpc_execute_call)
     cleartexts = bob.retrieve_and_decrypt(
         message_kits=message_kits,
         **policy_info_kwargs,

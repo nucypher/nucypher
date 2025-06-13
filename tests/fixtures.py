@@ -449,7 +449,6 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
 @pytest.fixture(scope="module")
 def highperf_mocked_alice(
     fleet_of_highperf_mocked_ursulas,
-    monkeymodule,
     accounts,
 ):
     config = AliceConfiguration(
@@ -848,8 +847,12 @@ def mock_halt_reactor(session_mocker):
 
 
 @pytest.fixture(scope="session")
-def temp_config_root():
-    return Path("/tmp/nucypher-test")
+def temp_config_root(testrun_uid):
+    current_root = Path(f"/tmp/nucypher-test-{testrun_uid}")
+    yield current_root
+    if current_root.exists():
+        print(f"Removing {current_root}")
+        shutil.rmtree(current_root)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -871,9 +874,6 @@ def mock_default_config_root(session_mocker, temp_config_root):
 
 @pytest.fixture(scope="function", autouse=True)
 def clear_config_root(temp_config_root):
-    if temp_config_root.exists():
-        print(f"Removing {temp_config_root}")
-        shutil.rmtree(Path("/tmp/nucypher-test"))
     yield
     if Path(APP_DIR.user_data_dir).exists():
         raise RuntimeError(

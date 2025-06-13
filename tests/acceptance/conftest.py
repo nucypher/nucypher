@@ -55,25 +55,11 @@ FEE_RATE = 1
 
 
 #
-# General
-#
-
-
-@pytest.fixture(scope="module")
-def monkeymodule():
-    from _pytest.monkeypatch import MonkeyPatch
-
-    mpatch = MonkeyPatch()
-    yield mpatch
-    mpatch.undo()
-
-
-#
 # Accounts
 #
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def accounts():
     return ReservedTestAccountManager()
 

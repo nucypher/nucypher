@@ -42,7 +42,7 @@ def test_alice_finds_ursula_via_rest(alice, ursulas):
         assert ursula in alice.known_nodes
 
 
-@pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
+@pytest.mark.usefixtures("mocker_patch_get_staking_provider_from_operator")
 def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     """
     Although Ursulas propagate each other's interface information, as demonstrated above,
@@ -100,7 +100,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     # assert vladimir not in other_ursula.known_nodes
 
 
-@pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
+@pytest.mark.usefixtures("mocker_patch_get_staking_provider_from_operator")
 def test_alice_refuses_to_select_node_unless_ursula_is_valid(
     alice, idle_policy, ursulas
 ):

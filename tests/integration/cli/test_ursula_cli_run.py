@@ -50,7 +50,6 @@ def test_ursula_run_specified_config_file(
     click_runner,
     mocker,
     ursulas,
-    monkeypatch,
     v4_config_file,
 ):
     # migration spy
@@ -75,7 +74,7 @@ def test_ursula_run_specified_config_file(
         operator.checksum_address = worker.checksum_address
         return True
 
-    monkeypatch.setattr(Operator, "block_until_ready", set_staking_provider_address)
+    mocker.patch.object(Operator, "block_until_ready", set_staking_provider_address)
 
     # mock creation of non-dev ursula
     mocker.patch(
