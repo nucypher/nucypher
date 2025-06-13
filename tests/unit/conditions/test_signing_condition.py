@@ -14,9 +14,11 @@ from nucypher.policy.conditions.lingo import (
 )
 from nucypher.policy.conditions.signing.base import (
     SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
+    SigningObjectAbiAttributeCondition,
     SigningObjectAttributeCondition,
 )
 from nucypher.policy.conditions.utils import ConditionProviderManager
+from nucypher.utilities.abi import encode_human_readable_call
 
 
 @pytest.fixture
@@ -201,3 +203,159 @@ def test_signing_object_attribute_condition_lingo_json_serialization(
     )
     assert success is True
     assert result == signing_object.call_data
+
+
+def test_invalid_signing_object_abi_attribute_condition():
+    # invalid condition type
+    with pytest.raises(InvalidCondition, match=ConditionType.ABI_ATTRIBUTE.value):
+        _ = SigningObjectAbiAttributeCondition(
+            condition_type=ConditionType.TIME.value,
+            attribute_name="call_data",
+            abi_decode_string="transfer(address,uint256)",
+            abi_decode_value_index=0,
+            return_value_test=ReturnValueTest("==", 0),
+        )
+
+    # no abi decode string
+    with pytest.raises(InvalidCondition, match="Missing data for required field"):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_decode_string=None,
+            abi_decode_value_index=0,
+            return_value_test=ReturnValueTest("==", 0),
+        )
+
+    # invalid abi decode string
+    with pytest.raises(InvalidCondition, match="Invalid ABI decode string"):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_decode_string="transfer(address,uint257)",  # invalid data type
+            abi_decode_value_index=0,
+            return_value_test=ReturnValueTest("==", 0),
+        )
+
+    # no abi index value
+    with pytest.raises(InvalidCondition, match="Missing data for required field"):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_decode_string="transfer(address,uint256)",
+            abi_decode_value_index=None,
+            return_value_test=ReturnValueTest("==", 0),
+        )
+
+    # negative abi index
+    with pytest.raises(InvalidCondition, match="Must be greater than or equal to 0"):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_decode_string="transfer(address,uint256)",
+            abi_decode_value_index=-1,
+            return_value_test=ReturnValueTest("==", 0),
+        )
+
+    # abi index out of range
+    with pytest.raises(InvalidCondition, match="Value index '3' is out of range"):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_decode_string="transfer(address,uint256)",
+            abi_decode_value_index=3,  # out of range for this signature
+            return_value_test=ReturnValueTest("==", 0),
+        )
+
+
+def test_signing_object_abi_attribute_condition_initialization():
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_decode_string="transfer(address,uint256)",
+        abi_decode_value_index=2,
+        return_value_test=ReturnValueTest("==", 0),
+    )
+
+    assert condition.condition_type == ConditionType.ABI_ATTRIBUTE.value
+    assert condition.signing_object_context_var == SIGNING_CONDITION_OBJECT_CONTEXT_VAR
+    assert condition.attribute_name == "call_data"
+    assert condition.abi_decode_string == "transfer(address,uint256)"
+    assert condition.abi_decode_value_index == 2
+    assert condition.return_value_test.eval(0)
+
+
+def test_signing_object_abi_attribute_condition_verify_method_call(
+    mocker, condition_provider_manager, get_random_checksum_address
+):
+    call_data_human_signature = "transfer(address,uint256)"
+    signing_object = mocker.Mock()
+    signing_object.call_data = encode_human_readable_call(
+        call_data_human_signature, [get_random_checksum_address(), 10_000_000]
+    )
+
+    allowed_method_calls = ['"transfer"', '"mint"', '"burn"']
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_decode_string=call_data_human_signature,
+        abi_decode_value_index=0,  # method is at 0-index
+        return_value_test=ReturnValueTest("in", allowed_method_calls),
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+
+    success, result = condition.verify(providers=condition_provider_manager, **context)
+    assert success is True
+    assert result == "transfer"
+
+
+def test_signing_object_abi_attribute_condition_verify_transfer_address_call(
+    mocker, condition_provider_manager, get_random_checksum_address
+):
+    call_data_human_signature = "transfer(address,uint256)"
+    allowed_addresses = [
+        get_random_checksum_address(),
+        get_random_checksum_address(),
+        get_random_checksum_address(),
+    ]
+    signing_object = mocker.Mock()
+    signing_object.call_data = encode_human_readable_call(
+        call_data_human_signature, [allowed_addresses[0], 10_000_000]
+    )
+
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_decode_string=call_data_human_signature,
+        abi_decode_value_index=1,  # method is at 0-index
+        return_value_test=ReturnValueTest("in", allowed_addresses),
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+
+    success, result = condition.verify(providers=condition_provider_manager, **context)
+    assert success is True
+
+    not_allowed_address = get_random_checksum_address()
+    signing_object.call_data = encode_human_readable_call(
+        call_data_human_signature, [not_allowed_address, 10_000_000]
+    )
+    success, result = condition.verify(providers=condition_provider_manager, **context)
+    assert success is False
+
+
+def test_signing_object_abi_attribute_condition_verify_transfer_amount_call(
+    mocker, condition_provider_manager, get_random_checksum_address
+):
+    call_data_human_signature = "transfer(address,uint256)"
+    signing_object = mocker.Mock()
+    signing_object.call_data = encode_human_readable_call(
+        call_data_human_signature, [get_random_checksum_address(), 10_000_000]
+    )
+
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_decode_string=call_data_human_signature,
+        abi_decode_value_index=2,  # method is at 0-index
+        return_value_test=ReturnValueTest("<", 20_000_000),
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+
+    success, result = condition.verify(providers=condition_provider_manager, **context)
+    assert success is True
+
+    signing_object.call_data = encode_human_readable_call(
+        call_data_human_signature, [get_random_checksum_address(), 30_000_000]
+    )
+    success, result = condition.verify(providers=condition_provider_manager, **context)
+    assert success is False
