@@ -1,4 +1,3 @@
-from pathlib import Path
 
 import pytest_twisted
 import requests
@@ -9,7 +8,7 @@ from nucypher.characters.lawful import Ursula
 
 
 @pytest_twisted.inlineCallbacks
-def test_nodes_connect_via_tls_and_verify(lonely_ursula_maker):
+def test_nodes_connect_via_tls_and_verify(lonely_ursula_maker, tempfile_path):
     node = lonely_ursula_maker(quantity=1).pop()
     node_deployer = node.get_deployer()
 
@@ -25,9 +24,8 @@ def test_nodes_connect_via_tls_and_verify(lonely_ursula_maker):
         ursula = Ursula.from_metadata_bytes(response.content)
         assert ursula == node
 
-    try:
-        with open("test-cert", "wb") as f:
-            f.write(cert_bytes)
-        yield threads.deferToThread(check_node_with_cert, node, "test-cert")
-    finally:
-        Path("test-cert").unlink()
+    cert_file = tempfile_path
+    with open(cert_file, "wb") as f:
+        f.write(cert_bytes)
+
+    yield threads.deferToThread(check_node_with_cert, node, cert_file)
