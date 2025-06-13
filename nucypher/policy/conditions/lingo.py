@@ -111,6 +111,7 @@ class ConditionType(Enum):
     ADDRESS_ALLOWLIST = "address-allowlist"
     ECDSA = "ecdsa"
     ATTRIBUTE = "attribute"
+    ABI_ATTRIBUTE = "abi-attribute"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -793,6 +794,7 @@ class ConditionLingo(_Serializable):
         from nucypher.policy.conditions.json.rpc import JsonRpcCondition
         from nucypher.policy.conditions.jwt import JWTCondition
         from nucypher.policy.conditions.signing.base import (
+            SigningObjectAbiAttributeCondition,
             SigningObjectAttributeCondition,
         )
         from nucypher.policy.conditions.time import TimeCondition
@@ -813,6 +815,7 @@ class ConditionLingo(_Serializable):
             AddressAllowlistCondition,
             ECDSACondition,
             SigningObjectAttributeCondition,
+            SigningObjectAbiAttributeCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition
