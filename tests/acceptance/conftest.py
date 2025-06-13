@@ -99,8 +99,8 @@ def initiator(testerchain, alice, ritual_token, deployer_account):
 # Contracts Dependencies
 #
 
-
-@pytest.fixture(scope="session", autouse=True)
+# module-scoped on purpose for parallelized tests
+@pytest.fixture(scope="module")
 def nucypher_dependency(project):
     nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
     # simply use first entry - could be from github ('main') or local ('local')
@@ -108,7 +108,8 @@ def nucypher_dependency(project):
     return nucypher_dependency
 
 
-@pytest.fixture(scope="session", autouse=True)
+# module-scoped on purpose for parallelized tests
+@pytest.fixture(scope="module")
 def oz_dependency(project):
     _oz_dependency = project.dependencies["openzeppelin"]["5.0.0"]
     return _oz_dependency
