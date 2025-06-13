@@ -7,7 +7,7 @@ from eth_utils import function_signature_to_4byte_selector
 FUNCTION_NAME_PATTERN = r"^[a-zA-Z_][a-zA-Z0-9_]*$"
 
 
-def _extract_arg_types(human_signature: str) -> List[str]:
+def extract_arg_types(human_signature: str) -> List[str]:
     # Extract argument types from signature
     start = human_signature.find("(")
     end = human_signature.rfind(")")
@@ -49,7 +49,7 @@ def is_valid_human_readable_signature(human_signature: str) -> bool:
         if not re.fullmatch(FUNCTION_NAME_PATTERN, method_name):
             return False
 
-        arg_types = _extract_arg_types(human_signature)
+        arg_types = extract_arg_types(human_signature)
         for arg_type in arg_types:
             if not eth_abi.is_encodable_type(arg_type):
                 return False
@@ -65,7 +65,7 @@ def encode_human_readable_call(human_signature: str, args: list) -> bytes:
     a call data format suitable for Ethereum transactions.
     """
     selector = function_signature_to_4byte_selector(human_signature)
-    types = _extract_arg_types(human_signature)
+    types = extract_arg_types(human_signature)
     return selector + eth_abi.encode(types, args)
 
 
@@ -81,7 +81,7 @@ def decode_human_readable_call(
     if call_data[:4] != selector:
         raise ValueError("Call data does not match function selector")
 
-    arg_types = _extract_arg_types(human_signature)
+    arg_types = extract_arg_types(human_signature)
 
     # Decode the arguments
     args_data = call_data[4:]
