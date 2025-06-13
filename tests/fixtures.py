@@ -727,7 +727,7 @@ def valid_eip4361_auth_message():
     return auth_message
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def clock():
     """Distorts the space-time continuum.  Use with caution."""
     clock = Clock()
@@ -766,7 +766,7 @@ def ursulas(accounts, ursula_test_config, staking_providers):
     _ursulas.clear()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def dkg_public_key_data(
     get_random_checksum_address,
 ) -> Tuple[AggregatedTranscript, DkgPublicKey]:
@@ -806,13 +806,13 @@ def dkg_public_key_data(
     return aggregate_transcript, public_key
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def dkg_public_key(dkg_public_key_data) -> DkgPublicKey:
     _, dkg_public_key = dkg_public_key_data
     return dkg_public_key
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def aggregated_transcript(dkg_public_key_data) -> AggregatedTranscript:
     aggregated_transcript, _ = dkg_public_key_data
     return aggregated_transcript
