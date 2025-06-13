@@ -71,8 +71,12 @@ jobs:
       - name: Integration Tests (Coverage)
         if: matrix.python-version == '3.12'
         # TODO: don't run integration tests in parallel, as they are not thread-safe atm
+        env:
+          PYTHONPATH: ./coverage_bootstrap
+          COVERAGE_PROCESS_START: .coveragerc
         run: |
-          coverage run --data-file=integration_data -m pytest -n 0 tests/integration
+          COVERAGE_FILE=integration_data coverage run -m pytest -n 0 tests/integration
+          coverage combine --data-file=integration_data
           coverage xml -i --data-file=integration_data -o integration-coverage.xml
 
       - name: Integration Tests
