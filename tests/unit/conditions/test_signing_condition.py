@@ -359,3 +359,46 @@ def test_signing_object_abi_attribute_condition_verify_transfer_amount_call(
     )
     success, result = condition.verify(providers=condition_provider_manager, **context)
     assert success is False
+
+
+def test_signing_object_abi_attribute_condition_lingo_json_serialization(
+    mocker, condition_provider_manager, get_random_checksum_address
+):
+    """Test serializing and deserializing a condition lingo with ECDSA condition"""
+    call_data_human_signature = "transfer(address,uint256)"
+    signing_object = mocker.Mock()
+    signing_object.call_data = encode_human_readable_call(
+        call_data_human_signature, [get_random_checksum_address(), 10_000_000]
+    )
+
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_decode_string=call_data_human_signature,
+        abi_decode_value_index=2,  # method is at 0-index
+        return_value_test=ReturnValueTest("<", 20_000_000),
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+
+    success, result = condition.verify(providers=condition_provider_manager, **context)
+    assert success is True
+
+    # Create condition lingo
+    lingo = ConditionLingo(condition)
+
+    # Convert lingo to JSON
+    original_lingo_json = lingo.to_json()
+
+    # Parse JSON to dict and verify structure
+    lingo_dict = json.loads(original_lingo_json)
+    assert lingo_dict["version"] == ConditionLingo.VERSION
+    assert lingo_dict["condition"]["conditionType"] == ConditionType.ABI_ATTRIBUTE.value
+
+    # Recreate lingo from JSON
+    recreated_lingo = ConditionLingo.from_json(original_lingo_json)
+    assert recreated_lingo.to_json() == original_lingo_json
+
+    # works the same
+    success, result = recreated_lingo.condition.verify(
+        providers=condition_provider_manager, **context
+    )
+    assert success is True

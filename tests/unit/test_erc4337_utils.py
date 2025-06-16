@@ -146,6 +146,7 @@ class TestPackedUserOperation:
             assert deserialized_op.signature == packed_user_op.signature
 
             assert packed_user_op == deserialized_op
+            assert packed_user_op != user_op
 
     def test_packed_user_op_account_gas_limits(self, sample_user_op):
         """Test _pack_account_gas_limits method"""

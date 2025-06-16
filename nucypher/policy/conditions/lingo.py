@@ -93,7 +93,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ECDSA | ATTRIBUTE
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ECDSA | ATTRIBUTE | ABI_ATTRIBUTE
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -281,7 +281,7 @@ _COMPARATOR_FUNCTIONS = {
     "<": pyoperator.lt,
     "<=": pyoperator.le,
     ">=": pyoperator.ge,
-    "in": pyoperator.contains,
+    "in": pyoperator.contains,  # currently only supports checking value in list (not sub-string/bytes comparisons)
 }
 
 
