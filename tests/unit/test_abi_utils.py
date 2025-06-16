@@ -24,6 +24,7 @@ from nucypher.utilities.abi import (
         ("tupleType((string,uint256,address))", True),
         ("arrayType(uint256[],address[])", True),
         ("tupleArrayType((string,uint256,address)[])", True),
+        ("nestedTupleType(address,(string,uint256,(address,bool)))", True),
         # Failure cases
         ("invalidSignature", False),  # Invalid signature
         ("123start(address, uint256)", False),  # Invalid function name
@@ -111,6 +112,14 @@ def test_valid_human_readable_signature(human_signature, expected):
                 )
             ],
         ),
+        (
+            "nestedTupleType(address,(string,uint256,(address,bool)))",
+            "nestedTupleType",
+            [
+                "0x1234567890abcdef1234567890abcdef12345678",
+                ("Alice", 30, ("0xabcdef1234567890abcdef1234567890abcdef12", False)),
+            ],
+        ),
     ],
 )
 def test_encode_decode_human_readable_abi(human_signature, expected_method_name, args):
@@ -131,3 +140,11 @@ def test_encode_decode_human_readable_abi(human_signature, expected_method_name,
     )
     assert method == keccak(text=human_signature)[:4]
     assert decoded_args == args
+
+    # Decoded selector does not match encoded call data
+    with pytest.raises(ValueError, match="Call data does not match function selector"):
+        decode_human_readable_call(
+            "differentHumanSignatureFromValuesInTest(address)",
+            encoded_call_data,
+            return_method_name=True,
+        )

@@ -121,7 +121,7 @@ class SigningObjectAttributeCondition(SigningObjectCondition):
         """
         try:
             # TODO for EIP191SignatureRequest, the object is just bytes, so that would fail here
-            #  how do we handle that?
+            #  how do we handle that? Is raising the exception sufficient?
             raw_attribute_value = getattr(signing_object, self.attribute_name)
         except AttributeError:
             # makes it clear that entry not present - allows possibility that
