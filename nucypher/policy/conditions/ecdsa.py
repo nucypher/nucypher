@@ -1,10 +1,17 @@
-import base64
 import hashlib
 from typing import Any, Optional, Tuple
 
-from ecdsa import BadSignatureError, VerifyingKey
-from ecdsa.util import sigdecode_der
-from marshmallow import ValidationError, fields, post_load, validate, validates
+from ecdsa import BadSignatureError, NIST192p, VerifyingKey
+from ecdsa.curves import Curve, curves
+from ecdsa.util import sigdecode_string
+from marshmallow import (
+    ValidationError,
+    fields,
+    post_load,
+    validate,
+    validates,
+    validates_schema,
+)
 
 from nucypher.policy.conditions.base import AccessControlCondition, ExecutionCall
 from nucypher.policy.conditions.context import (
@@ -17,6 +24,9 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.utilities.logging import Logger
 
+SUPPORTED_ECDSA_CONDITION_CURVES = {c.name: c for c in curves}
+DEFAULT_ECDSA_CONDITION_CURVE = NIST192p
+
 
 class ECDSAVerificationCall(ExecutionCall):
     # Use SHA-256 for hashing
@@ -26,6 +36,10 @@ class ECDSAVerificationCall(ExecutionCall):
         message = fields.Raw(required=True)
         signature = fields.Str(required=True)
         verifying_key = fields.Str(required=True)
+        curve = fields.Str(
+            required=False,
+            validate=validate.OneOf(list(SUPPORTED_ECDSA_CONDITION_CURVES)),
+        )
 
         @post_load
         def make(self, data, **kwargs):
@@ -41,30 +55,46 @@ class ECDSAVerificationCall(ExecutionCall):
         @validates("signature")
         def validate_signature(self, value):
             if not is_context_variable(value):
-                # Try to decode it to ensure it's valid base64
                 try:
-                    base64.b64decode(value)
+                    bytes.fromhex(value)
                 except Exception as e:
                     raise ValidationError(
-                        f"Invalid signature format, must be base64 encoded: {str(e)}"
+                        f"Invalid signature format, must be hex encoded: {str(e)}"
                     )
 
-        @validates("verifying_key")
-        def validate_verifying_key(self, value):
+        @validates_schema
+        def validate_verifying_key(self, data, **kwargs):
+            value = data.get("verifying_key")
+            curve_name = data.get("curve")
+            if curve_name:
+                if curve_name not in SUPPORTED_ECDSA_CONDITION_CURVES:
+                    raise ValidationError(
+                        f"Unsupported curve: {curve_name}. Supported curves are: {SUPPORTED_ECDSA_CONDITION_CURVES.keys()}"
+                    )
+                curve = SUPPORTED_ECDSA_CONDITION_CURVES[curve_name]
+            else:
+                curve = DEFAULT_ECDSA_CONDITION_CURVE
             try:
-                VerifyingKey.from_pem(value.encode())
+                verifying_key_bytes = bytes.fromhex(value)
+            except ValueError:
+                raise ValidationError(
+                    "Invalid verifying key format, must be hex encoded"
+                )
+            try:
+                VerifyingKey.from_string(
+                    verifying_key_bytes,
+                    curve=curve,
+                )
             except Exception as e:
-                raise ValidationError(f"Invalid verifying key format: {str(e)}")
+                raise ValidationError(
+                    f"Invalid verifying key for curve {curve_name}: {str(e)}"
+                )
 
-    def __init__(
-        self,
-        message: Any,
-        signature: str,
-        verifying_key: str,
-    ):
+    def __init__(self, message: Any, signature: str, verifying_key: str, curve: Curve):
         self.message = message
         self.signature = signature
         self.verifying_key = verifying_key
+        self.curve = curve
         self.logger = Logger(__name__)
         super().__init__()
 
@@ -84,22 +114,25 @@ class ECDSAVerificationCall(ExecutionCall):
                 # Normal resolution for other cases
                 message = resolve_any_context_variables(self.message, **context)
 
-            signature_b64 = resolve_any_context_variables(self.signature, **context)
+            signature_hex = resolve_any_context_variables(self.signature, **context)
 
             # Ensure message is bytes
             if isinstance(message, str):
                 message = message.encode("utf-8")
 
-            # Decode the base64 signature
+            # Decode the hex signature
             try:
-                signature = base64.b64decode(signature_b64)
+                signature = bytes.fromhex(signature_hex)
             except Exception as e:
                 self.logger.error(f"Error decoding signature: {e}")
                 return False
 
             # Load the verifying key
             try:
-                verifying_key = VerifyingKey.from_pem(self.verifying_key.encode())
+                verifying_key = VerifyingKey.from_string(
+                    string=bytes.fromhex(self.verifying_key),
+                    curve=self.curve,
+                )
             except Exception as e:
                 self.logger.error(f"Error loading verifying key: {e}")
                 return False
@@ -109,7 +142,7 @@ class ECDSAVerificationCall(ExecutionCall):
                 signature=signature,
                 data=message,
                 hashfunc=self._hash_func,
-                sigdecode=sigdecode_der,
+                sigdecode=sigdecode_string,
             )
         except BadSignatureError:
             return False
@@ -143,14 +176,21 @@ class ECDSACondition(AccessControlCondition):
         message: Any,
         signature: str,
         verifying_key: str,
+        curve: Optional[str] = DEFAULT_ECDSA_CONDITION_CURVE.name,
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
+        if curve not in SUPPORTED_ECDSA_CONDITION_CURVES:
+            raise InvalidCondition(
+                f"Unsupported curve: {curve}. Supported curves are: {list(SUPPORTED_ECDSA_CONDITION_CURVES.keys())}"
+            )
+
         try:
             self.execution_call = ECDSAVerificationCall(
                 message=message,
                 signature=signature,
                 verifying_key=verifying_key,
+                curve=SUPPORTED_ECDSA_CONDITION_CURVES[curve],
             )
         except ExecutionCall.InvalidExecutionCall as e:
             raise InvalidCondition(str(e)) from e
@@ -168,6 +208,10 @@ class ECDSACondition(AccessControlCondition):
     @property
     def verifying_key(self):
         return self.execution_call.verifying_key
+
+    @property
+    def curve(self):
+        return self.execution_call.curve
 
     def verify(self, **context) -> Tuple[bool, Any]:
         result = self.execution_call.execute(**context)
