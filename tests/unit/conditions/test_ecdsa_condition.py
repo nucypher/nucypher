@@ -296,6 +296,7 @@ def test_ecdsa_condition_bytes_context():
     assert success, "Verification should succeed with deserialized mixed context"
     assert result is True
 
+
 def test_discord_ed25519_signature():
     # Discord Ed25519 test vector
     public_key_hex = "b853dd9f496723daf64bf2f5a886086f790df66e61d7b6f7f98a50c9e5ede8f3"
