@@ -1,0 +1,2 @@
+Allow signing logic that can inspect and enforce rules on various attributes of the object
+being signed via a flexible, attribute-based condition.
