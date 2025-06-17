@@ -21,7 +21,6 @@ class SignatureRequestType(Enum):
     USEROP = "userop"
     PACKED_USER_OP = "packedUserOp"
     EIP_191 = "eip-191"
-    EIP_712 = "eip-712"
 
 
 # TODO I'm hesitant to have too much logic in this module because
