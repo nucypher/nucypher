@@ -154,6 +154,10 @@ class ECDSAConditionDict(_Condition):
     verifyingKey: str
 
 
+# _SigningObjectCondition abstract class represents:
+# {
+#     "signingObjectContextVar": ":signingConditionObject"
+# }
 class _SigningObjectCondition(_Condition):
     signing_object_context_var: str
 
@@ -170,6 +174,19 @@ class SigningObjectAttributeCondition(_SigningObjectCondition):
     returnValueTest: ReturnValueTestDict
 
 
+# SigningObjectAttributeCondition represents:
+# {
+#     "attributeName": str
+#     "signingObjectContextVar": ":signingConditionObject"
+#     "abiDecodeString": str
+#     "abiDecodeValueIndex: int
+#     "returnValueTest: <>
+# }
+class SigningObjectAbiAttributeCondition(SigningObjectAttributeCondition):
+    abiDecodeString: str
+    abiDecodeValueIndex: int
+
+
 #
 # ConditionDict is a dictionary of:
 # - TimeCondition
@@ -183,6 +200,7 @@ class SigningObjectAttributeCondition(_SigningObjectCondition):
 # - IfThenElseCondition
 # - ECDSACondition
 # - SigningObjectAttributeCondition
+# - SigningObjectAbiAttributeCondition
 ConditionDict = Union[
     TimeConditionDict,
     RPCConditionDict,
@@ -196,6 +214,7 @@ ConditionDict = Union[
     AddressAllowlistConditionDict,
     ECDSAConditionDict,
     SigningObjectAttributeCondition,
+    SigningObjectAbiAttributeCondition,
 ]
 
 
