@@ -1,5 +1,5 @@
 import re
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 import eth_abi
 from eth_utils import function_signature_to_4byte_selector
@@ -71,7 +71,7 @@ def encode_human_readable_call(human_signature: str, args: list) -> bytes:
 
 def decode_human_readable_call(
     human_signature: str, call_data: bytes, return_method_name: bool = True
-) -> Tuple[Union[str, bytes], List]:
+) -> Tuple[Union[str, bytes], List[Any]]:
     """
     Decode a human-readable function call signature and its arguments from the
     provided call data into method name OR method selector, and arguments

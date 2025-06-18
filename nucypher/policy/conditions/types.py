@@ -159,18 +159,35 @@ class ECDSAConditionDict(_Condition):
 #     "signingObjectContextVar": ":signingConditionObject"
 # }
 class _SigningObjectCondition(_Condition):
-    signing_object_context_var: str
+    signingObjectContextVar: str
 
 
-#
+# _BaseSigningObjectAttributeCondition abstract class represents:
+# {
+#     "signingObjectContextVar": ":signingConditionObject"
+#     "attributeName": str
+# }
+class _BaseSigningObjectAttributeCondition(_SigningObjectCondition):
+    attributeName: str
+
+
 # SigningObjectAttributeCondition represents:
 # {
 #     "attributeName": str
 #     "signingObjectContextVar": ":signingConditionObject"
 #     "returnValueTest: <>
 # }
-class SigningObjectAttributeCondition(_SigningObjectCondition):
-    attributeName: str
+class SigningObjectAttributeCondition(_BaseSigningObjectAttributeCondition):
+    returnValueTest: ReturnValueTestDict
+
+
+# AbiParameterValueCheck represents:
+# {
+#     "parameterIndex": str
+#     "returnValueTest: <>
+# }
+class AbiParameterValueCheck(TypedDict):
+    parameter_index: int
     returnValueTest: ReturnValueTestDict
 
 
@@ -178,14 +195,19 @@ class SigningObjectAttributeCondition(_SigningObjectCondition):
 # {
 #     "attributeName": str
 #     "signingObjectContextVar": ":signingConditionObject"
-#     "abiDecodeString": str
-#     "abiDecodeValueIndex: int
-#     "returnValueTest: <>
+#     "allowedAbiCalls": {
+#         "<abi_function_signature>": [
+#              <abi_parameter_value_check_1>,
+#              <abi_parameter_value_check_2>,
+#         ],
+#         "<abi_function_signature>": [
+#              <abi_parameter_value_check_1>,
+#              <abi_parameter_value_check_2>,
+#         ]
+#     }
 # }
-class SigningObjectAbiAttributeCondition(SigningObjectAttributeCondition):
-    abiDecodeString: str
-    abiDecodeValueIndex: int
-
+class SigningObjectAbiAttributeCondition(_BaseSigningObjectAttributeCondition):
+    allowedAbiCalls: Dict[str, List[AbiParameterValueCheck]]
 
 #
 # ConditionDict is a dictionary of:
