@@ -14,6 +14,7 @@ from nucypher.policy.conditions.lingo import (
 )
 from nucypher.policy.conditions.signing.base import (
     SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
+    AbiParameterValueCheck,
     SigningObjectAbiAttributeCondition,
     SigningObjectAttributeCondition,
 )
@@ -239,71 +240,79 @@ def test_invalid_signing_object_abi_attribute_condition():
         _ = SigningObjectAbiAttributeCondition(
             condition_type=ConditionType.TIME.value,
             attribute_name="call_data",
-            abi_decode_string="transfer(address,uint256)",
-            abi_decode_value_index=0,
-            return_value_test=ReturnValueTest("==", 0),
+            allowed_abi_calls={"transfer(address,uint256)": []},
         )
 
-    # no abi decode string
+    # no allowed abi calls
     with pytest.raises(InvalidCondition, match="Missing data for required field"):
         _ = SigningObjectAbiAttributeCondition(
-            attribute_name="call_data",
-            abi_decode_string=None,
-            abi_decode_value_index=0,
-            return_value_test=ReturnValueTest("==", 0),
+            attribute_name="call_data", allowed_abi_calls=None
         )
 
     # invalid abi decode string
-    with pytest.raises(InvalidCondition, match="Invalid ABI decode string"):
+    with pytest.raises(InvalidCondition, match="Invalid ABI signature"):
         _ = SigningObjectAbiAttributeCondition(
             attribute_name="call_data",
-            abi_decode_string="transfer(address,uint257)",  # invalid data type
-            abi_decode_value_index=0,
-            return_value_test=ReturnValueTest("==", 0),
+            allowed_abi_calls={
+                "transfer(address,uint257)": []  # invalid data type in signature
+            },
         )
 
     # no abi index value
-    with pytest.raises(InvalidCondition, match="Missing data for required field"):
+    with pytest.raises(ValueError, match="Field may not be null"):
         _ = SigningObjectAbiAttributeCondition(
             attribute_name="call_data",
-            abi_decode_string="transfer(address,uint256)",
-            abi_decode_value_index=None,
-            return_value_test=ReturnValueTest("==", 0),
+            allowed_abi_calls={
+                "transfer(address,uint256)": [
+                    AbiParameterValueCheck(None, ReturnValueTest("==", 0))
+                ]
+            },
         )
 
     # negative abi index
-    with pytest.raises(InvalidCondition, match="Must be greater than or equal to 0"):
+    with pytest.raises(ValueError, match="Must be greater than or equal to 0"):
         _ = SigningObjectAbiAttributeCondition(
             attribute_name="call_data",
-            abi_decode_string="transfer(address,uint256)",
-            abi_decode_value_index=-1,
-            return_value_test=ReturnValueTest("==", 0),
+            allowed_abi_calls={
+                "transfer(address,uint256)": [
+                    AbiParameterValueCheck(-1, ReturnValueTest("==", 0))
+                ]
+            },
         )
 
     # abi index out of range
-    with pytest.raises(InvalidCondition, match="Value index '3' is out of range"):
+    with pytest.raises(
+        InvalidCondition, match="Parameter value index '2' is out of range"
+    ):
         _ = SigningObjectAbiAttributeCondition(
             attribute_name="call_data",
-            abi_decode_string="transfer(address,uint256)",
-            abi_decode_value_index=3,  # out of range for this signature
-            return_value_test=ReturnValueTest("==", 0),
+            allowed_abi_calls={
+                "transfer(address,uint256)": [
+                    AbiParameterValueCheck(2, ReturnValueTest("==", 0))
+                ]
+            },
         )
 
 
 def test_signing_object_abi_attribute_condition_initialization():
     condition = SigningObjectAbiAttributeCondition(
         attribute_name="call_data",
-        abi_decode_string="transfer(address,uint256)",
-        abi_decode_value_index=2,
-        return_value_test=ReturnValueTest("==", 0),
+        allowed_abi_calls={
+            "transfer(address,uint256)": [
+                AbiParameterValueCheck(1, ReturnValueTest("==", 0))
+            ]
+        },
     )
 
     assert condition.condition_type == ConditionType.ABI_ATTRIBUTE.value
     assert condition.signing_object_context_var == SIGNING_CONDITION_OBJECT_CONTEXT_VAR
     assert condition.attribute_name == "call_data"
-    assert condition.abi_decode_string == "transfer(address,uint256)"
-    assert condition.abi_decode_value_index == 2
-    assert condition.return_value_test.eval(0)
+    assert list(condition.allowed_abi_calls.keys()) == ["transfer(address,uint256)"]
+    parameter_checks = condition.allowed_abi_calls["transfer(address,uint256)"]
+    assert len(parameter_checks) == 1
+    assert parameter_checks[0].parameter_index == 1
+    assert parameter_checks[0].return_value_test.comparator == "=="
+    assert parameter_checks[0].return_value_test.value == 0
 
 
 def test_signing_object_abi_attribute_condition_verify_method_call(
@@ -315,18 +324,19 @@ def test_signing_object_abi_attribute_condition_verify_method_call(
         call_data_human_signature, [get_random_checksum_address(), 10_000_000]
     )
 
-    allowed_method_calls = ['"transfer"', '"mint"', '"burn"']
     condition = SigningObjectAbiAttributeCondition(
         attribute_name="call_data",
-        abi_decode_string=call_data_human_signature,
-        abi_decode_value_index=0,  # method is at 0-index
-        return_value_test=ReturnValueTest("in", allowed_method_calls),
+        allowed_abi_calls={
+            "approve(address,uint256)": [],
+            "execute(address,uint256)": [],
+            "transfer(address,uint256)": [],
+        },
     )
     context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
 
     success, result = condition.verify(providers=condition_provider_manager, **context)
     assert success is True
-    assert result == "transfer"
+    assert result == "transfer(address,uint256)"
 
 
 def test_signing_object_abi_attribute_condition_verify_transfer_address_call(
@@ -345,9 +355,11 @@ def test_signing_object_abi_attribute_condition_verify_transfer_address_call(
 
     condition = SigningObjectAbiAttributeCondition(
         attribute_name="call_data",
-        abi_decode_string=call_data_human_signature,
-        abi_decode_value_index=1,  # method is at 0-index
-        return_value_test=ReturnValueTest("in", allowed_addresses),
+        allowed_abi_calls={
+            "transfer(address,uint256)": [
+                AbiParameterValueCheck(0, ReturnValueTest("in", allowed_addresses))
+            ]
+        },
     )
     context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
 
@@ -373,9 +385,11 @@ def test_signing_object_abi_attribute_condition_verify_transfer_amount_call(
 
     condition = SigningObjectAbiAttributeCondition(
         attribute_name="call_data",
-        abi_decode_string=call_data_human_signature,
-        abi_decode_value_index=2,  # method is at 0-index
-        return_value_test=ReturnValueTest("<", 20_000_000),
+        allowed_abi_calls={
+            "transfer(address,uint256)": [
+                AbiParameterValueCheck(1, ReturnValueTest("<", 20_000_000))
+            ]
+        },
     )
     context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
 
@@ -401,9 +415,11 @@ def test_signing_object_abi_attribute_condition_lingo_json_serialization(
 
     condition = SigningObjectAbiAttributeCondition(
         attribute_name="call_data",
-        abi_decode_string=call_data_human_signature,
-        abi_decode_value_index=2,  # method is at 0-index
-        return_value_test=ReturnValueTest("<", 20_000_000),
+        allowed_abi_calls={
+            "transfer(address,uint256)": [
+                AbiParameterValueCheck(1, ReturnValueTest("<", 20_000_000))
+            ]
+        },
     )
     context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
 
