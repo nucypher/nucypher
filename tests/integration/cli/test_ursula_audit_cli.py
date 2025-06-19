@@ -7,14 +7,14 @@ from nucypher.crypto.keystore import Keystore
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
-def setup_ursula_config_file(custom_filepath, ursula_test_config, config_filename):
+def setup_ursula_config_file(temp_dir_path, ursula_test_config, config_filename):
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
     keystore.unlock(INSECURE_DEVELOPMENT_PASSWORD)
 
     # update keystore path in config file
-    ursula_config_file = custom_filepath / config_filename
+    ursula_config_file = temp_dir_path / config_filename
     config_values = json.loads(ursula_test_config.serialize())
     config_values["keystore_path"] = str(keystore.keystore_path.resolve())
     with open(ursula_config_file, "w") as f:
@@ -24,10 +24,10 @@ def setup_ursula_config_file(custom_filepath, ursula_test_config, config_filenam
 
 
 def test_ursula_audit_config_file_incorrect_password(
-    click_runner, ursula_test_config, custom_filepath
+    click_runner, ursula_test_config, temp_dir_path
 ):
     keystore, ursula_config_file = setup_ursula_config_file(
-        custom_filepath, ursula_test_config, "ursula-audit-incorrect-password.json"
+        temp_dir_path, ursula_test_config, "ursula-audit-incorrect-password.json"
     )
 
     audit_args = (
@@ -48,10 +48,10 @@ def test_ursula_audit_config_file_incorrect_password(
 
 
 def test_ursula_audit_config_file_incorrect_mnemonic(
-    click_runner, ursula_test_config, custom_filepath
+    click_runner, ursula_test_config, temp_dir_path
 ):
     keystore, ursula_config_file = setup_ursula_config_file(
-        custom_filepath, ursula_test_config, "ursula-audit-incorrect-mnemonic.json"
+        temp_dir_path, ursula_test_config, "ursula-audit-incorrect-mnemonic.json"
     )
     mnemonic = keystore.get_mnemonic()
 
@@ -77,11 +77,11 @@ def test_ursula_audit_config_file_incorrect_mnemonic(
 
 def test_ursula_audit_specific_config_file(
     click_runner,
-    custom_filepath,
+    temp_dir_path,
     ursula_test_config,
 ):
     keystore, ursula_config_file = setup_ursula_config_file(
-        custom_filepath, ursula_test_config, "ursula-audit.json"
+        temp_dir_path, ursula_test_config, "ursula-audit.json"
     )
     mnemonic = keystore.get_mnemonic()
 
@@ -104,11 +104,11 @@ def test_ursula_audit_specific_config_file(
 
 
 def test_ursula_audit_default_config_file(
-    click_runner, mocker, ursula_test_config, custom_filepath
+    click_runner, mocker, ursula_test_config, temp_dir_path
 ):
 
     keystore, ursula_config_file = setup_ursula_config_file(
-        custom_filepath, ursula_test_config, "ursula-audit-default.json"
+        temp_dir_path, ursula_test_config, "ursula-audit-default.json"
     )
     mocker.patch(
         "nucypher.cli.commands.ursula.DEFAULT_CONFIG_FILEPATH", ursula_config_file
@@ -133,10 +133,10 @@ def test_ursula_audit_default_config_file(
 
 
 def test_ursula_audit_view_mnemonic_config_file(
-    click_runner, ursula_test_config, custom_filepath
+    click_runner, ursula_test_config, temp_dir_path
 ):
     keystore, ursula_config_file = setup_ursula_config_file(
-        custom_filepath, ursula_test_config, "ursula-audit-view-mnemonic.json"
+        temp_dir_path, ursula_test_config, "ursula-audit-view-mnemonic.json"
     )
     mnemonic = keystore.get_mnemonic()
 
@@ -159,9 +159,9 @@ def test_ursula_audit_view_mnemonic_config_file(
     assert mnemonic in result.output
 
 
-def test_ursula_audit_keystore_file_incorrect_password(click_runner, custom_filepath):
+def test_ursula_audit_keystore_file_incorrect_password(click_runner, temp_dir_path):
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
     keystore.unlock(INSECURE_DEVELOPMENT_PASSWORD)
 
@@ -182,9 +182,9 @@ def test_ursula_audit_keystore_file_incorrect_password(click_runner, custom_file
     assert "Mnemonic" not in result.output
 
 
-def test_ursula_audit_keystore_file_incorrect_mnemonic(click_runner, custom_filepath):
+def test_ursula_audit_keystore_file_incorrect_mnemonic(click_runner, temp_dir_path):
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
     keystore.unlock(INSECURE_DEVELOPMENT_PASSWORD)
     mnemonic = keystore.get_mnemonic()
@@ -209,10 +209,10 @@ def test_ursula_audit_keystore_file_incorrect_mnemonic(click_runner, custom_file
     assert "Mnemonic is incorrect" in result.output
 
 
-def test_ursula_audit_keystore_file(click_runner, custom_filepath):
+def test_ursula_audit_keystore_file(click_runner, temp_dir_path):
 
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
     keystore.unlock(INSECURE_DEVELOPMENT_PASSWORD)
     mnemonic = keystore.get_mnemonic()
@@ -234,9 +234,9 @@ def test_ursula_audit_keystore_file(click_runner, custom_filepath):
     assert "Mnemonic is correct" in result.output
 
 
-def test_ursula_audit_view_mnemonic_keystore_file(click_runner, custom_filepath):
+def test_ursula_audit_view_mnemonic_keystore_file(click_runner, temp_dir_path):
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
     keystore.unlock(INSECURE_DEVELOPMENT_PASSWORD)
     mnemonic = keystore.get_mnemonic()

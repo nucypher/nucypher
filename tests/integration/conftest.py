@@ -12,7 +12,6 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
-from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
@@ -148,23 +147,6 @@ def mock_contract_agency(module_mocker):
 @pytest.fixture(scope='module')
 def agency(mock_contract_agency):
     return mock_contract_agency
-
-
-@pytest.fixture(scope="function")
-def mock_funding_and_bonding(
-    accounts, mocker, mock_taco_application_agent, mock_taco_child_application_agent
-):
-    # funding
-    mocker.patch.object(EthereumClient, "get_balance", return_value=1)
-
-    # bonding
-    staking_provider = accounts.staking_providers_accounts[0]
-    mock_taco_application_agent.get_staking_provider_from_operator.return_value = (
-        staking_provider
-    )
-    mock_taco_child_application_agent.staking_provider_from_operator.return_value = (
-        staking_provider
-    )
 
 
 @pytest.fixture(scope="module")

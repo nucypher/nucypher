@@ -1,6 +1,5 @@
 import string
 import tempfile
-from datetime import datetime
 from pathlib import Path
 from random import SystemRandom
 
@@ -102,12 +101,6 @@ BASE_TEMP_DIR = Path(tempfile.gettempdir())
 BASE_TEMP_PREFIX = 'nucypher-tmp-'
 
 DATETIME_FORMAT = "%Y-%m-%d_%H-%M-%S.%f"
-
-MOCK_CUSTOM_INSTALLATION_PATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-custom-{datetime.now().strftime(DATETIME_FORMAT)}'
-
-MOCK_CUSTOM_INSTALLATION_PATH_2 = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-custom-2-{datetime.now().strftime(DATETIME_FORMAT)}'
-
-MOCK_REGISTRY_FILEPATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}mock-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
 
 GETH_DEV_URI = f'ipc://{BASE_TEMP_DIR}/geth.ipc'  # Standard IPC path for `geth --dev`
 

@@ -29,8 +29,10 @@ def test_get_gas_strategy():
     assert default == gas_strategy
 
 
-def test_use_pending_nonce_when_building_payload(mock_testerchain, mocker, random_address):
-    sender = random_address
+def test_use_pending_nonce_when_building_payload(
+    mock_testerchain, mocker, get_random_checksum_address
+):
+    sender = get_random_checksum_address()
 
     # Mock transaction count retrieval
     transaction_count = dict(latest=0, pending=0)

@@ -92,12 +92,12 @@ def test_initiate_ritual(
 
 def test_perform_round_1(
     ursula,
-    random_address,
     cohort,
     agent,
     random_transcript,
     get_random_checksum_address,
 ):
+    random_address = get_random_checksum_address()
     participants = dict()
     for i, checksum_address in enumerate(cohort):
         participants[checksum_address] = Coordinator.Participant(

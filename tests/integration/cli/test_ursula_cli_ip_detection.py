@@ -157,5 +157,3 @@ def test_ursula_run_ip_checkup(
         nucypher_cli, run_args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED
     )
     assert result.exit_code == 0, result.output
-
-    ursulas.clear()

@@ -6,12 +6,12 @@ from nucypher.crypto.powers import RitualisticPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
-def test_ursula_public_keys_invalid(click_runner, ursula_test_config, custom_filepath):
+def test_ursula_public_keys_invalid(click_runner, ursula_test_config, temp_dir_path):
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
 
-    ursula_config_file = custom_filepath / "ursula-test.json"
+    ursula_config_file = temp_dir_path / "ursula-test.json"
     ursula_test_config._write_configuration_file(filepath=ursula_config_file)
 
     expected_error = "At most, one of --keystore-filepath, --config-file, or --from-mnemonic must be specified"
@@ -73,10 +73,10 @@ def test_ursula_public_keys_invalid(click_runner, ursula_test_config, custom_fil
 
 
 def test_ursula_public_keys_derived_ferveo_key(
-    click_runner, mocker, ursula_test_config, custom_filepath
+    click_runner, mocker, ursula_test_config, temp_dir_path
 ):
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
     keystore.unlock(INSECURE_DEVELOPMENT_PASSWORD)
 
@@ -102,7 +102,7 @@ def test_ursula_public_keys_derived_ferveo_key(
     # using config file produces same key
     config_values = json.loads(ursula_test_config.serialize())
     config_values["keystore_path"] = str(keystore.keystore_path.resolve())
-    updated_config_file = custom_filepath / "updated-ursula.json"
+    updated_config_file = temp_dir_path / "updated-ursula.json"
     with open(updated_config_file, "w") as f:
         json.dump(config_values, f)
 

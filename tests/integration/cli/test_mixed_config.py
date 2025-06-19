@@ -1,4 +1,5 @@
 import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,6 @@ from nucypher.config.constants import (
 from nucypher.crypto.keystore import InvalidPassword
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
     TEST_POLYGON_PROVIDER_URI,
@@ -22,11 +22,13 @@ from tests.constants import (
 
 @pytest.fixture(scope='function')
 def custom_filepath():
-    _path = MOCK_CUSTOM_INSTALLATION_PATH
-    shutil.rmtree(_path, ignore_errors=True)
-    assert not _path.exists()
-    yield _path
-    shutil.rmtree(_path, ignore_errors=True)
+    temp_dir = tempfile.TemporaryDirectory(prefix="test-mixed-config")
+    temp_path = Path(temp_dir.name)
+    shutil.rmtree(temp_path, ignore_errors=True)
+    assert not temp_path.exists()
+    yield temp_path
+
+    temp_dir.cleanup()
 
 
 def test_destroy_with_no_configurations(click_runner, custom_filepath):
