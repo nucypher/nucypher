@@ -21,10 +21,12 @@ LOG_LEVEL = "info"
 GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
-eth_endpoint = os.environ["DEMO_L1_PROVIDER_URI"]
+eth_endpoint = os.environ.get("DEMO_L1_PROVIDER_URI", "https://sepolia.drpc.org")
 domain = domains.LYNX
 
-polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
+polygon_endpoint = os.environ.get(
+    "DEMO_L2_PROVIDER_URI", "https://polygon-amoy.drpc.org"
+)
 
 ###############
 # Enrico
