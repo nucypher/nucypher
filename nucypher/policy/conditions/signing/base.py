@@ -7,6 +7,7 @@ from marshmallow import (
     post_load,
     validate,
     validates,
+    validates_schema,
 )
 from marshmallow.validate import Range
 
@@ -15,6 +16,7 @@ from nucypher.policy.conditions.context import (
     resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
+    InvalidCondition,
     InvalidContextVariableData,
 )
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
@@ -157,56 +159,89 @@ class SigningObjectAttributeCondition(BaseSigningObjectAttributeCondition):
         return result, raw_attribute_value
 
 
-class AbiParameterValueCheck(_Serializable):
+class AbiParameterValidation(_Serializable):
     class Schema(CamelCaseSchema):
-        parameter_index = fields.Int(validate=Range(min=0), required=True)
-        return_value_test = fields.Nested(ReturnValueTest.Schema(), required=True)
+        parameter_index = fields.Integer(validate=Range(min=0), required=True)
+
+        # Either a direct comparator...
+        return_value_test = fields.Nested(
+            ReturnValueTest.Schema(), allow_none=True, required=False
+        )
+
+        # ...or a nested ABI call to decode and evaluate
+        nested_abi_validation = fields.Nested(
+            lambda: AbiCallValidation.Schema(), allow_none=True, required=False
+        )
+
+        # maintain field declaration ordering
+        class Meta:
+            ordered = True
+
+        @validates_schema
+        def validate_rtv_or_nested_validation(self, data, **kwargs):
+            return_value_test = data.get("return_value_test")
+            nested_abi_validation = data.get("nested_abi_validation")
+            if not (bool(return_value_test) ^ bool(nested_abi_validation)):
+                raise ValidationError(
+                    "Either return value test or nested abi validation but not both."
+                )
 
         @post_load
         def make(self, data, **kwargs):
-            return AbiParameterValueCheck(**data)
+            return AbiParameterValidation(**data)
 
-    def __init__(self, parameter_index: int, return_value_test: ReturnValueTest):
+    def __init__(
+        self,
+        parameter_index: int,
+        return_value_test: Optional[ReturnValueTest] = None,
+        nested_abi_validation: Optional["AbiCallValidation"] = None,
+    ):
         self.parameter_index = parameter_index
         self.return_value_test = return_value_test
+        self.nested_abi_validation = nested_abi_validation
 
         self._validate()
 
     def check(
         self, args: List[Any], providers: ConditionProviderManager, **context
     ) -> Tuple[bool, Any]:
-        resolved_return_value_test = self.return_value_test.with_resolved_context(
-            providers=providers, **context
-        )
-
         parameter_value = args[self.parameter_index]
-        # adjust for string value
-        modified_parameter_value_to_check = adjust_for_attribute_value_for_eval(
-            parameter_value
-        )
 
-        result = resolved_return_value_test.eval(modified_parameter_value_to_check)
-        return result, parameter_value
+        if self.return_value_test:
+            resolved_return_value_test = self.return_value_test.with_resolved_context(
+                providers=providers, **context
+            )
+
+            # adjust for string value
+            modified_parameter_value_to_check = adjust_for_attribute_value_for_eval(
+                parameter_value
+            )
+
+            result = resolved_return_value_test.eval(modified_parameter_value_to_check)
+            return result, parameter_value
+        else:
+            result, value = self.nested_abi_validation.check(
+                parameter_value, providers, **context
+            )
+            return result, value
 
 
-class SigningObjectAbiAttributeCondition(BaseSigningObjectAttributeCondition):
-    CONDITION_TYPE = ConditionType.ABI_ATTRIBUTE.value
-
-    class Schema(BaseSigningObjectAttributeCondition.Schema):
-        condition_type = fields.Str(
-            validate=validate.Equal(ConditionType.ABI_ATTRIBUTE.value), required=True
-        )
+class AbiCallValidation(_Serializable):
+    class Schema(CamelCaseSchema):
         allowed_abi_calls = fields.Dict(
             keys=fields.Str(),
-            values=fields.List(fields.Nested(AbiParameterValueCheck.Schema())),
+            values=fields.List(fields.Nested(AbiParameterValidation.Schema())),
             required=True,
         )
 
         @validates("allowed_abi_calls")
         def validate_allowed_abi_calls(
-            self, value: Dict[str, List[AbiParameterValueCheck]]
+            self, value: Dict[str, List[AbiParameterValidation]]
         ):
-            human_signatures = value.keys()
+            human_signatures = list(value.keys())
+            if not human_signatures:
+                raise ValidationError("At least one allowed abi call must be specified")
+
             for human_signature in human_signatures:
                 if not is_valid_human_readable_signature(human_signature):
                     raise ValidationError(
@@ -218,49 +253,36 @@ class SigningObjectAbiAttributeCondition(BaseSigningObjectAttributeCondition):
                 total_args_num = len(arg_types)
                 parameter_value_checks = value[human_signature]
                 for parameter_value_check in parameter_value_checks:
-                    if parameter_value_check.parameter_index >= total_args_num:
-                        raise ValidationError(
-                            f"Parameter value index '{parameter_value_check.parameter_index}' is out of range for "
-                            f"the ABI decode string '{human_signature}'. "
-                        )
-
-        # maintain field declaration ordering
-        class Meta:
-            ordered = True
+                    if isinstance(parameter_value_check, AbiParameterValidation):
+                        if parameter_value_check.parameter_index >= total_args_num:
+                            raise ValidationError(
+                                f"Parameter value index '{parameter_value_check.parameter_index}' is out of range for "
+                                f"the ABI decode string '{human_signature}'. "
+                            )
 
         @post_load
         def make(self, data, **kwargs):
-            return SigningObjectAbiAttributeCondition(**data)
+            return AbiCallValidation(**data)
 
-    def __init__(
-        self,
-        attribute_name: str,
-        allowed_abi_calls: Dict[str, List[AbiParameterValueCheck]],
-        signing_object_context_var: str = SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
-        condition_type: str = ConditionType.ABI_ATTRIBUTE.value,
-        name: Optional[str] = None,
-    ):
+    def __init__(self, allowed_abi_calls: Dict[str, List[AbiParameterValidation]]):
         self.allowed_abi_calls = allowed_abi_calls
-        super().__init__(
-            attribute_name=attribute_name,
-            signing_object_context_var=signing_object_context_var,
-            condition_type=condition_type,
-            name=name,
-        )
 
-    def verify(
-        self, providers: ConditionProviderManager, **context
+        self._validate()
+
+    def check(
+        self, value: Any, providers: ConditionProviderManager, **context
     ) -> Tuple[bool, Any]:
-        raw_attribute_value = self.get_attribute_value(providers=providers, **context)
+        if not isinstance(value, bytes):
+            raise ValueError(
+                f"Invalid data type for checking call data; expected bytes, received {type(value)}"
+            )
 
         # check allowed signatures
         args = None
         matched_signature = None
         for allowed_signature in self.allowed_abi_calls:
             try:
-                _, args = decode_human_readable_call(
-                    allowed_signature, raw_attribute_value
-                )
+                _, args = decode_human_readable_call(allowed_signature, value)
                 matched_signature = allowed_signature
                 # found a match
                 break
@@ -271,6 +293,8 @@ class SigningObjectAbiAttributeCondition(BaseSigningObjectAttributeCondition):
         if not matched_signature:
             return False, []
 
+        # TODO: not sure what to return as "values" (currently this includes calldata bytes which
+        #  seems excessive)
         parameter_values = []
         additional_parameter_checks = self.allowed_abi_calls[matched_signature]
         if not additional_parameter_checks:
@@ -287,3 +311,50 @@ class SigningObjectAbiAttributeCondition(BaseSigningObjectAttributeCondition):
 
         # if we get here additional checks have all passed
         return True, parameter_values
+
+
+class SigningObjectAbiAttributeCondition(BaseSigningObjectAttributeCondition):
+    CONDITION_TYPE = ConditionType.ABI_ATTRIBUTE.value
+
+    class Schema(BaseSigningObjectAttributeCondition.Schema):
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.ABI_ATTRIBUTE.value), required=True
+        )
+        abi_validation = fields.Nested(AbiCallValidation.Schema(), required=True)
+
+        # maintain field declaration ordering
+        class Meta:
+            ordered = True
+
+        @post_load
+        def make(self, data, **kwargs):
+            return SigningObjectAbiAttributeCondition(**data)
+
+    def __init__(
+        self,
+        attribute_name: str,
+        abi_validation: AbiCallValidation,
+        signing_object_context_var: str = SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
+        condition_type: str = ConditionType.ABI_ATTRIBUTE.value,
+        name: Optional[str] = None,
+    ):
+        self.abi_validation = abi_validation
+        super().__init__(
+            attribute_name=attribute_name,
+            signing_object_context_var=signing_object_context_var,
+            condition_type=condition_type,
+            name=name,
+        )
+
+    def verify(
+        self, providers: ConditionProviderManager, **context
+    ) -> Tuple[bool, Any]:
+        raw_attribute_value = self.get_attribute_value(providers=providers, **context)
+
+        try:
+            result, values = self.abi_validation.check(
+                raw_attribute_value, providers, **context
+            )
+            return result, values
+        except ValueError as e:
+            raise InvalidCondition(str(e))
