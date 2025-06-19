@@ -52,8 +52,10 @@ ERC_1271_ABI = """[
     }
 ]"""
 
-ETH_ENDPOINT = os.environ["DEMO_L1_PROVIDER_URI"]
-POLYGON_ENDPOINT = os.environ["DEMO_L2_PROVIDER_URI"]
+ETH_ENDPOINT = os.environ.get("DEMO_L1_PROVIDER_URI", "https://sepolia.drpc.org")
+POLYGON_ENDPOINT = os.environ.get(
+    "DEMO_L2_PROVIDER_URI", "https://polygon-amoy.drpc.org"
+)
 PORTER_BASE_URL = "https://porter-lynx.nucypher.io"
 
 
