@@ -75,14 +75,14 @@ jobs:
           PYTHONPATH: ./coverage_bootstrap
           COVERAGE_PROCESS_START: .coveragerc
         run: |
-          COVERAGE_FILE=integration_data coverage run -m pytest -n 0 tests/integration
+          COVERAGE_FILE=integration_data coverage run -m pytest tests/integration
           coverage combine --data-file=integration_data
           coverage xml -i --data-file=integration_data -o integration-coverage.xml
 
       - name: Integration Tests
         if: matrix.python-version != '3.12'
         # TODO: don't run integration tests in parallel, as they are not thread-safe atm
-        run: python -m pytest -n 0 tests/integration
+        run: python -m pytest tests/integration
 
       # Acceptance tests
       - name: Agents Tests (Coverage)
