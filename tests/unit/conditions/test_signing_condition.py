@@ -1,6 +1,9 @@
+import copy
 import json
+import random
 
 import pytest
+from web3 import Web3
 
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
@@ -14,13 +17,19 @@ from nucypher.policy.conditions.lingo import (
 )
 from nucypher.policy.conditions.signing.base import (
     SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
-    AbiParameterValueCheck,
+    AbiCallValidation,
+    AbiParameterValidation,
     SigningObjectAbiAttributeCondition,
     SigningObjectAttributeCondition,
 )
 from nucypher.policy.conditions.utils import ConditionProviderManager
 from nucypher.utilities.abi import encode_human_readable_call
-from tests.utils.erc4337 import create_eth_transfer
+from tests.utils.erc4337 import (
+    create_erc20_approve,
+    create_erc20_transfer,
+    create_eth_transfer,
+    encode_function_call,
+)
 
 
 @pytest.fixture
@@ -105,14 +114,14 @@ def test_signing_object_attribute_condition_verify_hex_string(
     )
     context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
 
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is True
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
     assert result == signing_object.call_data
 
     # failure case
     signing_object.call_data = "0xdeadbeef"
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is False
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
     assert result == signing_object.call_data
 
 
@@ -120,24 +129,24 @@ def test_signing_object_attribute_condition_verify_allowed_string_list(
     mocker, condition_provider_manager
 ):
     signing_object = mocker.Mock()
-    signing_object.method_name = "burn"
+    signing_object.data = "burn"
 
-    allowed_method_calls = ['"transfer"', '"approve"', '"mint"', '"burn"']
+    allowed_data_values = ['"feel"', '"the"', '"burn"']
     condition = SigningObjectAttributeCondition(
-        attribute_name="method_name",
-        return_value_test=ReturnValueTest("in", allowed_method_calls),
+        attribute_name="data",
+        return_value_test=ReturnValueTest("in", allowed_data_values),
     )
     context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
 
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is True
-    assert result == signing_object.method_name
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
+    assert result == signing_object.data
 
-    # failure case with disallowed method name
-    signing_object.method_name = "transferFrom"
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is False
-    assert result == signing_object.method_name
+    # failure case with disallowed value
+    signing_object.data = "fire"
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
+    assert result == signing_object.data
 
 
 def test_signing_object_attribute_condition_verify_number_value(
@@ -152,14 +161,14 @@ def test_signing_object_attribute_condition_verify_number_value(
     )
     context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
 
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is True
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
     assert result == signing_object.gas_limit
 
     # failure case with disallowed method name
     signing_object.gas_limit = 5_000
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is False
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
     assert result == signing_object.gas_limit
 
 
@@ -204,8 +213,8 @@ def test_signing_object_attribute_condition_lingo_json_serialization(
     signing_object.call_data = "0x1234567890abcdef"
     context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
 
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is True
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
     assert result == signing_object.call_data
 
     # Create condition lingo
@@ -227,10 +236,10 @@ def test_signing_object_attribute_condition_lingo_json_serialization(
     signing_object = mocker.Mock()
     signing_object.call_data = "0x1234567890abcdef"
 
-    success, result = recreated_lingo.condition.verify(
+    allowed, result = recreated_lingo.condition.verify(
         providers=condition_provider_manager, **context
     )
-    assert success is True
+    assert allowed is True
     assert result == signing_object.call_data
 
 
@@ -240,75 +249,91 @@ def test_invalid_signing_object_abi_attribute_condition():
         _ = SigningObjectAbiAttributeCondition(
             condition_type=ConditionType.TIME.value,
             attribute_name="call_data",
-            allowed_abi_calls={"transfer(address,uint256)": []},
+            abi_validation=AbiCallValidation({"transfer(address,uint256)": []}),
         )
 
     # no allowed abi calls
     with pytest.raises(InvalidCondition, match="Missing data for required field"):
         _ = SigningObjectAbiAttributeCondition(
-            attribute_name="call_data", allowed_abi_calls=None
+            attribute_name="call_data", abi_validation=None
+        )
+
+    with pytest.raises(ValueError, match="At least one allowed abi call"):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_validation=AbiCallValidation({}),
         )
 
     # invalid abi decode string
-    with pytest.raises(InvalidCondition, match="Invalid ABI signature"):
+    with pytest.raises(ValueError, match="Invalid ABI signature"):
         _ = SigningObjectAbiAttributeCondition(
             attribute_name="call_data",
-            allowed_abi_calls={
-                "transfer(address,uint257)": []  # invalid data type in signature
-            },
+            abi_validation=AbiCallValidation(
+                {"transfer(address,uint257)": []}  # invalid data type in signature
+            ),
         )
 
     # no abi index value
     with pytest.raises(ValueError, match="Field may not be null"):
         _ = SigningObjectAbiAttributeCondition(
             attribute_name="call_data",
-            allowed_abi_calls={
-                "transfer(address,uint256)": [
-                    AbiParameterValueCheck(None, ReturnValueTest("==", 0))
-                ]
-            },
+            abi_validation=AbiCallValidation(
+                {
+                    "transfer(address,uint256)": [
+                        AbiParameterValidation(None, ReturnValueTest("==", 0))
+                    ]
+                }
+            ),
         )
 
     # negative abi index
     with pytest.raises(ValueError, match="Must be greater than or equal to 0"):
         _ = SigningObjectAbiAttributeCondition(
             attribute_name="call_data",
-            allowed_abi_calls={
-                "transfer(address,uint256)": [
-                    AbiParameterValueCheck(-1, ReturnValueTest("==", 0))
-                ]
-            },
+            abi_validation=AbiCallValidation(
+                {
+                    "transfer(address,uint256)": [
+                        AbiParameterValidation(-1, ReturnValueTest("==", 0))
+                    ]
+                }
+            ),
         )
 
     # abi index out of range
-    with pytest.raises(
-        InvalidCondition, match="Parameter value index '2' is out of range"
-    ):
+    with pytest.raises(ValueError, match="Parameter value index '2' is out of range"):
         _ = SigningObjectAbiAttributeCondition(
             attribute_name="call_data",
-            allowed_abi_calls={
-                "transfer(address,uint256)": [
-                    AbiParameterValueCheck(2, ReturnValueTest("==", 0))
-                ]
-            },
+            abi_validation=AbiCallValidation(
+                {
+                    "transfer(address,uint256)": [
+                        AbiParameterValidation(2, ReturnValueTest("==", 0))
+                    ]
+                }
+            ),
         )
 
 
 def test_signing_object_abi_attribute_condition_initialization():
     condition = SigningObjectAbiAttributeCondition(
         attribute_name="call_data",
-        allowed_abi_calls={
-            "transfer(address,uint256)": [
-                AbiParameterValueCheck(1, ReturnValueTest("==", 0))
-            ]
-        },
+        abi_validation=AbiCallValidation(
+            {
+                "transfer(address,uint256)": [
+                    AbiParameterValidation(1, ReturnValueTest("==", 0))
+                ]
+            }
+        ),
     )
 
     assert condition.condition_type == ConditionType.ABI_ATTRIBUTE.value
     assert condition.signing_object_context_var == SIGNING_CONDITION_OBJECT_CONTEXT_VAR
     assert condition.attribute_name == "call_data"
-    assert list(condition.allowed_abi_calls.keys()) == ["transfer(address,uint256)"]
-    parameter_checks = condition.allowed_abi_calls["transfer(address,uint256)"]
+    assert list(condition.abi_validation.allowed_abi_calls.keys()) == [
+        "transfer(address,uint256)"
+    ]
+    parameter_checks = condition.abi_validation.allowed_abi_calls[
+        "transfer(address,uint256)"
+    ]
     assert len(parameter_checks) == 1
     assert parameter_checks[0].parameter_index == 1
     assert parameter_checks[0].return_value_test.comparator == "=="
@@ -316,91 +341,287 @@ def test_signing_object_abi_attribute_condition_initialization():
 
 
 def test_signing_object_abi_attribute_condition_verify_method_call(
-    mocker, condition_provider_manager, get_random_checksum_address
+    condition_provider_manager, get_random_checksum_address
 ):
-    call_data_human_signature = "transfer(address,uint256)"
-    signing_object = mocker.Mock()
-    signing_object.call_data = encode_human_readable_call(
-        call_data_human_signature, [get_random_checksum_address(), 10_000_000]
+    erc20_transfer_user_op = create_erc20_transfer(
+        get_random_checksum_address(),
+        0,
+        get_random_checksum_address(),
+        get_random_checksum_address(),
+        10_000_000,
     )
-
     condition = SigningObjectAbiAttributeCondition(
-        attribute_name="call_data",
-        allowed_abi_calls={
-            "approve(address,uint256)": [],
-            "execute(address,uint256)": [],
-            "transfer(address,uint256)": [],
-        },
+        attribute_name="callData",
+        abi_validation=AbiCallValidation(
+            {
+                "execute(address,uint256,bytes)": [
+                    AbiParameterValidation(
+                        parameter_index=2,
+                        nested_abi_validation=AbiCallValidation(
+                            {
+                                "transfer(address,uint256)": [],
+                            }
+                        ),
+                    )
+                ],
+            }
+        ),
     )
-    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+    # transfer is allowed
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: erc20_transfer_user_op}
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
 
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is True
-    assert result == "transfer(address,uint256)"
+    # check that approve is not allowed
+    erc20_approve_user_op = create_erc20_approve(
+        get_random_checksum_address(),
+        0,
+        get_random_checksum_address(),
+        get_random_checksum_address(),
+        1_000_000,
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: erc20_approve_user_op}
+
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
 
 
-def test_signing_object_abi_attribute_condition_verify_transfer_address_call(
-    mocker, condition_provider_manager, get_random_checksum_address
+def test_signing_object_abi_attribute_condition_verify_transfer_eth_to_address_call(
+    condition_provider_manager, get_random_checksum_address
 ):
-    call_data_human_signature = "transfer(address,uint256)"
     allowed_addresses = [
         get_random_checksum_address(),
         get_random_checksum_address(),
         get_random_checksum_address(),
     ]
-    signing_object = mocker.Mock()
-    signing_object.call_data = encode_human_readable_call(
-        call_data_human_signature, [allowed_addresses[0], 10_000_000]
-    )
+    sender = get_random_checksum_address()
+    nonce = 0
+    amount = 10_000_000
 
+    eth_transfer_user_op = create_eth_transfer(
+        sender, nonce, random.choice(allowed_addresses), amount
+    )
     condition = SigningObjectAbiAttributeCondition(
-        attribute_name="call_data",
-        allowed_abi_calls={
-            "transfer(address,uint256)": [
-                AbiParameterValueCheck(0, ReturnValueTest("in", allowed_addresses))
-            ]
-        },
+        attribute_name="callData",
+        abi_validation=AbiCallValidation(
+            {
+                "execute(address,uint256,bytes)": [
+                    AbiParameterValidation(0, ReturnValueTest("in", allowed_addresses))
+                ]
+            }
+        ),
     )
-    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
-
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is True
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: eth_transfer_user_op}
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
 
     not_allowed_address = get_random_checksum_address()
-    signing_object.call_data = encode_human_readable_call(
-        call_data_human_signature, [not_allowed_address, 10_000_000]
+    eth_transfer_to_not_allowed_user_op = create_eth_transfer(
+        sender, nonce, not_allowed_address, amount
     )
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is False
+    context = {
+        SIGNING_CONDITION_OBJECT_CONTEXT_VAR: eth_transfer_to_not_allowed_user_op
+    }
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
 
 
-def test_signing_object_abi_attribute_condition_verify_transfer_amount_call(
+def test_signing_object_abi_attribute_condition_verify_transfer_eth_amount_call(
+    condition_provider_manager, get_random_checksum_address
+):
+    sender = get_random_checksum_address()
+    nonce = 22
+    to_address = get_random_checksum_address()
+
+    eth_transfer_user_op = create_eth_transfer(sender, nonce, to_address, 10_000_000)
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="callData",
+        abi_validation=AbiCallValidation(
+            {
+                "execute(address,uint256,bytes)": [
+                    AbiParameterValidation(1, ReturnValueTest("<", 20_000_000))
+                ]
+            }
+        ),
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: eth_transfer_user_op}
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
+
+    eth_transfer_to_large_user_op = create_eth_transfer(
+        sender, nonce, to_address, 30_000_000
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: eth_transfer_to_large_user_op}
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
+
+
+def test_signing_object_abi_attribute_condition_nested_erc20_transfer_restriction(
+    condition_provider_manager, get_random_checksum_address
+):
+    erc20_token_address = get_random_checksum_address()
+    to_address = get_random_checksum_address()
+    amount = int(Web3.to_wei(1, "ether"))
+
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "execute(address,uint256,bytes)": [
+                    # only allow specific token address
+                    AbiParameterValidation(
+                        0, ReturnValueTest("==", erc20_token_address)
+                    ),
+                    AbiParameterValidation(
+                        2,
+                        nested_abi_validation=AbiCallValidation(
+                            {
+                                "transfer(address,uint256)": [
+                                    # only allow transfer to specific recipient
+                                    AbiParameterValidation(
+                                        0, ReturnValueTest("==", to_address)
+                                    ),
+                                    # only allow < 2 eth to be transferred
+                                    AbiParameterValidation(
+                                        1,
+                                        ReturnValueTest(
+                                            "<", int(Web3.to_wei(2, "ether"))
+                                        ),
+                                    ),
+                                ]
+                            }
+                        ),
+                    ),
+                ]
+            }
+        ),
+    )
+
+    base_user_op_dict = dict(
+        sender=get_random_checksum_address(),
+        nonce=76,
+        token=erc20_token_address,
+        to=to_address,
+        amount=amount,
+    )
+
+    # success case
+    user_op = create_erc20_transfer(**base_user_op_dict)
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: user_op}
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
+
+    # modify user op for check to fail
+    # 1) all the same except different token address
+    fail_user_op_dict = copy.deepcopy(base_user_op_dict)
+    fail_user_op_dict["token"] = get_random_checksum_address()
+    fail_user_op = create_erc20_transfer(**fail_user_op_dict)
+
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: fail_user_op}
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
+
+    # 2) all the same except recipient
+    fail_user_op_dict = copy.deepcopy(base_user_op_dict)
+    fail_user_op_dict["to"] = get_random_checksum_address()
+    fail_user_op = create_erc20_transfer(**fail_user_op_dict)
+
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: fail_user_op}
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
+
+    # 3) all the same except amount too high
+    fail_user_op_dict = copy.deepcopy(base_user_op_dict)
+    fail_user_op_dict["amount"] = int(Web3.to_wei(3, "ether"))
+    fail_user_op = create_erc20_transfer(**fail_user_op_dict)
+
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: fail_user_op}
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
+
+    # 4) approve user op instead of a transfer (note: only transfer user op is allowed)
+    fail_user_op_dict = copy.deepcopy(base_user_op_dict)
+    del fail_user_op_dict["to"]  # approve doesn't have a "to" field
+    fail_user_op_dict["spender"] = get_random_checksum_address()
+    fail_user_op = create_erc20_approve(**fail_user_op_dict)
+
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: fail_user_op}
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
+
+
+def test_signing_object_abi_attribute_condition_more_than_2_levels_nested_calldata(
     mocker, condition_provider_manager, get_random_checksum_address
 ):
-    call_data_human_signature = "transfer(address,uint256)"
-    signing_object = mocker.Mock()
-    signing_object.call_data = encode_human_readable_call(
-        call_data_human_signature, [get_random_checksum_address(), 10_000_000]
+    # Level 3: innermost transfer() call
+    transfer_data = encode_function_call(
+        "transfer(address,uint256)", [get_random_checksum_address(), 10_000_000]
+    )
+
+    # Level 2: eg. proxy.execute(token_address, 0, transfer_data)
+    proxy_execute_data = encode_function_call(
+        "execute(address,uint256,bytes)",
+        [get_random_checksum_address(), 0, transfer_data],
+    )
+
+    # Level 1: smartAccount.execute(proxy_address, 0, proxy_execute_data)
+    proxy_address = get_random_checksum_address()
+    user_op_call_data = encode_function_call(
+        "execute(address,uint256,bytes)", [proxy_address, 0, proxy_execute_data]
     )
 
     condition = SigningObjectAbiAttributeCondition(
         attribute_name="call_data",
-        allowed_abi_calls={
-            "transfer(address,uint256)": [
-                AbiParameterValueCheck(1, ReturnValueTest("<", 20_000_000))
-            ]
-        },
+        abi_validation=AbiCallValidation(
+            {
+                "execute(address,uint256,bytes)": [
+                    # only allow proxy address
+                    AbiParameterValidation(
+                        0, return_value_test=ReturnValueTest("==", proxy_address)
+                    ),
+                    AbiParameterValidation(
+                        2,
+                        nested_abi_validation=AbiCallValidation(
+                            {
+                                "execute(address,uint256,bytes)": [
+                                    # only allow transfer call
+                                    AbiParameterValidation(
+                                        2,
+                                        nested_abi_validation=AbiCallValidation(
+                                            {"transfer(address,uint256)": []}
+                                        ),
+                                    )
+                                ]
+                            }
+                        ),
+                    ),
+                ]
+            }
+        ),
     )
+
+    signing_object = mocker.Mock()
+    signing_object.call_data = user_op_call_data
     context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
 
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is True
-
-    signing_object.call_data = encode_human_readable_call(
-        call_data_human_signature, [get_random_checksum_address(), 30_000_000]
+    # failure case: try calling some other function from the proxy eg. call a contract function
+    contract_call = encode_function_call(
+        "execute(address,uint256,bytes)",
+        [get_random_checksum_address(), 0, encode_function_call("getValue()", [])],
     )
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is False
+    updated_proxy_execute_data = encode_function_call(
+        "execute(address,uint256,bytes)",
+        [get_random_checksum_address(), 0, contract_call],
+    )
+    updated_user_op_call_data = encode_function_call(
+        "execute(address,uint256,bytes)", [proxy_address, 0, updated_proxy_execute_data]
+    )
+    signing_object.call_data = updated_user_op_call_data
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
 
 
 def test_signing_object_abi_attribute_condition_lingo_json_serialization(
@@ -415,16 +636,18 @@ def test_signing_object_abi_attribute_condition_lingo_json_serialization(
 
     condition = SigningObjectAbiAttributeCondition(
         attribute_name="call_data",
-        allowed_abi_calls={
-            "transfer(address,uint256)": [
-                AbiParameterValueCheck(1, ReturnValueTest("<", 20_000_000))
-            ]
-        },
+        abi_validation=AbiCallValidation(
+            {
+                "transfer(address,uint256)": [
+                    AbiParameterValidation(1, ReturnValueTest("<", 20_000_000))
+                ]
+            }
+        ),
     )
     context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
 
-    success, result = condition.verify(providers=condition_provider_manager, **context)
-    assert success is True
+    allowed, result = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
 
     # Create condition lingo
     lingo = ConditionLingo(condition)
@@ -442,7 +665,7 @@ def test_signing_object_abi_attribute_condition_lingo_json_serialization(
     assert recreated_lingo.to_json() == original_lingo_json
 
     # works the same
-    success, result = recreated_lingo.condition.verify(
+    allowed, result = recreated_lingo.condition.verify(
         providers=condition_provider_manager, **context
     )
-    assert success is True
+    assert allowed is True
