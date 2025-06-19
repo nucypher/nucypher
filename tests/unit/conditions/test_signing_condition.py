@@ -312,6 +312,25 @@ def test_invalid_signing_object_abi_attribute_condition():
             ),
         )
 
+    # both return value test and nested_validation provided which isn't allowed
+    with pytest.raises(ValueError, match="return value test or nested abi validation"):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_validation=AbiCallValidation(
+                {
+                    "execute(address,uint256,bytes)": [
+                        AbiParameterValidation(
+                            parameter_index=2,
+                            return_value_test=ReturnValueTest("==", 0),
+                            nested_abi_validation=AbiCallValidation(
+                                {"transfer(address,uint256)": []}
+                            ),
+                        )
+                    ]
+                }
+            ),
+        )
+
 
 def test_signing_object_abi_attribute_condition_initialization():
     condition = SigningObjectAbiAttributeCondition(
@@ -338,6 +357,36 @@ def test_signing_object_abi_attribute_condition_initialization():
     assert parameter_checks[0].parameter_index == 1
     assert parameter_checks[0].return_value_test.comparator == "=="
     assert parameter_checks[0].return_value_test.value == 0
+
+
+def test_signing_object_abi_attribute_condition_invalid_value_for_call_data_check(
+    condition_provider_manager, get_random_checksum_address
+):
+    eth_transfer_user_op = create_eth_transfer(
+        get_random_checksum_address(), 0, get_random_checksum_address(), 10_000_000
+    )
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="callData",
+        abi_validation=AbiCallValidation(
+            {
+                "execute(address,uint256,bytes)": [
+                    AbiParameterValidation(
+                        parameter_index=0,  # incorrect index for bytes
+                        nested_abi_validation=AbiCallValidation(
+                            {
+                                "transfer(address,uint256)": [],
+                            }
+                        ),
+                    )
+                ],
+            }
+        ),
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: eth_transfer_user_op}
+    with pytest.raises(
+        InvalidCondition, match="Invalid data type for checking call data"
+    ):
+        _, _ = condition.verify(providers=condition_provider_manager, **context)
 
 
 def test_signing_object_abi_attribute_condition_verify_method_call(
