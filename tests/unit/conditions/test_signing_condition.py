@@ -280,7 +280,10 @@ def test_invalid_signing_object_abi_attribute_condition():
             abi_validation=AbiCallValidation(
                 {
                     "transfer(address,uint256)": [
-                        AbiParameterValidation(None, ReturnValueTest("==", 0))
+                        AbiParameterValidation(
+                            parameter_index=None,
+                            return_value_test=ReturnValueTest("==", 0),
+                        )
                     ]
                 }
             ),
@@ -293,7 +296,10 @@ def test_invalid_signing_object_abi_attribute_condition():
             abi_validation=AbiCallValidation(
                 {
                     "transfer(address,uint256)": [
-                        AbiParameterValidation(-1, ReturnValueTest("==", 0))
+                        AbiParameterValidation(
+                            parameter_index=-1,
+                            return_value_test=ReturnValueTest("==", 0),
+                        )
                     ]
                 }
             ),
@@ -306,7 +312,29 @@ def test_invalid_signing_object_abi_attribute_condition():
             abi_validation=AbiCallValidation(
                 {
                     "transfer(address,uint256)": [
-                        AbiParameterValidation(2, ReturnValueTest("==", 0))
+                        AbiParameterValidation(
+                            parameter_index=2,
+                            return_value_test=ReturnValueTest("==", 0),
+                        )
+                    ]
+                }
+            ),
+        )
+
+    # tuple index out of range
+    with pytest.raises(
+        ValueError, match="Tuple value index '3' for parameter is out of range"
+    ):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_validation=AbiCallValidation(
+                {
+                    "execute((address,uint256,bytes))": [
+                        AbiParameterValidation(
+                            parameter_index=0,
+                            index_within_tuple=3,
+                            return_value_test=ReturnValueTest("==", 0),
+                        )
                     ]
                 }
             ),
@@ -338,7 +366,9 @@ def test_signing_object_abi_attribute_condition_initialization():
         abi_validation=AbiCallValidation(
             {
                 "transfer(address,uint256)": [
-                    AbiParameterValidation(1, ReturnValueTest("==", 0))
+                    AbiParameterValidation(
+                        parameter_index=1, return_value_test=ReturnValueTest("==", 0)
+                    )
                 ]
             }
         ),
@@ -455,7 +485,10 @@ def test_signing_object_abi_attribute_condition_verify_transfer_eth_to_address_c
         abi_validation=AbiCallValidation(
             {
                 "execute(address,uint256,bytes)": [
-                    AbiParameterValidation(0, ReturnValueTest("in", allowed_addresses))
+                    AbiParameterValidation(
+                        parameter_index=0,
+                        return_value_test=ReturnValueTest("in", allowed_addresses),
+                    )
                 ]
             }
         ),
@@ -488,7 +521,10 @@ def test_signing_object_abi_attribute_condition_verify_transfer_eth_amount_call(
         abi_validation=AbiCallValidation(
             {
                 "execute(address,uint256,bytes)": [
-                    AbiParameterValidation(1, ReturnValueTest("<", 20_000_000))
+                    AbiParameterValidation(
+                        parameter_index=1,
+                        return_value_test=ReturnValueTest("<", 20_000_000),
+                    )
                 ]
             }
         ),
@@ -519,7 +555,8 @@ def test_signing_object_abi_attribute_condition_nested_erc20_transfer_restrictio
                 "execute(address,uint256,bytes)": [
                     # only allow specific token address
                     AbiParameterValidation(
-                        0, ReturnValueTest("==", erc20_token_address)
+                        parameter_index=0,
+                        return_value_test=ReturnValueTest("==", erc20_token_address),
                     ),
                     AbiParameterValidation(
                         2,
@@ -528,12 +565,15 @@ def test_signing_object_abi_attribute_condition_nested_erc20_transfer_restrictio
                                 "transfer(address,uint256)": [
                                     # only allow transfer to specific recipient
                                     AbiParameterValidation(
-                                        0, ReturnValueTest("==", to_address)
+                                        parameter_index=0,
+                                        return_value_test=ReturnValueTest(
+                                            "==", to_address
+                                        ),
                                     ),
                                     # only allow < 2 eth to be transferred
                                     AbiParameterValidation(
-                                        1,
-                                        ReturnValueTest(
+                                        parameter_index=1,
+                                        return_value_test=ReturnValueTest(
                                             "<", int(Web3.to_wei(2, "ether"))
                                         ),
                                     ),
@@ -673,6 +713,51 @@ def test_signing_object_abi_attribute_condition_more_than_2_levels_nested_callda
     assert allowed is False
 
 
+def test_signing_object_abi_attribute_condition_tuple_index(
+    mocker, condition_provider_manager
+):
+    # example contract call
+    # {
+    #   to: "0xBa0c733Ab8328baD95e5708159eB55C4ec1Aae26",
+    #   value: 0n,
+    #   data: "0x42cde4e8",   <threshold() function call>
+    # }
+    expected_contract_address = "0xBa0c733Ab8328baD95e5708159eB55C4ec1Aae26"
+    call_data_from_script = encode_function_call(
+        "execute((address,uint256,bytes))",
+        [(expected_contract_address, 0, encode_function_call("threshold()", []))],
+    )
+
+    signing_object = mocker.Mock()
+    signing_object.call_data = bytes(call_data_from_script)
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "execute((address,uint256,bytes))": [
+                    AbiParameterValidation(
+                        parameter_index=0,
+                        index_within_tuple=0,
+                        return_value_test=ReturnValueTest(
+                            "==", expected_contract_address
+                        ),
+                    ),
+                    AbiParameterValidation(
+                        parameter_index=0,
+                        index_within_tuple=2,
+                        nested_abi_validation=AbiCallValidation({"threshold()": []}),
+                    ),
+                ]
+            }
+        ),
+    )
+
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
+
+
 def test_signing_object_abi_attribute_condition_lingo_json_serialization(
     mocker, condition_provider_manager, get_random_checksum_address
 ):
@@ -688,7 +773,10 @@ def test_signing_object_abi_attribute_condition_lingo_json_serialization(
         abi_validation=AbiCallValidation(
             {
                 "transfer(address,uint256)": [
-                    AbiParameterValidation(1, ReturnValueTest("<", 20_000_000))
+                    AbiParameterValidation(
+                        parameter_index=1,
+                        return_value_test=ReturnValueTest("<", 20_000_000),
+                    )
                 ]
             }
         ),
