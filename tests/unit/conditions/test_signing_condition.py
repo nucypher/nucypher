@@ -321,6 +321,23 @@ def test_invalid_signing_object_abi_attribute_condition():
             ),
         )
 
+    # invalid tuple arg
+    with pytest.raises(ValueError, match="is not a tuple"):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_validation=AbiCallValidation(
+                {
+                    "execute(address,uint256,bytes)": [
+                        AbiParameterValidation(
+                            parameter_index=0,
+                            index_within_tuple=0,
+                            return_value_test=ReturnValueTest("==", 0),
+                        )
+                    ]
+                }
+            ),
+        )
+
     # tuple index out of range
     with pytest.raises(
         ValueError, match="Tuple value index '3' for parameter is out of range"
@@ -724,6 +741,7 @@ def test_signing_object_abi_attribute_condition_tuple_index(
     # }
     expected_contract_address = "0xBa0c733Ab8328baD95e5708159eB55C4ec1Aae26"
     call_data_from_script = encode_function_call(
+        # this is how the user op is created in the MDT demo
         "execute((address,uint256,bytes))",
         [(expected_contract_address, 0, encode_function_call("threshold()", []))],
     )
