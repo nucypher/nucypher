@@ -280,6 +280,14 @@ class AbiCallValidation(_Serializable):
 
                     if parameter_value_check.index_within_tuple is not None:
                         tuple_args = arg_types[parameter_value_check.parameter_index]
+                        if not (
+                            tuple_args.startswith("(") and tuple_args.endswith(")")
+                        ):
+                            raise ValidationError(
+                                f"Args value at index '{parameter_value_check.parameter_index}' is not a tuple"
+                            )
+
+                        tuple_args = tuple_args.strip("(").strip(")")
                         if parameter_value_check.index_within_tuple >= len(
                             tuple_args.split(",")
                         ):
