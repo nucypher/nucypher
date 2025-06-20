@@ -163,6 +163,10 @@ class AbiParameterValidation(_Serializable):
     class Schema(CamelCaseSchema):
         parameter_index = fields.Integer(validate=Range(min=0), required=True)
 
+        index_within_tuple = fields.Integer(
+            validate=Range(min=0), allow_none=True, required=False
+        )
+
         # Either a direct comparator...
         return_value_test = fields.Nested(
             ReturnValueTest.Schema(), allow_none=True, required=False
@@ -193,19 +197,34 @@ class AbiParameterValidation(_Serializable):
     def __init__(
         self,
         parameter_index: int,
+        index_within_tuple: Optional[int] = None,
         return_value_test: Optional[ReturnValueTest] = None,
         nested_abi_validation: Optional["AbiCallValidation"] = None,
     ):
         self.parameter_index = parameter_index
+        self.index_within_tuple = index_within_tuple
         self.return_value_test = return_value_test
         self.nested_abi_validation = nested_abi_validation
 
         self._validate()
 
+    def get_value(self, args):
+        parameter_value = args[self.parameter_index]
+
+        if self.index_within_tuple is not None:
+            if not isinstance(parameter_value, tuple):
+                raise ValueError(
+                    f"Invalid data type for checking call data; expected tuple, received {type(parameter_value)}"
+                )
+
+            return parameter_value[self.index_within_tuple]
+
+        return parameter_value
+
     def check(
         self, args: List[Any], providers: ConditionProviderManager, **context
     ) -> Tuple[bool, Any]:
-        parameter_value = args[self.parameter_index]
+        parameter_value = self.get_value(args)
 
         if self.return_value_test:
             resolved_return_value_test = self.return_value_test.with_resolved_context(
@@ -253,11 +272,20 @@ class AbiCallValidation(_Serializable):
                 total_args_num = len(arg_types)
                 parameter_value_checks = value[human_signature]
                 for parameter_value_check in parameter_value_checks:
-                    if isinstance(parameter_value_check, AbiParameterValidation):
-                        if parameter_value_check.parameter_index >= total_args_num:
+                    if parameter_value_check.parameter_index >= total_args_num:
+                        raise ValidationError(
+                            f"Parameter value index '{parameter_value_check.parameter_index}' is out of range for "
+                            f"the ABI decode string '{human_signature}'. "
+                        )
+
+                    if parameter_value_check.index_within_tuple is not None:
+                        tuple_args = arg_types[parameter_value_check.parameter_index]
+                        if parameter_value_check.index_within_tuple >= len(
+                            tuple_args.split(",")
+                        ):
                             raise ValidationError(
-                                f"Parameter value index '{parameter_value_check.parameter_index}' is out of range for "
-                                f"the ABI decode string '{human_signature}'. "
+                                f"Tuple value index '{parameter_value_check.index_within_tuple}' for parameter is out of range for "
+                                f"the ABI decoded tuple '{tuple_args}'. "
                             )
 
         @post_load
