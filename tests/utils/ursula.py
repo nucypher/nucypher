@@ -158,14 +158,6 @@ def cleanup_ursulas(_ursulas):
     for port in _ports_to_remove:
         del MOCK_KNOWN_URSULAS_CACHE[port]
 
-    for u in _ursulas:
-        try:
-            u.stop()
-            u._finalize()
-        except Exception:
-            # ignore
-            pass
-
 
 def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
     """

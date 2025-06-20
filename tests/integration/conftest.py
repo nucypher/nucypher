@@ -63,21 +63,21 @@ def mock_sample_reservoir(accounts, mock_contract_agency):
     mock_agent.get_staking_provider_reservoir = mock_reservoir
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function")
 def mock_taco_application_agent(testerchain, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(TACoApplicationAgent)
     yield mock_agent
     mock_agent.reset()
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function")
 def mock_taco_child_application_agent(testerchain, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(TACoChildApplicationAgent)
     yield mock_agent
     mock_agent.reset()
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function")
 def mock_coordinator_agent(testerchain, mock_contract_agency):
     from tests.mock.coordinator import MockCoordinatorAgent
 
