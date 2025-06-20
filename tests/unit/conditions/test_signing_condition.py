@@ -19,6 +19,7 @@ from nucypher.policy.conditions.signing.base import (
 )
 from nucypher.policy.conditions.utils import ConditionProviderManager
 from nucypher.utilities.abi import encode_human_readable_call
+from tests.utils.erc4337 import create_eth_transfer
 
 
 @pytest.fixture
@@ -159,6 +160,33 @@ def test_signing_object_attribute_condition_verify_number_value(
     success, result = condition.verify(providers=condition_provider_manager, **context)
     assert success is False
     assert result == signing_object.gas_limit
+
+
+def test_signing_object_attribute_condition_verify_userop_sender(
+    condition_provider_manager, get_random_checksum_address
+):
+    sender = get_random_checksum_address()
+    user_op = create_eth_transfer(
+        sender=sender, nonce=0, to=get_random_checksum_address(), value=10_000_000
+    )
+
+    condition = SigningObjectAttributeCondition(
+        attribute_name="sender",
+        return_value_test=ReturnValueTest("==", sender),
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: user_op}
+    success, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert success is True
+
+    invalid_sender_user_op = create_eth_transfer(
+        sender=get_random_checksum_address(),
+        nonce=0,
+        to=get_random_checksum_address(),
+        value=10_000_000,
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: invalid_sender_user_op}
+    success, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert success is False
 
 
 def test_signing_object_attribute_condition_lingo_json_serialization(
