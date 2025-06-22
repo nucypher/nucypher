@@ -38,7 +38,10 @@ class AddressAllowlistCondition(AccessControlCondition):
             validate=validate.Equal(ConditionType.ADDRESS_ALLOWLIST.value),
             required=True,
         )
-
+        user_address = fields.Str(
+            validate=validate.Equal(USER_ADDRESS_CONTEXT),
+            required=True,
+        )
         addresses = fields.List(
             fields.String(required=True),
             required=True,
@@ -57,10 +60,12 @@ class AddressAllowlistCondition(AccessControlCondition):
                     # Ensure addresses have proper checksum
                     normalized_address = to_checksum_address(address)
                 except ValueError as e:
-                    raise ValidationError(f"Invalid Ethereum address: {address}") from e
+                    raise ValidationError(
+                        f"Invalid Ethereum address: '{address}', provided in the list of addresses"
+                    ) from e
                 if normalized_address != address:
                     raise ValidationError(
-                        f"Address {address} is not a checksummed address"
+                        f"Address '{address}', provided in the list of addresses, is not a checksummed address"
                     )
 
         @post_load
@@ -69,6 +74,7 @@ class AddressAllowlistCondition(AccessControlCondition):
 
     def __init__(
         self,
+        user_address: str,
         addresses: List[str],
         name: Optional[str] = None,
         condition_type: str = ConditionType.ADDRESS_ALLOWLIST.value,
@@ -82,6 +88,9 @@ class AddressAllowlistCondition(AccessControlCondition):
             addresses: List of checksummed Ethereum addresses that are allowed to decrypt
             name: Optional name for the condition
         """
+
+        # Store the validated user address
+        self.user_address = user_address
 
         # Store the validated addresses
         self.addresses = addresses
@@ -109,8 +118,8 @@ class AddressAllowlistCondition(AccessControlCondition):
             raise InvalidConditionContext("No value provided for context variable")
 
         # Get user's address using resolve_any_context_variables
-        user_address = resolve_any_context_variables(USER_ADDRESS_CONTEXT, **context)
-        # Simply check if the normalized address is in the allowlist
+        user_address = resolve_any_context_variables(self.user_address, **context)
+        # Simply check if the user address is in the allowlist
         is_allowed = user_address in self.addresses
 
         return is_allowed, None
