@@ -22,21 +22,29 @@ def test_address_allowlist_condition_init():
     addresses = [account1.address, account2.address]
 
     # Test successful initialization
-    condition = AddressAllowlistCondition(addresses=addresses)
+    condition = AddressAllowlistCondition(
+        user_address=USER_ADDRESS_CONTEXT, addresses=addresses
+    )
     assert condition.condition_type == "address-allowlist"
     assert set(condition.addresses) == set(addresses)
 
     # Test with empty addresses list
     with pytest.raises(InvalidCondition):
-        AddressAllowlistCondition(addresses=[])
+        AddressAllowlistCondition(user_address=USER_ADDRESS_CONTEXT, addresses=[])
 
     # Test with invalid address
     with pytest.raises(InvalidCondition):
-        AddressAllowlistCondition(addresses=["not-an-ethereum-address"])
+        AddressAllowlistCondition(
+            user_address=USER_ADDRESS_CONTEXT,
+            addresses=["not-an-ethereum-address"],
+        )
 
     # Test with duplicate addresses
     with pytest.raises(InvalidCondition):
-        AddressAllowlistCondition(addresses=[account1.address, account1.address])
+        AddressAllowlistCondition(
+            user_address=USER_ADDRESS_CONTEXT,
+            addresses=[account1.address, account1.address],
+        )
 
 
 def test_address_allowlist_condition_verify():
@@ -48,7 +56,10 @@ def test_address_allowlist_condition_verify():
 
     # Create condition with allowed accounts
     addresses = [allowed_account1.address, allowed_account2.address]
-    condition = AddressAllowlistCondition(addresses=addresses)
+    condition = AddressAllowlistCondition(
+        user_address=USER_ADDRESS_CONTEXT,
+        addresses=addresses,
+    )
 
     # Create proper EIP712 typed data structures for each account
     def create_auth_message_for_account(account):
@@ -128,7 +139,9 @@ def test_address_allowlist_condition_schema_validation():
     addresses = [account1.address, account2.address]
 
     # Create condition
-    condition = AddressAllowlistCondition(addresses=addresses)
+    condition = AddressAllowlistCondition(
+        user_address=USER_ADDRESS_CONTEXT, addresses=addresses
+    )
     condition_dict = condition.to_dict()
 
     # No issues here
