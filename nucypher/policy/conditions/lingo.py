@@ -21,9 +21,9 @@ from marshmallow.validate import OneOf, Range
 from packaging.version import parse as parse_version
 
 from nucypher.policy.conditions.base import (
-    AccessControlCondition,
+    Condition,
     ExecutionCall,
-    MultiConditionAccessControl,
+    MultiCondition,
     _Serializable,
 )
 from nucypher.policy.conditions.context import (
@@ -39,6 +39,7 @@ from nucypher.policy.conditions.types import ConditionDict, Lingo
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     ConditionProviderManager,
+    check_and_convert_any_big_ints,
     check_and_convert_big_int_string_to_int,
 )
 
@@ -50,23 +51,11 @@ class AnyField(fields.Field):
     numbers as integers, so those need converting to integers.
     """
 
-    def _convert_any_big_ints_from_string(self, value):
-        if isinstance(value, list):
-            return [self._convert_any_big_ints_from_string(item) for item in value]
-        elif isinstance(value, dict):
-            return {
-                k: self._convert_any_big_ints_from_string(v) for k, v in value.items()
-            }
-        elif isinstance(value, str):
-            return check_and_convert_big_int_string_to_int(value)
-
-        return value
-
     def _serialize(self, value, attr, obj, **kwargs):
         return value
 
     def _deserialize(self, value, attr, data, **kwargs):
-        return self._convert_any_big_ints_from_string(value)
+        return check_and_convert_any_big_ints(value)
 
 
 class AnyLargeIntegerField(fields.Int):
@@ -104,7 +93,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA  | ATTRIBUTE | ABI_ATTRIBUTE
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -121,6 +110,8 @@ class ConditionType(Enum):
     IF_THEN_ELSE = "if-then-else"
     ADDRESS_ALLOWLIST = "address-allowlist"
     ECDSA = "ecdsa"
+    ATTRIBUTE = "attribute"
+    ABI_ATTRIBUTE = "abi-attribute"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -141,7 +132,7 @@ class Operator(Enum):
         return [op.value for op in cls]
 
 
-class CompoundAccessControlCondition(MultiConditionAccessControl):
+class CompoundCondition(MultiCondition):
     """
     A combination of two or more conditions connected by logical operators such as AND, OR, NOT.
 
@@ -167,7 +158,7 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
     def _validate_operator_and_operands(
         cls,
         operator: str,
-        operands: List[AccessControlCondition],
+        operands: List[Condition],
     ):
         if operator not in cls.OPERATORS:
             raise ValidationError(
@@ -192,7 +183,7 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
                 message="Maximum of {cls.MAX_NUM_CONDITIONS} operands allowed for '{operator}' compound condition",
             )
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.COMPOUND.value), required=True
         )
@@ -207,21 +198,19 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         def validate_operator_and_operands(self, data, **kwargs):
             operator = data["operator"]
             operands = data["operands"]
-            CompoundAccessControlCondition._validate_operator_and_operands(
-                operator, operands
-            )
-            CompoundAccessControlCondition._validate_multi_condition_nesting(
+            CompoundCondition._validate_operator_and_operands(operator, operands)
+            CompoundCondition._validate_multi_condition_nesting(
                 conditions=operands, field_name="operands"
             )
 
         @post_load
         def make(self, data, **kwargs):
-            return CompoundAccessControlCondition(**data)
+            return CompoundCondition(**data)
 
     def __init__(
         self,
         operator: str,
-        operands: List[AccessControlCondition],
+        operands: List[Condition],
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
@@ -271,18 +260,18 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         return self.operands
 
 
-class OrCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operands: List[AccessControlCondition]):
+class OrCompoundCondition(CompoundCondition):
+    def __init__(self, operands: List[Condition]):
         super().__init__(operator=self.OR_OPERATOR, operands=operands)
 
 
-class AndCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operands: List[AccessControlCondition]):
+class AndCompoundCondition(CompoundCondition):
+    def __init__(self, operands: List[Condition]):
         super().__init__(operator=self.AND_OPERATOR, operands=operands)
 
 
-class NotCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operand: AccessControlCondition):
+class NotCompoundCondition(CompoundCondition):
+    def __init__(self, operand: Condition):
         super().__init__(operator=self.NOT_OPERATOR, operands=[operand])
 
 
@@ -293,6 +282,7 @@ _COMPARATOR_FUNCTIONS = {
     "<": pyoperator.lt,
     "<=": pyoperator.le,
     ">=": pyoperator.ge,
+    "in": pyoperator.contains,  # currently only supports checking value in list (not sub-string/bytes comparisons)
 }
 
 
@@ -305,12 +295,12 @@ class ConditionVariable(_Serializable):
         def make(self, data, **kwargs):
             return ConditionVariable(**data)
 
-    def __init__(self, var_name: str, condition: AccessControlCondition):
+    def __init__(self, var_name: str, condition: Condition):
         self.var_name = var_name
         self.condition = condition
 
 
-class SequentialAccessControlCondition(MultiConditionAccessControl):
+class SequentialCondition(MultiCondition):
     """
     A series of conditions that are evaluated in a specific order, where the result of one
     condition can be used in subsequent conditions.
@@ -359,7 +349,7 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
                 )
             var_names.add(condition_variable.var_name)
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.SEQUENTIAL.value), required=True
         )
@@ -373,15 +363,15 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
 
         @validates("condition_variables")
         def validate_condition_variables(self, value):
-            SequentialAccessControlCondition._validate_condition_variables(value)
+            SequentialCondition._validate_condition_variables(value)
             conditions = [cv.condition for cv in value]
-            SequentialAccessControlCondition._validate_multi_condition_nesting(
+            SequentialCondition._validate_multi_condition_nesting(
                 conditions=conditions, field_name="condition_variables"
             )
 
         @post_load
         def make(self, data, **kwargs):
-            return SequentialAccessControlCondition(**data)
+            return SequentialCondition(**data)
 
     def __init__(
         self,
@@ -457,7 +447,7 @@ class _ElseConditionField(fields.Field):
         return instance
 
 
-class IfThenElseCondition(MultiConditionAccessControl):
+class IfThenElseCondition(MultiCondition):
     """
     A condition that represents simple if-then-else logic.
 
@@ -473,7 +463,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
 
     MAX_NUM_CONDITIONS = 3  # only ever max of 3 (if, then, else)
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.IF_THEN_ELSE.value), required=True
         )
@@ -502,7 +492,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
 
         @validates("else_condition")
         def validate_else_condition(self, value):
-            if isinstance(value, AccessControlCondition):
+            if isinstance(value, Condition):
                 self._validate_nested_conditions("else_condition", value)
 
         @post_load
@@ -511,9 +501,9 @@ class IfThenElseCondition(MultiConditionAccessControl):
 
     def __init__(
         self,
-        if_condition: AccessControlCondition,
-        then_condition: AccessControlCondition,
-        else_condition: Union[AccessControlCondition, bool],
+        if_condition: Condition,
+        then_condition: Condition,
+        else_condition: Union[Condition, bool],
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
@@ -535,7 +525,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
     @property
     def conditions(self):
         values = [self.if_condition, self.then_condition]
-        if isinstance(self.else_condition, AccessControlCondition):
+        if isinstance(self.else_condition, Condition):
             values.append(self.else_condition)
 
         return values
@@ -554,7 +544,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
             return then_result, values
 
         # else
-        if isinstance(self.else_condition, AccessControlCondition):
+        if isinstance(self.else_condition, Condition):
             # actual condition
             else_result, else_value = self.else_condition.verify(*args, **kwargs)
         else:
@@ -565,37 +555,48 @@ class IfThenElseCondition(MultiConditionAccessControl):
         return else_result, values
 
 
-class ReturnValueTest:
+class ReturnValueTest(_Serializable):
     class InvalidExpression(ValueError):
         pass
 
     COMPARATORS = tuple(_COMPARATOR_FUNCTIONS)
 
-    class ReturnValueTestSchema(CamelCaseSchema):
+    class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
-        comparator = fields.Str(required=True, validate=OneOf(_COMPARATOR_FUNCTIONS))
+        comparator = fields.Str(
+            required=True,
+            validate=OneOf(_COMPARATOR_FUNCTIONS, error="Not a permitted comparator"),
+        )
         value = AnyField(
             allow_none=False, required=True
         )  # any valid type (excludes None)
         index = fields.Int(
-            strict=True, required=False, validate=Range(min=0), allow_none=True
+            strict=True,
+            required=False,
+            validate=Range(
+                min=0, error="Not a permitted index. Must be a an non-negative integer."
+            ),
+            allow_none=True,
         )
+
+        @validates_schema
+        def validate_comparator_and_value(self, data, **kwargs):
+            value = data.get("value")
+            if is_context_variable(value):
+                return
+
+            comparator = data.get("comparator")
+            if comparator == "in" and not isinstance(value, list):
+                raise ValidationError(
+                    field_name="value",
+                    message=f'"{type(value)}" is not a valid type for the "in" comparator; only list is allowed.',
+                )
 
         @post_load
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
     def __init__(self, comparator: str, value: Any, index: int = None):
-        if comparator not in self.COMPARATORS:
-            raise self.InvalidExpression(
-                f'"{comparator}" is not a permitted comparator.'
-            )
-
-        if index is not None and (not isinstance(index, int) or index < 0):
-            raise self.InvalidExpression(
-                f'"{index}" is not a permitted index. Must be a an non-negative integer.'
-            )
-
         if not is_context_variable(value):
             # adjust stored value to be JSON serializable
             if isinstance(value, (tuple, set)):
@@ -618,6 +619,11 @@ class ReturnValueTest:
         self.comparator = comparator
         self.value = value
         self.index = index
+
+        try:
+            self._validate()
+        except ValueError as e:
+            raise self.InvalidExpression(f"{e}")
 
     @classmethod
     def _sanitize_value(cls, value):
@@ -669,9 +675,22 @@ class ReturnValueTest:
             )
 
         processed_data = self._process_data(data, self.index)
-        left_operand = self._sanitize_value(processed_data)
-        right_operand = self._sanitize_value(self.value)
-        result = _COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
+        comparator_function = _COMPARATOR_FUNCTIONS.get(self.comparator)
+        if comparator_function == pyoperator.contains:
+            # for 'contains' operator, the left operand is the value and
+            # right operand is the data to check
+
+            # first need to sanitize all values in list
+            sanitized_list = [self._sanitize_value(v) for v in self.value]
+            left_operand = sanitized_list
+
+            right_operand = self._sanitize_value(processed_data)
+        else:
+            left_operand = self._sanitize_value(processed_data)
+            right_operand = self._sanitize_value(self.value)
+
+        result = comparator_function(left_operand, right_operand)
+
         return result
 
     def with_resolved_context(
@@ -713,7 +732,7 @@ class ConditionLingo(_Serializable):
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    def __init__(self, condition: AccessControlCondition, version: str = VERSION):
+    def __init__(self, condition: Condition, version: str = VERSION):
         self.condition = condition
         self.check_version_compatibility(version)
         self.version = version
@@ -763,7 +782,7 @@ class ConditionLingo(_Serializable):
     @classmethod
     def resolve_condition_class(
         cls, condition: ConditionDict, version: int = None
-    ) -> Type[AccessControlCondition]:
+    ) -> Type[Condition]:
         """
         Inspects a given block of JSON and attempts to resolve it's intended datatype within the
         conditions expression framework.
@@ -774,6 +793,10 @@ class ConditionLingo(_Serializable):
         from nucypher.policy.conditions.json.api import JsonApiCondition
         from nucypher.policy.conditions.json.rpc import JsonRpcCondition
         from nucypher.policy.conditions.jwt import JWTCondition
+        from nucypher.policy.conditions.signing.base import (
+            SigningObjectAbiAttributeCondition,
+            SigningObjectAttributeCondition,
+        )
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
@@ -783,14 +806,16 @@ class ConditionLingo(_Serializable):
             TimeCondition,
             ContractCondition,
             RPCCondition,
-            CompoundAccessControlCondition,
+            CompoundCondition,
             JsonApiCondition,
             JsonRpcCondition,
             JWTCondition,
-            SequentialAccessControlCondition,
+            SequentialCondition,
             IfThenElseCondition,
             AddressAllowlistCondition,
             ECDSACondition,
+            SigningObjectAttributeCondition,
+            SigningObjectAbiAttributeCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition
@@ -807,17 +832,15 @@ class ConditionLingo(_Serializable):
             )
 
 
-class ExecutionCallAccessControlCondition(AccessControlCondition):
+class ExecutionCallCondition(Condition):
     """
     Conditions that utilize underlying ExecutionCall objects.
     """
 
     EXECUTION_CALL_TYPE = NotImplemented
 
-    class Schema(AccessControlCondition.Schema):
-        return_value_test = fields.Nested(
-            ReturnValueTest.ReturnValueTestSchema(), required=True
-        )
+    class Schema(Condition.Schema):
+        return_value_test = fields.Nested(ReturnValueTest.Schema(), required=True)
 
     def __init__(
         self,

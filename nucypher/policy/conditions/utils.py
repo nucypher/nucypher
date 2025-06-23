@@ -1,6 +1,6 @@
 import re
 from http import HTTPStatus
-from typing import Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from marshmallow import Schema, post_dump
 from marshmallow.exceptions import SCHEMA
@@ -91,6 +91,11 @@ def to_camelcase(s):
 def camel_case_to_snake(data: str) -> str:
     data = re.sub(r"(?<!^)(?=[A-Z])", "_", data).lower()
     return data
+
+
+def is_camel_case(data: str) -> bool:
+    # Must start with lowercase, contain no underscores/spaces, and have at least one uppercase after the first char
+    return bool(re.fullmatch(r"[a-z]+(?:[A-Z][a-z0-9]*)*", data))
 
 
 class CamelCaseSchema(Schema):
@@ -236,5 +241,22 @@ def check_and_convert_big_int_string_to_int(value: str) -> Union[str, int]:
         except ValueError:
             # ignore
             pass
+
+    return value
+
+
+def check_and_convert_any_big_ints(value: Any) -> Any:
+    """
+    Check if an object contains any big int strings and convert them to an integer,
+    otherwise return the object.
+
+    Expects the object to have been created from JSON so the only objects are lists or dicts.
+    """
+    if isinstance(value, list):
+        return [check_and_convert_any_big_ints(item) for item in value]
+    elif isinstance(value, dict):
+        return {k: check_and_convert_any_big_ints(v) for k, v in value.items()}
+    elif isinstance(value, str):
+        return check_and_convert_big_int_string_to_int(value)
 
     return value

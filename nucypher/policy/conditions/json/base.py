@@ -18,7 +18,7 @@ from nucypher.policy.conditions.exceptions import (
     JsonRequestException,
 )
 from nucypher.policy.conditions.json.utils import process_result_for_condition_eval
-from nucypher.policy.conditions.lingo import ExecutionCallAccessControlCondition
+from nucypher.policy.conditions.lingo import ExecutionCallCondition
 from nucypher.utilities.logging import Logger
 
 
@@ -144,7 +144,7 @@ class JSONPathField(Field):
         return value
 
 
-class BaseJsonRequestCondition(ExecutionCallAccessControlCondition, ABC):
+class BaseJsonRequestCondition(ExecutionCallCondition, ABC):
     def verify(self, **context) -> Tuple[bool, Any]:
         """
         Verifies the JSON condition.
