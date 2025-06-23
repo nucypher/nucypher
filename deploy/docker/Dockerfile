@@ -1,4 +1,4 @@
-FROM nucypher/rust-python:3.12.0
+FROM nucypher/rust-python:3.12.9
 
 # set default user
 USER $USER
