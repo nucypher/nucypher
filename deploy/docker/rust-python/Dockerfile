@@ -1,4 +1,4 @@
-FROM rust:slim-buster
+FROM rust:1.87.0-slim
 
 # prepare container
 RUN apt-get update -y
