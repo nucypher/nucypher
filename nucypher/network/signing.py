@@ -281,6 +281,12 @@ class PackedUserOperationSignatureRequest(BaseSignatureRequest):
         )
 
 
+class UnsupportedSignatureRequest(ValueError):
+    """
+    Raised for unrecognized signature requests.
+    """
+
+
 #
 # Logic for using SignatureRequest data classes
 # This will stay in nucypher, while the data classes will move to nucypher-core
@@ -310,7 +316,9 @@ def sign_signature_request_data(
             standardize=False,
         )
 
-    raise ValueError(f"Unsupported signature request: {request.__class__.__name__}")
+    raise UnsupportedSignatureRequest(
+        f"Unsupported signature request: {request.__class__.__name__}"
+    )
 
 
 def deserialize_signature_request(
@@ -333,7 +341,9 @@ def deserialize_signature_request(
             signature_request = EIP191SignatureRequest.from_bytes(request_data)
 
         if not signature_request:
-            raise ValueError(f"Invalid signature request type: {signature_type}")
+            raise UnsupportedSignatureRequest(
+                f"Invalid signature request type: {signature_type}"
+            )
 
         # add the signing object to the context
         signing_object = get_signature_request_object(signature_request)
@@ -342,7 +352,7 @@ def deserialize_signature_request(
         return signature_request
 
     except (json.JSONDecodeError, ValueError) as e:
-        raise ValueError("Invalid signature request data") from e
+        raise UnsupportedSignatureRequest("Invalid signature request data") from e
 
 
 def get_signature_request_object(request: BaseSignatureRequest) -> Any:
@@ -354,4 +364,6 @@ def get_signature_request_object(request: BaseSignatureRequest) -> Any:
     elif isinstance(request, EIP191SignatureRequest):
         return request.data
 
-    raise ValueError(f"Unsupported signature request: {request.__class__.__name__}")
+    raise UnsupportedSignatureRequest(
+        f"Unsupported signature request: {request.__class__.__name__}"
+    )

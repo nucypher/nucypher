@@ -8,7 +8,11 @@ FUNCTION_NAME_PATTERN = r"^[a-zA-Z_][a-zA-Z0-9_]*$"
 
 
 def extract_arg_types(human_signature: str) -> List[str]:
-    # Extract argument types from signature
+    """
+    Extra list of arg types from human ABI signature.
+
+    Raises ValueError if human ABI signature is incorrectly formatted.
+    """
     start = human_signature.find("(")
     end = human_signature.rfind(")")
     if start == -1 or end == -1 or end <= start:
@@ -36,6 +40,9 @@ def extract_arg_types(human_signature: str) -> List[str]:
             current.append(char)
     if current:
         arg_types.append("".join(current).strip())
+
+    if depth != 0:
+        raise ValueError("Mismatched parentheses in function signatures")
 
     return arg_types
 
