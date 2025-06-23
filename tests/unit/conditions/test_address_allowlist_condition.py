@@ -8,6 +8,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidConditionContext,
     InvalidConditionLingo,
 )
+from nucypher.policy.conditions.lingo import ConditionType
 
 
 def test_address_allowlist_condition_init():
@@ -22,7 +23,7 @@ def test_address_allowlist_condition_init():
     condition = AddressAllowlistCondition(
         user_address=USER_ADDRESS_CONTEXT, addresses=addresses
     )
-    assert condition.condition_type == "address-allowlist"
+    assert condition.condition_type == ConditionType.ADDRESS_ALLOWLIST.value
     assert set(condition.addresses) == set(addresses)
 
     # Test with empty addresses list
