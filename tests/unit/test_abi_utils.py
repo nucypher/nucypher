@@ -27,13 +27,17 @@ from nucypher.utilities.abi import (
         ("nestedTupleType(address,(string,uint256,(address,bool)))", True),
         # Failure cases
         ("invalidSignature", False),  # Invalid signature
-        ("123start(address, uint256)", False),  # Invalid function name
-        ("!start(address, uint256)", False),  # Invalid function name
+        ("123start(address,uint256)", False),  # Invalid function name
+        ("!start(address,uint256)", False),  # Invalid function name
         ("bad(!!!, address)", False),  # Invalid typ
-        ("transfer(address, uint257)", False),  # Invalid type
-        ("transfer(address, uint256", False),  # Missing closing parenthesis
+        ("transfer(address,uint257)", False),  # Invalid type
+        ("transfer(address,uint256", False),  # Missing closing parenthesis
+        (
+            "execute(address,uint256,(address,uint256,bytes)",
+            False,
+        ),  # Missing closing parenthesis
         ("transfer(,uint256)", False),  # Empty argument type
-        ("transfer(address, uint256) extra", False),  # Extra text after signature
+        ("transfer(address,uint256) extra", False),  # Extra text after signature
     ],
 )
 def test_valid_human_readable_signature(human_signature, expected):

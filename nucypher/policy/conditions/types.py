@@ -181,33 +181,40 @@ class SigningObjectAttributeCondition(_BaseSigningObjectAttributeCondition):
     returnValueTest: ReturnValueTestDict
 
 
-# AbiParameterValueCheck represents:
+# AbiParameterValidation represents:
 # {
 #     "parameterIndex": str
+#     "indexWithinTuple": int
 #     "returnValueTest: <>
+#     "nestedAbiValidation: <>
 # }
-class AbiParameterValueCheck(TypedDict):
-    parameter_index: int
-    returnValueTest: ReturnValueTestDict
+class AbiParameterValidation(TypedDict):
+    parameterIndex: int
+    indexWithinTuple: NotRequired[int]
+    # either returnValueTest or nestedAbiValidation
+    returnValueTest: NotRequired[ReturnValueTestDict]
+    nestedAbiValidation: NotRequired["AbiCallValidation"]
 
 
-# SigningObjectAttributeCondition represents:
+# AbiCallValidation
+# {
+#    "allowedAbiCalls": {
+#        <call>: ["AbiParameterValidation"]
+#    }
+# }
+class AbiCallValidation(TypedDict):
+    allowedAbiCalls = Dict[str, List[AbiParameterValidation]]
+
+
+# SigningObjectAbiAttributeCondition represents:
 # {
 #     "attributeName": str
 #     "signingObjectContextVar": ":signingConditionObject"
-#     "allowedAbiCalls": {
-#         "<abi_function_signature>": [
-#              <abi_parameter_value_check_1>,
-#              <abi_parameter_value_check_2>,
-#         ],
-#         "<abi_function_signature>": [
-#              <abi_parameter_value_check_1>,
-#              <abi_parameter_value_check_2>,
-#         ]
-#     }
+#     "abiValidation": <abi_call_validation>
 # }
 class SigningObjectAbiAttributeCondition(_BaseSigningObjectAttributeCondition):
-    allowedAbiCalls: Dict[str, List[AbiParameterValueCheck]]
+    abiValidation: AbiCallValidation
+
 
 #
 # ConditionDict is a dictionary of:
