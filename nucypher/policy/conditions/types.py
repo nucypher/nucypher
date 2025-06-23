@@ -35,12 +35,12 @@ class ReturnValueTestDict(TypedDict):
 
 
 # Conditions
-class _AccessControlCondition(TypedDict):
+class _Condition(TypedDict):
     name: NotRequired[str]
     conditionType: str
 
 
-class BaseExecConditionDict(_AccessControlCondition):
+class BaseExecConditionDict(_Condition):
     returnValueTest: ReturnValueTestDict
 
 
@@ -75,7 +75,7 @@ class JsonRpcConditionDict(BaseExecConditionDict):
     authorizationToken: NotRequired[str]
 
 
-class JWTConditionDict(_AccessControlCondition):
+class JWTConditionDict(_Condition):
     jwtToken: str
     publicKey: str  # TODO: See #3572 for a discussion about deprecating this in favour of the expected issuer
     expectedIssuer: NotRequired[str]
@@ -85,10 +85,10 @@ class JWTConditionDict(_AccessControlCondition):
 # CompoundCondition represents:
 # {
 #     "operator": ["and" | "or" | "not"]
-#     "operands": List[AccessControlCondition]
+#     "operands": List[Condition]
 # }
 #
-class CompoundConditionDict(_AccessControlCondition):
+class CompoundConditionDict(_Condition):
     operator: Literal["and", "or", "not"]
     operands: List["ConditionDict"]
 
@@ -97,7 +97,7 @@ class CompoundConditionDict(_AccessControlCondition):
 # ConditionVariable represents:
 # {
 #     varName: str
-#     condition: AccessControlCondition
+#     condition: Condition
 # }
 #
 class ConditionVariableDict(TypedDict):
@@ -111,18 +111,18 @@ class ConditionVariableDict(TypedDict):
 #     "conditionVariables": List[ConditionVariable]
 # }
 #
-class SequentialConditionDict(_AccessControlCondition):
+class SequentialConditionDict(_Condition):
     conditionVariables = List[ConditionVariableDict]
 
 
 #
 # IfThenElseCondition represents:
 # {
-#     "ifCondition": AccessControlCondition
-#     "thenCondition": AccessControlCondition
-#     "elseCondition": [AccessControlCondition | bool]
+#     "ifCondition": Condition
+#     "thenCondition": Condition
+#     "elseCondition": [Condition | bool]
 # }
-class IfThenElseConditionDict(_AccessControlCondition):
+class IfThenElseConditionDict(_Condition):
     ifCondition: "ConditionDict"
     thenCondition: "ConditionDict"
     elseCondition: Union["ConditionDict", bool]
@@ -135,10 +135,43 @@ class IfThenElseConditionDict(_AccessControlCondition):
 #     "signature": str
 #     "verifyingKey": str
 # }
-class ECDSAConditionDict(_AccessControlCondition):
+class ECDSAConditionDict(_Condition):
     message: Union[bytes, str]
     signature: str
     verifyingKey: str
+
+
+# _SigningObjectCondition abstract class represents:
+# {
+#     "signingObjectContextVar": ":signingConditionObject"
+# }
+class _SigningObjectCondition(_Condition):
+    signing_object_context_var: str
+
+
+#
+# SigningObjectAttributeCondition represents:
+# {
+#     "attributeName": str
+#     "signingObjectContextVar": ":signingConditionObject"
+#     "returnValueTest: <>
+# }
+class SigningObjectAttributeCondition(_SigningObjectCondition):
+    attributeName: str
+    returnValueTest: ReturnValueTestDict
+
+
+# SigningObjectAttributeCondition represents:
+# {
+#     "attributeName": str
+#     "signingObjectContextVar": ":signingConditionObject"
+#     "abiDecodeString": str
+#     "abiDecodeValueIndex: int
+#     "returnValueTest: <>
+# }
+class SigningObjectAbiAttributeCondition(SigningObjectAttributeCondition):
+    abiDecodeString: str
+    abiDecodeValueIndex: int
 
 
 #
@@ -153,6 +186,8 @@ class ECDSAConditionDict(_AccessControlCondition):
 # - SequentialCondition
 # - IfThenElseCondition
 # - ECDSACondition
+# - SigningObjectAttributeCondition
+# - SigningObjectAbiAttributeCondition
 ConditionDict = Union[
     TimeConditionDict,
     RPCConditionDict,
@@ -164,6 +199,8 @@ ConditionDict = Union[
     SequentialConditionDict,
     IfThenElseConditionDict,
     ECDSAConditionDict,
+    SigningObjectAttributeCondition,
+    SigningObjectAbiAttributeCondition,
 ]
 
 

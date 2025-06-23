@@ -13,7 +13,7 @@ from marshmallow import (
     validates_schema,
 )
 
-from nucypher.policy.conditions.base import AccessControlCondition, ExecutionCall
+from nucypher.policy.conditions.base import Condition, ExecutionCall
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
     is_context_variable,
@@ -151,7 +151,7 @@ class ECDSAVerificationCall(ExecutionCall):
             return False
 
 
-class ECDSACondition(AccessControlCondition):
+class ECDSACondition(Condition):
     """
     An ECDSA condition is satisfied when a provided signature can be verified
     against a message using the provided verifying key.
@@ -164,7 +164,7 @@ class ECDSACondition(AccessControlCondition):
 
     CONDITION_TYPE = "ecdsa"  # Add this to ConditionType enum
 
-    class Schema(AccessControlCondition.Schema, ECDSAVerificationCall.Schema):
+    class Schema(Condition.Schema, ECDSAVerificationCall.Schema):
         condition_type = fields.Str(validate=validate.Equal("ecdsa"), required=True)
 
         @post_load

@@ -2,7 +2,7 @@ import pytest
 from web3.exceptions import Web3Exception
 
 from nucypher.policy.conditions.base import (
-    AccessControlCondition,
+    Condition,
 )
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import (
@@ -10,22 +10,22 @@ from nucypher.policy.conditions.lingo import (
     ConditionVariable,
     IfThenElseCondition,
     OrCompoundCondition,
-    SequentialAccessControlCondition,
+    SequentialCondition,
 )
 from nucypher.policy.conditions.utils import ConditionProviderManager
 
 
 @pytest.fixture(scope="function")
 def mock_conditions(mocker):
-    cond_1 = mocker.Mock(spec=AccessControlCondition)
+    cond_1 = mocker.Mock(spec=Condition)
     cond_1.verify.return_value = (True, 1)
     cond_1.to_dict.return_value = {"value": 1}
 
-    cond_2 = mocker.Mock(spec=AccessControlCondition)
+    cond_2 = mocker.Mock(spec=Condition)
     cond_2.verify.return_value = (True, 2)
     cond_2.to_dict.return_value = {"value": 2}
 
-    cond_3 = mocker.Mock(spec=AccessControlCondition)
+    cond_3 = mocker.Mock(spec=Condition)
     cond_3.verify.return_value = (True, 3)
     cond_3.to_dict.return_value = {"value": 3}
 
@@ -47,7 +47,7 @@ def test_nested_sequential_condition_too_many_nested_levels(
     rpc_condition, time_condition
 ):
     # causes too many nested multi-conditions when used within a if-then-else condition
-    problematic_nested_condition = SequentialAccessControlCondition(
+    problematic_nested_condition = SequentialCondition(
         condition_variables=[
             ConditionVariable("var1", time_condition),
             ConditionVariable(
@@ -152,7 +152,7 @@ def test_nested_multi_condition_allowed_levels(rpc_condition, time_condition):
             then_condition=time_condition,
             else_condition=rpc_condition,
         ),
-        else_condition=SequentialAccessControlCondition(
+        else_condition=SequentialCondition(
             condition_variables=[
                 ConditionVariable("var1", time_condition),
                 ConditionVariable("var2", rpc_condition),
@@ -240,7 +240,7 @@ def test_nested_multi_conditions(mock_conditions):
                 cond_2,
             ]
         ),
-        then_condition=SequentialAccessControlCondition(
+        then_condition=SequentialCondition(
             condition_variables=[
                 ConditionVariable("var1", cond_2),
                 ConditionVariable("var2", cond_3),
@@ -267,7 +267,7 @@ def test_nested_multi_conditions(mock_conditions):
                 cond_2,
             ]
         ),
-        then_condition=SequentialAccessControlCondition(
+        then_condition=SequentialCondition(
             condition_variables=[
                 ConditionVariable("var1", cond_2),
                 ConditionVariable("var2", cond_3),

@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from marshmallow import ValidationError, fields, post_load, validate, validates
 
-from nucypher.policy.conditions.base import AccessControlCondition, ExecutionCall
+from nucypher.policy.conditions.base import Condition, ExecutionCall
 from nucypher.policy.conditions.context import (
     is_context_variable,
     resolve_any_context_variables,
@@ -99,7 +99,7 @@ class JWTVerificationCall(ExecutionCall):
         return payload
 
 
-class JWTCondition(AccessControlCondition):
+class JWTCondition(Condition):
     """
     A JWT condition can be satisfied by presenting a valid JWT token, which not only is
     required to be cryptographically verifiable, but also must fulfill certain additional
@@ -108,7 +108,7 @@ class JWTCondition(AccessControlCondition):
 
     CONDITION_TYPE = ConditionType.JWT.value
 
-    class Schema(AccessControlCondition.Schema, JWTVerificationCall.Schema):
+    class Schema(Condition.Schema, JWTVerificationCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JWT.value), required=True
         )

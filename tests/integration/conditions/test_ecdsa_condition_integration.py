@@ -4,7 +4,7 @@ from ecdsa.util import sigencode_string
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
 from nucypher.policy.conditions.lingo import (
-    CompoundAccessControlCondition,
+    CompoundCondition,
     ConditionLingo,
 )
 
@@ -87,12 +87,12 @@ def test_ecdsa_in_compound_condition():
     )
 
     # Create OR compound condition
-    or_condition = CompoundAccessControlCondition(
+    or_condition = CompoundCondition(
         operator="or", operands=[ecdsa_condition1, ecdsa_condition2]
     )
 
     # Create AND compound condition
-    and_condition = CompoundAccessControlCondition(
+    and_condition = CompoundCondition(
         operator="and", operands=[ecdsa_condition1, ecdsa_condition2]
     )
 

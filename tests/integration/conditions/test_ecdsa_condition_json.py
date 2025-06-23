@@ -5,7 +5,7 @@ from ecdsa.util import sigencode_string
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
 from nucypher.policy.conditions.lingo import (
-    CompoundAccessControlCondition,
+    CompoundCondition,
     ConditionLingo,
 )
 
@@ -132,7 +132,7 @@ def test_complex_condition_with_ecdsa_json_serialization():
     )
 
     # Create compound condition (both signers must sign)
-    compound_condition = CompoundAccessControlCondition(
+    compound_condition = CompoundCondition(
         operator="and", operands=[condition1, condition2], name="Both Signers Required"
     )
 
@@ -170,7 +170,7 @@ def test_complex_condition_with_ecdsa_json_serialization():
     assert len(parsed_json["operands"]) == 2
 
     # Recreate from JSON
-    recreated_condition = CompoundAccessControlCondition.from_json(json_condition)
+    recreated_condition = CompoundCondition.from_json(json_condition)
 
     # Create a context with valid signatures
     context = {

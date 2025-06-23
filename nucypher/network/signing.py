@@ -1,11 +1,12 @@
 import json
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from hexbytes import HexBytes
 
 from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.conditions.signing.base import SIGNING_CONDITION_OBJECT_CONTEXT_VAR
 from nucypher.policy.conditions.types import ContextDict
 from nucypher.utilities.erc4337_utils import (
     AAVersion,
@@ -20,7 +21,6 @@ class SignatureRequestType(Enum):
     USEROP = "userop"
     PACKED_USER_OP = "packedUserOp"
     EIP_191 = "eip-191"
-    EIP_712 = "eip-712"
 
 
 # TODO I'm hesitant to have too much logic in this module because
@@ -34,8 +34,6 @@ class BaseSignatureRequest(ABC):
         signature_type: SignatureRequestType,
         context: Optional[ContextDict] = None,
     ):
-        if not isinstance(signature_type, SignatureRequestType):
-            raise ValueError(f"Invalid signature type: {signature_type}")
         self.cohort_id = cohort_id
         self.chain_id = chain_id
         self.context = context or {}
@@ -152,14 +150,6 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
         aa_version: AAVersion,
         context: Optional[ContextDict] = None,
     ):
-
-        if not isinstance(user_op, UserOperation):
-            raise ValueError("UserOp must be an instance of UserOperation.")
-        if aa_version is None:
-            raise ValueError(
-                "AA version must be specified for UserOperation signing request."
-            )
-
         self.user_op = user_op
         self.aa_version = aa_version
         super().__init__(
@@ -199,22 +189,15 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
         except (json.JSONDecodeError, KeyError) as e:
             raise ValueError("Invalid UserOperation request data") from e
 
-        try:
-            aa_version = AAVersion(aa_version_str)
+        aa_version = AAVersion(aa_version_str)
 
-            # Validate signature type
-            signature_type = SignatureRequestType(signature_type_str)
-            if signature_type != SignatureRequestType.USEROP:
-                raise ValueError(
-                    f"Expected USEROP signature type, got {signature_type}"
-                )
+        # Validate signature type
+        signature_type = SignatureRequestType(signature_type_str)
+        if signature_type != SignatureRequestType.USEROP:
+            raise ValueError(f"Expected USEROP signature type, got {signature_type}")
 
-            # Reconstruct the UserOperation
-            user_op = UserOperation.from_bytes(user_op_data.encode("utf-8"))
-
-        except ValueError:
-            # Re-raise ValueError as-is (includes our validation errors)
-            raise
+        # Reconstruct the UserOperation
+        user_op = UserOperation.from_bytes(user_op_data.encode("utf-8"))
 
         return cls(
             user_op=user_op,
@@ -236,13 +219,6 @@ class PackedUserOperationSignatureRequest(BaseSignatureRequest):
         aa_version: AAVersion,
         context: Optional[ContextDict] = None,
     ):
-
-        if not isinstance(packed_user_op, PackedUserOperation):
-            raise ValueError("UserOp must be an instance of PackedUserOperation.")
-        if aa_version is None:
-            raise ValueError(
-                "AA version must be specified for UserOperation signing request."
-            )
 
         self.packed_user_op = packed_user_op
         self.aa_version = aa_version
@@ -283,24 +259,17 @@ class PackedUserOperationSignatureRequest(BaseSignatureRequest):
         except (json.JSONDecodeError, KeyError) as e:
             raise ValueError("Invalid PackedUserOperation request data") from e
 
-        try:
-            aa_version = AAVersion(aa_version_str)
+        aa_version = AAVersion(aa_version_str)
 
-            # Validate signature type
-            signature_type = SignatureRequestType(signature_type_str)
-            if signature_type != SignatureRequestType.PACKED_USER_OP:
-                raise ValueError(
-                    f"Expected PACKED_USER_OP signature type, got {signature_type}"
-                )
-
-            # Reconstruct the UserOperation
-            packed_user_op = PackedUserOperation.from_bytes(
-                user_op_data.encode("utf-8")
+        # Validate signature type
+        signature_type = SignatureRequestType(signature_type_str)
+        if signature_type != SignatureRequestType.PACKED_USER_OP:
+            raise ValueError(
+                f"Expected PACKED_USER_OP signature type, got {signature_type}"
             )
 
-        except ValueError:
-            # Re-raise ValueError as-is (includes our validation errors)
-            raise
+        # Reconstruct the UserOperation
+        packed_user_op = PackedUserOperation.from_bytes(user_op_data.encode("utf-8"))
 
         return cls(
             packed_user_op=packed_user_op,
@@ -352,13 +321,36 @@ def deserialize_signature_request(
         signature_type_str = result["signature_type"]
         signature_type = SignatureRequestType(signature_type_str)
 
+        signature_request = None
         if signature_type == SignatureRequestType.USEROP:
-            return UserOperationSignatureRequest.from_bytes(request_data)
+            signature_request = UserOperationSignatureRequest.from_bytes(request_data)
         elif signature_type == SignatureRequestType.PACKED_USER_OP:
-            return PackedUserOperationSignatureRequest.from_bytes(request_data)
+            signature_request = PackedUserOperationSignatureRequest.from_bytes(
+                request_data
+            )
         elif signature_type == SignatureRequestType.EIP_191:
-            return EIP191SignatureRequest.from_bytes(request_data)
+            signature_request = EIP191SignatureRequest.from_bytes(request_data)
 
-        raise ValueError(f"Invalid signature request type: {signature_type}")
+        if not signature_request:
+            raise ValueError(f"Invalid signature request type: {signature_type}")
+
+        # add the signing object to the context
+        signing_object = get_signature_request_object(signature_request)
+        signature_request.context[SIGNING_CONDITION_OBJECT_CONTEXT_VAR] = signing_object
+
+        return signature_request
+
     except (json.JSONDecodeError, ValueError) as e:
         raise ValueError("Invalid signature request data") from e
+
+
+def get_signature_request_object(request: BaseSignatureRequest) -> Any:
+    """Get the signature request object based on the request type."""
+    if isinstance(request, UserOperationSignatureRequest):
+        return request.user_op
+    elif isinstance(request, PackedUserOperationSignatureRequest):
+        return request.packed_user_op
+    elif isinstance(request, EIP191SignatureRequest):
+        return request.data
+
+    raise ValueError(f"Unsupported signature request: {request.__class__.__name__}")

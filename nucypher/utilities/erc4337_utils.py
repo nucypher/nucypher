@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Tuple
 
-import eth_abi
-from eth_utils import keccak, to_bytes, to_checksum_address
+from eth_utils import to_bytes
 from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -59,7 +58,7 @@ class UserOperation:
     def __eq__(self, other) -> bool:
         if not isinstance(other, UserOperation):
             return False
-        return self.to_dict() == other.to_dict()
+        return bytes(self) == bytes(other)
 
     def __bytes__(self) -> bytes:
         return json.dumps(self.to_dict(), sort_keys=True).encode("utf-8")
@@ -222,6 +221,11 @@ class PackedUserOperation:
     def __bytes__(self) -> bytes:
         return json.dumps(self.to_dict(), sort_keys=True).encode("utf-8")
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, PackedUserOperation):
+            return False
+        return bytes(self) == bytes(other)
+
     @classmethod
     def from_bytes(cls, data: bytes) -> "PackedUserOperation":
         d = json.loads(data.decode("utf-8"))
@@ -262,6 +266,7 @@ class PackedUserOperation:
             "paymasterAndData": self.paymaster_and_data,
         }
         if aa_version == AAVersion.MDT:
+            # TODO how extensible is this, if MDT eventually switches to v0.8.0?
             result["entryPoint"] = EntryPointContracts.ENTRYPOINT_V07
         return result
 
@@ -306,56 +311,3 @@ class PackedUserOperation:
 
         self.signature = bytes(signature)
         return message_hash, signature
-
-
-def encode_function_call(signature: str, args: list) -> HexBytes:
-    selector = HexBytes(keccak(text=signature)[:4])
-    types = [
-        t
-        for t in signature[signature.find("(") + 1 : signature.find(")")].split(",")
-        if t
-    ]
-    return selector + HexBytes(eth_abi.encode(types, args))
-
-
-def create_eth_transfer(
-    sender: str, nonce: int, to: str, value: int, **kwargs
-) -> "UserOperation":
-    data = encode_function_call(
-        "execute(address,uint256,bytes)",
-        [to_checksum_address(to), value, b""],
-    )
-    return UserOperation(sender, nonce, None, b"", data, **kwargs)
-
-
-def create_erc20_transfer(
-    sender: str, nonce: int, token: str, to: str, amount: int, **kwargs
-) -> "UserOperation":
-    call = encode_function_call(
-        "transfer(address,uint256)", [to_checksum_address(to), amount]
-    )
-    data = encode_function_call(
-        "execute(address,uint256,bytes)", [to_checksum_address(token), 0, call]
-    )
-    return UserOperation(sender, nonce, None, b"", data, **kwargs)
-
-
-def create_erc20_approve(
-    sender: str, nonce: int, token: str, spender: str, amount: int, **kwargs
-) -> "UserOperation":
-    call = encode_function_call(
-        "approve(address,uint256)", [to_checksum_address(spender), amount]
-    )
-    data = encode_function_call(
-        "execute(address,uint256,bytes)", [to_checksum_address(token), 0, call]
-    )
-    return UserOperation(sender, nonce, None, b"", data, **kwargs)
-
-
-def create_contract_call(
-    sender: str, nonce: int, target: str, data: HexBytes, value: int = 0, **kwargs
-) -> "UserOperation":
-    payload = encode_function_call(
-        "execute(address,uint256,bytes)", [to_checksum_address(target), value, data]
-    )
-    return UserOperation(sender, nonce, None, b"", payload, **kwargs)

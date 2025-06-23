@@ -53,8 +53,14 @@ class _Serializable:
         instance = cls.from_json(json_payload)
         return instance
 
+    def _validate(self, **kwargs):
+        errors = self.Schema().validate(data=self.to_dict())
+        if errors:
+            error_message = extract_single_error_message_from_schema_errors(errors)
+            raise ValueError(f"Invalid {self.__class__.__name__}: {error_message}")
 
-class AccessControlCondition(_Serializable, ABC):
+
+class Condition(_Serializable, ABC):
     CONDITION_TYPE = NotImplemented
 
     class Schema(CamelCaseSchema):
@@ -68,49 +74,44 @@ class AccessControlCondition(_Serializable, ABC):
         self.condition_type = condition_type
         self.name = name
 
-        self._validate()
+        try:
+            self._validate()
+        except ValueError as e:
+            raise InvalidCondition(f"{e}")
 
     @abstractmethod
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         """Returns the boolean result of the evaluation and the returned value in a two-tuple."""
         raise NotImplementedError
 
-    def _validate(self, **kwargs):
-        errors = self.Schema().validate(data=self.to_dict())
-        if errors:
-            error_message = extract_single_error_message_from_schema_errors(errors)
-            raise InvalidCondition(
-                f"Invalid {self.__class__.__name__}: {error_message}"
-            )
-
     @classmethod
-    def from_dict(cls, data) -> "AccessControlCondition":
+    def from_dict(cls, data) -> "Condition":
         try:
             return super().from_dict(data)
         except ValidationError as e:
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}") from e
 
     @classmethod
-    def from_json(cls, data) -> "AccessControlCondition":
+    def from_json(cls, data) -> "Condition":
         try:
             return super().from_json(data)
         except ValidationError as e:
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}") from e
 
 
-class MultiConditionAccessControl(AccessControlCondition):
+class MultiCondition(Condition):
     MAX_NUM_CONDITIONS = 5
     MAX_MULTI_CONDITION_NESTED_LEVEL = 2
 
     @property
     @abstractmethod
-    def conditions(self) -> List[AccessControlCondition]:
+    def conditions(self) -> List[Condition]:
         raise NotImplementedError
 
     @classmethod
     def _validate_multi_condition_nesting(
         cls,
-        conditions: List[AccessControlCondition],
+        conditions: List[Condition],
         field_name: str,
         current_level: int = 1,
     ):
@@ -121,7 +122,7 @@ class MultiConditionAccessControl(AccessControlCondition):
             )
 
         for condition in conditions:
-            if not isinstance(condition, MultiConditionAccessControl):
+            if not isinstance(condition, MultiCondition):
                 continue
 
             level = current_level + 1
@@ -146,10 +147,10 @@ class ExecutionCall(_Serializable, ABC):
 
     def __init__(self):
         # validate call using marshmallow schema before creating
-        errors = self.Schema().validate(data=self.to_dict())
-        if errors:
-            error_message = extract_single_error_message_from_schema_errors(errors)
-            raise self.InvalidExecutionCall(f"{error_message}")
+        try:
+            self._validate()
+        except ValueError as e:
+            raise self.InvalidExecutionCall(f"{e}")
 
     @abstractmethod
     def execute(self, *args, **kwargs) -> Any:
