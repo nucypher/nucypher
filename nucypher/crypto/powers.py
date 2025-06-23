@@ -55,7 +55,7 @@ class NoRitualisticPower(PowerUpError):
     pass
 
 
-class NotImplmplemented(PowerUpError):
+class NotImplemented(PowerUpError):
     pass
 
 class NoThresholdRequestDecryptingPower(PowerUpError):
