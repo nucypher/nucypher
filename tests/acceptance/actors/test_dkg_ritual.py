@@ -20,7 +20,7 @@ from nucypher.policy.conditions.lingo import (
     NotCompoundCondition,
     OrCompoundCondition,
     ReturnValueTest,
-    SequentialAccessControlCondition,
+    SequentialCondition,
 )
 from nucypher.policy.conditions.time import TimeCondition
 from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
@@ -99,7 +99,7 @@ def condition(test_registry):
         operand=NotCompoundCondition(operand=rpc_condition)
     )
 
-    sequential_condition = SequentialAccessControlCondition(
+    sequential_condition = SequentialCondition(
         condition_variables=[
             ConditionVariable("rpc", rpc_condition),
             ConditionVariable("contract", contract_condition),

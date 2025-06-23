@@ -1,19 +1,22 @@
 import pytest
 import pytest_twisted
+from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.characters.lawful import Ursula
 from nucypher.network.signing import (
     EIP191SignatureRequest,
+    PackedUserOperationSignatureRequest,
     UserOperationSignatureRequest,
 )
 from nucypher.policy.conditions.auth.evm import EIP1271Auth
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
+from nucypher.policy.conditions.signing.base import SigningObjectAttributeCondition
 from nucypher.utilities.erc4337_utils import (
     AAVersion,
-    create_erc20_transfer,
-    create_eth_transfer,
+    PackedUserOperation,
 )
+from tests.utils.erc4337 import create_erc20_transfer, create_eth_transfer
 
 
 @pytest.fixture(scope="module")
@@ -246,7 +249,7 @@ def test_signing_request_fulfilment(
 
 @pytest_twisted.inlineCallbacks
 @pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
-def test_user_op_signing_request_fulfilment(
+def test_user_op_signing_request_eth_transfer(
     aa_version,
     chain,
     bob,
@@ -259,9 +262,11 @@ def test_user_op_signing_request_fulfilment(
     nucypher_dependency,
     ritual_initiator,
 ):
-    signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
+    print(
+        "==================== TESTING ETH TRANSFER USER OPERATION SIGNING ===================="
+    )
 
-    print("==================== TESTING USER OPERATION SIGNING ====================")
+    signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
 
     # Test create_eth_transfer helper
     eth_transfer_op = create_eth_transfer(
@@ -282,6 +287,10 @@ def test_user_op_signing_request_fulfilment(
     assert eth_transfer_op.nonce == 1
     assert len(eth_transfer_op.call_data) > 0  # Should have encoded call data
 
+    expected_hash, _ = PackedUserOperation.from_user_operation(eth_transfer_op).sign(
+        ritual_initiator.transacting_power, aa_version, chain.chain_id
+    )
+
     # Test signing the ETH transfer operation
     eth_signing_request = UserOperationSignatureRequest(
         user_op=eth_transfer_op,
@@ -296,22 +305,43 @@ def test_user_op_signing_request_fulfilment(
 
     # Verify ETH transfer signatures
     assert len(responses) >= signing_cohort.threshold
-    message_hash = None
     aggregated_signature = b""
     for r in responses:
-        if message_hash is None:
-            message_hash = r.hash
-        assert message_hash == r.hash, "All hashes must be the same"
+        assert expected_hash == r.hash, "All hashes must be the same"
         aggregated_signature += r.signature
 
     multisig = get_cohort_multisig(
         cohort_id, nucypher_dependency, signing_coordinator_child
     )
-    eth_result = multisig.isValidSignature(message_hash, aggregated_signature)
+    eth_result = multisig.isValidSignature(expected_hash, aggregated_signature)
     assert (
         eth_result == EIP1271Auth.MAGIC_VALUE_BYTES
     ), f"Invalid ETH transfer signature: {eth_result} != {EIP1271Auth.MAGIC_VALUE_BYTES}"
-    print("ETH transfer signing successful")
+    print("===================== SIGNING SUCCESSFUL =====================")
+
+    yield
+
+
+@pytest_twisted.inlineCallbacks
+@pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
+def test_user_op_signing_request_erc20_transfer(
+    aa_version,
+    chain,
+    bob,
+    accounts,
+    signing_coordinator_agent,
+    signing_coordinator_child,
+    initiator,
+    cohort_id,
+    cohort,
+    nucypher_dependency,
+    ritual_initiator,
+):
+    print(
+        "==================== TESTING ERC20 TRANSFER USER OPERATION SIGNING ===================="
+    )
+
+    signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
 
     # Test create_erc20_transfer helper
     # Using a mock ERC20 token address
@@ -339,6 +369,10 @@ def test_user_op_signing_request_fulfilment(
     assert erc20_transfer_op.nonce == 2
     assert len(erc20_transfer_op.call_data) > 0  # Should have encoded call data
 
+    expected_hash, _ = PackedUserOperation.from_user_operation(erc20_transfer_op).sign(
+        ritual_initiator.transacting_power, aa_version, chain.chain_id
+    )
+
     # Test signing the ERC20 transfer operation
     erc20_signing_request = UserOperationSignatureRequest(
         user_op=erc20_transfer_op,
@@ -353,19 +387,240 @@ def test_user_op_signing_request_fulfilment(
 
     # Verify ERC20 transfer signatures
     assert len(responses) >= signing_cohort.threshold
-    message_hash = None
     aggregated_signature = b""
     for r in responses:
-        if message_hash is None:
-            message_hash = r.hash
-        assert message_hash == r.hash, "All hashes must be the same"
+        assert expected_hash == r.hash, "All hashes must be the same"
         aggregated_signature += r.signature
 
-    erc20_result = multisig.isValidSignature(message_hash, aggregated_signature)
+    multisig = get_cohort_multisig(
+        cohort_id, nucypher_dependency, signing_coordinator_child
+    )
+    erc20_result = multisig.isValidSignature(expected_hash, aggregated_signature)
     assert (
         erc20_result == EIP1271Auth.MAGIC_VALUE_BYTES
     ), f"Invalid ERC20 transfer signature: {erc20_result} != {EIP1271Auth.MAGIC_VALUE_BYTES}"
-    print("ERC20 transfer signing successful")
     print("===================== SIGNING SUCCESSFUL =====================")
+
+    yield
+
+
+@pytest_twisted.inlineCallbacks
+@pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
+def test_packed_user_op_signing_request(
+    aa_version,
+    chain,
+    bob,
+    accounts,
+    signing_coordinator_agent,
+    signing_coordinator_child,
+    initiator,
+    cohort_id,
+    cohort,
+    nucypher_dependency,
+    ritual_initiator,
+):
+    signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
+
+    print(
+        "==================== TESTING PACKED USER OPERATION SIGNING ===================="
+    )
+
+    # Test create_erc20_transfer helper
+    # Using a mock ERC20 token address
+    mock_token_address = "0x1234567890123456789012345678901234567890"
+    erc20_transfer_op = create_erc20_transfer(
+        sender=accounts[0].address,
+        nonce=2,
+        token=mock_token_address,
+        to=accounts[1].address,
+        amount=1000000000000000000,  # 1 token (assuming 18 decimals)
+        verification_gas_limit=100000,
+        call_gas_limit=100000,
+        pre_verification_gas=21000,
+        max_priority_fee_per_gas=1000000000,
+        max_fee_per_gas=2000000000,
+        # paymaster data
+        paymaster=accounts[1].address,
+        paymaster_post_op_gas_limit=100000,
+        paymaster_verification_gas_limit=200000,
+        paymaster_data=b"",
+    )
+
+    packed_user_op = PackedUserOperation.from_user_operation(erc20_transfer_op)
+    expected_hash, _ = packed_user_op.sign(
+        ritual_initiator.transacting_power, aa_version, chain.chain_id
+    )
+
+    # Test signing the ERC20 transfer operation
+    packed_erc20_signing_request = PackedUserOperationSignatureRequest(
+        packed_user_op=packed_user_op,
+        aa_version=aa_version,
+        chain_id=chain.chain_id,
+        cohort_id=cohort_id,
+        context=None,
+    )
+
+    responses = yield bob.request_threshold_signatures(
+        signing_request=packed_erc20_signing_request,
+    )
+
+    # Verify ERC20 transfer signatures
+    assert len(responses) >= signing_cohort.threshold
+    aggregated_signature = b""
+    for r in responses:
+        assert expected_hash == r.hash, "All hashes must be the same"
+        aggregated_signature += r.signature
+
+    multisig = get_cohort_multisig(
+        cohort_id, nucypher_dependency, signing_coordinator_child
+    )
+    erc20_result = multisig.isValidSignature(expected_hash, aggregated_signature)
+    assert (
+        erc20_result == EIP1271Auth.MAGIC_VALUE_BYTES
+    ), f"Invalid ERC20 transfer signature: {erc20_result} != {EIP1271Auth.MAGIC_VALUE_BYTES}"
+    print("===================== SIGNING SUCCESSFUL =====================")
+
+    yield
+
+
+#
+# This tests intentionally modifies ths condition used for the cohort; leave as last
+# test unless you intend to modify the cohort conditions.
+#
+@pytest_twisted.inlineCallbacks
+@pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
+def test_signing_request_with_signing_object_attribute_condition(
+    aa_version,
+    chain,
+    bob,
+    accounts,
+    signing_coordinator_agent,
+    signing_coordinator_child,
+    initiator,
+    cohort_id,
+    cohort,
+    nucypher_dependency,
+    ritual_initiator,
+):
+
+    signing_cohort = signing_coordinator_agent.get_signing_cohort(cohort_id)
+
+    # Test create_erc20_transfer helper
+    # Using a mock ERC20 token address
+    mock_token_address = "0x1234567890123456789012345678901234567890"
+    erc20_transfer_op = create_erc20_transfer(
+        sender=accounts[0].address,
+        nonce=2,
+        token=mock_token_address,
+        to=accounts[1].address,
+        amount=1000000000000000000,  # 1 token (assuming 18 decimals)
+    )
+
+    # set condition
+    signing_object_condition = SigningObjectAttributeCondition(
+        attribute_name="callData",
+        return_value_test=ReturnValueTest(
+            comparator="==",
+            value=HexBytes(erc20_transfer_op.call_data).hex(),
+        ),
+    )
+    on_chain_condition_lingo = ConditionLingo(signing_object_condition)
+
+    signing_coordinator_agent.set_signing_cohort_conditions(
+        cohort_id,
+        chain.chain_id,
+        on_chain_condition_lingo,
+        ritual_initiator.transacting_power,
+    )
+
+    packed_user_op = PackedUserOperation.from_user_operation(erc20_transfer_op)
+    expected_hash, _ = packed_user_op.sign(
+        ritual_initiator.transacting_power, aa_version, chain.chain_id
+    )
+
+    multisig = get_cohort_multisig(
+        cohort_id, nucypher_dependency, signing_coordinator_child
+    )
+
+    #
+    # Test signing the user op
+    #
+    print(
+        "==================== TESTING USER OP SIGNING OBJECT ATTR CONDITION ===================="
+    )
+    user_op_erc20_signing_request = UserOperationSignatureRequest(
+        user_op=erc20_transfer_op,
+        aa_version=aa_version,
+        chain_id=chain.chain_id,
+        cohort_id=cohort_id,
+        context=None,
+    )
+
+    responses = yield bob.request_threshold_signatures(
+        signing_request=user_op_erc20_signing_request,
+    )
+
+    # Verify ERC20 transfer signatures
+    assert len(responses) >= signing_cohort.threshold
+    aggregated_signature = b""
+    for r in responses:
+        assert expected_hash == r.hash, "All hashes must be the same"
+        aggregated_signature += r.signature
+
+    erc20_result = multisig.isValidSignature(expected_hash, aggregated_signature)
+    assert (
+        erc20_result == EIP1271Auth.MAGIC_VALUE_BYTES
+    ), f"Invalid user op signature: {erc20_result} != {EIP1271Auth.MAGIC_VALUE_BYTES}"
+
+    #
+    # Test signing the packed user op transfer operation
+    #
+    print(
+        "==================== TESTING PACKED USER OP SIGNING OBJECT ATTR CONDITION ===================="
+    )
+    packed_user_op_erc20_signing_request = PackedUserOperationSignatureRequest(
+        packed_user_op=PackedUserOperation.from_user_operation(erc20_transfer_op),
+        aa_version=aa_version,
+        chain_id=chain.chain_id,
+        cohort_id=cohort_id,
+        context=None,
+    )
+
+    responses = yield bob.request_threshold_signatures(
+        signing_request=packed_user_op_erc20_signing_request,
+    )
+
+    # Verify ERC20 transfer signatures
+    assert len(responses) >= signing_cohort.threshold
+    aggregated_signature = b""
+    for r in responses:
+        assert expected_hash == r.hash, "All hashes must be the same"
+        aggregated_signature += r.signature
+
+    erc20_result = multisig.isValidSignature(expected_hash, aggregated_signature)
+    assert (
+        erc20_result == EIP1271Auth.MAGIC_VALUE_BYTES
+    ), f"Invalid packed user op signature: {erc20_result} != {EIP1271Auth.MAGIC_VALUE_BYTES}"
+
+    print("===================== SIGNING SUCCESSFUL =====================")
+
+    erc20_transfer_op.call_data = (
+        b"1234"  # Modify call_data to fail attribute condition
+    )
+    failure_user_op_erc20_signing_request = UserOperationSignatureRequest(
+        user_op=erc20_transfer_op,
+        aa_version=aa_version,
+        chain_id=chain.chain_id,
+        cohort_id=cohort_id,
+        context=None,
+    )
+    with pytest.raises(
+        Ursula.NotEnoughUrsulas, match="Decryption conditions not satisfied"
+    ):
+        _ = yield bob.request_threshold_signatures(
+            signing_request=failure_user_op_erc20_signing_request,
+        )
+
+    print("===================== SIGNING FAILED =====================")
 
     yield
