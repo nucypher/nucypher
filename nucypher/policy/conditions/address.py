@@ -81,18 +81,8 @@ class AddressAllowlistCondition(AccessControlCondition):
         *args,
         **kwargs,
     ):
-        """
-        Initialize a AddressAllowlistCondition.
-
-        Args:
-            addresses: List of checksummed Ethereum addresses that are allowed to decrypt
-            name: Optional name for the condition
-        """
-
-        # Store the validated user address
         self.user_address = user_address
 
-        # Store the validated addresses
         self.addresses = addresses
 
         super().__init__(
