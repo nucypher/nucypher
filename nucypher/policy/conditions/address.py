@@ -74,10 +74,10 @@ class AddressAllowlistCondition(AccessControlCondition):
 
     def __init__(
         self,
-        user_address: str,
         addresses: List[str],
-        name: Optional[str] = None,
+        user_address: str = USER_ADDRESS_CONTEXT,
         condition_type: str = ConditionType.ADDRESS_ALLOWLIST.value,
+        name: Optional[str] = None,
         *args,
         **kwargs,
     ):
