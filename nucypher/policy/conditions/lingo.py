@@ -282,13 +282,17 @@ _COMPARATOR_FUNCTIONS = {
     "<": pyoperator.lt,
     "<=": pyoperator.le,
     ">=": pyoperator.ge,
-    "in": pyoperator.contains,  # currently only supports checking value in list (not sub-string/bytes comparisons)
+    # currently only supports checking value in list (not sub-string/bytes comparisons)
+    "in": pyoperator.contains,
+    "!in": lambda container, item: pyoperator.not_(
+        pyoperator.contains(container, item)
+    ),
 }
 
 
 class ConditionVariable(_Serializable):
     class Schema(CamelCaseSchema):
-        var_name = fields.Str(required=True)  # TODO: should this be required?
+        var_name = fields.Str(required=True)
         condition = _ConditionField(required=True)
 
         @post_load
@@ -586,10 +590,10 @@ class ReturnValueTest(_Serializable):
                 return
 
             comparator = data.get("comparator")
-            if comparator == "in" and not isinstance(value, list):
+            if comparator in ["in", "!in"] and not isinstance(value, list):
                 raise ValidationError(
                     field_name="value",
-                    message=f'"{type(value)}" is not a valid type for the "in" comparator; only list is allowed.',
+                    message=f'"{type(value)}" is not a valid type for the "in"/"!in" comparators; only list is allowed.',
                 )
 
         @post_load
@@ -676,9 +680,9 @@ class ReturnValueTest(_Serializable):
 
         processed_data = self._process_data(data, self.index)
         comparator_function = _COMPARATOR_FUNCTIONS.get(self.comparator)
-        if comparator_function == pyoperator.contains:
-            # for 'contains' operator, the left operand is the value and
-            # right operand is the data to check
+        if self.comparator in ["in", "!in"]:
+            # for 'contains'/`not_(contains)` operators, the left operand is
+            # the value (container) and the right operand is the data to check
 
             # first need to sanitize all values in list
             sanitized_list = [self._sanitize_value(v) for v in self.value]

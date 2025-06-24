@@ -368,7 +368,7 @@ def test_return_value_json_serialization(test_value):
             [
                 comparator
                 for comparator in ReturnValueTest.COMPARATORS
-                if comparator != "in"
+                if comparator not in ["in", "!in"]
             ]
         )
     test = ReturnValueTest(comparator=comparator, value=test_value)
@@ -420,21 +420,41 @@ def test_return_value_non_json_serializable_adjustments():
             "0x12345678",
             "0x87654321",
         ),  # list of hex strings
+        (
+            [1, 2, 3, 4, 5],
+            3,
+            6,
+        ),  # list of integers
+        (
+            [True, True, True],
+            True,
+            False,
+        ),  # list of booleans
+        (
+            [1.1, 2.2, 3.3],
+            2.2,
+            4.4,
+        ),  # list of floats
     ],
 )
-def test_return_value_test_in_comparator(value, pass_value, fail_value):
-    test = ReturnValueTest(comparator="in", value=value)
+def test_return_value_test_in_and_not_in_comparator(value, pass_value, fail_value):
+    in_test = ReturnValueTest(comparator="in", value=value)
+    not_in_test = ReturnValueTest(comparator="!in", value=value)
 
     # ensure correct bytes/hex comparison
-    assert test.eval(pass_value), "value should pass the 'in' test"
-    assert not test.eval(fail_value), "value should not pass the 'in' test"
+    assert in_test.eval(pass_value), "value should pass the 'in' test"
+    assert not in_test.eval(fail_value), "value should not pass the 'in' test"
+
+    assert not not_in_test.eval(pass_value), "value should not pass the '!in' test"
+    assert not_in_test.eval(fail_value), "value should pass the '!in' test"
 
 
-def test_return_value_test_in_comparator_invalid_types():
+def test_return_value_test_in_and_not_in_comparator_invalid_types():
     values = [1, '"string"', b"bytes", True, {"key": "value"}]
     for value in values:
-        with pytest.raises(
-            ReturnValueTest.InvalidExpression,
-            match='not a valid type for the "in" comparator',
-        ):
-            _ = ReturnValueTest(comparator="in", value=value)
+        for comparator in ["in", "!in"]:
+            with pytest.raises(
+                ReturnValueTest.InvalidExpression,
+                match='not a valid type for the "in"/"!in" comparators',
+            ):
+                _ = ReturnValueTest(comparator="in", value=value)
