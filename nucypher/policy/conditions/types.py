@@ -86,10 +86,12 @@ class JWTConditionDict(_AccessControlCondition):
 # {
 #     "conditionType": "address-allowlist",
 #     "addresses": List[str] (Ethereum addresses)
+#     "userAddress": str (Ethereum address)
 # }
 #
 class AddressAllowlistConditionDict(_AccessControlCondition):
     addresses: List[str]
+    userAddress: str
 
 
 #
