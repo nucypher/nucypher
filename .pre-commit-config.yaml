@@ -1,20 +1,17 @@
-exclude: '^nucypher/blockchain/eth/contract_registry/*'
+exclude: "^nucypher/blockchain/eth/contract_registry/*"
 repos:
-
   - repo: local
     hooks:
-
       - id: tests
         name: Run Nucypher Unit Tests
         entry: scripts/run_unit_tests.sh
         language: system
         types: [python]
-        stages: [push]  # required additional setup: pre-commit install && pre-commit install -t pre-push
+        stages: [push] # required additional setup: pre-commit install && pre-commit install -t pre-push
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
-
       # Git
       - id: forbid-new-submodules
 
@@ -38,13 +35,13 @@ repos:
   - repo: https://github.com/akaihola/darker
     rev: v2.1.1
     hooks:
-    -   id: darker
-        args: ["--check"]
+      - id: darker
+        args: ["--check", "--diff", "--color"]
         stages: [push]
-    -   id: darker
+      - id: darker
         stages: [commit]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.4.5
     hooks:
-    - id: ruff
+      - id: ruff
