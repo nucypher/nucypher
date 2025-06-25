@@ -14,12 +14,9 @@ from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
     resolve_any_context_variables,
 )
-from nucypher.policy.conditions.exceptions import (
-    InvalidConditionContext,
-)
-from nucypher.policy.conditions.lingo import (
-    ConditionType,
-)
+from nucypher.policy.conditions.exceptions import InvalidConditionContext
+from nucypher.policy.conditions.lingo import ConditionType
+
 
 class AddressAllowlistCondition(AccessControlCondition):
     """
