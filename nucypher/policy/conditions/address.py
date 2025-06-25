@@ -21,10 +21,6 @@ from nucypher.policy.conditions.lingo import (
     ConditionType,
 )
 
-# Maximum number of addresses allowed in the address allowlist
-MAX_ALLOWLIST_ADDRESSES = 25
-
-
 class AddressAllowlistCondition(AccessControlCondition):
     """
     A condition that checks if a user's wallet address is in a list of allowed addresses.
@@ -34,6 +30,10 @@ class AddressAllowlistCondition(AccessControlCondition):
     CONDITION_TYPE = ConditionType.ADDRESS_ALLOWLIST.value
 
     class Schema(AccessControlCondition.Schema):
+
+        # Maximum number of addresses allowed in the address allowlist
+        MAX_ALLOWLIST_ADDRESSES = 25
+
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.ADDRESS_ALLOWLIST.value),
             required=True,
