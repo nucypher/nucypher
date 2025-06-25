@@ -17,7 +17,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - uses: akaihola/darker@1.7.2
         with:
-          version: "1.7.2"
+          version: "2.1.1" # This will use the 2.1.1 darker Python package while using the 1.7.2 darker github action
