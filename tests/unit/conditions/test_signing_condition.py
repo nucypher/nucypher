@@ -376,6 +376,51 @@ def test_invalid_signing_object_abi_attribute_condition():
             ),
         )
 
+    # nested ABI validation for non-bytes type
+    with pytest.raises(
+        ValueError, match="Nested ABI validation is only supported for bytes type"
+    ):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="callData",
+            abi_validation=AbiCallValidation(
+                {
+                    "execute(address,uint256,bytes)": [
+                        AbiParameterValidation(
+                            parameter_index=0,  # incorrect index for bytes
+                            nested_abi_validation=AbiCallValidation(
+                                {
+                                    "transfer(address,uint256)": [],
+                                }
+                            ),
+                        )
+                    ],
+                }
+            ),
+        )
+
+    # nested ABI validation for non-bytes type within tuple
+    with pytest.raises(
+        ValueError, match="Nested ABI validation is only supported for bytes type"
+    ):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="callData",
+            abi_validation=AbiCallValidation(
+                {
+                    "execute((address,uint256,bytes))": [
+                        AbiParameterValidation(
+                            parameter_index=0,  # correct for tuple
+                            index_within_tuple=0,  # incorrect index within tuple
+                            nested_abi_validation=AbiCallValidation(
+                                {
+                                    "transfer(address,uint256)": [],
+                                }
+                            ),
+                        )
+                    ],
+                }
+            ),
+        )
+
 
 def test_signing_object_abi_attribute_condition_initialization():
     condition = SigningObjectAbiAttributeCondition(
@@ -404,36 +449,6 @@ def test_signing_object_abi_attribute_condition_initialization():
     assert parameter_checks[0].parameter_index == 1
     assert parameter_checks[0].return_value_test.comparator == "=="
     assert parameter_checks[0].return_value_test.value == 0
-
-
-def test_signing_object_abi_attribute_condition_invalid_value_for_call_data_check(
-    condition_provider_manager, get_random_checksum_address
-):
-    eth_transfer_user_op = create_eth_transfer(
-        get_random_checksum_address(), 0, get_random_checksum_address(), 10_000_000
-    )
-    condition = SigningObjectAbiAttributeCondition(
-        attribute_name="callData",
-        abi_validation=AbiCallValidation(
-            {
-                "execute(address,uint256,bytes)": [
-                    AbiParameterValidation(
-                        parameter_index=0,  # incorrect index for bytes
-                        nested_abi_validation=AbiCallValidation(
-                            {
-                                "transfer(address,uint256)": [],
-                            }
-                        ),
-                    )
-                ],
-            }
-        ),
-    )
-    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: eth_transfer_user_op}
-    with pytest.raises(
-        InvalidCondition, match="Invalid data type for checking call data"
-    ):
-        _, _ = condition.verify(providers=condition_provider_manager, **context)
 
 
 def test_signing_object_abi_attribute_condition_verify_method_call(
@@ -576,7 +591,7 @@ def test_signing_object_abi_attribute_condition_nested_erc20_transfer_restrictio
                         return_value_test=ReturnValueTest("==", erc20_token_address),
                     ),
                     AbiParameterValidation(
-                        2,
+                        parameter_index=2,
                         nested_abi_validation=AbiCallValidation(
                             {
                                 "transfer(address,uint256)": [
@@ -666,8 +681,8 @@ def test_signing_object_abi_attribute_condition_more_than_2_levels_nested_callda
 
     # Level 2: eg. proxy.execute(token_address, 0, transfer_data)
     proxy_execute_data = encode_function_call(
-        "execute(address,uint256,bytes)",
-        [get_random_checksum_address(), 0, transfer_data],
+        "execute((address,uint256,bytes))",
+        [(get_random_checksum_address(), 0, transfer_data)],
     )
 
     # Level 1: smartAccount.execute(proxy_address, 0, proxy_execute_data)
@@ -689,10 +704,11 @@ def test_signing_object_abi_attribute_condition_more_than_2_levels_nested_callda
                         2,
                         nested_abi_validation=AbiCallValidation(
                             {
-                                "execute(address,uint256,bytes)": [
+                                "execute((address,uint256,bytes))": [
                                     # only allow transfer call
                                     AbiParameterValidation(
-                                        2,
+                                        parameter_index=0,
+                                        index_within_tuple=2,
                                         nested_abi_validation=AbiCallValidation(
                                             {"transfer(address,uint256)": []}
                                         ),
