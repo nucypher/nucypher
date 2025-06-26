@@ -296,6 +296,21 @@ class AbiCallValidation(_Serializable):
                                 f"the ABI decoded tuple '{tuple_args}'. "
                             )
 
+                    if parameter_value_check.nested_abi_validation:
+                        # ensure that corresponding arg type is bytes
+                        arg_type_to_check = arg_types[
+                            parameter_value_check.parameter_index
+                        ]
+                        if parameter_value_check.index_within_tuple is not None:
+                            tuple_args = arg_type_to_check.strip("(").strip(")")
+                            arg_type_to_check = tuple_args.split(",")[
+                                parameter_value_check.index_within_tuple
+                            ]
+                        if arg_type_to_check != "bytes":
+                            raise ValidationError(
+                                f"Nested ABI validation is only supported for bytes type, but found '{arg_type_to_check}'."
+                            )
+
         @post_load
         def make(self, data, **kwargs):
             return AbiCallValidation(**data)
