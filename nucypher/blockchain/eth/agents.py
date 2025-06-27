@@ -1046,7 +1046,7 @@ class SigningCoordinatorAgent(EthereumContractAgent):
         signing_cohort.chains = self.get_chains(cohort_id)
 
         for chain in signing_cohort.chains:
-            signing_cohort.conditions[chain] = self.get_condition(
+            signing_cohort.conditions[chain] = self.get_signing_cohort_conditions(
                 cohort_id=cohort_id, chain_id=chain
             )
         return signing_cohort
@@ -1062,8 +1062,10 @@ class SigningCoordinatorAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_condition(self, cohort_id: int, chain_id: int) -> bytes:
-        result = self.contract.functions.getCondition(cohort_id, chain_id).call()
+    def get_signing_cohort_conditions(self, cohort_id: int, chain_id: int) -> bytes:
+        result = self.contract.functions.getSigningCohortConditions(
+            cohort_id, chain_id
+        ).call()
         return result
 
     @contract_api(CONTRACT_CALL)
