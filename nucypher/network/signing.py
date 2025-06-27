@@ -324,7 +324,7 @@ def sign_signature_request_data(
 def deserialize_signature_request(
     request_data: bytes,
 ) -> BaseSignatureRequest:
-    """Deserialize a signature request from bytes."""
+    """Deserialize a signature request from bytes, and add signing object to context"""
     try:
         result = json.loads(request_data.decode())
         signature_type_str = result["signature_type"]
