@@ -58,16 +58,12 @@ class AddressAllowlistCondition(AccessControlCondition):
             # Validate all addresses
             for address in addresses:
                 try:
-                    # Ensure addresses have proper checksum
-                    normalized_address = to_checksum_address(address)
+                    # Ensure addresses are valid
+                    to_checksum_address(address)
                 except ValueError as e:
                     raise ValidationError(
                         f"Invalid Ethereum address: '{address}', provided in the list of addresses"
                     ) from e
-                if normalized_address != address:
-                    raise ValidationError(
-                        f"Address '{address}', provided in the list of addresses, is not a checksummed address"
-                    )
 
         @post_load
         def make(self, data, **kwargs):
