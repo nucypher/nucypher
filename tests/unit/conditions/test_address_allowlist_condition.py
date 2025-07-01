@@ -20,20 +20,17 @@ def test_address_allowlist_condition_init():
     addresses = [account1.address, account2.address]
 
     # Test successful initialization
-    condition = AddressAllowlistCondition(
-        user_address=USER_ADDRESS_CONTEXT, addresses=addresses
-    )
+    condition = AddressAllowlistCondition(addresses=addresses)
     assert condition.condition_type == ConditionType.ADDRESS_ALLOWLIST.value
     assert set(condition.addresses) == set(addresses)
 
     # Test with empty addresses list
     with pytest.raises(InvalidCondition):
-        AddressAllowlistCondition(user_address=USER_ADDRESS_CONTEXT, addresses=[])
+        AddressAllowlistCondition(addresses=[])
 
     # Test with invalid address format
     with pytest.raises(InvalidCondition):
         AddressAllowlistCondition(
-            user_address=USER_ADDRESS_CONTEXT,
             addresses=["not-an-ethereum-address"],
         )
 
@@ -41,7 +38,6 @@ def test_address_allowlist_condition_init():
     # Note: This case should never happen in real life scenario because taco-web enforces proper checksums
     non_checksummed_address = "0xAb5801a7D398351b8bE11C439e05C5B3259aec9b"
     condition = AddressAllowlistCondition(
-        user_address=USER_ADDRESS_CONTEXT,
         addresses=[non_checksummed_address],
     )
     # Verify the condition was created successfully
@@ -51,7 +47,6 @@ def test_address_allowlist_condition_init():
     # Test with duplicate addresses
     with pytest.raises(InvalidCondition):
         AddressAllowlistCondition(
-            user_address=USER_ADDRESS_CONTEXT,
             addresses=[account1.address, account1.address],
         )
 
@@ -77,10 +72,7 @@ def test_address_allowlist_condition_verify(valid_eip4361_auth_message_factory):
 
     # Create condition with allowed accounts
     addresses = [allowed_account1, allowed_account2]
-    condition = AddressAllowlistCondition(
-        user_address=USER_ADDRESS_CONTEXT,
-        addresses=addresses,
-    )
+    condition = AddressAllowlistCondition(addresses=addresses)
 
     # Test successful verification with allowed account
     context = {USER_ADDRESS_CONTEXT: auth_message1}
@@ -110,9 +102,7 @@ def test_address_allowlist_condition_schema_validation():
     addresses = [account1.address, account2.address]
 
     # Create condition
-    condition = AddressAllowlistCondition(
-        user_address=USER_ADDRESS_CONTEXT, addresses=addresses
-    )
+    condition = AddressAllowlistCondition(addresses=addresses)
     condition_dict = condition.to_dict()
 
     # No issues here
