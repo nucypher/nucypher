@@ -30,12 +30,23 @@ def test_address_allowlist_condition_init():
     with pytest.raises(InvalidCondition):
         AddressAllowlistCondition(user_address=USER_ADDRESS_CONTEXT, addresses=[])
 
-    # Test with invalid address
+    # Test with invalid address format
     with pytest.raises(InvalidCondition):
         AddressAllowlistCondition(
             user_address=USER_ADDRESS_CONTEXT,
             addresses=["not-an-ethereum-address"],
         )
+
+    # Test with non-checksummed address
+    # Note: This case should never happen in real life scenario because taco-web enforces proper checksums
+    non_checksummed_address = "0xAb5801a7D398351b8bE11C439e05C5B3259aec9b"
+    condition = AddressAllowlistCondition(
+        user_address=USER_ADDRESS_CONTEXT,
+        addresses=[non_checksummed_address],
+    )
+    # Verify the condition was created successfully
+    assert condition.condition_type == ConditionType.ADDRESS_ALLOWLIST.value
+    assert non_checksummed_address in condition.addresses
 
     # Test with duplicate addresses
     with pytest.raises(InvalidCondition):
@@ -49,15 +60,6 @@ def test_address_allowlist_condition_init():
         AddressAllowlistCondition(
             user_address="invalid_context_variable",
             addresses=[account1.address],
-        )
-
-    # Test with non-checksummed address in addresses
-    # Use a static address with known invalid checksum (should be 0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B)
-    non_checksummed_address = "0xAb5801a7D398351b8bE11C439e05C5B3259aec9b"
-    with pytest.raises(InvalidCondition, match="not a checksummed address"):
-        AddressAllowlistCondition(
-            user_address=USER_ADDRESS_CONTEXT,
-            addresses=[non_checksummed_address],
         )
 
 

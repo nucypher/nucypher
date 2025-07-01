@@ -106,8 +106,12 @@ class AddressAllowlistCondition(AccessControlCondition):
 
         # Get user's address using resolve_any_context_variables
         user_address = resolve_any_context_variables(self.user_address, **context)
+
+        user_address_bytes = bytes.fromhex(user_address[2:])
+        # the addresses are supposed to be already validated, in taco-web, to have a valid checksum
+        addresses_bytes = [bytes.fromhex(address[2:]) for address in self.addresses]
         # Simply check if the user address is in the allowlist
-        is_allowed = user_address in self.addresses
+        is_allowed = user_address_bytes in addresses_bytes
 
         return is_allowed, None
 
