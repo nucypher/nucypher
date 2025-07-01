@@ -282,9 +282,9 @@ _COMPARATOR_FUNCTIONS = {
     "<": pyoperator.lt,
     "<=": pyoperator.le,
     ">=": pyoperator.ge,
-    # currently only supports checking value in list (not sub-string/bytes comparisons)
-    "in": pyoperator.contains,
-    "!in": lambda container, item: pyoperator.not_(
+    # currently only supports checking value in list and not sub-string/bytes comparisons
+    "in": lambda item, container: pyoperator.contains(container, item),
+    "!in": lambda item, container: pyoperator.not_(
         pyoperator.contains(container, item)
     ),
 }
@@ -679,18 +679,14 @@ class ReturnValueTest(_Serializable):
             )
 
         processed_data = self._process_data(data, self.index)
+        left_operand = self._sanitize_value(processed_data)
+
         comparator_function = _COMPARATOR_FUNCTIONS.get(self.comparator)
         if self.comparator in ["in", "!in"]:
-            # for 'contains'/`not_(contains)` operators, the left operand is
-            # the value (container) and the right operand is the data to check
-
-            # first need to sanitize all values in list
+            # sanitize all values in list
             sanitized_list = [self._sanitize_value(v) for v in self.value]
-            left_operand = sanitized_list
-
-            right_operand = self._sanitize_value(processed_data)
+            right_operand = sanitized_list
         else:
-            left_operand = self._sanitize_value(processed_data)
             right_operand = self._sanitize_value(self.value)
 
         result = comparator_function(left_operand, right_operand)
