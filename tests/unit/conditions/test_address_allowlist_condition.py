@@ -73,7 +73,9 @@ def test_address_allowlist_condition_verify(valid_eip4361_auth_message_factory):
 
     # ensure that verify is case-insensitive since EVM addresses are case-insensitive
     allowed_addresses = [allowed_account1, allowed_account2]
-    checksummed_addresses = [to_checksum_address(address) for address in allowed_addresses]
+    checksummed_addresses = [
+        to_checksum_address(address) for address in allowed_addresses
+    ]
     lowercase_addresses = [address.lower() for address in allowed_addresses]
     uppercase_addresses = [address.upper() for address in allowed_addresses]
 
@@ -95,7 +97,6 @@ def test_address_allowlist_condition_verify(valid_eip4361_auth_message_factory):
         context = {USER_ADDRESS_CONTEXT: auth_message2}
         result, _ = condition.verify(**context)
         assert result is True
-
 
     # Test verification with missing context
     with pytest.raises(InvalidConditionContext):
