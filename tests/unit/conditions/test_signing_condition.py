@@ -40,7 +40,7 @@ def condition_provider_manager():
 
 def test_invalid_signing_object_attribute_condition():
     # invalid condition type
-    with pytest.raises(InvalidCondition, match=ConditionType.ATTRIBUTE.value):
+    with pytest.raises(InvalidCondition, match=ConditionType.SIGNING_ATTRIBUTE.value):
         _ = SigningObjectAttributeCondition(
             condition_type=ConditionType.TIME.value,
             attribute_name="some_attribute",
@@ -57,12 +57,12 @@ def test_invalid_signing_object_attribute_condition():
 
 def test_signing_object_attribute_condition_initialization():
     condition = SigningObjectAttributeCondition(
-        condition_type=ConditionType.ATTRIBUTE.value,
+        condition_type=ConditionType.SIGNING_ATTRIBUTE.value,
         attribute_name="call_data",
         return_value_test=ReturnValueTest("==", 0),
     )
 
-    assert condition.condition_type == ConditionType.ATTRIBUTE.value
+    assert condition.condition_type == ConditionType.SIGNING_ATTRIBUTE.value
     assert condition.signing_object_context_var == SIGNING_CONDITION_OBJECT_CONTEXT_VAR
     assert condition.attribute_name == "call_data"
     assert condition.return_value_test.eval(0)
@@ -204,7 +204,7 @@ def test_signing_object_attribute_condition_lingo_json_serialization(
 ):
     """Test serializing and deserializing a condition lingo with ECDSA condition"""
     condition = SigningObjectAttributeCondition(
-        condition_type=ConditionType.ATTRIBUTE.value,
+        condition_type=ConditionType.SIGNING_ATTRIBUTE.value,
         attribute_name="call_data",
         return_value_test=ReturnValueTest("==", "0x1234567890abcdef"),
     )
@@ -226,7 +226,10 @@ def test_signing_object_attribute_condition_lingo_json_serialization(
     # Parse JSON to dict and verify structure
     lingo_dict = json.loads(original_lingo_json)
     assert lingo_dict["version"] == ConditionLingo.VERSION
-    assert lingo_dict["condition"]["conditionType"] == ConditionType.ATTRIBUTE.value
+    assert (
+        lingo_dict["condition"]["conditionType"]
+        == ConditionType.SIGNING_ATTRIBUTE.value
+    )
 
     # Recreate lingo from JSON
     recreated_lingo = ConditionLingo.from_json(original_lingo_json)
@@ -245,7 +248,9 @@ def test_signing_object_attribute_condition_lingo_json_serialization(
 
 def test_invalid_signing_object_abi_attribute_condition():
     # invalid condition type
-    with pytest.raises(InvalidCondition, match=ConditionType.ABI_ATTRIBUTE.value):
+    with pytest.raises(
+        InvalidCondition, match=ConditionType.SIGNING_ABI_ATTRIBUTE.value
+    ):
         _ = SigningObjectAbiAttributeCondition(
             condition_type=ConditionType.TIME.value,
             attribute_name="call_data",
@@ -436,7 +441,7 @@ def test_signing_object_abi_attribute_condition_initialization():
         ),
     )
 
-    assert condition.condition_type == ConditionType.ABI_ATTRIBUTE.value
+    assert condition.condition_type == ConditionType.SIGNING_ABI_ATTRIBUTE.value
     assert condition.signing_object_context_var == SIGNING_CONDITION_OBJECT_CONTEXT_VAR
     assert condition.attribute_name == "call_data"
     assert list(condition.abi_validation.allowed_abi_calls.keys()) == [
@@ -829,7 +834,10 @@ def test_signing_object_abi_attribute_condition_lingo_json_serialization(
     # Parse JSON to dict and verify structure
     lingo_dict = json.loads(original_lingo_json)
     assert lingo_dict["version"] == ConditionLingo.VERSION
-    assert lingo_dict["condition"]["conditionType"] == ConditionType.ABI_ATTRIBUTE.value
+    assert (
+        lingo_dict["condition"]["conditionType"]
+        == ConditionType.SIGNING_ABI_ATTRIBUTE.value
+    )
 
     # Recreate lingo from JSON
     recreated_lingo = ConditionLingo.from_json(original_lingo_json)

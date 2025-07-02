@@ -108,11 +108,12 @@ class BaseSigningObjectAttributeCondition(SigningObjectCondition, ABC):
 
 
 class SigningObjectAttributeCondition(BaseSigningObjectAttributeCondition):
-    CONDITION_TYPE = ConditionType.ATTRIBUTE.value
+    CONDITION_TYPE = ConditionType.SIGNING_ATTRIBUTE.value
 
     class Schema(BaseSigningObjectAttributeCondition.Schema):
         condition_type = fields.Str(
-            validate=validate.Equal(ConditionType.ATTRIBUTE.value), required=True
+            validate=validate.Equal(ConditionType.SIGNING_ATTRIBUTE.value),
+            required=True,
         )
         return_value_test = fields.Nested(ReturnValueTest.Schema(), required=True)
 
@@ -129,7 +130,7 @@ class SigningObjectAttributeCondition(BaseSigningObjectAttributeCondition):
         attribute_name: str,
         return_value_test: ReturnValueTest,
         signing_object_context_var: str = SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
-        condition_type: str = ConditionType.ATTRIBUTE.value,
+        condition_type: str = ConditionType.SIGNING_ATTRIBUTE.value,
         name: Optional[str] = None,
     ):
         self.return_value_test = return_value_test
@@ -365,11 +366,12 @@ class AbiCallValidation(_Serializable):
 
 
 class SigningObjectAbiAttributeCondition(BaseSigningObjectAttributeCondition):
-    CONDITION_TYPE = ConditionType.ABI_ATTRIBUTE.value
+    CONDITION_TYPE = ConditionType.SIGNING_ABI_ATTRIBUTE.value
 
     class Schema(BaseSigningObjectAttributeCondition.Schema):
         condition_type = fields.Str(
-            validate=validate.Equal(ConditionType.ABI_ATTRIBUTE.value), required=True
+            validate=validate.Equal(ConditionType.SIGNING_ABI_ATTRIBUTE.value),
+            required=True,
         )
         abi_validation = fields.Nested(AbiCallValidation.Schema(), required=True)
 
@@ -386,7 +388,7 @@ class SigningObjectAbiAttributeCondition(BaseSigningObjectAttributeCondition):
         attribute_name: str,
         abi_validation: AbiCallValidation,
         signing_object_context_var: str = SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
-        condition_type: str = ConditionType.ABI_ATTRIBUTE.value,
+        condition_type: str = ConditionType.SIGNING_ABI_ATTRIBUTE.value,
         name: Optional[str] = None,
     ):
         self.abi_validation = abi_validation
