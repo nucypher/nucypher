@@ -1,5 +1,5 @@
 import re
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 import eth_abi
 from eth_utils import function_signature_to_4byte_selector
@@ -8,7 +8,11 @@ FUNCTION_NAME_PATTERN = r"^[a-zA-Z_][a-zA-Z0-9_]*$"
 
 
 def extract_arg_types(human_signature: str) -> List[str]:
-    # Extract argument types from signature
+    """
+    Extra list of arg types from human ABI signature.
+
+    Raises ValueError if human ABI signature is incorrectly formatted.
+    """
     start = human_signature.find("(")
     end = human_signature.rfind(")")
     if start == -1 or end == -1 or end <= start:
@@ -36,6 +40,9 @@ def extract_arg_types(human_signature: str) -> List[str]:
             current.append(char)
     if current:
         arg_types.append("".join(current).strip())
+
+    if depth != 0:
+        raise ValueError("Mismatched parentheses in function signatures")
 
     return arg_types
 
@@ -71,7 +78,7 @@ def encode_human_readable_call(human_signature: str, args: list) -> bytes:
 
 def decode_human_readable_call(
     human_signature: str, call_data: bytes, return_method_name: bool = True
-) -> Tuple[Union[str, bytes], List]:
+) -> Tuple[Union[str, bytes], List[Any]]:
     """
     Decode a human-readable function call signature and its arguments from the
     provided call data into method name OR method selector, and arguments
