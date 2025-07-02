@@ -93,7 +93,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA  | ATTRIBUTE | ABI_ATTRIBUTE
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA  | SIGNING_ATTRIBUTE | SIGNING_ABI_ATTRIBUTE
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -110,8 +110,8 @@ class ConditionType(Enum):
     IF_THEN_ELSE = "if-then-else"
     ADDRESS_ALLOWLIST = "address-allowlist"
     ECDSA = "ecdsa"
-    ATTRIBUTE = "attribute"
-    ABI_ATTRIBUTE = "abi-attribute"
+    SIGNING_ATTRIBUTE = "signing-attribute"
+    SIGNING_ABI_ATTRIBUTE = "signing-abi-attribute"
 
     @classmethod
     def values(cls) -> List[str]:
