@@ -1,5 +1,6 @@
 import pytest
 from eth_account import Account
+from eth_utils import to_checksum_address
 
 from nucypher.policy.conditions.address import AddressAllowlistCondition
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
@@ -70,24 +71,31 @@ def test_address_allowlist_condition_verify(valid_eip4361_auth_message_factory):
 
     auth_message_not_allowed = valid_eip4361_auth_message_factory()
 
-    # Create condition with allowed accounts
-    addresses = [allowed_account1, allowed_account2]
-    condition = AddressAllowlistCondition(addresses=addresses)
+    # ensure that verify is case-insensitive since EVM addresses are case-insensitive
+    allowed_addresses = [allowed_account1, allowed_account2]
+    checksummed_addresses = [to_checksum_address(address) for address in allowed_addresses]
+    lowercase_addresses = [address.lower() for address in allowed_addresses]
+    uppercase_addresses = [address.upper() for address in allowed_addresses]
 
-    # Test successful verification with allowed account
-    context = {USER_ADDRESS_CONTEXT: auth_message1}
-    result, _ = condition.verify(**context)
-    assert result is True
+    for addresses in [checksummed_addresses, lowercase_addresses, uppercase_addresses]:
+        # Create condition with allowed accounts
+        condition = AddressAllowlistCondition(addresses=addresses)
 
-    # Test verification with not allowed account
-    context = {USER_ADDRESS_CONTEXT: auth_message_not_allowed}
-    result, _ = condition.verify(**context)
-    assert result is False
+        # Test successful verification with allowed account
+        context = {USER_ADDRESS_CONTEXT: auth_message1}
+        result, _ = condition.verify(**context)
+        assert result is True
 
-    # Test with another allowed account
-    context = {USER_ADDRESS_CONTEXT: auth_message2}
-    result, _ = condition.verify(**context)
-    assert result is True
+        # Test verification with not allowed account
+        context = {USER_ADDRESS_CONTEXT: auth_message_not_allowed}
+        result, _ = condition.verify(**context)
+        assert result is False
+
+        # Test with another allowed account
+        context = {USER_ADDRESS_CONTEXT: auth_message2}
+        result, _ = condition.verify(**context)
+        assert result is True
+
 
     # Test verification with missing context
     with pytest.raises(InvalidConditionContext):
