@@ -1154,7 +1154,7 @@ def test_poap_contract_condition(get_context_value_mock):
         operands=[
             ownership_condition,
             event_id_condition,
-        ]
+        ],
     )
     gnosis_providers = ConditionProviderManager(
         {
