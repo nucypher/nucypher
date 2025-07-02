@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import List, Union
 
 from marshmallow.fields import String
 from marshmallow.validate import OneOf
@@ -41,7 +41,7 @@ class AuthorizationTypeField(String):
     def __init__(self, *args, **kwargs):
         super().__init__(validate=OneOf(AuthorizationType), *args, **kwargs)
 
-    def _serialize(self, value, attr, obj, **kwargs) -> str | None:
+    def _serialize(self, value, attr, obj, **kwargs) -> Union[str, None]:
         if value is None:
             return None
         return str(value)
