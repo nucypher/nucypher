@@ -159,32 +159,61 @@ class ECDSAConditionDict(_Condition):
 #     "signingObjectContextVar": ":signingConditionObject"
 # }
 class _SigningObjectCondition(_Condition):
-    signing_object_context_var: str
+    signingObjectContextVar: str
 
 
-#
+# _BaseSigningObjectAttributeCondition abstract class represents:
+# {
+#     "signingObjectContextVar": ":signingConditionObject"
+#     "attributeName": str
+# }
+class _BaseSigningObjectAttributeCondition(_SigningObjectCondition):
+    attributeName: str
+
+
 # SigningObjectAttributeCondition represents:
 # {
 #     "attributeName": str
 #     "signingObjectContextVar": ":signingConditionObject"
 #     "returnValueTest: <>
 # }
-class SigningObjectAttributeCondition(_SigningObjectCondition):
-    attributeName: str
+class SigningObjectAttributeCondition(_BaseSigningObjectAttributeCondition):
     returnValueTest: ReturnValueTestDict
 
 
-# SigningObjectAttributeCondition represents:
+# AbiParameterValidation represents:
+# {
+#     "parameterIndex": str
+#     "indexWithinTuple": int
+#     "returnValueTest: <>
+#     "nestedAbiValidation: <>
+# }
+class AbiParameterValidation(TypedDict):
+    parameterIndex: int
+    indexWithinTuple: NotRequired[int]
+    # either returnValueTest or nestedAbiValidation
+    returnValueTest: NotRequired[ReturnValueTestDict]
+    nestedAbiValidation: NotRequired["AbiCallValidation"]
+
+
+# AbiCallValidation
+# {
+#    "allowedAbiCalls": {
+#        <call>: ["AbiParameterValidation"]
+#    }
+# }
+class AbiCallValidation(TypedDict):
+    allowedAbiCalls = Dict[str, List[AbiParameterValidation]]
+
+
+# SigningObjectAbiAttributeCondition represents:
 # {
 #     "attributeName": str
 #     "signingObjectContextVar": ":signingConditionObject"
-#     "abiDecodeString": str
-#     "abiDecodeValueIndex: int
-#     "returnValueTest: <>
+#     "abiValidation": <abi_call_validation>
 # }
-class SigningObjectAbiAttributeCondition(SigningObjectAttributeCondition):
-    abiDecodeString: str
-    abiDecodeValueIndex: int
+class SigningObjectAbiAttributeCondition(_BaseSigningObjectAttributeCondition):
+    abiValidation: AbiCallValidation
 
 
 #

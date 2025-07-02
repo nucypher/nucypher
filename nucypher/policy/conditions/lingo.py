@@ -93,7 +93,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA  | ATTRIBUTE | ABI_ATTRIBUTE
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA  | SIGNING_ATTRIBUTE | SIGNING_ABI_ATTRIBUTE
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -110,8 +110,8 @@ class ConditionType(Enum):
     IF_THEN_ELSE = "if-then-else"
     ADDRESS_ALLOWLIST = "address-allowlist"
     ECDSA = "ecdsa"
-    ATTRIBUTE = "attribute"
-    ABI_ATTRIBUTE = "abi-attribute"
+    SIGNING_ATTRIBUTE = "signing-attribute"
+    SIGNING_ABI_ATTRIBUTE = "signing-abi-attribute"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -282,13 +282,17 @@ _COMPARATOR_FUNCTIONS = {
     "<": pyoperator.lt,
     "<=": pyoperator.le,
     ">=": pyoperator.ge,
-    "in": pyoperator.contains,  # currently only supports checking value in list (not sub-string/bytes comparisons)
+    # currently only supports checking value in list and not sub-string/bytes comparisons
+    "in": lambda item, container: pyoperator.contains(container, item),
+    "!in": lambda item, container: pyoperator.not_(
+        pyoperator.contains(container, item)
+    ),
 }
 
 
 class ConditionVariable(_Serializable):
     class Schema(CamelCaseSchema):
-        var_name = fields.Str(required=True)  # TODO: should this be required?
+        var_name = fields.Str(required=True)
         condition = _ConditionField(required=True)
 
         @post_load
@@ -586,10 +590,10 @@ class ReturnValueTest(_Serializable):
                 return
 
             comparator = data.get("comparator")
-            if comparator == "in" and not isinstance(value, list):
+            if comparator in ["in", "!in"] and not isinstance(value, list):
                 raise ValidationError(
                     field_name="value",
-                    message=f'"{type(value)}" is not a valid type for the "in" comparator; only list is allowed.',
+                    message=f'"{type(value)}" is not a valid type for the "in"/"!in" comparators; only list is allowed.',
                 )
 
         @post_load
@@ -675,18 +679,14 @@ class ReturnValueTest(_Serializable):
             )
 
         processed_data = self._process_data(data, self.index)
+        left_operand = self._sanitize_value(processed_data)
+
         comparator_function = _COMPARATOR_FUNCTIONS.get(self.comparator)
-        if comparator_function == pyoperator.contains:
-            # for 'contains' operator, the left operand is the value and
-            # right operand is the data to check
-
-            # first need to sanitize all values in list
+        if self.comparator in ["in", "!in"]:
+            # sanitize all values in list
             sanitized_list = [self._sanitize_value(v) for v in self.value]
-            left_operand = sanitized_list
-
-            right_operand = self._sanitize_value(processed_data)
+            right_operand = sanitized_list
         else:
-            left_operand = self._sanitize_value(processed_data)
             right_operand = self._sanitize_value(self.value)
 
         result = comparator_function(left_operand, right_operand)

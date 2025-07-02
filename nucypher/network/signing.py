@@ -101,8 +101,7 @@ class EIP191SignatureRequest(BaseSignatureRequest):
         )
 
     def __bytes__(self) -> bytes:
-        """Serialize the UserOperation request to bytes in JSON format."""
-        # Serialize the UserOperation data
+        """Serialize the EIP191 request to bytes in JSON format."""
         data = {
             "data": HexBytes(self.data).hex(),
             "cohort_id": self.cohort_id,
@@ -114,7 +113,7 @@ class EIP191SignatureRequest(BaseSignatureRequest):
 
     @classmethod
     def from_bytes(cls, request_data: bytes):
-        """Deserialize the UserOperation request from bytes in JSON format."""
+        """Deserialize the EIP191 request from bytes in JSON format."""
         try:
             result = json.loads(request_data.decode())
             data = bytes(HexBytes(result["data"]))
@@ -209,7 +208,7 @@ class UserOperationSignatureRequest(BaseSignatureRequest):
 
 
 class PackedUserOperationSignatureRequest(BaseSignatureRequest):
-    """A specialized signature request for UserOperation."""
+    """A specialized signature request for PackedUserOperation."""
 
     def __init__(
         self,
@@ -230,12 +229,12 @@ class PackedUserOperationSignatureRequest(BaseSignatureRequest):
         )
 
     def __bytes__(self) -> bytes:
-        """Serialize the UserOperation request to bytes in JSON format."""
-        # Serialize the UserOperation data
-        user_op_data = bytes(self.packed_user_op).decode("utf-8")
+        """Serialize the PackedUserOperation request to bytes in JSON format."""
+        # Serialize the PackedUserOperation data
+        packed_user_op_data = bytes(self.packed_user_op).decode("utf-8")
 
         data = {
-            "packed_user_op": user_op_data,
+            "packed_user_op": packed_user_op_data,
             "aa_version": self.aa_version.value,
             "cohort_id": self.cohort_id,
             "chain_id": self.chain_id,
@@ -246,10 +245,10 @@ class PackedUserOperationSignatureRequest(BaseSignatureRequest):
 
     @classmethod
     def from_bytes(cls, request_data: bytes):
-        """Deserialize the UserOperation request from bytes in JSON format."""
+        """Deserialize the PackedUserOperation request from bytes in JSON format."""
         try:
             result = json.loads(request_data.decode())
-            user_op_data = result["packed_user_op"]
+            packed_user_op_data = result["packed_user_op"]
             aa_version_str = AAVersion(result["aa_version"])
             cohort_id = result["cohort_id"]
             chain_id = result["chain_id"]
@@ -269,7 +268,9 @@ class PackedUserOperationSignatureRequest(BaseSignatureRequest):
             )
 
         # Reconstruct the UserOperation
-        packed_user_op = PackedUserOperation.from_bytes(user_op_data.encode("utf-8"))
+        packed_user_op = PackedUserOperation.from_bytes(
+            packed_user_op_data.encode("utf-8")
+        )
 
         return cls(
             packed_user_op=packed_user_op,
@@ -278,6 +279,12 @@ class PackedUserOperationSignatureRequest(BaseSignatureRequest):
             context=context,
             aa_version=aa_version,
         )
+
+
+class UnsupportedSignatureRequest(ValueError):
+    """
+    Raised for unrecognized signature requests.
+    """
 
 
 #
@@ -309,13 +316,15 @@ def sign_signature_request_data(
             standardize=False,
         )
 
-    raise ValueError(f"Unsupported signature request: {request.__class__.__name__}")
+    raise UnsupportedSignatureRequest(
+        f"Unsupported signature request: {request.__class__.__name__}"
+    )
 
 
 def deserialize_signature_request(
     request_data: bytes,
 ) -> BaseSignatureRequest:
-    """Deserialize a signature request from bytes."""
+    """Deserialize a signature request from bytes, and add signing object to context"""
     try:
         result = json.loads(request_data.decode())
         signature_type_str = result["signature_type"]
@@ -332,7 +341,9 @@ def deserialize_signature_request(
             signature_request = EIP191SignatureRequest.from_bytes(request_data)
 
         if not signature_request:
-            raise ValueError(f"Invalid signature request type: {signature_type}")
+            raise UnsupportedSignatureRequest(
+                f"Invalid signature request type: {signature_type}"
+            )
 
         # add the signing object to the context
         signing_object = get_signature_request_object(signature_request)
@@ -341,7 +352,7 @@ def deserialize_signature_request(
         return signature_request
 
     except (json.JSONDecodeError, ValueError) as e:
-        raise ValueError("Invalid signature request data") from e
+        raise UnsupportedSignatureRequest("Invalid signature request data") from e
 
 
 def get_signature_request_object(request: BaseSignatureRequest) -> Any:
@@ -353,4 +364,6 @@ def get_signature_request_object(request: BaseSignatureRequest) -> Any:
     elif isinstance(request, EIP191SignatureRequest):
         return request.data
 
-    raise ValueError(f"Unsupported signature request: {request.__class__.__name__}")
+    raise UnsupportedSignatureRequest(
+        f"Unsupported signature request: {request.__class__.__name__}"
+    )
