@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 from eth_utils import to_checksum_address
+from hexbytes import HexBytes
 from marshmallow import (
     ValidationError,
     fields,
@@ -107,9 +108,9 @@ class AddressAllowlistCondition(AccessControlCondition):
         # Get user's address using resolve_any_context_variables
         user_address = resolve_any_context_variables(self.user_address, **context)
 
-        user_address_bytes = bytes.fromhex(user_address[2:])
+        user_address_bytes = bytes(HexBytes(user_address))
         # the addresses are supposed to be already validated, in taco-web, to have a valid checksum
-        addresses_bytes = [bytes.fromhex(address[2:]) for address in self.addresses]
+        addresses_bytes = [bytes(HexBytes(address)) for address in self.addresses]
         # Simply check if the user address is in the allowlist
         is_allowed = user_address_bytes in addresses_bytes
 
