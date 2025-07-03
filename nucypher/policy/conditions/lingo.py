@@ -719,18 +719,24 @@ class ConditionLingo(_Serializable):
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
 
     def to_base64(self) -> bytes:
-        data = base64.b64encode(self.to_json().encode())
+        data = base64.b64encode(self.to_json().encode("utf-8"))
         return data
 
     @classmethod
-    def from_base64(cls, data: bytes) -> 'ConditionLingo':
-        decoded_json = base64.b64decode(data).decode()
+    def from_base64(cls, data: bytes) -> "ConditionLingo":
+        decoded_json = base64.b64decode(data).decode("utf-8")
         instance = cls.from_json(decoded_json)
         return instance
 
     def __bytes__(self) -> bytes:
-        data = self.to_json().encode()
+        data = self.to_json().encode("utf-8")
         return data
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "ConditionLingo":
+        json_payload = data.decode("utf-8")
+        instance = cls.from_json(json_payload)
+        return instance
 
     def __repr__(self):
         return f"{self.__class__.__name__} (version={self.version} | id={self.id} | size={len(bytes(self))}) | condition=({self.condition})"
