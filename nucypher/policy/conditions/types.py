@@ -82,6 +82,19 @@ class JWTConditionDict(_AccessControlCondition):
 
 
 #
+# AddressAllowlistCondition represents:
+# {
+#     "conditionType": "address-allowlist",
+#     "addresses": List[str] (Ethereum addresses)
+#     "userAddress": str (Ethereum address)
+# }
+#
+class AddressAllowlistConditionDict(_AccessControlCondition):
+    addresses: List[str]
+    userAddress: str
+
+
+#
 # CompoundCondition represents:
 # {
 #     "operator": ["and" | "or" | "not"]
@@ -149,6 +162,7 @@ ConditionDict = Union[
     JWTConditionDict,
     SequentialConditionDict,
     IfThenElseConditionDict,
+    AddressAllowlistConditionDict,
 ]
 
 
