@@ -7,7 +7,7 @@ from marshmallow.validate import OneOf
 
 class AuthorizationType(Enum):
     BEARER = "Bearer"
-    X_API_KEY = "X-API-KEY"
+    X_API_KEY = "X-API-Key"
     BASIC = "Basic"
 
     @classmethod
@@ -18,32 +18,35 @@ class AuthorizationType(Enum):
         return self.value
 
     def header_name(self) -> str:
-        if self.value in (self.BEARER.value, self.BASIC.value):
+        if self in [self.BEARER, self.BASIC]:
             return "Authorization"
         else:
-            return "X-API-KEY"
+            return self.value
 
     def header_value(self, token: str) -> str:
-        if self.value == self.BEARER.value:
-            return f"Bearer {token}"
-        elif self.value == self.BASIC.value:
-            return f"Basic {token}"
+        if self in [self.BEARER, self.BASIC]:
+            return f"{self.value} {token}"
         else:
             return token
 
 
 class AuthorizationTypeField(String):
     default_error_messages = {
-        "invalidType": "Expression of type {value} is not valid for Authorization type",
-        "invalid": "'{value}' is not a valid Authorization type",
+        "invalidType": "Expression of type {value} is not valid for AuthorizationType",
+        "invalid": "'{value}' is not a valid AuthorizationType",
     }
 
     def __init__(self, *args, **kwargs):
         super().__init__(validate=OneOf(AuthorizationType), *args, **kwargs)
 
     def _serialize(self, value, attr, obj, **kwargs) -> Union[str, None]:
+        # If value is None, return None to allow for optional fields
         if value is None:
             return None
+
+        if not isinstance(value, AuthorizationType):
+            raise self.make_error("invalidType", value=type(value))
+
         return str(value)
 
     def _deserialize(self, value, attr, data, **kwargs):
