@@ -1,0 +1,3 @@
+Fix inconsistency between ConditionLingo's ``__bytes__`` and ``from_bytes`` implementations.
+It originally defined a custom ``__bytes__`` method but relied on the ``from_bytes`` implementation from the
+superclass, which expected a different format.
