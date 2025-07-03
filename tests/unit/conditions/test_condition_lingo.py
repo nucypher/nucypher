@@ -338,6 +338,13 @@ def test_condition_lingo_to_from_json(lingo_with_all_condition_types):
     assert clingo_from_json.to_dict() == lingo_with_all_condition_types
 
 
+def test_condition_lingo_to_from_bytes(lingo_with_all_condition_types):
+    clingo = ConditionLingo.from_dict(lingo_with_all_condition_types)
+    clingo_bytes = bytes(clingo)
+    clingo_from_bytes = ConditionLingo.from_bytes(clingo_bytes)
+    assert clingo_from_bytes.to_dict() == lingo_with_all_condition_types
+
+
 def test_compound_condition_lingo_repr(lingo_with_all_condition_types):
     clingo = ConditionLingo.from_dict(lingo_with_all_condition_types)
     clingo_string = f"{clingo}"
