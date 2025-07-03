@@ -28,6 +28,8 @@ from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.signing import (
     deserialize_signature_request,
 )
+from nucypher.policy.conditions.exceptions import InvalidConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import (
     ConditionEvalError,
     evaluate_condition_lingo,
