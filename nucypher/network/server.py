@@ -18,7 +18,7 @@ from nucypher_core import (
 from prometheus_client import REGISTRY, Counter, Summary
 
 from nucypher.blockchain.eth import domains
-from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH, TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import NodeSprout
@@ -313,15 +313,18 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(response=html_error, headers=headers, status=HTTPStatus.INTERNAL_SERVER_ERROR)
         return Response(response=content, headers=headers)
 
-    if this_node.domain == domains.LYNX:
-        # only available on Lynx
+    if (
+        this_node.domain == domains.LYNX
+        or this_node.domain.name == TEMPORARY_DOMAIN_NAME
+    ):
+        # only available on Lynx or for testing
         @rest_app.route("/validate_condition_lingo", methods=["POST"])
         def validate_condition_lingo():
             """
             An endpoint that validates a condition lingo
             """
             try:
-                _ = ConditionLingo.from_dict(request.get_json())
+                _ = ConditionLingo.from_json(request.get_json())
                 return Response(response="valid", status=HTTPStatus.OK)
             except Exception as e:
                 return Response(str(e), status=HTTPStatus.BAD_REQUEST)

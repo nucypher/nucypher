@@ -1,5 +1,6 @@
 import json
 import os
+from http import HTTPStatus
 from unittest import mock
 
 import pytest
@@ -1043,3 +1044,17 @@ def test_big_int_string_handling(
         providers=condition_providers, **context
     )
     assert condition_result, "condition executed and passes"
+
+
+def test_validate_condition_lingo_endpoint(ursulas, time_condition):
+    ursula = ursulas[0]
+
+    condition_lingo = ConditionLingo(time_condition)
+    lingo_json = condition_lingo.to_json()
+
+    response = ursula.network_middleware.client.post(
+        node_or_sprout=ursula,
+        path="validate_condition_lingo",
+        json=lingo_json,
+    )
+    assert response.status_code == HTTPStatus.OK, "Condition Lingo validation failed"
