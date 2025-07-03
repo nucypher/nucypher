@@ -17,11 +17,14 @@ from nucypher_core import (
 )
 from prometheus_client import REGISTRY, Counter, Summary
 
-from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.blockchain.eth import domains
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH, TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.policy.conditions.exceptions import InvalidConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import (
     ConditionEvalError,
     evaluate_condition_lingo,
@@ -310,5 +313,18 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             log.debug("Template Rendering Exception:\n" + text_error)
             return Response(response=html_error, headers=headers, status=HTTPStatus.INTERNAL_SERVER_ERROR)
         return Response(response=content, headers=headers)
+
+    if this_node.domain.name in [domains.LYNX.name, TEMPORARY_DOMAIN_NAME]:
+        # only available on Lynx or for testing
+        @rest_app.route("/validate_condition_lingo", methods=["POST"])
+        def validate_condition_lingo():
+            """
+            An endpoint that validates a condition lingo
+            """
+            try:
+                _ = ConditionLingo.from_json(request.get_json())
+                return jsonify({"status": "valid"}), HTTPStatus.OK
+            except InvalidConditionLingo as e:
+                return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
     return rest_app
