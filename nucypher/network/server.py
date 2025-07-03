@@ -314,10 +314,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(response=html_error, headers=headers, status=HTTPStatus.INTERNAL_SERVER_ERROR)
         return Response(response=content, headers=headers)
 
-    if (
-        this_node.domain == domains.LYNX
-        or this_node.domain.name == TEMPORARY_DOMAIN_NAME
-    ):
+    if this_node.domain.name in [domains.LYNX.name, TEMPORARY_DOMAIN_NAME]:
         # only available on Lynx or for testing
         @rest_app.route("/validate_condition_lingo", methods=["POST"])
         def validate_condition_lingo():
