@@ -1086,7 +1086,9 @@ def test_poap_api_condition(get_context_value_mock, condition_providers):
     # POAP API
     #
     # get an API key from https://documentation.poap.tech/docs/authentication
-    authorization_token = "abcd1234"
+    authorization_token = os.environ.get(
+        "POAP_API_KEY", "abcd1234"
+    )  # default to fake if N/A
 
     context = {
         USER_ADDRESS_CONTEXT: {"address": user_address},
