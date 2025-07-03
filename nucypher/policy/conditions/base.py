@@ -43,13 +43,13 @@ class _Serializable:
         return instance
 
     def __bytes__(self) -> bytes:
-        json_payload = self.to_json().encode()
+        json_payload = self.to_json().encode("utf-8")
         b64_json_payload = b64encode(json_payload)
         return b64_json_payload
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> '_Serializable':
-        json_payload = b64decode(data).decode()
+    def from_bytes(cls, data: bytes) -> "_Serializable":
+        json_payload = b64decode(data).decode("utf-8")
         instance = cls.from_json(json_payload)
         return instance
 
