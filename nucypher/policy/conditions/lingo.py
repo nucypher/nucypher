@@ -732,6 +732,12 @@ class ConditionLingo(_Serializable):
         data = self.to_json().encode()
         return data
 
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "ConditionLingo":
+        json_payload = data.decode()
+        instance = cls.from_json(json_payload)
+        return instance
+
     def __repr__(self):
         return f"{self.__class__.__name__} (version={self.version} | id={self.id} | size={len(bytes(self))}) | condition=({self.condition})"
 
