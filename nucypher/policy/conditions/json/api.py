@@ -1,6 +1,13 @@
 from typing import Any, Optional
 
-from marshmallow import ValidationError, fields, post_load, validate, validates
+from marshmallow import (
+    ValidationError,
+    fields,
+    post_load,
+    validate,
+    validates,
+    validates_schema,
+)
 from marshmallow.fields import Url
 from typing_extensions import override
 
@@ -42,6 +49,13 @@ class JsonApiCall(JsonRequestCall):
             if value and not is_context_variable(value):
                 raise ValidationError(
                     f"Invalid value for authorization token; expected a context variable, but got '{value}'"
+                )
+
+        @validates_schema
+        def validate_auth_type_and_token(self, data, **kwargs):
+            if data.get("authorization_type") and not data.get("authorization_token"):
+                raise ValidationError(
+                    "Authorization token must be provided if authorization type is set."
                 )
 
     def __init__(
