@@ -1,4 +1,3 @@
-
 from ecdsa import Ed25519, SECP256k1, SigningKey
 from ecdsa.util import sigencode_string
 
