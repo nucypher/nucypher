@@ -23,6 +23,7 @@ from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.policy.conditions.exceptions import InvalidConditionLingo
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import (
     ConditionEvalError,
@@ -325,8 +326,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             """
             try:
                 _ = ConditionLingo.from_json(request.get_json())
-                return Response(response="valid", status=HTTPStatus.OK)
-            except Exception as e:
+                return jsonify({"status": "valid"}), HTTPStatus.OK
+            except InvalidConditionLingo as e:
                 return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
     return rest_app
