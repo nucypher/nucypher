@@ -47,7 +47,7 @@ long_description = (Path(__file__).parent / "README.md").read_text()
 setup(
 
     # Requirements
-    python_requires='>=3',
+    python_requires=">=3.9,<4",
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS,
 

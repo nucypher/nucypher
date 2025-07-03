@@ -104,7 +104,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -119,6 +119,7 @@ class ConditionType(Enum):
     COMPOUND = "compound"
     SEQUENTIAL = "sequential"
     IF_THEN_ELSE = "if-then-else"
+    ADDRESS_ALLOWLIST = "address-allowlist"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -139,6 +140,7 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
             "operands": [CONDITION*]
         }
     """
+
     AND_OPERATOR = "and"
     OR_OPERATOR = "or"
     NOT_OPERATOR = "not"
@@ -745,6 +747,7 @@ class ConditionLingo(_Serializable):
         Inspects a given block of JSON and attempts to resolve it's intended datatype within the
         conditions expression framework.
         """
+        from nucypher.policy.conditions.address import AddressAllowlistCondition
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
         from nucypher.policy.conditions.json.api import JsonApiCondition
         from nucypher.policy.conditions.json.rpc import JsonRpcCondition
@@ -764,6 +767,7 @@ class ConditionLingo(_Serializable):
             JWTCondition,
             SequentialAccessControlCondition,
             IfThenElseCondition,
+            AddressAllowlistCondition,
         ):
             if condition.CONDITION_TYPE == condition_type:
                 return condition
