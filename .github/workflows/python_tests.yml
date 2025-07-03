@@ -18,6 +18,9 @@ jobs:
     strategy:
       matrix:
         python-version: [ "3.9", "3.12" ]
+    env:
+      # Used by acceptance/conditions tests
+      POAP_API_KEY: ${{ secrets.POAP_API_KEY }}
 
     steps:
       - name: Checkout repo
