@@ -15,6 +15,7 @@ from nucypher.blockchain.eth.agents import (
     SubscriptionManagerAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
@@ -1058,3 +1059,12 @@ def test_validate_condition_lingo_endpoint(ursulas, time_condition):
         json=lingo_json,
     )
     assert response.status_code == HTTPStatus.OK, "Condition Lingo validation failed"
+    assert response.get_json()["status"] == "valid", "Unexpected response"
+
+    # failure case with invalid condition
+    with pytest.raises(RestMiddleware.BadRequest):
+        _ = ursula.network_middleware.client.post(
+            node_or_sprout=ursula,
+            path="validate_condition_lingo",
+            json=json.dumps({"invalidCondition": "confirmed"}),
+        )
