@@ -345,6 +345,13 @@ def test_condition_lingo_to_from_bytes(lingo_with_all_condition_types):
     assert clingo_from_bytes.to_dict() == lingo_with_all_condition_types
 
 
+def test_condition_lingo_to_from_base64(lingo_with_all_condition_types):
+    clingo = ConditionLingo.from_dict(lingo_with_all_condition_types)
+    clingo_base64 = clingo.to_base64()
+    clingo_from_base64 = ConditionLingo.from_base64(clingo_base64)
+    assert clingo_from_base64.to_dict() == lingo_with_all_condition_types
+
+
 def test_compound_condition_lingo_repr(lingo_with_all_condition_types):
     clingo = ConditionLingo.from_dict(lingo_with_all_condition_types)
     clingo_string = f"{clingo}"
