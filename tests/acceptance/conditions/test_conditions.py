@@ -34,7 +34,7 @@ from nucypher.policy.conditions.json.api import JsonApiCondition
 from nucypher.policy.conditions.json.auth import AuthorizationType
 from nucypher.policy.conditions.json.rpc import JsonRpcCondition
 from nucypher.policy.conditions.lingo import (
-    CompoundAccessControlCondition,
+    CompoundCondition,
     ConditionLingo,
     ConditionType,
     NotCompoundCondition,
@@ -1154,7 +1154,7 @@ def test_poap_contract_condition(get_context_value_mock):
         chain=100,
         return_value_test=ReturnValueTest("==", eth_denver_2025_event_id),
     )
-    and_condition = CompoundAccessControlCondition(
+    and_condition = CompoundCondition(
         operator="and",
         operands=[
             ownership_condition,
