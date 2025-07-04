@@ -55,25 +55,11 @@ FEE_RATE = 1
 
 
 #
-# General
-#
-
-
-@pytest.fixture(scope="module")
-def monkeymodule():
-    from _pytest.monkeypatch import MonkeyPatch
-
-    mpatch = MonkeyPatch()
-    yield mpatch
-    mpatch.undo()
-
-
-#
 # Accounts
 #
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def accounts():
     return ReservedTestAccountManager()
 
@@ -98,7 +84,6 @@ def initiator(testerchain, alice, ritual_token, deployer_account):
 #
 # Contracts Dependencies
 #
-
 
 @pytest.fixture(scope="session", autouse=True)
 def nucypher_dependency(project):
@@ -282,7 +267,7 @@ def subscription_manager(nucypher_dependency, deployer_account):
 #
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def deployed_contracts(
     ritual_token,
     t_token,
@@ -376,7 +361,7 @@ def staking_providers(
 #
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def coordinator_agent(testerchain, test_registry):
     """Creates a coordinator agent"""
     coordinator = ContractAgency.get_agent(
@@ -387,7 +372,7 @@ def coordinator_agent(testerchain, test_registry):
     return coordinator
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def taco_application_agent(test_registry):
     _taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent,
@@ -398,7 +383,7 @@ def taco_application_agent(test_registry):
     return _taco_application_agent
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def taco_child_application_agent(testerchain, test_registry):
     _taco_child_application_agent = ContractAgency.get_agent(
         TACoChildApplicationAgent,

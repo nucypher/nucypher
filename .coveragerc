@@ -1,4 +1,6 @@
 [run]
+parallel = true
+concurrency = multiprocessing
 omit =
     setup.py
     *__init__.py

@@ -5,6 +5,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.cli.literature import (
     COLLECT_NUCYPHER_PASSWORD,
@@ -26,7 +27,6 @@ from nucypher.crypto.keystore import Keystore
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
     NO_ENTER,
@@ -34,6 +34,22 @@ from tests.constants import (
 )
 from tests.utils.ursula import select_test_port
 
+
+@pytest.fixture(autouse=True)
+def mock_funding_and_bonding(
+    accounts, mocker, mock_taco_application_agent, mock_taco_child_application_agent
+):
+    # funding
+    mocker.patch.object(EthereumClient, "get_balance", return_value=1)
+
+    # bonding
+    staking_provider = accounts.staking_providers_accounts[0]
+    mock_taco_application_agent.get_staking_provider_from_operator.return_value = (
+        staking_provider
+    )
+    mock_taco_child_application_agent.staking_provider_from_operator.return_value = (
+        staking_provider
+    )
 
 @pytest.fixture(autouse=True)
 def mock_dkg_tracker(mocker):
@@ -84,7 +100,7 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
 
 
 def test_initialize_custom_configuration_root(
-    click_runner, custom_filepath: Path, accounts
+    click_runner, temp_dir_path: Path, accounts
 ):
     deploy_port = select_test_port()
     # Use a custom local filepath for configuration
@@ -94,7 +110,7 @@ def test_initialize_custom_configuration_root(
         "--domain",
         TEMPORARY_DOMAIN_NAME,
         "--config-root",
-        str(custom_filepath.absolute()),
+        str(temp_dir_path.absolute()),
         "--rest-host",
         MOCK_IP_ADDRESS,
         "--rest-port",
@@ -109,18 +125,22 @@ def test_initialize_custom_configuration_root(
     result = click_runner.invoke(
         nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False
     )
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, result.ouxtput
 
     # CLI Output
-    assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output, "Configuration not in system temporary directory"
-    assert "nucypher ursula run" in result.output, 'Help message is missing suggested command'
-    assert 'IPv4' not in result.output
+    assert (
+        str(temp_dir_path.absolute()) in result.output
+    ), "Configuration not in system temporary directory"
+    assert (
+        "nucypher ursula run" in result.output
+    ), "Help message is missing suggested command"
+    assert "IPv4" not in result.output
 
     # Files and Directories
-    assert custom_filepath.is_dir(), 'Configuration file does not exist'
-    assert (custom_filepath / 'keystore').is_dir(), 'KEYSTORE does not exist'
+    assert temp_dir_path.is_dir(), "Configuration file does not exist"
+    assert (temp_dir_path / "keystore").is_dir(), "KEYSTORE does not exist"
 
-    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
+    custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     # Auth
@@ -128,10 +148,8 @@ def test_initialize_custom_configuration_root(
     assert REPEAT_FOR_CONFIRMATION in result.output, 'User was not prompted to confirm password'
 
 
-def test_configuration_file_contents(
-    custom_filepath: Path, nominal_configuration_fields
-):
-    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
+def test_configuration_file_contents(temp_dir_path: Path, nominal_configuration_fields):
+    custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     # Check the contents of the configuration file
@@ -154,10 +172,12 @@ def test_configuration_file_contents(
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
 
-def test_ursula_view_configuration(custom_filepath: Path, click_runner, nominal_configuration_fields):
+def test_ursula_view_configuration(
+    temp_dir_path: Path, click_runner, nominal_configuration_fields
+):
 
     # Ensure the configuration file still exists
-    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
+    custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     view_args = ('ursula', 'config', '--config-file', str(custom_config_filepath.absolute()))
@@ -168,7 +188,7 @@ def test_ursula_view_configuration(custom_filepath: Path, click_runner, nominal_
                                  catch_exceptions=False)
 
     # CLI Output
-    assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output
+    assert str(custom_config_filepath.absolute()) in result.output
     for field in nominal_configuration_fields:
         assert field in result.output, "Missing field '{}' from configuration file."
 
@@ -176,10 +196,9 @@ def test_ursula_view_configuration(custom_filepath: Path, click_runner, nominal_
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
 
-@pytest.mark.usefixtures("mock_funding_and_bonding")
-def test_run_ursula_from_config_file(custom_filepath: Path, click_runner):
+def test_run_ursula_from_config_file(temp_dir_path: Path, click_runner):
     # Ensure the configuration file still exists
-    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
+    custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     # Run Ursula
@@ -197,11 +216,9 @@ def test_run_ursula_from_config_file(custom_filepath: Path, click_runner):
     assert f"Rest Server https://{MOCK_IP_ADDRESS}" in result.output
 
 
-def test_ursula_config_ip_address_manually_inserted(
-    click_runner, custom_filepath: Path
-):
+def test_ursula_config_ip_address_manually_inserted(click_runner, temp_dir_path: Path):
     # Ensure the configuration file still exists
-    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
+    custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), "Configuration file does not exist"
 
     ip_address_args = (
@@ -239,9 +256,9 @@ def test_ursula_config_ip_address_manually_inserted(
     ), "IP address not updated in command output"
 
 
-def test_ursula_config_ip_address_detected(click_runner, custom_filepath: Path):
+def test_ursula_config_ip_address_detected(click_runner, temp_dir_path: Path):
     # Ensure the configuration file still exists
-    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
+    custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), "Configuration file does not exist"
 
     # set a test IP address in config file
@@ -300,13 +317,13 @@ def test_ursula_config_ip_address_detected(click_runner, custom_filepath: Path):
 
 
 # Should be the last test since it deletes the configuration file
-def test_ursula_destroy_configuration(custom_filepath, click_runner):
+def test_ursula_destroy_configuration(temp_dir_path, click_runner):
 
     preexisting_live_configuration = DEFAULT_CONFIG_ROOT.is_dir()
     preexisting_live_configuration_file = (DEFAULT_CONFIG_ROOT / UrsulaConfiguration.generate_filename()).is_file()
 
     # Ensure the configuration file still exists
-    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
+    custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     # Run the destroy command
@@ -325,16 +342,22 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     )
 
     # CLI Output
-    assert not custom_config_filepath.is_file(), 'Configuration file still exists'
-    assert '? [y/N]:' in result.output, 'WARNING: User was not asked to destroy files'
-    assert str(custom_filepath) in result.output, 'WARNING: Configuration path not in output. Deleting the wrong path?'
+    assert not custom_config_filepath.is_file(), "Configuration file still exists"
+    assert "? [y/N]:" in result.output, "WARNING: User was not asked to destroy files"
+    assert (
+        str(temp_dir_path) in result.output
+    ), "WARNING: Configuration path not in output. Deleting the wrong path?"
     assert SUCCESSFUL_DESTRUCTION in result.output, '"Destroyed" not in output'
-    assert str(custom_filepath) in result.output
+    assert str(temp_dir_path) in result.output
     assert result.exit_code == 0, 'Destruction did not succeed'
 
     # Ensure the files are deleted from the filesystem
-    assert not custom_config_filepath.is_file(), 'Files still exist'   # ... shes's gone...
-    assert custom_filepath.is_dir(), 'Nucypher files no longer exist'  # ... but not NuCypher ...
+    assert (
+        not custom_config_filepath.is_file()
+    ), "Files still exist"  # ... shes's gone...
+    assert (
+        temp_dir_path.is_dir()
+    ), "Nucypher files no longer exist"  # ... but not NuCypher ...
 
     # If this test started off with a live configuration, ensure it still exists
     if preexisting_live_configuration:

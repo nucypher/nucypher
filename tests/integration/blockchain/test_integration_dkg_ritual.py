@@ -140,7 +140,7 @@ def run_test(
 
     with patch.object(
         mock_coordinator_agent, "get_threshold_for_ritual_size", return_value=threshold
-    ):
+    ), patch.object(bob, "_get_coordinator_agent", return_value=mock_coordinator_agent):
 
         def initialize():
             """Initiates the ritual"""

@@ -94,7 +94,6 @@ def test_ursula_run_ip_checkup(
     click_runner,
     mocker,
     ursulas,
-    monkeypatch,
     ursula_test_config,
     tempfile_path,
 ):
@@ -119,7 +118,7 @@ def test_ursula_run_ip_checkup(
         operator.checksum_address = worker.checksum_address
         return True
 
-    monkeypatch.setattr(Operator, "block_until_ready", set_staking_provider_address)
+    mocker.patch.object(Operator, "block_until_ready", set_staking_provider_address)
 
     mocker.patch("nucypher.cli.commands.ursula.migrate", return_value=None)
 
@@ -158,5 +157,3 @@ def test_ursula_run_ip_checkup(
         nucypher_cli, run_args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED
     )
     assert result.exit_code == 0, result.output
-
-    ursulas.clear()

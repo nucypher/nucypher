@@ -2,6 +2,7 @@ import json
 
 import pytest
 from cytoolz import assoc
+from eth_account import Account
 from eth_account._utils.legacy_transactions import Transaction
 from eth_account.messages import encode_defunct
 from eth_utils import to_checksum_address
@@ -11,6 +12,12 @@ from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVE
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer
 
 PASSWORD = "so_secure"
+
+
+@pytest.fixture(scope="module")
+def random_account():
+    account = Account.create(extra_entropy="lamborghini mercy")
+    return account
 
 
 @pytest.fixture(scope="module")

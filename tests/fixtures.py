@@ -57,8 +57,6 @@ from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from nucypher.utilities.task import SimpleTask
 from tests.constants import (
     MIN_OPERATOR_SECONDS,
-    MOCK_CUSTOM_INSTALLATION_PATH,
-    MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
     TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,
@@ -88,6 +86,7 @@ from tests.utils.middleware import (
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import (
     MOCK_KNOWN_URSULAS_CACHE,
+    cleanup_ursulas,
     make_random_ursulas,
     make_reserved_ursulas,
     select_test_port,
@@ -130,18 +129,6 @@ def accounts():
     return ReservedTestAccountManager()
 
 
-@pytest.fixture(scope="module")
-def random_account():
-    key = Account.create(extra_entropy="lamborghini mercy")
-    account = Account.from_key(private_key=key.key)
-    return account
-
-
-@pytest.fixture(scope="module")
-def random_address(random_account):
-    return random_account.address
-
-
 #
 # Character Configurations
 #
@@ -153,12 +140,9 @@ def ursula_test_config(test_registry, temp_dir_path):
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         polygon_endpoint=TEST_ETH_PROVIDER_URI,
         test_registry=test_registry,
-        rest_port=select_test_port(),
     )
     yield config
     config.cleanup()
-    for k in list(MOCK_KNOWN_URSULAS_CACHE.keys()):
-        del MOCK_KNOWN_URSULAS_CACHE[k]
 
 
 @pytest.fixture(scope="module")
@@ -266,11 +250,6 @@ def capsule_side_channel(enacted_policy):
     return _CapsuleSideChannel()
 
 
-@pytest.fixture(scope="module")
-def random_policy_label():
-    yield generate_random_label()
-
-
 #
 # Alice, Bob, and Ursula
 #
@@ -312,12 +291,7 @@ def lonely_ursula_maker(ursula_test_config, accounts):
             return ursulas
 
         def clean(self):
-            for ursula in self._made:
-                ursula.stop()
-            for ursula in self._made:
-                del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
-            for ursula in self._made:
-                ursula._finalize()
+            cleanup_ursulas(self._made)
 
     _maker = _PartialUrsulaMaker()
     yield _maker
@@ -342,7 +316,8 @@ def mock_testerchain() -> MockBlockchain:
 
 
 @pytest.fixture()
-def light_ursula(temp_dir_path, random_account, mocker):
+def light_ursula(temp_dir_path, mocker):
+    random_account = Account.create()
     mocker.patch.object(KeystoreSigner, "_get_signer", return_value=random_account)
     pre_payment_method = SubscriptionManagerPayment(
         blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME
@@ -441,15 +416,12 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
                 )
 
     yield _ursulas
-
-    for ursula in _ursulas:
-        del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
+    cleanup_ursulas(_ursulas)
 
 
 @pytest.fixture(scope="module")
 def highperf_mocked_alice(
     fleet_of_highperf_mocked_ursulas,
-    monkeymodule,
     accounts,
 ):
     config = AliceConfiguration(
@@ -525,31 +497,9 @@ def nominal_configuration_fields():
 
 
 @pytest.fixture(scope="module")
-def custom_filepath():
-    _custom_filepath = MOCK_CUSTOM_INSTALLATION_PATH
-    with contextlib.suppress(FileNotFoundError):
-        shutil.rmtree(_custom_filepath, ignore_errors=True)
-    yield _custom_filepath
-    with contextlib.suppress(FileNotFoundError):
-        shutil.rmtree(_custom_filepath, ignore_errors=True)
-
-
-@pytest.fixture(scope="module")
-def custom_filepath_2():
-    _custom_filepath = MOCK_CUSTOM_INSTALLATION_PATH_2
-    with contextlib.suppress(FileNotFoundError):
-        shutil.rmtree(_custom_filepath, ignore_errors=True)
-    try:
-        yield _custom_filepath
-    finally:
-        with contextlib.suppress(FileNotFoundError):
-            shutil.rmtree(_custom_filepath, ignore_errors=True)
-
-
-@pytest.fixture(scope="module")
-def worker_configuration_file_location(custom_filepath) -> Path:
+def worker_configuration_file_location(temp_dir_path) -> Path:
     _configuration_file_location = (
-        MOCK_CUSTOM_INSTALLATION_PATH / UrsulaConfiguration.generate_filename()
+        temp_dir_path / UrsulaConfiguration.generate_filename()
     )
     return _configuration_file_location
 
@@ -569,16 +519,6 @@ def disable_interactive_keystore_generation(mocker):
 #
 # Web Auth
 #
-@pytest.fixture(scope="module")
-def basic_auth_file(temp_dir_path):
-    basic_auth = Path(temp_dir_path) / "htpasswd"
-    with basic_auth.open("w") as f:
-        # username: "admin", password: "admin"
-        f.write("admin:$apr1$hlEpWVoI$0qjykXrvdZ0yO2TnBggQO0\n")
-    yield basic_auth
-    basic_auth.unlink()
-
-
 @pytest.fixture(scope="module")
 def mock_rest_middleware():
     return MockRestMiddleware(eth_endpoint=TEST_ETH_PROVIDER_URI)
@@ -735,7 +675,7 @@ def valid_eip4361_auth_message(valid_eip4361_auth_message_factory):
     return valid_eip4361_auth_message_factory()
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module")
 def clock():
     """Distorts the space-time continuum.  Use with caution."""
     clock = Clock()
@@ -744,13 +684,19 @@ def clock():
     return clock
 
 
+@pytest.fixture(scope="session", autouse=True)
+def check_ursulas():
+    yield
+
+    # check that ursulas have been cleaned up
+    if len(MOCK_KNOWN_URSULAS_CACHE.values()) > 0:
+        raise RuntimeError(
+            f"Ursulas cache was not empty, {len(MOCK_KNOWN_URSULAS_CACHE.values())}, at fixture cleanup time.  Did you use one of the ursula maker functions without cleaning up?"
+        )
+
+
 @pytest.fixture(scope="module")
 def ursulas(accounts, ursula_test_config, staking_providers):
-    if MOCK_KNOWN_URSULAS_CACHE:
-        # TODO: Is this a safe assumption / test behaviour?
-        # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
-        MOCK_KNOWN_URSULAS_CACHE.clear()
-
     _ursulas = make_reserved_ursulas(
         accounts=accounts,
         ursula_config=ursula_test_config,
@@ -759,22 +705,16 @@ def ursulas(accounts, ursula_test_config, staking_providers):
     for u in _ursulas:
         u.synchronous_query_timeout = 0.01  # We expect to never have to wait for content that is actually on-chain during tests.
 
-    _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
     yield _ursulas
 
-    for port in _ports_to_remove:
-        del MOCK_KNOWN_URSULAS_CACHE[port]
-
-    for u in _ursulas:
-        u.stop()
-        u._finalize()
+    cleanup_ursulas(_ursulas)
 
     # Pytest will hold on to this object, need to clear it manually.
     # See https://github.com/pytest-dev/pytest/issues/5642
     _ursulas.clear()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def dkg_public_key_data(
     get_random_checksum_address,
 ) -> Tuple[AggregatedTranscript, DkgPublicKey]:
@@ -814,13 +754,13 @@ def dkg_public_key_data(
     return aggregate_transcript, public_key
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def dkg_public_key(dkg_public_key_data) -> DkgPublicKey:
     _, dkg_public_key = dkg_public_key_data
     return dkg_public_key
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def aggregated_transcript(dkg_public_key_data) -> AggregatedTranscript:
     aggregated_transcript, _ = dkg_public_key_data
     return aggregated_transcript
@@ -856,8 +796,12 @@ def mock_halt_reactor(session_mocker):
 
 
 @pytest.fixture(scope="session")
-def temp_config_root():
-    return Path("/tmp/nucypher-test")
+def temp_config_root(testrun_uid):
+    current_root = Path(f"/tmp/nucypher-test-{testrun_uid}")
+    yield current_root
+    if current_root.exists():
+        print(f"Removing {current_root}")
+        shutil.rmtree(current_root)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -879,9 +823,6 @@ def mock_default_config_root(session_mocker, temp_config_root):
 
 @pytest.fixture(scope="function", autouse=True)
 def clear_config_root(temp_config_root):
-    if temp_config_root.exists():
-        print(f"Removing {temp_config_root}")
-        shutil.rmtree(Path("/tmp/nucypher-test"))
     yield
     if Path(APP_DIR.user_data_dir).exists():
         raise RuntimeError(

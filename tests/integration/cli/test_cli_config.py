@@ -13,7 +13,6 @@ from nucypher.config.constants import (
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
     TEST_ETH_PROVIDER_URI,
@@ -30,9 +29,8 @@ ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 @pytest.mark.parametrize("config_class", CONFIG_CLASSES)
 def test_initialize_via_cli(
     config_class,
-    custom_filepath: Path,
+    temp_dir_path,
     click_runner,
-    monkeypatch,
 ):
     command = config_class.CHARACTER_CLASS.__name__.lower()
 
@@ -47,7 +45,7 @@ def test_initialize_via_cli(
         "--polygon-endpoint",
         TEST_ETH_PROVIDER_URI,
         "--config-root",
-        str(custom_filepath.absolute()),
+        str(temp_dir_path.absolute()),
     )
 
     if config_class == UrsulaConfiguration:
@@ -61,25 +59,27 @@ def test_initialize_via_cli(
     assert result.exit_code == 0, result.output
 
     # CLI Output
-    assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output, "Configuration not in system temporary directory"
+    assert (
+        str(temp_dir_path) in result.output
+    ), "Configuration not in system temporary directory"
 
     # Files and Directories
-    assert custom_filepath.is_dir(), 'Configuration file does not exist'
-    assert (custom_filepath / 'keystore').is_dir(), 'Keystore does not exist'
+    assert temp_dir_path.is_dir(), "Configuration file does not exist"
+    assert (temp_dir_path / "keystore").is_dir(), "Keystore does not exist"
 
 
 @pytest.mark.parametrize("config_class", CONFIG_CLASSES)
 def test_reconfigure_via_cli(
-    click_runner, custom_filepath: Path, config_class, monkeypatch, test_registry
+    click_runner, temp_dir_path: Path, config_class, mocker, test_registry
 ):
     def fake_get_latest_registry(*args, **kwargs):
         return test_registry
 
-    monkeypatch.setattr(
+    mocker.patch.object(
         ContractRegistry, "from_latest_publication", fake_get_latest_registry
     )
 
-    custom_config_filepath = custom_filepath / config_class.generate_filename()
+    custom_config_filepath = temp_dir_path / config_class.generate_filename()
 
     view_args = (config_class.CHARACTER_CLASS.__name__.lower(), 'config',
                  '--config-file', str(custom_config_filepath.absolute()),
@@ -116,7 +116,7 @@ def test_reconfigure_via_cli(
     analog_payload = json.loads(config.serialize())
     for field in analog_payload:
         assert field in result.output
-    assert str(custom_filepath) in result.output
+    assert str(temp_dir_path) in result.output
 
     # After editing the fields have been updated
     assert config.eth_endpoint == TEST_ETH_PROVIDER_URI

@@ -11,17 +11,16 @@ from nucypher.characters.lawful import Ursula
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
-    MOCK_REGISTRY_FILEPATH,
     TESTERCHAIN_CHAIN_ID,
 )
 
 
-def _attempt_decryption(BobClass, plaintext, testerchain):
+def _attempt_decryption(BobClass, plaintext, temp_dir_path):
     trinket = 80  # Doens't matter.
 
     enrico = NiceGuyEddie(encrypting_key=trinket, signer=InMemorySigner())
     bob = BobClass(
-        registry=MOCK_REGISTRY_FILEPATH,
+        registry=temp_dir_path,
         domain=domains.LYNX,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
@@ -49,13 +48,13 @@ def _attempt_decryption(BobClass, plaintext, testerchain):
     return decrypted_cleartext
 
 
-def test_user_controls_success(testerchain):
+def test_user_controls_success(testerchain, temp_dir_path):
     plaintext = b"ever thus to deadbeats"
-    result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext, testerchain)
+    result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext, temp_dir_path)
     assert bytes(result) == bytes(plaintext)
 
 
-def test_user_controls_failure(testerchain):
+def test_user_controls_failure(testerchain, temp_dir_path):
     plaintext = b"ever thus to deadbeats"
     with pytest.raises(Ursula.NotEnoughUrsulas):
-        _ = _attempt_decryption(ThisBobAlwaysFails, plaintext, testerchain)
+        _ = _attempt_decryption(ThisBobAlwaysFails, plaintext, temp_dir_path)

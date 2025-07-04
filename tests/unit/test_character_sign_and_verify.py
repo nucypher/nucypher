@@ -61,7 +61,7 @@ def test_actor_with_signing_power_can_sign():
     assert verification is True
 
 
-def test_anybody_can_verify(random_address):
+def test_anybody_can_verify(get_random_checksum_address):
     """
     In the last example, we used the lower-level Crypto API to verify the signature.
 
@@ -71,7 +71,7 @@ def test_anybody_can_verify(random_address):
     alice = Alice(
         start_learning_now=False,
         domain=TEMPORARY_DOMAIN_NAME,
-        checksum_address=random_address,
+        checksum_address=get_random_checksum_address(),
         pre_payment_method=FreeReencryptions(),
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )

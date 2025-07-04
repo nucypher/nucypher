@@ -55,8 +55,12 @@ jobs:
       # Unit tests
       - name: Unit Tests (Coverage)
         if: matrix.python-version == '3.12'
+        env:
+          PYTHONPATH: ./coverage_bootstrap
+          COVERAGE_PROCESS_START: .coveragerc
         run: |
-          coverage run --data-file=unit_data -m pytest tests/unit
+          COVERAGE_FILE=unit_data coverage run -m pytest tests/unit
+          coverage combine --data-file=unit_data
           coverage xml -i --data-file=unit_data -o unit-coverage.xml
 
       - name: Unit Tests
@@ -66,20 +70,30 @@ jobs:
       # Integration tests
       - name: Integration Tests (Coverage)
         if: matrix.python-version == '3.12'
+        # TODO: don't run integration tests in parallel, as they are not thread-safe atm
+        env:
+          PYTHONPATH: ./coverage_bootstrap
+          COVERAGE_PROCESS_START: .coveragerc
         run: |
-          coverage run --data-file=integration_data -m pytest tests/integration
+          COVERAGE_FILE=integration_data coverage run -m pytest tests/integration
+          coverage combine --data-file=integration_data
           coverage xml -i --data-file=integration_data -o integration-coverage.xml
 
       - name: Integration Tests
         if: matrix.python-version != '3.12'
+        # TODO: don't run integration tests in parallel, as they are not thread-safe atm
         run: python -m pytest tests/integration
 
       # Acceptance tests
       - name: Agents Tests (Coverage)
         if: matrix.python-version == '3.12'
         working-directory: tests/acceptance
+        env:
+          PYTHONPATH: ../../coverage_bootstrap
+          COVERAGE_PROCESS_START: ../../.coveragerc
         run: |
-          coverage run --data-file=acceptance_agent_data -m pytest agents
+          COVERAGE_FILE=acceptance_agent_data coverage run -m pytest agents
+          coverage combine --data-file=acceptance_agent_data
           coverage xml -i --data-file=acceptance_agent_data -o acceptance-agents-coverage.xml
 
       - name: Agents Tests
@@ -90,8 +104,12 @@ jobs:
       - name: Actors Tests (Coverage)
         if: matrix.python-version == '3.12'
         working-directory: tests/acceptance
+        env:
+          PYTHONPATH: ../../coverage_bootstrap
+          COVERAGE_PROCESS_START: ../../.coveragerc
         run: |
-          coverage run --data-file=acceptance_actors_data -m pytest actors
+          COVERAGE_FILE=acceptance_actors_data coverage run -m pytest actors
+          coverage combine --data-file=acceptance_actors_data
           coverage xml -i --data-file=acceptance_actors_data -o acceptance-actors-coverage.xml
 
       - name: Actors Tests
@@ -103,8 +121,12 @@ jobs:
       - name: Conditions Tests (Coverage)
         if: matrix.python-version == '3.12'
         working-directory: tests/acceptance
+        env:
+          PYTHONPATH: ../../coverage_bootstrap
+          COVERAGE_PROCESS_START: ../../.coveragerc
         run: |
-          coverage run --data-file=acceptance_conditions_data -m pytest conditions
+          COVERAGE_FILE=acceptance_conditions_data coverage run -m pytest conditions
+          coverage combine --data-file=acceptance_conditions_data
           coverage xml -i --data-file=acceptance_conditions_data -o acceptance-conditions-coverage.xml
 
       - name: Conditions Tests
@@ -116,8 +138,12 @@ jobs:
       - name: Characters Tests (Coverage)
         if: matrix.python-version == '3.12'
         working-directory: tests/acceptance
+        env:
+          PYTHONPATH: ../../coverage_bootstrap
+          COVERAGE_PROCESS_START: ../../.coveragerc
         run: |
-          coverage run --data-file=acceptance_characters_data -m pytest characters
+          COVERAGE_FILE=acceptance_characters_data coverage run -m pytest characters
+          coverage combine --data-file=acceptance_characters_data
           coverage xml -i --data-file=acceptance_characters_data -o acceptance-characters-coverage.xml
 
       - name: Characters Tests
@@ -129,8 +155,12 @@ jobs:
       - name: CLI Tests (Coverage)
         if: matrix.python-version == '3.12'
         working-directory: tests/acceptance
+        env:
+          PYTHONPATH: ../../coverage_bootstrap
+          COVERAGE_PROCESS_START: ../../.coveragerc
         run: |
-          coverage run --data-file=acceptance_cli_data -m pytest cli
+          COVERAGE_FILE=acceptance_cli_data coverage run -m pytest cli
+          coverage combine --data-file=acceptance_cli_data
           coverage xml -i --data-file=acceptance_cli_data -o acceptance-cli-coverage.xml
 
       - name: CLI Tests

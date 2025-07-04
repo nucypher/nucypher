@@ -26,16 +26,18 @@ from nucypher.utilities.prometheus.metrics import (
 from tests.constants import MOCK_ETH_PROVIDER_URI
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="function", autouse=True)
 def mock_taco_child_app_info(mock_taco_child_application_agent, testerchain):
     mock_taco_child_application_agent.is_operator_confirmed.return_value = True
     mock_taco_child_application_agent.blockchain = testerchain
 
 
-@pytest.fixture(scope="function")
-def mock_taco_app_staking_provider_info(random_address, mock_taco_application_agent):
+@pytest.fixture(scope="function", autouse=True)
+def mock_taco_app_staking_provider_info(
+    get_random_checksum_address, mock_taco_application_agent
+):
     info = TACoApplicationAgent.StakingProviderInfo(
-        operator=random_address,
+        operator=get_random_checksum_address(),
         operator_confirmed=True,
         operator_start_timestamp=Timestamp(int(time.time()))
     )
@@ -123,7 +125,6 @@ def test_blockchain_metrics_collector(testerchain):
     assert block_number == testerchain.get_block_number()
 
 
-@pytest.mark.usefixtures("mock_taco_app_staking_provider_info")
 def test_staking_provider_metrics_collector(test_registry, staking_providers):
 
     staking_provider_address = random.choice(staking_providers)
@@ -161,7 +162,6 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
     assert operator_start == staking_provider_info.operator_start_timestamp
 
 
-@pytest.mark.usefixtures("mock_taco_child_app_info")
 def test_operator_metrics_collector(
     test_registry, operator_address, testerchain, mock_taco_child_application_agent
 ):
@@ -200,8 +200,6 @@ def test_operator_metrics_collector(
     assert not operator_confirmed
 
 
-@pytest.mark.usefixtures("mock_taco_child_app_info")
-@pytest.mark.usefixtures("mock_taco_app_staking_provider_info")
 def test_all_metrics_collectors_sanity_collect(ursulas):
     ursula = random.choice(ursulas)
 

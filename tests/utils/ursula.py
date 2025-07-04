@@ -2,7 +2,7 @@ import contextlib
 import os
 import socket
 from threading import Lock
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
@@ -16,7 +16,7 @@ from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.utils.blockchain import ReservedTestAccountManager
 
 
-class __ActivePortCache:
+class _ActivePortCache:
     """Thread-safe cache for storing current active ports."""
     def __init__(self):
         self._lock = Lock()
@@ -36,8 +36,16 @@ class __ActivePortCache:
             self.active_ports.add(port)
             return True
 
+    def remove_port(self, port: int) -> None:
+        """
+        Remove port from the active ports set.
+        This is useful for cleanup after a test run.
+        """
+        with self._lock:
+            self.active_ports.discard(port)
 
-__ACTIVE_PORTS = __ActivePortCache()
+
+_ACTIVE_PORTS = _ActivePortCache()
 
 
 def select_test_port() -> int:
@@ -56,7 +64,7 @@ def select_test_port() -> int:
         if (
             port > 64000
             or port == UrsulaConfiguration.DEFAULT_REST_PORT
-            or not __ACTIVE_PORTS.add_port_if_not_already_active(port)
+            or not _ACTIVE_PORTS.add_port_if_not_already_active(port)
         ):
             # invalid port; retry
             return select_test_port()
@@ -144,6 +152,13 @@ def make_ursulas(
 
     return ursulas
 
+
+def cleanup_ursulas(_ursulas):
+    _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
+    for port in _ports_to_remove:
+        del MOCK_KNOWN_URSULAS_CACHE[port]
+
+
 def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
     """
     Takes an ursula and starts its learning
@@ -189,4 +204,60 @@ def setup_multichain_ursulas(chain_ids: List[int], ursulas: List[Ursula]) -> Non
         ursula.condition_provider_manager = mocked_condition_providers
 
 
-MOCK_KNOWN_URSULAS_CACHE = dict()
+class _ActiveUrsulaCache:
+    """Thread-safe cache for storing current active ports."""
+
+    def __init__(self, active_port_cache: _ActivePortCache):
+        self.__lock = Lock()
+        self.__active_ursulas: Dict[int, Ursula] = dict()
+        self.__active_port_cache = active_port_cache
+
+    def __getitem__(self, item):
+        """
+        Atomically check if port is not already active, and if so store port and return True;
+        otherwise return False if port is already active.
+        """
+        with self.__lock:
+            return self.__active_ursulas[item]
+
+    def __delitem__(self, key):
+        """
+        Remove port from the active ports set.
+        This is useful for cleanup after a test run.
+        """
+        with self.__lock:
+            try:
+                ursula = self.__active_ursulas[key]
+                ursula.stop()
+                ursula._finalize()
+            except Exception:
+                pass
+
+            if key in self.__active_ursulas:
+                del self.__active_ursulas[key]
+                self.__active_port_cache.remove_port(key)
+
+    def __iter__(self):
+        with self.__lock:
+            current_ports = list(self.__active_ursulas.keys())
+            return iter(current_ports)
+
+    def __setitem__(self, key, value):
+        with self.__lock:
+            if key in self.__active_ursulas:
+                raise ValueError(f"Ursula with port {key} is already active.")
+
+            self.__active_ursulas[key] = value
+
+    def values(self):
+        with self.__lock:
+            current_ursulas = self.__active_ursulas.values()
+            return current_ursulas
+
+    def keys(self):
+        with self.__lock:
+            current_ports = self.__active_ursulas.keys()
+            return current_ports
+
+
+MOCK_KNOWN_URSULAS_CACHE = _ActiveUrsulaCache(_ACTIVE_PORTS)

@@ -6,12 +6,12 @@ from nucypher.crypto.keystore import Keystore
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, YES_ENTER
 
 
-def test_ursula_recover_invalid(click_runner, ursula_test_config, custom_filepath):
+def test_ursula_recover_invalid(click_runner, ursula_test_config, temp_dir_path):
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
 
-    ursula_config_file = custom_filepath / "ursula-invalid-test.json"
+    ursula_config_file = temp_dir_path / "ursula-invalid-test.json"
 
     # no config-file - so default attempted
     recover_args = (
@@ -41,7 +41,7 @@ def test_ursula_recover_invalid(click_runner, ursula_test_config, custom_filepat
     ursula_test_config._write_configuration_file(filepath=ursula_config_file)
 
     # keystore-filepath does not exist
-    non_existent_keystore_filepath = custom_filepath / "non_existent.priv"
+    non_existent_keystore_filepath = temp_dir_path / "non_existent.priv"
     recover_args = (
         "ursula",
         "recover",
@@ -59,16 +59,16 @@ def test_ursula_recover_invalid(click_runner, ursula_test_config, custom_filepat
 
 
 def test_ursula_recover_keystore_file(
-    click_runner, mocker, ursula_test_config, custom_filepath
+    click_runner, mocker, ursula_test_config, temp_dir_path
 ):
     #
     # use specific config file
     #
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
 
-    ursula_config_file = custom_filepath / "ursula-keystore-test.json"
+    ursula_config_file = temp_dir_path / "ursula-keystore-test.json"
     ursula_test_config._write_configuration_file(filepath=ursula_config_file)
 
     recover_args = (
@@ -98,10 +98,10 @@ def test_ursula_recover_keystore_file(
     # use default config file
     #
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
 
-    ursula_default_file = custom_filepath / "ursula-keystore-default.json"
+    ursula_default_file = temp_dir_path / "ursula-keystore-default.json"
     ursula_test_config._write_configuration_file(filepath=ursula_default_file)
     mocker.patch(
         "nucypher.cli.commands.ursula.DEFAULT_CONFIG_FILEPATH", ursula_default_file
@@ -132,22 +132,22 @@ def test_ursula_recover_keystore_file(
 
 
 def test_ursula_recover_mnemonic(
-    click_runner, mocker, ursula_test_config, custom_filepath
+    click_runner, mocker, ursula_test_config, temp_dir_path
 ):
     mocker.patch(
-        "nucypher.crypto.keystore.Keystore._DEFAULT_DIR", custom_filepath / "keystore"
+        "nucypher.crypto.keystore.Keystore._DEFAULT_DIR", temp_dir_path / "keystore"
     )
 
     #
     # use specific config file
     #
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
     keystore.unlock(INSECURE_DEVELOPMENT_PASSWORD)
     mnemonic = keystore.get_mnemonic()
 
-    ursula_config_file = custom_filepath / "ursula-mnemonic-test.json"
+    ursula_config_file = temp_dir_path / "ursula-mnemonic-test.json"
     ursula_test_config._write_configuration_file(filepath=ursula_config_file)
     # could be None
     old_keystore_path = (
@@ -186,12 +186,12 @@ def test_ursula_recover_mnemonic(
     # use default config file
     #
     keystore = Keystore.generate(
-        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=custom_filepath
+        INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
     keystore.unlock(INSECURE_DEVELOPMENT_PASSWORD)
     mnemonic = keystore.get_mnemonic()
 
-    ursula_default_file = custom_filepath / "ursula-mnemonic-default.json"
+    ursula_default_file = temp_dir_path / "ursula-mnemonic-default.json"
     mocker.patch(
         "nucypher.cli.commands.ursula.DEFAULT_CONFIG_FILEPATH", ursula_default_file
     )

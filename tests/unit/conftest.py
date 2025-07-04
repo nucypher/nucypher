@@ -40,21 +40,18 @@ def mock_transacting_power(module_mocker):
 
 
 @pytest.fixture(scope='module', autouse=True)
-def mock_contract_agency():
+def mock_contract_agency(module_mocker):
     from tests.mock.agents import MockContractAgency
 
-    # Monkeypatch # TODO: Use better tooling for this monkeypatch?
-    get_agent = ContractAgency.get_agent
-    get_agent_by_name = ContractAgency.get_agent_by_contract_name
-    ContractAgency.get_agent = MockContractAgency.get_agent
-    ContractAgency.get_agent_by_contract_name = MockContractAgency.get_agent_by_contract_name
-
-    # Test
-    yield MockContractAgency()
-
-    # Restore the monkey patching
-    ContractAgency.get_agent = get_agent
-    ContractAgency.get_agent_by_contract_name = get_agent_by_name
+    module_mocker.patch.object(
+        ContractAgency, "get_agent", MockContractAgency.get_agent
+    )
+    module_mocker.patch.object(
+        ContractAgency,
+        "get_agent_by_contract_name",
+        MockContractAgency.get_agent_by_contract_name,
+    )
+    return MockContractAgency()
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -76,7 +73,7 @@ def testerchain(mock_testerchain, module_mocker, clock) -> MockBlockchain:
 
 
 @pytest.fixture(scope="module", autouse=True)
-def staking_providers(accounts, test_registry, monkeymodule):
+def staking_providers(accounts, test_registry):
     def faked(self, *args, **kwargs):
         return accounts.staking_providers_accounts[
             accounts.ursulas_accounts.index(self.transacting_power.account)
@@ -87,7 +84,7 @@ def staking_providers(accounts, test_registry, monkeymodule):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_substantiate_stamp(module_mocker, monkeymodule):
+def mock_substantiate_stamp(module_mocker):
     fake_signature = b"\xb1W5?\x9b\xbaix>'\xfe`\x1b\x9f\xeb*9l\xc0\xa7\xb9V\x9a\x83\x84\x04\x97\x0c\xad\x99\x86\x81W\x93l\xc3\xbde\x03\xcd\"Y\xce\xcb\xf7\x02z\xf6\x9c\xac\x84\x05R\x9a\x9f\x97\xf7\xa02\xb2\xda\xa1Gv\x01"
     from nucypher.characters.lawful import Ursula
 

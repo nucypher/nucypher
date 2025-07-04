@@ -26,7 +26,7 @@ def test_fixed_price_gas_strategy():
     assert "12gwei" == strategy.name
 
 
-def test_max_price_gas_strategy(mocker, monkeypatch):
+def test_max_price_gas_strategy(mocker):
 
     gas_prices_gwei = [10, 100, 999, 1000, 1001, 1_000_000, 1_000_000_000]
     gas_prices_wei = [Web3.to_wei(gwei_price, 'gwei') for gwei_price in gas_prices_gwei]

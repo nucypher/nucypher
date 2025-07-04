@@ -36,9 +36,9 @@ def test_mock_coordinator_initiation(
     mocker,
     nodes_transacting_powers,
     coordinator,
-    random_address,
     get_random_checksum_address,
 ):
+    random_address = get_random_checksum_address()
     assert coordinator.number_of_rituals() == 0
     mock_transacting_power = mocker.Mock()
     mock_transacting_power.account = random_address
