@@ -909,7 +909,7 @@ def test_contract_condition_using_overloaded_function(
 
 
 @pytest.mark.xfail(reason="This test uses a public rpc endpoint")
-def test_json_rpc_condition_non_evm_prototyping_example():
+def test_json_rpc_condition_non_evm_prototyping_example_solana():
     condition = JsonRpcCondition(
         endpoint="https://api.mainnet-beta.solana.com",
         method="getBlockTime",
@@ -929,6 +929,9 @@ def test_json_rpc_condition_non_evm_prototyping_example():
     success, _ = condition.verify()
     assert success
 
+
+@pytest.mark.xfail(reason="This test uses a public rpc endpoint")
+def test_json_rpc_condition_non_evm_prototyping_example_bitcoin():
     condition = JsonRpcCondition(
         endpoint="https://bitcoin.drpc.org",
         method="getblock",
