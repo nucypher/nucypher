@@ -8,6 +8,7 @@ from nucypher.policy.conditions.exceptions import (
     JsonRequestException,
 )
 from nucypher.policy.conditions.json.api import JsonApiCondition
+from nucypher.policy.conditions.json.auth import AuthorizationType
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 
 
@@ -49,6 +50,17 @@ def test_json_api_invalid_authorization_token():
         _ = JsonApiCondition(
             endpoint="https://api.example.com/data",
             authorization_token="1234",  # doesn't make sense hardcoding the token
+            query="$.store.book[0].price",
+            return_value_test=ReturnValueTest("==", 0),
+        )
+
+
+def test_json_api_authorization_type_provided_with_no_auth_token():
+    with pytest.raises(InvalidCondition, match="Authorization token must be provided"):
+        _ = JsonApiCondition(
+            endpoint="https://api.example.com/data",
+            # no auth token even though authorization type is set
+            authorization_type=AuthorizationType.BEARER,
             query="$.store.book[0].price",
             return_value_test=ReturnValueTest("==", 0),
         )
@@ -247,6 +259,48 @@ def test_json_api_condition_evaluation_with_auth_token(mocker):
         mocked_get.call_args.kwargs["headers"]["Authorization"]
         == f"Bearer {auth_token}"
     )
+
+
+@pytest.mark.parametrize(
+    "auth_type",
+    [auth_type for auth_type in AuthorizationType],
+)
+def test_json_api_condition_evaluation_with_auth_token_and_auth_type(auth_type, mocker):
+    mocked_get = mocker.patch(
+        "requests.get",
+        return_value=mocker.Mock(
+            status_code=200, json=lambda: {"ethereum": {"usd": 0.0}}
+        ),
+    )
+
+    condition = JsonApiCondition(
+        endpoint="https://api.coingecko.com/api/v3/simple/price",
+        parameters={
+            "ids": "ethereum",
+            "vs_currencies": "usd",
+        },
+        authorization_token=":authToken",
+        authorization_type=auth_type,
+        query="ethereum.usd",
+        return_value_test=ReturnValueTest("==", 0.0),
+    )
+    assert condition.authorization_token == ":authToken"
+
+    auth_token = "1234567890"
+    context = {":authToken": f"{auth_token}"}
+    assert condition.verify(**context) == (True, 0.0)
+    assert mocked_get.call_count == 1
+
+    if auth_type == AuthorizationType.X_API_KEY:
+        assert mocked_get.call_args.kwargs["headers"]["X-API-Key"] == f"{auth_token}"
+        assert "Authorization" not in mocked_get.call_args.kwargs["headers"]
+    else:
+        assert mocked_get.call_args.kwargs["headers"]["Authorization"] == (
+            f"Bearer {auth_token}"
+            if auth_type == AuthorizationType.BEARER
+            else f"Basic {auth_token}"
+        )
+        assert "X-API-Key" not in mocked_get.call_args.kwargs["headers"]
 
 
 def test_json_api_condition_evaluation_with_user_address_context_variable(

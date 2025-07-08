@@ -6,7 +6,7 @@ from typing import Any, Optional, Tuple
 import requests
 from jsonpath_ng.exceptions import JsonPathLexerError, JsonPathParserError
 from jsonpath_ng.ext import parse
-from marshmallow.fields import Field
+from marshmallow.fields import String
 
 from nucypher.policy.conditions.base import ExecutionCall
 from nucypher.policy.conditions.context import (
@@ -17,6 +17,7 @@ from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     JsonRequestException,
 )
+from nucypher.policy.conditions.json.auth import AuthorizationType
 from nucypher.policy.conditions.json.utils import process_result_for_condition_eval
 from nucypher.policy.conditions.lingo import ExecutionCallCondition
 from nucypher.utilities.logging import Logger
@@ -36,12 +37,14 @@ class JsonRequestCall(ExecutionCall, ABC):
         parameters: Optional[dict] = None,
         query: Optional[str] = None,
         authorization_token: Optional[str] = None,
+        authorization_type: Optional[AuthorizationType] = None,
     ):
 
         self.http_method = http_method
         self.parameters = parameters or {}
         self.query = query
         self.authorization_token = authorization_token
+        self.authorization_type = authorization_type
 
         self.timeout = self.TIMEOUT
         self.logger = Logger(__name__)
@@ -62,7 +65,11 @@ class JsonRequestCall(ExecutionCall, ABC):
             resolved_authorization_token = resolve_any_context_variables(
                 self.authorization_token, **context
             )
-            headers["Authorization"] = f"Bearer {resolved_authorization_token}"
+            # use Bearer token if none is provided
+            authorization_type = self.authorization_type or AuthorizationType.BEARER
+            headers[authorization_type.header_name()] = authorization_type.header_value(
+                resolved_authorization_token
+            )
 
         try:
             if self.http_method == HTTPMethod.GET:
@@ -127,7 +134,7 @@ class JsonRequestCall(ExecutionCall, ABC):
         return result
 
 
-class JSONPathField(Field):
+class JSONPathField(String):
     default_error_messages = {
         "invalidType": "Expression of type {value} is not valid for JSONPath",
         "invalid": "'{value}' is not a valid JSONPath expression",
