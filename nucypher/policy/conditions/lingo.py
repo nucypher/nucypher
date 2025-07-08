@@ -593,7 +593,7 @@ class ReturnValueTest(_Serializable):
             if comparator in ["in", "!in"] and not isinstance(value, list):
                 raise ValidationError(
                     field_name="value",
-                    message=f'"{type(value)}" is not a valid type for the "in"/"!in" comparators; only list is allowed.',
+                    message=f'"{type(value)}" is not a valid type for "{comparator}"; only list is allowed.',
                 )
 
         @post_load
