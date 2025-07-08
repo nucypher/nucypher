@@ -455,6 +455,6 @@ def test_return_value_test_in_and_not_in_comparator_invalid_types():
         for comparator in ["in", "!in"]:
             with pytest.raises(
                 ReturnValueTest.InvalidExpression,
-                match='not a valid type for the "in"/"!in" comparators',
+                match=f'not a valid type for "{comparator}"',
             ):
-                _ = ReturnValueTest(comparator="in", value=value)
+                _ = ReturnValueTest(comparator=comparator, value=value)

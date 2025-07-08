@@ -17,6 +17,7 @@ from nucypher.policy.conditions.lingo import (
     ConditionLingo,
     ConditionType,
 )
+from nucypher.policy.conditions.signing.base import SIGNING_CONDITION_OBJECT_CONTEXT_VAR
 from tests.constants import INT256_MIN, TESTERCHAIN_CHAIN_ID, UINT256_MAX
 
 
@@ -167,6 +168,44 @@ def lingo_with_all_condition_types(get_random_checksum_address):
         "thenCondition": json_api_condition_w_auth_type,
         "elseCondition": json_rpc_condition_w_auth_type,
     }
+    address_allowlist_condition = {
+        "conditionType": ConditionType.ADDRESS_ALLOWLIST.value,
+        "userAddress": USER_ADDRESS_CONTEXT,
+        "addresses": [
+            get_random_checksum_address(),
+            get_random_checksum_address(),
+            get_random_checksum_address(),
+        ],
+    }
+    signing_object_attribute_condition = {
+        "conditionType": ConditionType.SIGNING_ATTRIBUTE.value,
+        "signingObjectContextVar": SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
+        "attributeName": "sender",
+        "returnValueTest": {
+            "comparator": "==",
+            "value": get_random_checksum_address(),
+        },
+    }
+    signing_object_abi_attribute_condition = {
+        "conditionType": ConditionType.SIGNING_ABI_ATTRIBUTE.value,
+        "signingObjectContextVar": SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
+        "attributeName": "call_data",
+        "abiValidation": {
+            "allowedAbiCalls": {
+                "execute((address,uint256,bytes))": [
+                    {
+                        "parameterIndex": 0,
+                        "indexWithinTuple": 1,
+                        "returnValueTest": {
+                            "comparator": "<",
+                            "value": 1000000000000000,
+                        },
+                        "nestedAbiValidation": None,
+                    }
+                ]
+            }
+        },
+    }
     return {
         "version": ConditionLingo.VERSION,
         "condition": {
@@ -179,15 +218,16 @@ def lingo_with_all_condition_types(get_random_checksum_address):
                 rpc_condition,
                 {
                     "conditionType": ConditionType.COMPOUND.value,
-                    "operator": "not",
+                    "operator": "or",
                     "operands": [
-                        time_condition,
+                        address_allowlist_condition,
+                        signing_object_attribute_condition,
+                        signing_object_abi_attribute_condition,
                     ],
                 },
             ],
         },
     }
-
 
 def test_invalid_condition():
     # no version or condition
