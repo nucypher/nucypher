@@ -6,7 +6,7 @@ from unittest import mock
 import pytest
 from eth_account.messages import defunct_hash_message, encode_defunct
 from hexbytes import HexBytes
-from web3 import Web3
+from web3 import HTTPProvider, Web3
 from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
@@ -30,8 +30,11 @@ from nucypher.policy.conditions.exceptions import (
     RequiredContextVariable,
     RPCExecutionFailed,
 )
+from nucypher.policy.conditions.json.api import JsonApiCondition
+from nucypher.policy.conditions.json.auth import AuthorizationType
 from nucypher.policy.conditions.json.rpc import JsonRpcCondition
 from nucypher.policy.conditions.lingo import (
+    CompoundCondition,
     ConditionLingo,
     ConditionType,
     NotCompoundCondition,
@@ -906,7 +909,7 @@ def test_contract_condition_using_overloaded_function(
 
 
 @pytest.mark.xfail(reason="This test uses a public rpc endpoint")
-def test_json_rpc_condition_non_evm_prototyping_example():
+def test_json_rpc_condition_non_evm_prototyping_example_solana():
     condition = JsonRpcCondition(
         endpoint="https://api.mainnet-beta.solana.com",
         method="getBlockTime",
@@ -926,6 +929,9 @@ def test_json_rpc_condition_non_evm_prototyping_example():
     success, _ = condition.verify()
     assert success
 
+
+@pytest.mark.xfail(reason="This test uses a public rpc endpoint")
+def test_json_rpc_condition_non_evm_prototyping_example_bitcoin():
     condition = JsonRpcCondition(
         endpoint="https://bitcoin.drpc.org",
         method="getblock",
@@ -1068,3 +1074,100 @@ def test_validate_condition_lingo_endpoint(ursulas, time_condition):
             path="validate_condition_lingo",
             json=json.dumps({"invalidCondition": "confirmed"}),
         )
+
+
+@pytest.mark.xfail(reason="This test requires a valid POAP API Key")
+@mock.patch(
+    GET_CONTEXT_VALUE_IMPORT_PATH,
+    side_effect=_dont_validate_user_address,
+)
+def test_poap_api_condition(get_context_value_mock, condition_providers):
+    eth_denver_2025_event_id = 185704
+    user_address = "0x19570deAFd7Cbe25B30A5A72c95A8E7658672436"
+
+    #
+    # POAP API
+    #
+    # get an API key from https://documentation.poap.tech/docs/authentication
+    authorization_token = os.environ.get(
+        "POAP_API_KEY", "abcd1234"
+    )  # default to fake if N/A
+
+    context = {
+        USER_ADDRESS_CONTEXT: {"address": user_address},
+        ":authToken": authorization_token,
+    }
+
+    # check whether user has attended eth denver 2025
+    json_api_condition = JsonApiCondition(
+        endpoint=f"https://api.poap.tech/actions/scan/:userAddress/{eth_denver_2025_event_id}",
+        authorization_token=":authToken",
+        authorization_type=AuthorizationType.X_API_KEY,
+        query="$.tokenId",
+        return_value_test=ReturnValueTest("!=", '""'),
+    )
+    success, _ = json_api_condition.verify(providers=condition_providers, **context)
+    assert success
+
+
+@pytest.mark.xfail(reason="This test uses public RPC endpoint for Gnosis")
+@mock.patch(
+    GET_CONTEXT_VALUE_IMPORT_PATH,
+    side_effect=_dont_validate_user_address,
+)
+def test_poap_contract_condition(get_context_value_mock):
+    eth_denver_2025_event_id = 185704
+    user_address = "0x19570deAFd7Cbe25B30A5A72c95A8E7658672436"
+
+    #
+    # POAP Contract
+    #
+    context = {
+        USER_ADDRESS_CONTEXT: {"address": user_address},
+        ":tokenId": 7323049,
+    }
+    ownership_condition = ContractCondition(
+        contract_address="0x22c1f6050e56d2876009903609a2cc3fef83b415",
+        function_abi={
+            "type": "function",
+            "name": "ownerOf",
+            "inputs": [{"name": "tokenId", "type": "uint256"}],
+            "outputs": [{"name": "", "type": "address"}],
+            "stateMutability": "view",
+        },
+        method="ownerOf",
+        parameters=[":tokenId"],
+        chain=100,
+        return_value_test=ReturnValueTest("==", ":userAddress"),
+    )
+    event_id_condition = ContractCondition(
+        contract_address="0x22c1f6050e56d2876009903609a2cc3fef83b415",
+        function_abi={
+            "type": "function",
+            "name": "tokenEvent",
+            "inputs": [{"name": "tokenId", "type": "uint256"}],
+            "outputs": [{"name": "", "type": "uint256"}],
+            "stateMutability": "view",
+        },
+        method="tokenEvent",
+        parameters=[":tokenId"],
+        chain=100,
+        return_value_test=ReturnValueTest("==", eth_denver_2025_event_id),
+    )
+    and_condition = CompoundCondition(
+        operator="and",
+        operands=[
+            ownership_condition,
+            event_id_condition,
+        ],
+    )
+    gnosis_providers = ConditionProviderManager(
+        {
+            100: [
+                HTTPProvider("https://gnosis.drpc.org"),
+                HTTPProvider("https://gnosis-public.nodies.app"),
+            ]
+        }
+    )
+    success, _ = and_condition.verify(providers=gnosis_providers, **context)
+    assert success
