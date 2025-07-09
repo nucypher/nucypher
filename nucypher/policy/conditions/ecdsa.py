@@ -114,11 +114,23 @@ class ECDSAVerificationCall(ExecutionCall):
                 # Normal resolution for other cases
                 message = resolve_any_context_variables(self.message, **context)
 
-            signature_hex = resolve_any_context_variables(self.signature, **context)
-
-            # Ensure message is bytes
-            if isinstance(message, str):
+            # Special handling for :message context variable - treat as hex-encoded bytes
+            if self.message == ":message" and ":message" in context:
+                message_value = context[":message"]
+                if isinstance(message_value, str):
+                    try:
+                        # Try to decode as hex first
+                        message = bytes.fromhex(message_value)
+                    except ValueError:
+                        # If hex decoding fails, treat as regular string
+                        message = message_value.encode("utf-8")
+                else:
+                    message = message_value
+            elif isinstance(message, str):
+                # Ensure message is bytes for non-context variables
                 message = message.encode("utf-8")
+
+            signature_hex = resolve_any_context_variables(self.signature, **context)
 
             # Decode the hex signature
             try:

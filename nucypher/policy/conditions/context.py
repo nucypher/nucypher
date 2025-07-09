@@ -104,10 +104,6 @@ def is_context_variable(variable) -> bool:
     return isinstance(variable, str) and CONTEXT_REGEX.fullmatch(variable)
 
 
-def is_bytes_context_variable(variable) -> bool:
-    return isinstance(variable, str) and variable.startswith(":bytes")
-
-
 def string_contains_context_variable(variable: str) -> bool:
     matches = re.findall(CONTEXT_REGEX, variable)
     return bool(matches)
@@ -130,14 +126,6 @@ def get_context_value(
             raise RequiredContextVariable(
                 f'No value provided for unrecognized context variable "{context_variable}"'
             )
-        elif is_bytes_context_variable(context_variable):
-            # if it is a bytes context variable, convert the string to bytes
-            try:
-                value = bytes.fromhex(value)
-            except ValueError:
-                raise InvalidContextVariableData(
-                    f'Invalid bytes context variable "{context_variable}"; expected a hex string'
-                )
 
         # possibly contains big int value(s)
         value = check_and_convert_any_big_ints(value)
@@ -161,7 +149,7 @@ def resolve_any_context_variables(
         }
     elif isinstance(param, str):
         # either it is a context variable OR contains a context variable within it
-        if is_context_variable(param) or is_bytes_context_variable(param):
+        if is_context_variable(param):
             return get_context_value(
                 context_variable=param, providers=providers, **context
             )
