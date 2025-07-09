@@ -245,7 +245,7 @@ def test_ecdsa_condition_bytes_context():
 
     # Create an ECDSA condition
     ecdsa_condition = ECDSACondition(
-        message=":bytes:message",
+        message=":message",
         signature=":signature",
         verifying_key=TEST_VERIFYING_KEY_HEX,
         curve=SECP256k1.name,
@@ -253,7 +253,7 @@ def test_ecdsa_condition_bytes_context():
 
     # Test with raw bytes in context
     context_with_bytes = {
-        ":bytes:message": message_bytes.hex(),
+        ":message": message_bytes.hex(),
         ":signature": signature,
     }
 
@@ -268,7 +268,7 @@ def test_ecdsa_condition_bytes_context():
 
     # Test with hex string in context (backwards compatibility)
     context_with_hex = {
-        ":bytes:message": message_bytes.hex(),
+        ":message": message_bytes.hex(),
         ":signature": signature,
     }
 
@@ -283,7 +283,7 @@ def test_ecdsa_condition_bytes_context():
 
     # Test with mixed types (some bytes, some hex)
     context_mixed = {
-        ":bytes:message": message_bytes.hex(),
+        ":message": message_bytes.hex(),
         ":signature": signature,
     }
 
