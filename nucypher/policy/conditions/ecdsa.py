@@ -114,9 +114,9 @@ class ECDSAVerificationCall(ExecutionCall):
                 # Normal resolution for other cases
                 message = resolve_any_context_variables(self.message, **context)
 
-            # Special handling for :message context variable - treat as hex-encoded bytes
-            if self.message == ":message" and ":message" in context:
-                message_value = context[":message"]
+            # Special handling for context variables - treat as hex-encoded bytes for ECDSA
+            if is_context_variable(self.message):
+                message_value = resolve_any_context_variables(self.message, **context)
                 if isinstance(message_value, str):
                     try:
                         # Try to decode as hex first
