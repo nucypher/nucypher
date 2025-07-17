@@ -327,6 +327,26 @@ class SequentialCondition(MultiCondition):
     CONDITION_TYPE = ConditionType.SEQUENTIAL.value
 
     @classmethod
+    def _gather_all_nested_sequential_conditions(
+        cls, conditions: List[Condition]
+    ) -> List["SequentialCondition"]:
+        """
+        Gathers all nested sequential conditions from the condition variables.
+        """
+        sequential_conditions = []
+        for condition in conditions:
+            if isinstance(condition, SequentialCondition):
+                sequential_conditions.append(condition)
+            elif isinstance(condition, MultiCondition):
+                # recursively gather from nested multi-conditions
+                nested_conditions = cls._gather_all_nested_sequential_conditions(
+                    condition.conditions
+                )
+                sequential_conditions.extend(nested_conditions)
+
+        return sequential_conditions
+
+    @classmethod
     def _validate_condition_variables(
         cls,
         condition_variables: List[ConditionVariable],
@@ -343,9 +363,19 @@ class SequentialCondition(MultiCondition):
                 message=f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed",
             )
 
-        # check for duplicate var names
+        all_condition_variables = list(condition_variables)
+        # gather all nested sequential conditions
+        nested_sequential_conditions = cls._gather_all_nested_sequential_conditions(
+            [condition_variable.condition for condition_variable in condition_variables]
+        )
+        for nested_sequential_condition in nested_sequential_conditions:
+            all_condition_variables.extend(
+                nested_sequential_condition.condition_variables
+            )
+
+        # check for duplicate var names across all sequential conditions
         var_names = set()
-        for condition_variable in condition_variables:
+        for condition_variable in all_condition_variables:
             if condition_variable.var_name in var_names:
                 raise ValidationError(
                     field_name="condition_variables",
