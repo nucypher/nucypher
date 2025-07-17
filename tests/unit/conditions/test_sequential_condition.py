@@ -78,6 +78,18 @@ def test_invalid_sequential_condition(rpc_condition, time_condition):
             condition_variables=[var_1, var_2, dupe_var],
         )
 
+    # duplicate var names in nested sequential condition
+    with pytest.raises(InvalidCondition, match="Duplicate"):
+        # var_1 is duplicated in the nested condition
+        _ = SequentialCondition(
+            condition_variables=[
+                var_1,
+                ConditionVariable(
+                    "var3", SequentialCondition(condition_variables=[var_1, var_2])
+                ),
+            ],
+        )
+
 
 def test_nested_sequential_condition_too_many_nested_levels(
     rpc_condition, time_condition
