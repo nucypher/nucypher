@@ -327,24 +327,24 @@ class SequentialCondition(MultiCondition):
     CONDITION_TYPE = ConditionType.SEQUENTIAL.value
 
     @classmethod
-    def _gather_all_nested_sequential_conditions(
+    def _gather_all_nested_condition_variables(
         cls, conditions: List[Condition]
-    ) -> List["SequentialCondition"]:
+    ) -> List[ConditionVariable]:
         """
         Gathers all nested sequential conditions from the condition variables.
         """
-        sequential_conditions = []
+        condition_variables = []
         for condition in conditions:
             if isinstance(condition, SequentialCondition):
-                sequential_conditions.append(condition)
+                condition_variables.extend(condition.condition_variables)
             elif isinstance(condition, MultiCondition):
                 # recursively gather from nested multi-conditions
-                nested_conditions = cls._gather_all_nested_sequential_conditions(
+                nested_condition_variables = cls._gather_all_nested_condition_variables(
                     condition.conditions
                 )
-                sequential_conditions.extend(nested_conditions)
+                condition_variables.extend(nested_condition_variables)
 
-        return sequential_conditions
+        return condition_variables
 
     @classmethod
     def _validate_condition_variables(
@@ -364,14 +364,15 @@ class SequentialCondition(MultiCondition):
             )
 
         all_condition_variables = list(condition_variables)
-        # gather all nested sequential conditions
-        nested_sequential_conditions = cls._gather_all_nested_sequential_conditions(
-            [condition_variable.condition for condition_variable in condition_variables]
-        )
-        for nested_sequential_condition in nested_sequential_conditions:
-            all_condition_variables.extend(
-                nested_sequential_condition.condition_variables
+        # gather all nested condition variables
+        all_condition_variables.extend(
+            cls._gather_all_nested_condition_variables(
+                [
+                    condition_variable.condition
+                    for condition_variable in condition_variables
+                ]
             )
+        )
 
         # check for duplicate var names across all sequential conditions
         var_names = set()
