@@ -327,6 +327,26 @@ class SequentialCondition(MultiCondition):
     CONDITION_TYPE = ConditionType.SEQUENTIAL.value
 
     @classmethod
+    def _gather_all_nested_condition_variables(
+        cls, conditions: List[Condition]
+    ) -> List[ConditionVariable]:
+        """
+        Gathers all nested sequential conditions from the condition variables.
+        """
+        condition_variables = []
+        for condition in conditions:
+            if isinstance(condition, SequentialCondition):
+                condition_variables.extend(condition.condition_variables)
+            elif isinstance(condition, MultiCondition):
+                # recursively gather from nested multi-conditions
+                nested_condition_variables = cls._gather_all_nested_condition_variables(
+                    condition.conditions
+                )
+                condition_variables.extend(nested_condition_variables)
+
+        return condition_variables
+
+    @classmethod
     def _validate_condition_variables(
         cls,
         condition_variables: List[ConditionVariable],
@@ -343,9 +363,20 @@ class SequentialCondition(MultiCondition):
                 message=f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed",
             )
 
-        # check for duplicate var names
+        all_condition_variables = list(condition_variables)
+        # gather all nested condition variables
+        all_condition_variables.extend(
+            cls._gather_all_nested_condition_variables(
+                [
+                    condition_variable.condition
+                    for condition_variable in condition_variables
+                ]
+            )
+        )
+
+        # check for duplicate var names across all sequential conditions
         var_names = set()
-        for condition_variable in condition_variables:
+        for condition_variable in all_condition_variables:
             if condition_variable.var_name in var_names:
                 raise ValidationError(
                     field_name="condition_variables",
