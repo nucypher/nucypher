@@ -835,7 +835,7 @@ class ConditionLingo(_Serializable):
         # version logical adjustments can be made here as required
 
         condition_type = condition.get("conditionType")
-        for condition in (
+        for condition_class in (
             TimeCondition,
             ContractCondition,
             RPCCondition,
@@ -851,11 +851,11 @@ class ConditionLingo(_Serializable):
             SigningObjectAttributeCondition,
             SigningObjectAbiAttributeCondition,
         ):
-            if condition.CONDITION_TYPE == condition_type:
-                return condition
+            if condition_class.CONDITION_TYPE == condition_type:
+                return condition_class
 
         raise InvalidConditionLingo(
-            f"Cannot resolve condition lingo, {condition}, with condition type {condition_type}"
+            f"Cannot resolve condition lingo, {condition_class}, with condition type {condition_type}"
         )
 
     @classmethod
