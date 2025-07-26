@@ -112,6 +112,7 @@ class ConditionType(Enum):
     ECDSA = "ecdsa"
     SIGNING_ATTRIBUTE = "signing-attribute"
     SIGNING_ABI_ATTRIBUTE = "signing-abi-attribute"
+    CONTEXT_VAR = "context-var"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -829,6 +830,7 @@ class ConditionLingo(_Serializable):
             SigningObjectAttributeCondition,
         )
         from nucypher.policy.conditions.time import TimeCondition
+        from nucypher.policy.conditions.var import ContextVarCondition
 
         # version logical adjustments can be made here as required
 
@@ -838,6 +840,7 @@ class ConditionLingo(_Serializable):
             ContractCondition,
             RPCCondition,
             CompoundCondition,
+            ContextVarCondition,
             JsonApiCondition,
             JsonRpcCondition,
             JWTCondition,
