@@ -206,6 +206,14 @@ def lingo_with_all_condition_types(get_random_checksum_address):
             }
         },
     }
+    context_var_condition = {
+        "conditionType": ConditionType.CONTEXT_VAR.value,
+        "contextVar": ":myContextVar",
+        "returnValueTest": {
+            "comparator": "!=",
+            "value": 23,
+        },
+    }
     return {
         "version": ConditionLingo.VERSION,
         "condition": {
@@ -223,6 +231,7 @@ def lingo_with_all_condition_types(get_random_checksum_address):
                         address_allowlist_condition,
                         signing_object_attribute_condition,
                         signing_object_abi_attribute_condition,
+                        context_var_condition,
                     ],
                 },
             ],

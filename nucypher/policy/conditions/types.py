@@ -95,6 +95,17 @@ class AddressAllowlistConditionDict(_Condition):
 
 
 #
+# ContextVarCondition represents:
+# {
+#     "conditionType": "context-var",
+#     "contextVar": str
+#     "returnValueTest": <>
+# }
+#
+class ContextVarConditionDict(BaseExecConditionDict):
+    contextVar: str
+
+#
 # CompoundCondition represents:
 # {
 #     "operator": ["and" | "or" | "not"]
@@ -232,6 +243,7 @@ class SigningObjectAbiAttributeCondition(_BaseSigningObjectAttributeCondition):
 # - ECDSACondition
 # - SigningObjectAttributeCondition
 # - SigningObjectAbiAttributeCondition
+# - ContextVarConditionDict
 ConditionDict = Union[
     TimeConditionDict,
     RPCConditionDict,
@@ -246,6 +258,7 @@ ConditionDict = Union[
     ECDSAConditionDict,
     SigningObjectAttributeCondition,
     SigningObjectAbiAttributeCondition,
+    ContextVarConditionDict,
 ]
 
 
