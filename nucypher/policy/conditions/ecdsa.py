@@ -125,18 +125,15 @@ class ECDSAVerificationCall(ExecutionCall):
             try:
                 signature = bytes.fromhex(signature_hex)
             except Exception as e:
-                self.logger.error(f"Error decoding signature: {e}")
-                return False
+                raise ExecutionCall.InvalidExecutionCall(
+                    f"Error decoding signature: {e}"
+                )
 
             # Load the verifying key
-            try:
-                verifying_key = VerifyingKey.from_string(
-                    string=bytes.fromhex(self.verifying_key),
-                    curve=self.curve,
-                )
-            except Exception as e:
-                self.logger.error(f"Error loading verifying key: {e}")
-                return False
+            verifying_key = VerifyingKey.from_string(
+                string=bytes.fromhex(self.verifying_key),
+                curve=self.curve,
+            )
 
             # Verify the signature
             return verifying_key.verify(
@@ -148,8 +145,9 @@ class ECDSAVerificationCall(ExecutionCall):
         except BadSignatureError:
             return False
         except Exception as e:
-            self.logger.error(f"Error during signature verification: {e}")
-            return False
+            raise ExecutionCall.InvalidExecutionCall(
+                f"Error during signature verification: {e}"
+            )
 
 
 class ECDSACondition(Condition):
