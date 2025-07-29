@@ -2,6 +2,7 @@ import json
 
 from ecdsa import SigningKey
 from ecdsa.util import sigencode_string
+from hexbytes import HexBytes
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
 from nucypher.policy.conditions.lingo import (
@@ -15,14 +16,14 @@ TEST_VERIFYING_KEY = TEST_SIGNING_KEY.verifying_key
 TEST_VERIFYING_KEY_HEX = TEST_VERIFYING_KEY.to_string().hex()
 
 # Test message
-TEST_MESSAGE = b"This is a test message that requires ECDSA verification"
+TEST_MESSAGE = "This is a test message that requires ECDSA verification"
 
 
 def test_ecdsa_condition_json_serialization():
     """Test serializing and deserializing ECDSA conditions to/from JSON"""
     # Sign the test message
     signature = TEST_SIGNING_KEY.sign(
-        TEST_MESSAGE,
+        TEST_MESSAGE.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -62,7 +63,7 @@ def test_ecdsa_condition_lingo_json_serialization():
     """Test serializing and deserializing a condition lingo with ECDSA condition"""
     # Sign the test message
     signature = TEST_SIGNING_KEY.sign(
-        TEST_MESSAGE,
+        TEST_MESSAGE.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -105,15 +106,19 @@ def test_complex_condition_with_ecdsa_json_serialization():
     key2_vk_hex = key2_vk.to_string().hex()
 
     # Sign the messages
-    message1 = b"Message for first key"
-    message2 = b"Message for second key"
+    message1 = "Message for first key"
+    message2 = "Message for second key"
 
     sig1 = key1.sign(
-        message1, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_string
+        message1.encode("utf-8"),
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
     ).hex()
 
     sig2 = key2.sign(
-        message2, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_string
+        message2.encode("utf-8"),
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
     ).hex()
 
     # Create ECDSA conditions
@@ -174,9 +179,9 @@ def test_complex_condition_with_ecdsa_json_serialization():
 
     # Create a context with valid signatures
     context = {
-        ":msg1": message1,
+        ":msg1": HexBytes(message1.encode("utf-8")).hex(),
         ":sig1": sig1,
-        ":msg2": message2,
+        ":msg2": HexBytes(message2.encode("utf-8")).hex(),
         ":sig2": sig2,
     }
 
@@ -256,15 +261,15 @@ def test_real_world_example_json():
     lingo = ConditionLingo.from_json(condition_json)
 
     # ---- Scenario 1: API user with valid signature ----
-    request_data = b'{"action": "read", "resource": "secret-data-123"}'
+    request_data = '{"action": "read", "resource": "secret-data-123"}'
     request_signature = service_key.sign(
-        request_data,
+        request_data.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
 
     context = {
-        ":request_data": request_data,
+        ":request_data": HexBytes(request_data.encode("utf-8")).hex(),
         ":request_signature": request_signature,
     }
 
@@ -273,9 +278,9 @@ def test_real_world_example_json():
     assert result is True, "Valid API signature should grant access"
 
     # ---- Scenario 2: Admin access route ----
-    admin_request = b'{"action": "admin", "operation": "grant-access"}'
+    admin_request = '{"action": "admin", "operation": "grant-access"}'
     admin_signature = TEST_SIGNING_KEY.sign(
-        admin_request,
+        admin_request.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -283,7 +288,7 @@ def test_real_world_example_json():
     context = {
         # API key authentication fails
         ":request_data": request_data,
-        ":request_signature": "invalid-signature",
+        ":request_signature": "abcd1234",  # invalid signature
         # But admin authentication succeeds
         ":admin_request": admin_request,
         ":admin_signature": admin_signature,
@@ -295,9 +300,9 @@ def test_real_world_example_json():
     # ---- Scenario 3: All authentication methods fail ----
     context = {
         ":request_data": request_data,
-        ":request_signature": "invalid-signature",
+        ":request_signature": "aaaaaaaa",  # Invalid signature
         ":admin_request": admin_request,
-        ":admin_signature": "invalid-admin-signature",
+        ":admin_signature": "bbbbbbbb",  # Invalid admin signature
     }
 
     result = lingo.eval(**context)

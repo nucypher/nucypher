@@ -1,5 +1,6 @@
 from ecdsa import Ed25519, SECP256k1, SigningKey
 from ecdsa.util import sigencode_string
+from hexbytes import HexBytes
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
 from nucypher.policy.conditions.lingo import (
@@ -14,7 +15,7 @@ TEST_VERIFYING_KEY_HEX = TEST_VERIFYING_KEY.to_string().hex()
 
 # Test message
 TEST_MESSAGE = (
-    b"There is a road, no simple highway, between the dawn and the dark of night. -JG"
+    "There is a road, no simple highway, between the dawn and the dark of night. -JG"
 )
 
 
@@ -22,7 +23,7 @@ def test_ecdsa_lingo_basic_verification():
     """Test a basic ECDSA verification using condition lingo"""
     # Sign the test message
     signature = TEST_SIGNING_KEY.sign(
-        TEST_MESSAGE,
+        TEST_MESSAGE.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -60,7 +61,7 @@ def test_ecdsa_in_compound_condition():
     """Test ECDSA as part of a compound condition"""
     # Sign the message
     signature = TEST_SIGNING_KEY.sign(
-        TEST_MESSAGE,
+        TEST_MESSAGE.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -100,9 +101,9 @@ def test_ecdsa_in_compound_condition():
     and_lingo = ConditionLingo(and_condition)
 
     # Sign a message with the second key
-    second_message = b"Second message"
+    second_message = "Second message"
     second_signature = second_key.sign(
-        second_message,
+        second_message.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -111,7 +112,7 @@ def test_ecdsa_in_compound_condition():
     context = {
         ":message1": TEST_MESSAGE,
         ":signature1": signature,
-        ":message2": b"Not the correct message",
+        ":message2": "Not the correct message",
         ":signature2": second_signature,
     }
 
@@ -150,7 +151,7 @@ def test_discord_ed25519_with_ecdsa_condition():
     lingo = ConditionLingo(ecdsa_condition)
 
     # Valid context
-    context = {":message": message, ":signature": signature_hex}
+    context = {":message": HexBytes(message).hex(), ":signature": signature_hex}
     result = lingo.eval(**context)
     assert (
         result is True
