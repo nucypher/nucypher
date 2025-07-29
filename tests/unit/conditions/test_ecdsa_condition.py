@@ -128,7 +128,7 @@ def test_ecdsa_condition_verify():
     }
     success, result = condition.verify(**context)
     assert success
-    assert result is True
+    assert result is None  # no real value to return
 
 
 def test_ecdsa_condition_verify_invalid_signature():
@@ -152,7 +152,6 @@ def test_ecdsa_condition_verify_invalid_signature():
     }
     success, result = condition.verify(**context)
     assert not success
-    assert result is False
 
 
 def test_ecdsa_condition_different_curves():
@@ -194,7 +193,6 @@ def test_ecdsa_condition_different_curves():
     }
     success, result = secp256k1_condition.verify(**secp256k1_context)
     assert success
-    assert result is True
 
     # Test NIST192p condition
     nist192p_condition = ECDSACondition(
@@ -210,7 +208,6 @@ def test_ecdsa_condition_different_curves():
     }
     success, result = nist192p_condition.verify(**nist192p_context)
     assert success
-    assert result is True
 
     # Test that signatures don't work with wrong curves
     wrong_curve_context = {
@@ -219,7 +216,6 @@ def test_ecdsa_condition_different_curves():
     }
     success, result = nist192p_condition.verify(**wrong_curve_context)
     assert not success
-    assert result is False
 
 
 def test_ecdsa_condition_different_formats():
@@ -253,7 +249,6 @@ def test_ecdsa_condition_different_formats():
     # Verification should work with the deserialized context
     success, result = ecdsa_condition.verify(**deserialized_context)
     assert success, "Verification should succeed with 0x-prefixed hex context"
-    assert result is True
 
     # Test hex string without 0x prefix - now treated as UTF-8 string
     # This requires a different signature since the bytes will be different
@@ -272,7 +267,6 @@ def test_ecdsa_condition_different_formats():
 
     success, result = ecdsa_condition.verify(**context_hex_as_utf8)
     assert success, "Verification should succeed with hex string treated as UTF-8"
-    assert result is True
 
 
 def test_discord_ed25519_signature():
@@ -355,7 +349,6 @@ def test_ecdsa_condition_message_encoding_with_0x_prefix():
     }
     success, result = condition.verify(**context)
     assert success is True
-    assert result is True
 
 
 def test_ecdsa_condition_message_encoding_hex_without_prefix():
@@ -382,7 +375,6 @@ def test_ecdsa_condition_message_encoding_hex_without_prefix():
     }
     success, result = condition.verify(**context)
     assert success is True
-    assert result is True
 
 
 def test_ecdsa_condition_message_encoding_utf8_string():
@@ -409,7 +401,6 @@ def test_ecdsa_condition_message_encoding_utf8_string():
     }
     success, result = condition.verify(**context)
     assert success is True
-    assert result is True
 
 
 def test_ecdsa_condition_message_encoding_0x_prefix_requirement():
@@ -533,12 +524,15 @@ def test_ecdsa_condition_message_encoding_invalid_hex():
 
     context = {
         ":message_variable": invalid_hex_message,
-        ":signature_variable": "dummy_signature",
+        ":signature_variable": "1234abcd",
     }
 
     # Should fail because 0x prefix indicates hex but string is invalid
-    success, result = condition.verify(**context)
-    assert success is False
+    with pytest.raises(
+        ECDSAVerificationCall.InvalidExecutionCall,
+        match="Invalid hex string in message",
+    ):
+        condition.verify(**context)
 
 
 def test_ecdsa_verification_call_invalid_hex_direct():
