@@ -1,6 +1,6 @@
 import json
 
-from ecdsa import SigningKey
+from ecdsa import NIST192p, SigningKey
 from ecdsa.util import sigencode_string
 from hexbytes import HexBytes
 
@@ -11,7 +11,7 @@ from nucypher.policy.conditions.lingo import (
 )
 
 # Create test key pair for ECDSA signing
-TEST_SIGNING_KEY = SigningKey.generate()
+TEST_SIGNING_KEY = SigningKey.generate(curve=NIST192p)
 TEST_VERIFYING_KEY = TEST_SIGNING_KEY.verifying_key
 TEST_VERIFYING_KEY_HEX = TEST_VERIFYING_KEY.to_string().hex()
 
@@ -33,6 +33,7 @@ def test_ecdsa_condition_json_serialization():
         message=":message",
         signature=":signature",
         verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=NIST192p.name,
     )
 
     # Convert condition to JSON
@@ -73,6 +74,7 @@ def test_ecdsa_condition_lingo_json_serialization():
         message=":message",
         signature=":signature",
         verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=NIST192p.name,
     )
 
     # Create condition lingo
@@ -101,7 +103,7 @@ def test_complex_condition_with_ecdsa_json_serialization():
     key1 = TEST_SIGNING_KEY
     key1_vk_hex = TEST_VERIFYING_KEY_HEX
 
-    key2 = SigningKey.generate()
+    key2 = SigningKey.generate(curve=NIST192p)
     key2_vk = key2.verifying_key
     key2_vk_hex = key2_vk.to_string().hex()
 
@@ -126,6 +128,7 @@ def test_complex_condition_with_ecdsa_json_serialization():
         message=":msg1",
         signature=":sig1",
         verifying_key=key1_vk_hex,
+        curve=NIST192p.name,
         name="First Signer",
     )
 
@@ -133,6 +136,7 @@ def test_complex_condition_with_ecdsa_json_serialization():
         message=":msg2",
         signature=":sig2",
         verifying_key=key2_vk_hex,
+        curve=NIST192p.name,
         name="Second Signer",
     )
 
@@ -208,7 +212,7 @@ def test_real_world_example_json():
     # - In a compound condition with other potential access methods
 
     # Create a sample service key for verification
-    service_key = SigningKey.generate()
+    service_key = SigningKey.generate(curve=NIST192p)
     service_vk = service_key.verifying_key
     service_vk_hex = service_vk.to_string().hex()
 
@@ -228,6 +232,7 @@ def test_real_world_example_json():
                         "message": ":request_data",
                         "signature": ":request_signature",
                         "verifyingKey": service_vk_hex,
+                        "curve": "NIST192p",
                     },
                     # Option 2: Could combine with other conditions
                     # (e.g., a time-based condition as a fallback)
@@ -241,6 +246,7 @@ def test_real_world_example_json():
                                 "message": ":admin_request",
                                 "signature": ":admin_signature",
                                 "verifyingKey": TEST_VERIFYING_KEY_HEX,
+                                "curve": "NIST192p",
                             },
                             # Add a second condition to satisfy the minimum requirement
                             {
@@ -249,6 +255,7 @@ def test_real_world_example_json():
                                 "message": ":admin_request",
                                 "signature": ":admin_signature",
                                 "verifyingKey": TEST_VERIFYING_KEY_HEX,
+                                "curve": "NIST192p",
                             },
                         ],
                     },

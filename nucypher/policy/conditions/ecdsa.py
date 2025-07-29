@@ -1,7 +1,7 @@
 import hashlib
 from typing import Any, Optional, Tuple
 
-from ecdsa import BadSignatureError, NIST192p, VerifyingKey
+from ecdsa import BadSignatureError, VerifyingKey
 from ecdsa.curves import Curve, curves
 from ecdsa.util import sigdecode_string
 from hexbytes import HexBytes
@@ -25,7 +25,6 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.utilities.logging import Logger
 
 SUPPORTED_ECDSA_CONDITION_CURVES = {c.name: c for c in curves}
-DEFAULT_ECDSA_CONDITION_CURVE = NIST192p
 
 
 class ECDSAVerificationCall(ExecutionCall):
@@ -37,7 +36,7 @@ class ECDSAVerificationCall(ExecutionCall):
         signature = fields.Str(required=True)
         verifying_key = fields.Str(required=True)
         curve = fields.Str(
-            required=False,
+            required=True,
             validate=validate.OneOf(list(SUPPORTED_ECDSA_CONDITION_CURVES)),
         )
 
@@ -63,14 +62,13 @@ class ECDSAVerificationCall(ExecutionCall):
         def validate_verifying_key(self, data, **kwargs):
             value = data.get("verifying_key")
             curve_name = data.get("curve")
-            if curve_name:
-                if curve_name not in SUPPORTED_ECDSA_CONDITION_CURVES:
-                    raise ValidationError(
-                        f"Unsupported curve: {curve_name}. Supported curves are: {SUPPORTED_ECDSA_CONDITION_CURVES.keys()}"
-                    )
-                curve = SUPPORTED_ECDSA_CONDITION_CURVES[curve_name]
-            else:
-                curve = DEFAULT_ECDSA_CONDITION_CURVE
+
+            if curve_name not in SUPPORTED_ECDSA_CONDITION_CURVES:
+                raise ValidationError(
+                    f"Unsupported curve: {curve_name}. Supported curves are: {SUPPORTED_ECDSA_CONDITION_CURVES.keys()}"
+                )
+            curve = SUPPORTED_ECDSA_CONDITION_CURVES[curve_name]
+
             try:
                 verifying_key_bytes = bytes.fromhex(value)
             except ValueError:
@@ -159,6 +157,7 @@ class ECDSACondition(Condition):
     - message: The message that was signed
     - signature: The DER-encoded signature as a base64 string
     - verifying_key: The PEM-encoded ECDSA verifying key
+    - curve: The elliptic curve to use for verification (required)
     """
 
     CONDITION_TYPE = "ecdsa"  # Add this to ConditionType enum
@@ -175,7 +174,7 @@ class ECDSACondition(Condition):
         message: Any,
         signature: str,
         verifying_key: str,
-        curve: Optional[str] = DEFAULT_ECDSA_CONDITION_CURVE.name,
+        curve: str,
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
