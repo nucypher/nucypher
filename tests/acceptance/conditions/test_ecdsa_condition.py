@@ -1,7 +1,6 @@
 from ecdsa import NIST192p, SigningKey
 from ecdsa.util import sigencode_string
 
-from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
 from nucypher.policy.conditions.lingo import ConditionLingo
 
@@ -25,18 +24,19 @@ def test_ecdsa_condition_verification_flow():
         sigencode=sigencode_string,
     ).hex()
 
-    # Create an ECDSA condition
+    # Create an ECDSA condition using a regular context variable (not USER_ADDRESS_CONTEXT)
     ecdsa_condition = ECDSACondition(
-        message=USER_ADDRESS_CONTEXT,
+        message=":message",  # Use regular context variable instead of USER_ADDRESS_CONTEXT
         signature=":signature",
         verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=NIST192p.name,
     )
 
     # Create a complete condition lingo
     condition_lingo = ConditionLingo(ecdsa_condition)
 
-    # Set up the context for verification
-    context = {USER_ADDRESS_CONTEXT: TEST_MESSAGE, ":signature": signature}
+    # Set up the context for verification with regular context variables
+    context = {":message": TEST_MESSAGE, ":signature": signature}
 
     # Evaluate the condition
     result = condition_lingo.eval(**context)
@@ -77,9 +77,10 @@ def test_ecdsa_condition_in_compound_condition():
 
     # Create an ECDSA condition
     ecdsa_condition = ECDSACondition(
-        message=USER_ADDRESS_CONTEXT,
+        message=":message",
         signature=":signature",
         verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=NIST192p.name,
     )
 
     # Create a second ECDSA condition with different requirements
@@ -91,6 +92,7 @@ def test_ecdsa_condition_in_compound_condition():
         message=":second_message",
         signature=":second_signature",
         verifying_key=second_verifying_key_hex,
+        curve=NIST192p.name,
     )
 
     # Create a compound condition with OR operator
@@ -103,7 +105,7 @@ def test_ecdsa_condition_in_compound_condition():
 
     # Context with only the first signature valid
     context = {
-        USER_ADDRESS_CONTEXT: TEST_MESSAGE,
+        ":message": TEST_MESSAGE,
         ":signature": signature,
         ":second_message": b"Second message",
         ":second_signature": "invalid_signature",  # Invalid signature for second condition
