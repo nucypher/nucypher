@@ -10,7 +10,7 @@ TEST_VERIFYING_KEY = TEST_SIGNING_KEY.verifying_key
 TEST_VERIFYING_KEY_HEX = TEST_VERIFYING_KEY.to_string().hex()
 
 # Test message
-TEST_MESSAGE = b"This is a test message that requires ECDSA verification"
+TEST_MESSAGE = "This is a test message that requires ECDSA verification"
 
 
 def test_ecdsa_condition_verification_flow():
@@ -19,7 +19,7 @@ def test_ecdsa_condition_verification_flow():
     """
     # Sign the test message with the private key
     signature = TEST_SIGNING_KEY.sign(
-        TEST_MESSAGE,
+        TEST_MESSAGE.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -44,9 +44,9 @@ def test_ecdsa_condition_verification_flow():
 
     # Test with an invalid signature
     # Sign a different message
-    different_message = b"Different message"
+    different_message = "Different message"
     invalid_signature = TEST_SIGNING_KEY.sign(
-        different_message,
+        different_message.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -70,7 +70,7 @@ def test_ecdsa_condition_in_compound_condition():
 
     # Sign the test message with the private key
     signature = TEST_SIGNING_KEY.sign(
-        TEST_MESSAGE,
+        TEST_MESSAGE.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -104,11 +104,12 @@ def test_ecdsa_condition_in_compound_condition():
     condition_lingo = ConditionLingo(compound_condition)
 
     # Context with only the first signature valid
+    second_message = "Second message"
     context = {
         ":message": TEST_MESSAGE,
         ":signature": signature,
-        ":second_message": b"Second message",
-        ":second_signature": "invalid_signature",  # Invalid signature for second condition
+        ":second_message": second_message,
+        ":second_signature": "abcd1234",  # Invalid signature for second condition
     }
 
     # Compound OR condition should succeed if at least one condition is true
@@ -133,7 +134,7 @@ def test_ecdsa_condition_in_compound_condition():
 
     # Sign the second message properly
     second_signature = second_signing_key.sign(
-        b"Second message",
+        second_message.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()

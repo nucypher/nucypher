@@ -7,7 +7,6 @@ import pytest
 from ecdsa.curves import NIST192p, SECP256k1
 from ecdsa.keys import SigningKey
 from ecdsa.util import sigencode_string
-from marshmallow import validates
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
 from nucypher.policy.conditions.exceptions import (
@@ -22,32 +21,27 @@ TEST_VERIFYING_KEY = TEST_SIGNING_KEY.verifying_key
 TEST_VERIFYING_KEY_HEX = TEST_VERIFYING_KEY.to_string().hex()
 
 # Test message and signature
-TEST_MESSAGE = b"This is a test message for ECDSA verification"
+TEST_MESSAGE = "This is a test message for ECDSA verification"
 TEST_SIGNATURE = TEST_SIGNING_KEY.sign(
-    TEST_MESSAGE, hashfunc=ECDSAVerificationCall._hash_func, sigencode=sigencode_string
+    TEST_MESSAGE.encode("utf-8"),
+    hashfunc=ECDSAVerificationCall._hash_func,
+    sigencode=sigencode_string,
 )
 TEST_SIGNATURE_HEX = TEST_SIGNATURE.hex()
 
 
-class TestECDSAVerificationCall(ECDSAVerificationCall):
-    class Schema(ECDSAVerificationCall.Schema):
-        @validates("message")
-        def validate_message(self, value):
-            pass
-
-        @validates("signature")
-        def validate_signature(self, value):
-            pass
-
-
 def test_ecdsa_verification_call_valid():
-    call = TestECDSAVerificationCall(
-        message=TEST_MESSAGE,
-        signature=TEST_SIGNATURE_HEX,
+    call = ECDSAVerificationCall(
+        message=":message",
+        signature=":signature",
         verifying_key=TEST_VERIFYING_KEY_HEX,
         curve=SECP256k1,
     )
-    assert call.execute()
+    context = {
+        ":message": TEST_MESSAGE,
+        ":signature": TEST_SIGNATURE_HEX,
+    }
+    assert call.execute(**context)
 
 
 def test_ecdsa_verification_call_invalid_signature():
@@ -58,13 +52,14 @@ def test_ecdsa_verification_call_invalid_signature():
         sigencode=sigencode_string,
     ).hex()
 
-    call = TestECDSAVerificationCall(
+    call = ECDSAVerificationCall(
         message=TEST_MESSAGE,
-        signature=invalid_signature,
+        signature=":signature",
         verifying_key=TEST_VERIFYING_KEY_HEX,
         curve=SECP256k1,
     )
-    assert not call.execute()
+    context = {":signature": invalid_signature}
+    assert not call.execute(**context)
 
 
 def test_ecdsa_condition_missing_message():
@@ -166,9 +161,9 @@ def test_ecdsa_condition_different_curves():
     secp256k1_verifying_key = secp256k1_key.verifying_key
     secp256k1_verifying_key_hex = secp256k1_verifying_key.to_string().hex()
 
-    secp256k1_message = b"Test message for SECP256k1"
+    secp256k1_message = "Test message for SECP256k1"
     secp256k1_signature = secp256k1_key.sign(
-        secp256k1_message,
+        secp256k1_message.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -178,9 +173,9 @@ def test_ecdsa_condition_different_curves():
     nist192p_verifying_key = nist192p_key.verifying_key
     nist192p_verifying_key_hex = nist192p_verifying_key.to_string().hex()
 
-    nist192p_message = b"Test message for NIST192p"
+    nist192p_message = "Test message for NIST192p"
     nist192p_signature = nist192p_key.sign(
-        nist192p_message,
+        nist192p_message.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -227,12 +222,12 @@ def test_ecdsa_condition_different_curves():
     assert result is False
 
 
-def test_ecdsa_condition_bytes_context():
+def test_ecdsa_condition_different_formats():
     """Test that ECDSA conditions work with different message formats in context variables"""
     # Create a test message and sign it
-    message_bytes = b"This is a test message that requires ECDSA verification"
+    message = "This is a test message that requires ECDSA verification"
     signature = TEST_SIGNING_KEY.sign(
-        message_bytes,
+        message.encode("utf-8"),
         hashfunc=ECDSAVerificationCall._hash_func,
         sigencode=sigencode_string,
     ).hex()
@@ -247,7 +242,7 @@ def test_ecdsa_condition_bytes_context():
 
     # Test with 0x-prefixed hex string in context
     context_with_hex = {
-        ":message": "0x" + message_bytes.hex(),  # Use 0x prefix for hex
+        ":message": "0x" + message.encode("utf-8").hex(),  # Use 0x prefix for hex
         ":signature": signature,
     }
 
@@ -260,20 +255,9 @@ def test_ecdsa_condition_bytes_context():
     assert success, "Verification should succeed with 0x-prefixed hex context"
     assert result is True
 
-    # Test with raw bytes in context
-    context_with_bytes = {
-        ":message": message_bytes,  # Direct bytes
-        ":signature": signature,
-    }
-
-    # Verification should work with bytes context
-    success, result = ecdsa_condition.verify(**context_with_bytes)
-    assert success, "Verification should succeed with bytes context"
-    assert result is True
-
     # Test hex string without 0x prefix - now treated as UTF-8 string
     # This requires a different signature since the bytes will be different
-    hex_string_as_utf8 = message_bytes.hex()
+    hex_string_as_utf8 = message.encode("utf-8").hex()
     utf8_bytes = hex_string_as_utf8.encode("utf-8")
     utf8_signature = TEST_SIGNING_KEY.sign(
         utf8_bytes,
@@ -428,32 +412,6 @@ def test_ecdsa_condition_message_encoding_utf8_string():
     assert result is True
 
 
-def test_ecdsa_condition_message_encoding_bytes_passthrough():
-    """Test that bytes messages are used as-is without modification"""
-    condition = ECDSACondition(
-        message=":message_variable",
-        signature=":signature_variable",
-        verifying_key=TEST_VERIFYING_KEY_HEX,
-        curve=SECP256k1.name,
-    )
-
-    # Test with bytes message
-    bytes_message = b"This is a bytes message"
-    signature = TEST_SIGNING_KEY.sign(
-        bytes_message,
-        hashfunc=ECDSAVerificationCall._hash_func,
-        sigencode=sigencode_string,
-    ).hex()
-
-    context = {
-        ":message_variable": bytes_message,
-        ":signature_variable": signature,
-    }
-    success, result = condition.verify(**context)
-    assert success is True
-    assert result is True
-
-
 def test_ecdsa_condition_message_encoding_0x_prefix_requirement():
     """Test that 0x prefix is required for hex interpretation"""
     condition = ECDSACondition(
@@ -601,6 +559,6 @@ def test_ecdsa_verification_call_invalid_hex_direct():
         ":signature_variable": "dummy_signature",
     }
 
-    # The execute method has a broad exception handler, so it will return False
-    result = execution_call.execute(**context)
-    assert result is False
+    # non-hex for message is a validation error and therefore returns an exception
+    with pytest.raises(ECDSAVerificationCall.InvalidExecutionCall):
+        _ = execution_call.execute(**context)
