@@ -147,11 +147,13 @@ class IfThenElseConditionDict(_Condition):
 #     "message": [bytes | str]
 #     "signature": str
 #     "verifyingKey": str
+#     "curve": str
 # }
 class ECDSAConditionDict(_Condition):
     message: Union[bytes, str]
     signature: str
     verifyingKey: str
+    curve: str
 
 
 # _SigningObjectCondition abstract class represents:

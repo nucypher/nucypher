@@ -1,11 +1,11 @@
-from ecdsa import NIST192p, SigningKey
+from ecdsa import NIST192p, SECP256k1, SigningKey
 from ecdsa.util import sigencode_string
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 # Create test key pair for ECDSA signing
-TEST_SIGNING_KEY = SigningKey.generate(curve=NIST192p)
+TEST_SIGNING_KEY = SigningKey.generate(curve=SECP256k1)
 TEST_VERIFYING_KEY = TEST_SIGNING_KEY.verifying_key
 TEST_VERIFYING_KEY_HEX = TEST_VERIFYING_KEY.to_string().hex()
 
@@ -29,7 +29,7 @@ def test_ecdsa_condition_verification_flow():
         message=":message",  # Use regular context variable instead of USER_ADDRESS_CONTEXT
         signature=":signature",
         verifying_key=TEST_VERIFYING_KEY_HEX,
-        curve=NIST192p.name,
+        curve=SECP256k1.name,
     )
 
     # Create a complete condition lingo
@@ -80,7 +80,7 @@ def test_ecdsa_condition_in_compound_condition():
         message=":message",
         signature=":signature",
         verifying_key=TEST_VERIFYING_KEY_HEX,
-        curve=NIST192p.name,
+        curve=SECP256k1.name,
     )
 
     # Create a second ECDSA condition with different requirements
