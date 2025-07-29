@@ -47,20 +47,17 @@ class ECDSAVerificationCall(ExecutionCall):
 
         @validates("message")
         def validate_message(self, value):
-            if not is_context_variable(value) and not isinstance(value, (str, bytes)):
+            if not is_context_variable(value) and not isinstance(value, str):
                 raise ValidationError(
-                    f"Invalid value for message; expected a context variable, string, or bytes but got '{value}'"
+                    f"Invalid value for message; expected a context variable, or string, but got '{value}'"
                 )
 
         @validates("signature")
         def validate_signature(self, value):
             if not is_context_variable(value):
-                try:
-                    bytes.fromhex(value)
-                except Exception as e:
-                    raise ValidationError(
-                        f"Invalid signature format, must be hex encoded: {str(e)}"
-                    )
+                raise ValidationError(
+                    f"Invalid value for signature; expected a context variable, but got '{value}'"
+                )
 
         @validates_schema
         def validate_verifying_key(self, data, **kwargs):
@@ -104,10 +101,7 @@ class ECDSAVerificationCall(ExecutionCall):
             message_value = resolve_any_context_variables(self.message, **context)
 
             # Handle message encoding with 0x prefix logic using HexBytes
-            if isinstance(message_value, bytes):
-                # Already bytes, use as-is
-                message = message_value
-            elif isinstance(message_value, str):
+            if isinstance(message_value, str):
                 # Only use HexBytes for 0x-prefixed strings
                 if message_value.startswith("0x"):
                     # 0x prefix indicates hex - use HexBytes for intelligent parsing
@@ -122,7 +116,7 @@ class ECDSAVerificationCall(ExecutionCall):
                     message = message_value.encode("utf-8")
             else:
                 raise ExecutionCall.InvalidExecutionCall(
-                    f"Message must be bytes or string, got {type(message_value)}"
+                    f"Message must be string, got {type(message_value)}"
                 )
 
             signature_hex = resolve_any_context_variables(self.signature, **context)
