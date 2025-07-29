@@ -66,7 +66,9 @@ def test_ecdsa_condition_missing_message():
     with pytest.raises(
         InvalidCondition, match="'message' field - Field may not be null."
     ):
-        _ = ECDSACondition(message=None, signature=None, verifying_key=None)
+        _ = ECDSACondition(
+            message=None, signature=None, verifying_key=None, curve=NIST192p.name
+        )
 
 
 def test_ecdsa_condition_missing_signature():
@@ -74,7 +76,10 @@ def test_ecdsa_condition_missing_signature():
         InvalidCondition, match="'signature' field - Field may not be null."
     ):
         _ = ECDSACondition(
-            message=":message_variable", signature=None, verifying_key=None
+            message=":message_variable",
+            signature=None,
+            verifying_key=None,
+            curve=NIST192p.name,
         )
 
 
@@ -86,6 +91,7 @@ def test_ecdsa_condition_missing_verifying_key():
             message=":message_variable",
             signature=":signature_variable",
             verifying_key=None,
+            curve=NIST192p.name,
         )
 
 
@@ -97,6 +103,7 @@ def test_ecdsa_condition_invalid_verifying_key():
             message=":message_variable",
             signature=":signature_variable",
             verifying_key="-----BEGIN PUBLIC KEY----- invalid key -----END PUBLIC KEY-----",
+            curve=NIST192p.name,
         )
 
 
