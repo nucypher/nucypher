@@ -4,6 +4,7 @@ from typing import Any, Optional, Tuple
 from ecdsa import BadSignatureError, NIST192p, VerifyingKey
 from ecdsa.curves import Curve, curves
 from ecdsa.util import sigdecode_string
+from hexbytes import HexBytes
 from marshmallow import (
     ValidationError,
     fields,
@@ -15,7 +16,6 @@ from marshmallow import (
 
 from nucypher.policy.conditions.base import Condition, ExecutionCall
 from nucypher.policy.conditions.context import (
-    USER_ADDRESS_CONTEXT,
     is_context_variable,
     resolve_any_context_variables,
 )
@@ -100,32 +100,30 @@ class ECDSAVerificationCall(ExecutionCall):
 
     def execute(self, **context) -> bool:
         try:
-            # Special handling for USER_ADDRESS_CONTEXT if it's provided directly as bytes or string
-            if self.message == USER_ADDRESS_CONTEXT and USER_ADDRESS_CONTEXT in context:
-                message = context[USER_ADDRESS_CONTEXT]
-                # Direct use of the message if it's already bytes or string
-                if isinstance(message, (bytes, str)):
-                    if isinstance(message, str):
-                        message = message.encode("utf-8")
-                else:
-                    # Fallback to normal resolution for complex objects
-                    message = resolve_any_context_variables(self.message, **context)
-            else:
-                # Normal resolution for other cases
-                message = resolve_any_context_variables(self.message, **context)
-
-            # Always resolve message and apply hex decoding for ECDSA conditions
+            # Resolve message from context
             message_value = resolve_any_context_variables(self.message, **context)
+
+            # Handle message encoding with 0x prefix logic using HexBytes
             if isinstance(message_value, bytes):
                 # Already bytes, use as-is
                 message = message_value
-            else:
-                # Assume string and try hex decoding first
-                try:
-                    message = bytes.fromhex(message_value)
-                except ValueError:
-                    # If hex decoding fails, treat as regular string
+            elif isinstance(message_value, str):
+                # Only use HexBytes for 0x-prefixed strings
+                if message_value.startswith("0x"):
+                    # 0x prefix indicates hex - use HexBytes for intelligent parsing
+                    try:
+                        message = bytes(HexBytes(message_value))
+                    except ValueError as e:
+                        raise ExecutionCall.InvalidExecutionCall(
+                            f"Invalid hex string in message (starts with 0x but contains invalid hex): {str(e)}"
+                        )
+                else:
+                    # No 0x prefix - treat as UTF-8 string to preserve existing behavior
                     message = message_value.encode("utf-8")
+            else:
+                raise ExecutionCall.InvalidExecutionCall(
+                    f"Message must be bytes or string, got {type(message_value)}"
+                )
 
             signature_hex = resolve_any_context_variables(self.signature, **context)
 
@@ -223,5 +221,8 @@ class ECDSACondition(Condition):
         return self.execution_call.curve
 
     def verify(self, **context) -> Tuple[bool, Any]:
-        result = self.execution_call.execute(**context)
-        return result, result
+        try:
+            result = self.execution_call.execute(**context)
+            return result, result
+        except ExecutionCall.InvalidExecutionCall as e:
+            return False, str(e)
