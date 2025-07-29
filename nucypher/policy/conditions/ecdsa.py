@@ -213,8 +213,5 @@ class ECDSACondition(Condition):
         return self.execution_call.curve
 
     def verify(self, **context) -> Tuple[bool, Any]:
-        try:
-            result = self.execution_call.execute(**context)
-            return result, result
-        except ExecutionCall.InvalidExecutionCall as e:
-            return False, str(e)
+        result = self.execution_call.execute(**context)
+        return result, None
