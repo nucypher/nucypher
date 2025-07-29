@@ -228,13 +228,7 @@ def test_ecdsa_condition_different_curves():
 
 
 def test_ecdsa_condition_bytes_context():
-    """Test that ECDSA conditions can handle bytes in context through serialization.
-
-    This test verifies that:
-    1. Bytes can be passed in context and will be properly [de]serialized
-    2. The condition can handle both raw bytes and hex strings
-    3. The verification works correctly after serialization/deserialization
-    """
+    """Test that ECDSA conditions work with different message formats in context variables"""
     # Create a test message and sign it
     message_bytes = b"This is a test message that requires ECDSA verification"
     signature = TEST_SIGNING_KEY.sign(
@@ -251,24 +245,9 @@ def test_ecdsa_condition_bytes_context():
         curve=SECP256k1.name,
     )
 
-    # Test with raw bytes in context
-    context_with_bytes = {
-        ":message": message_bytes.hex(),
-        ":signature": signature,
-    }
-
-    # The context should be serializable
-    serialized_context = json.dumps(context_with_bytes)
-    deserialized_context = json.loads(serialized_context)
-
-    # Verification should work with the deserialized context
-    success, result = ecdsa_condition.verify(**deserialized_context)
-    assert success, "Verification should succeed with deserialized bytes context"
-    assert result is True
-
-    # Test with hex string in context (backwards compatibility)
+    # Test with 0x-prefixed hex string in context
     context_with_hex = {
-        ":message": message_bytes.hex(),
+        ":message": "0x" + message_bytes.hex(),  # Use 0x prefix for hex
         ":signature": signature,
     }
 
@@ -278,22 +257,37 @@ def test_ecdsa_condition_bytes_context():
 
     # Verification should work with the deserialized context
     success, result = ecdsa_condition.verify(**deserialized_context)
-    assert success, "Verification should succeed with deserialized hex context"
+    assert success, "Verification should succeed with 0x-prefixed hex context"
     assert result is True
 
-    # Test with mixed types (some bytes, some hex)
-    context_mixed = {
-        ":message": message_bytes.hex(),
+    # Test with raw bytes in context
+    context_with_bytes = {
+        ":message": message_bytes,  # Direct bytes
         ":signature": signature,
     }
 
-    # The context should be serializable
-    serialized_context = json.dumps(context_mixed)
-    deserialized_context = json.loads(serialized_context)
+    # Verification should work with bytes context
+    success, result = ecdsa_condition.verify(**context_with_bytes)
+    assert success, "Verification should succeed with bytes context"
+    assert result is True
 
-    # Verification should work with the deserialized context
-    success, result = ecdsa_condition.verify(**deserialized_context)
-    assert success, "Verification should succeed with deserialized mixed context"
+    # Test hex string without 0x prefix - now treated as UTF-8 string
+    # This requires a different signature since the bytes will be different
+    hex_string_as_utf8 = message_bytes.hex()
+    utf8_bytes = hex_string_as_utf8.encode("utf-8")
+    utf8_signature = TEST_SIGNING_KEY.sign(
+        utf8_bytes,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    context_hex_as_utf8 = {
+        ":message": hex_string_as_utf8,  # No 0x prefix → treated as UTF-8
+        ":signature": utf8_signature,
+    }
+
+    success, result = ecdsa_condition.verify(**context_hex_as_utf8)
+    assert success, "Verification should succeed with hex string treated as UTF-8"
     assert result is True
 
 
@@ -351,3 +345,262 @@ def test_discord_ed25519_signature_with_ecdsa():
 
     assert verified_nacl
     assert verified_ecdsa
+
+
+def test_ecdsa_condition_message_encoding_with_0x_prefix():
+    """Test message encoding with 0x prefix for hex strings"""
+    condition = ECDSACondition(
+        message=":message_variable",
+        signature=":signature_variable",
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
+    )
+
+    # Test with 0x-prefixed hex string
+    hex_message = "0xdeadbeef"
+    expected_bytes = bytes.fromhex("deadbeef")
+    signature = TEST_SIGNING_KEY.sign(
+        expected_bytes,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    context = {
+        ":message_variable": hex_message,
+        ":signature_variable": signature,
+    }
+    success, result = condition.verify(**context)
+    assert success is True
+    assert result is True
+
+
+def test_ecdsa_condition_message_encoding_hex_without_prefix():
+    """Test message encoding for hex-looking strings without 0x prefix (treated as UTF-8)"""
+    condition = ECDSACondition(
+        message=":message_variable",
+        signature=":signature_variable",
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
+    )
+
+    # Test with hex-looking string (no 0x prefix) - should be treated as UTF-8 string
+    hex_looking_string = "deadbeef"  # Looks like hex but treated as UTF-8
+    expected_bytes = hex_looking_string.encode("utf-8")  # UTF-8 encoding
+    signature = TEST_SIGNING_KEY.sign(
+        expected_bytes,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    context = {
+        ":message_variable": hex_looking_string,
+        ":signature_variable": signature,
+    }
+    success, result = condition.verify(**context)
+    assert success is True
+    assert result is True
+
+
+def test_ecdsa_condition_message_encoding_utf8_string():
+    """Test message encoding for clear UTF-8 strings"""
+    condition = ECDSACondition(
+        message=":message_variable",
+        signature=":signature_variable",
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
+    )
+
+    # Test with clear UTF-8 string
+    string_message = "hello world"  # Clear UTF-8 string
+    expected_bytes = string_message.encode("utf-8")
+    signature = TEST_SIGNING_KEY.sign(
+        expected_bytes,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    context = {
+        ":message_variable": string_message,
+        ":signature_variable": signature,
+    }
+    success, result = condition.verify(**context)
+    assert success is True
+    assert result is True
+
+
+def test_ecdsa_condition_message_encoding_bytes_passthrough():
+    """Test that bytes messages are used as-is without modification"""
+    condition = ECDSACondition(
+        message=":message_variable",
+        signature=":signature_variable",
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
+    )
+
+    # Test with bytes message
+    bytes_message = b"This is a bytes message"
+    signature = TEST_SIGNING_KEY.sign(
+        bytes_message,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    context = {
+        ":message_variable": bytes_message,
+        ":signature_variable": signature,
+    }
+    success, result = condition.verify(**context)
+    assert success is True
+    assert result is True
+
+
+def test_ecdsa_condition_message_encoding_0x_prefix_requirement():
+    """Test that 0x prefix is required for hex interpretation"""
+    condition = ECDSACondition(
+        message=":message_variable",
+        signature=":signature_variable",
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
+    )
+
+    # Demonstrate that 0xdeadbeef and deadbeef are now treated differently
+    hex_bytes = bytes.fromhex("deadbeef")
+    utf8_bytes = "deadbeef".encode("utf-8")
+
+    # Verify they produce different results
+    assert hex_bytes != utf8_bytes, "Hex and UTF-8 interpretations should be different"
+
+    # Test 0x-prefixed version (hex interpretation)
+    hex_signature = TEST_SIGNING_KEY.sign(
+        hex_bytes,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    hex_context = {
+        ":message_variable": "0xdeadbeef",  # 0x prefix → hex
+        ":signature_variable": hex_signature,
+    }
+    success, result = condition.verify(**hex_context)
+    assert success is True
+
+    # Test without 0x prefix (UTF-8 interpretation)
+    utf8_signature = TEST_SIGNING_KEY.sign(
+        utf8_bytes,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    utf8_context = {
+        ":message_variable": "deadbeef",  # No 0x prefix → UTF-8
+        ":signature_variable": utf8_signature,
+    }
+    success, result = condition.verify(**utf8_context)
+    assert success is True
+
+    # Cross-test: they should NOT be interchangeable
+    cross_context = {
+        ":message_variable": "deadbeef",  # UTF-8 interpretation
+        ":signature_variable": hex_signature,  # Signature for hex interpretation
+    }
+    success, result = condition.verify(**cross_context)
+    assert success is False  # Should fail because bytes are different
+
+
+def test_ecdsa_condition_message_encoding_hex_vs_utf8():
+    """Test the difference between 0x-prefixed hex and regular UTF-8 strings"""
+    condition = ECDSACondition(
+        message=":message_variable",
+        signature=":signature_variable",
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
+    )
+
+    # 0x-prefixed hex interpretation
+    hex_bytes = bytes.fromhex("deadbeef")
+    hex_signature = TEST_SIGNING_KEY.sign(
+        hex_bytes,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    # UTF-8 interpretation (clear non-hex string)
+    utf8_string = "hello world"
+    utf8_bytes = utf8_string.encode("utf-8")
+    utf8_signature = TEST_SIGNING_KEY.sign(
+        utf8_bytes,
+        hashfunc=ECDSAVerificationCall._hash_func,
+        sigencode=sigencode_string,
+    ).hex()
+
+    # Verify they produce different results
+    assert hex_bytes != utf8_bytes, "Hex and UTF-8 interpretations should be different"
+
+    # Test 0x-prefixed hex version
+    hex_context = {
+        ":message_variable": "0xdeadbeef",  # 0x prefix → hex
+        ":signature_variable": hex_signature,
+    }
+    success, result = condition.verify(**hex_context)
+    assert success is True
+
+    # Test UTF-8 version
+    utf8_context = {
+        ":message_variable": utf8_string,  # No 0x prefix → UTF-8
+        ":signature_variable": utf8_signature,
+    }
+    success, result = condition.verify(**utf8_context)
+    assert success is True
+
+    # Cross-test: hex signature with UTF-8 message should fail
+    cross_context = {
+        ":message_variable": utf8_string,  # UTF-8 string
+        ":signature_variable": hex_signature,  # Signature for hex bytes
+    }
+    success, result = condition.verify(**cross_context)
+    assert success is False  # Should fail because bytes are different
+
+
+def test_ecdsa_condition_message_encoding_invalid_hex():
+    """Test error handling for invalid hex strings with 0x prefix"""
+    condition = ECDSACondition(
+        message=":message_variable",
+        signature=":signature_variable",
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1.name,
+    )
+
+    # Test with invalid hex (0x prefix but invalid hex characters)
+    invalid_hex_message = "0xdeadbeefgh"  # 'gh' are not valid hex
+
+    context = {
+        ":message_variable": invalid_hex_message,
+        ":signature_variable": "dummy_signature",
+    }
+
+    # Should fail because 0x prefix indicates hex but string is invalid
+    success, result = condition.verify(**context)
+    assert success is False
+
+
+def test_ecdsa_verification_call_invalid_hex_direct():
+    """Test that InvalidExecutionCall is properly raised for invalid hex at execution call level"""
+    from nucypher.policy.conditions.ecdsa import ECDSAVerificationCall
+
+    # Create execution call directly
+    execution_call = ECDSAVerificationCall(
+        message=":message_variable",
+        signature=":signature_variable",
+        verifying_key=TEST_VERIFYING_KEY_HEX,
+        curve=SECP256k1,
+    )
+
+    # Test with invalid 0x-prefixed hex
+    context = {
+        ":message_variable": "0xdeadbeefgh",  # Invalid hex with 0x prefix
+        ":signature_variable": "dummy_signature",
+    }
+
+    # The execute method has a broad exception handler, so it will return False
+    result = execution_call.execute(**context)
+    assert result is False
