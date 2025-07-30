@@ -32,7 +32,7 @@ class ECDSAVerificationCall(ExecutionCall):
     _hash_func = hashlib.sha256
 
     class Schema(ExecutionCall.Schema):
-        message = fields.Raw(required=True)
+        message = fields.Str(required=True)
         signature = fields.Str(required=True)
         verifying_key = fields.Str(required=True)
         curve = fields.Str(
@@ -43,13 +43,6 @@ class ECDSAVerificationCall(ExecutionCall):
         @post_load
         def make(self, data, **kwargs):
             return ECDSAVerificationCall(**data)
-
-        @validates("message")
-        def validate_message(self, value):
-            if not is_context_variable(value) and not isinstance(value, str):
-                raise ValidationError(
-                    f"Invalid value for message; expected a context variable, or string, but got '{value}'"
-                )
 
         @validates("signature")
         def validate_signature(self, value):
