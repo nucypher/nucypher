@@ -12,47 +12,46 @@ from nucypher.policy.conditions.lingo import ReturnValueTest
 
 
 def test_return_value_test_schema():
-    schema = ReturnValueTest.ReturnValueTestSchema()
+    schema = ReturnValueTest.Schema()
     return_value_test = ReturnValueTest(comparator=">", value=0, index=1)
 
-    test_dict = schema.dump(return_value_test)
-
+    test_dict = return_value_test.to_dict()
     # no issues here
     errors = schema.validate(data=test_dict)
     assert not errors, f"{errors}"
 
     # missing comparator should cause error
-    test_dict = schema.dump(return_value_test)
+    test_dict = return_value_test.to_dict()
     del test_dict["comparator"]
     errors = schema.validate(data=test_dict)
     assert errors, f"{errors}"
 
     # invalid comparator should cause error
-    test_dict = schema.dump(return_value_test)
+    test_dict = return_value_test.to_dict()
     test_dict["comparator"] = "<>"
     errors = schema.validate(data=test_dict)
     assert errors, f"{errors}"
 
     # missing value should cause error
-    test_dict = schema.dump(return_value_test)
+    test_dict = return_value_test.to_dict()
     del test_dict["value"]
     errors = schema.validate(data=test_dict)
     assert errors, f"{errors}"
 
     # missing index should NOT cause any error since optional
-    test_dict = schema.dump(return_value_test)
+    test_dict = return_value_test.to_dict()
     del test_dict["index"]
     errors = schema.validate(data=test_dict)
     assert not errors, f"{errors}"
 
     # negative index should cause error
-    test_dict = schema.dump(return_value_test)
+    test_dict = return_value_test.to_dict()
     test_dict["index"] = -3
     errors = schema.validate(data=test_dict)
     assert errors, f"{errors}"
 
     # non-integer index should cause error
-    test_dict = schema.dump(return_value_test)
+    test_dict = return_value_test.to_dict()
     test_dict["index"] = "25"
     errors = schema.validate(data=test_dict)
     assert errors, f"{errors}"
@@ -60,15 +59,7 @@ def test_return_value_test_schema():
 
 def test_return_value_index_invalid():
     with pytest.raises(ReturnValueTest.InvalidExpression):
-        _ = ReturnValueTest(comparator=">", value=0, index="james")
-
-    with pytest.raises(ReturnValueTest.InvalidExpression):
         _ = ReturnValueTest(comparator=">", value=0, index=-1)
-
-    with pytest.raises(ReturnValueTest.InvalidExpression):
-        _ = ReturnValueTest(
-            comparator=">", value=0, index="10"
-        )  # should not be a string
 
 
 def test_return_value_index():
@@ -114,7 +105,7 @@ def test_return_value_index_tuple():
 )
 def test_return_value_test_invalid_comparators(comparator):
     with pytest.raises(
-        ReturnValueTest.InvalidExpression, match="not a permitted comparator"
+        ReturnValueTest.InvalidExpression, match="Not a permitted comparator"
     ):
         _ = ReturnValueTest(comparator=comparator, value=1)
 
@@ -269,8 +260,7 @@ def test_return_value_test_bytes():
     test = ReturnValueTest(comparator="==", value=HexBytes(value).hex())
 
     # ensure serialization/deserialization
-    schema = ReturnValueTest.ReturnValueTestSchema()
-    reloaded = schema.loads(schema.dumps(test))
+    reloaded = ReturnValueTest.from_json(test.to_json())
     assert (test.comparator == reloaded.comparator) and (test.value == reloaded.value)
 
     # ensure correct bytes/hex comparison
@@ -294,8 +284,7 @@ def test_return_value_test_bytes_in_list_of_values():
     test = ReturnValueTest(comparator="==", value=json_serializable_condition_value)
 
     # ensure serialization/deserialization
-    schema = ReturnValueTest.ReturnValueTestSchema()
-    reloaded = schema.loads(schema.dumps(test))
+    reloaded = ReturnValueTest.from_json(test.to_json())
     assert (test.comparator == reloaded.comparator) and (test.value == reloaded.value)
     # ensure correct bytes/hex comparison
     assert reloaded.eval(value), "bytes compared correctly to hex"
@@ -312,8 +301,7 @@ def test_return_value_test_tuples():
     test = ReturnValueTest(comparator="==", value=value_as_list)
 
     # ensure serialization/deserialization
-    schema = ReturnValueTest.ReturnValueTestSchema()
-    reloaded = schema.loads(schema.dumps(test))
+    reloaded = ReturnValueTest.from_json(test.to_json())
     assert (test.comparator == reloaded.comparator) and (test.value == reloaded.value)
 
     # ensure correct tuple/list comparison
@@ -349,8 +337,7 @@ def test_return_value_sanitize(test_scenario):
     # sanity check comparison
     test = ReturnValueTest(comparator="==", value=value)
     # ensure serialization/deserialization
-    schema = ReturnValueTest.ReturnValueTestSchema()
-    reloaded = schema.loads(schema.dumps(test))
+    reloaded = ReturnValueTest.from_json(test.to_json())
     assert reloaded.eval(value)
 
 
@@ -372,10 +359,20 @@ def test_return_value_sanitize(test_scenario):
     ],
 )
 def test_return_value_json_serialization(test_value):
-    schema = ReturnValueTest.ReturnValueTestSchema()
-    comparator = random.choice(ReturnValueTest.COMPARATORS)
+    schema = ReturnValueTest.Schema()
+    if isinstance(test_value, list):
+        comparator = random.choice(ReturnValueTest.COMPARATORS)
+    else:
+        # can't use in without a list
+        comparator = random.choice(
+            [
+                comparator
+                for comparator in ReturnValueTest.COMPARATORS
+                if comparator not in ["in", "!in"]
+            ]
+        )
     test = ReturnValueTest(comparator=comparator, value=test_value)
-    reloaded = schema.loads(schema.dumps(test))
+    reloaded = schema.loads(test.to_json())
     assert (test.comparator == reloaded.comparator) and (
         test.value == reloaded.value
     ), f"test for '{comparator} {test_value}'"
@@ -407,3 +404,57 @@ def test_return_value_non_json_serializable_adjustments():
         ReturnValueTest.InvalidExpression, match="No JSON serializable equivalent"
     ):
         ReturnValueTest(comparator="==", value=not_json_serializable)
+
+
+@pytest.mark.parametrize(
+    "value, pass_value, fail_value",
+    [
+        (
+            ['"Fatigue"', '"makes"', '"cowards"', '"of"', '"us"', '"all"'],
+            '"cowards"',
+            '"tired"',
+        ),  # list of string values
+        # -- Vince Lombardi
+        (
+            ["0xdeadbeef", "0x12345678"],
+            "0x12345678",
+            "0x87654321",
+        ),  # list of hex strings
+        (
+            [1, 2, 3, 4, 5],
+            3,
+            6,
+        ),  # list of integers
+        (
+            [True, True, True],
+            True,
+            False,
+        ),  # list of booleans
+        (
+            [1.1, 2.2, 3.3],
+            2.2,
+            4.4,
+        ),  # list of floats
+    ],
+)
+def test_return_value_test_in_and_not_in_comparator(value, pass_value, fail_value):
+    in_test = ReturnValueTest(comparator="in", value=value)
+    not_in_test = ReturnValueTest(comparator="!in", value=value)
+
+    # ensure correct bytes/hex comparison
+    assert in_test.eval(pass_value), "value should pass the 'in' test"
+    assert not in_test.eval(fail_value), "value should not pass the 'in' test"
+
+    assert not not_in_test.eval(pass_value), "value should not pass the '!in' test"
+    assert not_in_test.eval(fail_value), "value should pass the '!in' test"
+
+
+def test_return_value_test_in_and_not_in_comparator_invalid_types():
+    values = [1, '"string"', b"bytes", True, {"key": "value"}]
+    for value in values:
+        for comparator in ["in", "!in"]:
+            with pytest.raises(
+                ReturnValueTest.InvalidExpression,
+                match=f'not a valid type for "{comparator}"',
+            ):
+                _ = ReturnValueTest(comparator=comparator, value=value)

@@ -74,7 +74,7 @@ class GithubRegistrySource(RegistrySource):
 
     def get_publication_endpoint(self) -> str:
         """Get the GitHub endpoint for the registry publication."""
-        url = f"{self._BASE_URL}/main/deployment/artifacts/{self.registry_name}"
+        url = f"{self._BASE_URL}/signing/deployment/artifacts/{self.registry_name}"
         return url
 
     def decode(self, response: Response, endpoint: str) -> RegistryData:

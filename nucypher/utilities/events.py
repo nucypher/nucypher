@@ -23,7 +23,7 @@ from eth_utils import encode_hex
 from eth_utils.abi import event_abi_to_log_topic
 from web3 import Web3
 from web3._utils.events import get_event_data
-from web3.contract.contract import Contract
+from web3.contract.contract import Contract, ContractEvent
 from web3.datastructures import AttributeDict
 from web3.exceptions import BlockNotFound
 from web3.types import BlockIdentifier
@@ -138,7 +138,7 @@ class EventScanner:
         web3: Web3,
         contract: Contract,
         state: EventScannerState,
-        events: List,
+        events: List[ContractEvent],
         min_chunk_scan_size: int = 10,  # 12 s/block = 120 seconds period
         max_chunk_scan_size: int = 10000,
         max_request_retries: int = 30,
@@ -435,11 +435,9 @@ class JSONifiedState(EventScannerState):
     Simple load/store massive JSON on start up.
     """
 
-    STATE_FILENAME = "eventscanner.json"
-
-    def __init__(self, persistent=True):
+    def __init__(self, persistent=True, fname="eventscanner.json"):
         self.state = None
-        self.fname = self.STATE_FILENAME
+        self.fname = fname
         # How many second ago we saved the JSON file
         self.last_save = 0
         self.persistent = persistent
@@ -453,6 +451,10 @@ class JSONifiedState(EventScannerState):
 
     def restore(self):
         """Restore the last scan state from a file."""
+        if not self.persistent:
+            self.reset()
+            return
+
         try:
             self.state = json.load(open(self.fname, "rt"))
             print(f"Restored the state, previously {self.state['last_scanned_block']} blocks have been scanned")
@@ -462,8 +464,9 @@ class JSONifiedState(EventScannerState):
 
     def save(self):
         """Save everything we have scanned so far in a file."""
-        with open(self.fname, "wt") as f:
-            json.dump(self.state, f)
+        if self.persistent:
+            with open(self.fname, "wt") as f:
+                json.dump(self.state, f)
         self.last_save = time.time()
 
     #
