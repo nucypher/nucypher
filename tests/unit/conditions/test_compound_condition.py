@@ -3,39 +3,39 @@ from unittest.mock import Mock
 
 import pytest
 
-from nucypher.policy.conditions.base import AccessControlCondition
+from nucypher.policy.conditions.base import Condition
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import (
     AndCompoundCondition,
-    CompoundAccessControlCondition,
+    CompoundCondition,
     ConditionType,
     ConditionVariable,
     NotCompoundCondition,
     OrCompoundCondition,
-    SequentialAccessControlCondition,
+    SequentialCondition,
 )
 
 
 @pytest.fixture(scope="function")
 def mock_conditions():
-    condition_1 = Mock(spec=AccessControlCondition)
+    condition_1 = Mock(spec=Condition)
     condition_1.verify.return_value = (True, 1)
     condition_1.to_dict.return_value = {
         "value": 1
-    }  # needed for "id" value calc for CompoundAccessControlCondition
+    }  # needed for "id" value calc for CompoundCondition
 
-    condition_2 = Mock(spec=AccessControlCondition)
+    condition_2 = Mock(spec=Condition)
     condition_2.verify.return_value = (True, 2)
     condition_2.to_dict.return_value = {"value": 2}
 
-    condition_3 = Mock(spec=AccessControlCondition)
+    condition_3 = Mock(spec=Condition)
     condition_3.verify.return_value = (True, 3)
     condition_3.to_dict.return_value = {"value": 3}
 
-    condition_4 = Mock(spec=AccessControlCondition)
+    condition_4 = Mock(spec=Condition)
     condition_4.verify.return_value = (True, 4)
     condition_4.to_dict.return_value = {"value": 4}
 
@@ -43,15 +43,15 @@ def mock_conditions():
 
 
 def test_invalid_compound_condition(time_condition, rpc_condition):
-    for operator in CompoundAccessControlCondition.OPERATORS:
-        if operator == CompoundAccessControlCondition.NOT_OPERATOR:
+    for operator in CompoundCondition.OPERATORS:
+        if operator == CompoundCondition.NOT_OPERATOR:
             operands = [time_condition]
         else:
             operands = [time_condition, rpc_condition]
 
         # invalid condition type
         with pytest.raises(InvalidCondition, match=ConditionType.COMPOUND.value):
-            _ = CompoundAccessControlCondition(
+            _ = CompoundCondition(
                 condition_type=ConditionType.TIME.value,
                 operator=operator,
                 operands=operands,
@@ -59,100 +59,98 @@ def test_invalid_compound_condition(time_condition, rpc_condition):
 
     # invalid operator - 1 operand
     with pytest.raises(InvalidCondition):
-        _ = CompoundAccessControlCondition(operator="5True", operands=[time_condition])
+        _ = CompoundCondition(operator="5True", operands=[time_condition])
 
     # invalid operator - 2 operands
     with pytest.raises(InvalidCondition):
-        _ = CompoundAccessControlCondition(
+        _ = CompoundCondition(
             operator="5True", operands=[time_condition, rpc_condition]
         )
 
     # no operands
     with pytest.raises(InvalidCondition):
-        _ = CompoundAccessControlCondition(
-            operator=random.choice(CompoundAccessControlCondition.OPERATORS),
+        _ = CompoundCondition(
+            operator=random.choice(CompoundCondition.OPERATORS),
             operands=[],
         )
 
     # > 1 operand for not operator
     with pytest.raises(InvalidCondition):
-        _ = CompoundAccessControlCondition(
-            operator=CompoundAccessControlCondition.NOT_OPERATOR,
+        _ = CompoundCondition(
+            operator=CompoundCondition.NOT_OPERATOR,
             operands=[time_condition, rpc_condition],
         )
 
     # < 2 operands for or operator
     with pytest.raises(InvalidCondition):
-        _ = CompoundAccessControlCondition(
-            operator=CompoundAccessControlCondition.OR_OPERATOR,
+        _ = CompoundCondition(
+            operator=CompoundCondition.OR_OPERATOR,
             operands=[time_condition],
         )
 
     # < 2 operands for and operator
     with pytest.raises(InvalidCondition):
-        _ = CompoundAccessControlCondition(
-            operator=CompoundAccessControlCondition.AND_OPERATOR,
+        _ = CompoundCondition(
+            operator=CompoundCondition.AND_OPERATOR,
             operands=[rpc_condition],
         )
 
     # exceeds max operands
     operands = list()
-    for i in range(CompoundAccessControlCondition.MAX_NUM_CONDITIONS + 1):
+    for i in range(CompoundCondition.MAX_NUM_CONDITIONS + 1):
         operands.append(rpc_condition)
     with pytest.raises(InvalidCondition):
-        _ = CompoundAccessControlCondition(
-            operator=CompoundAccessControlCondition.OR_OPERATOR,
+        _ = CompoundCondition(
+            operator=CompoundCondition.OR_OPERATOR,
             operands=operands,
         )
     with pytest.raises(InvalidCondition):
-        _ = CompoundAccessControlCondition(
-            operator=CompoundAccessControlCondition.AND_OPERATOR,
+        _ = CompoundCondition(
+            operator=CompoundCondition.AND_OPERATOR,
             operands=operands,
         )
 
 
-@pytest.mark.parametrize("operator", CompoundAccessControlCondition.OPERATORS)
+@pytest.mark.parametrize("operator", CompoundCondition.OPERATORS)
 def test_compound_condition_schema_validation(operator, time_condition, rpc_condition):
-    if operator == CompoundAccessControlCondition.NOT_OPERATOR:
+    if operator == CompoundCondition.NOT_OPERATOR:
         operands = [time_condition]
     else:
         operands = [time_condition, rpc_condition]
 
-    compound_condition = CompoundAccessControlCondition(
-        operator=operator, operands=operands
-    )
+    compound_condition = CompoundCondition(operator=operator, operands=operands)
     compound_condition_dict = compound_condition.to_dict()
 
     # no issues here
-    CompoundAccessControlCondition.from_dict(compound_condition_dict)
+    CompoundCondition.from_dict(compound_condition_dict)
 
     # no issues with optional name
     compound_condition_dict["name"] = "my_contract_condition"
-    CompoundAccessControlCondition.from_dict(compound_condition_dict)
+    CompoundCondition.from_dict(compound_condition_dict)
 
     with pytest.raises(InvalidConditionLingo):
         # incorrect condition type
         compound_condition_dict = compound_condition.to_dict()
         compound_condition_dict["condition_type"] = ConditionType.RPC.value
-        CompoundAccessControlCondition.from_dict(compound_condition_dict)
+        CompoundCondition.from_dict(compound_condition_dict)
 
     with pytest.raises(InvalidConditionLingo):
         # invalid operator
         compound_condition_dict = compound_condition.to_dict()
         compound_condition_dict["operator"] = "5True"
-        CompoundAccessControlCondition.from_dict(compound_condition_dict)
+        CompoundCondition.from_dict(compound_condition_dict)
 
     with pytest.raises(InvalidConditionLingo):
         # no operator
         compound_condition_dict = compound_condition.to_dict()
         del compound_condition_dict["operator"]
-        CompoundAccessControlCondition.from_dict(compound_condition_dict)
+        CompoundCondition.from_dict(compound_condition_dict)
 
     with pytest.raises(InvalidConditionLingo):
         # no operands
         compound_condition_dict = compound_condition.to_dict()
         del compound_condition_dict["operands"]
-        CompoundAccessControlCondition.from_dict(compound_condition_dict)
+        CompoundCondition.from_dict(compound_condition_dict)
 
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
@@ -324,7 +322,7 @@ def test_nested_sequential_condition_too_many_nested_levels(
                 OrCompoundCondition(
                     operands=[
                         rpc_condition,
-                        SequentialAccessControlCondition(
+                        SequentialCondition(
                             condition_variables=[
                                 ConditionVariable("var2", time_condition),
                                 ConditionVariable("var3", rpc_condition),

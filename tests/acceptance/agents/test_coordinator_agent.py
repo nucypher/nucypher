@@ -20,7 +20,6 @@ def agent(coordinator_agent) -> CoordinatorAgent:
     return coordinator_agent
 
 
-@pytest.mark.usefixtures("ursulas")
 @pytest.fixture(scope="module")
 def cohort(staking_providers):
     # "ursulas" fixture is needed to set provider public key

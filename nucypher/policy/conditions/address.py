@@ -10,7 +10,7 @@ from marshmallow import (
     validates,
 )
 
-from nucypher.policy.conditions.base import AccessControlCondition
+from nucypher.policy.conditions.base import Condition
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
     resolve_any_context_variables,
@@ -23,7 +23,7 @@ from nucypher.policy.conditions.lingo import (
 )
 
 
-class AddressAllowlistCondition(AccessControlCondition):
+class AddressAllowlistCondition(Condition):
     """
     A condition that checks if a user's wallet address is in a list of allowed addresses.
     The user must provide a signed message to prove ownership of the wallet.
@@ -31,7 +31,7 @@ class AddressAllowlistCondition(AccessControlCondition):
 
     CONDITION_TYPE = ConditionType.ADDRESS_ALLOWLIST.value
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
 
         # Maximum number of addresses allowed in the address allowlist
         MAX_ALLOWLIST_ADDRESSES = 25

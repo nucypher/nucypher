@@ -8,9 +8,11 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
+    SigningCoordinatorAgent,
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
 from nucypher.crypto.powers import TransactingPower
@@ -106,13 +108,13 @@ def initiator(testerchain, alice, ritual_token, deployer_account):
 def nucypher_dependency(project):
     nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
     # simply use first entry - could be from github ('main') or local ('local')
-    _, nucypher_dependency = list(nucypher_contracts_dependency_api.items())[0]
-    return nucypher_dependency
+    _, _nucypher_dependency = list(nucypher_contracts_dependency_api.items())[0]
+    return _nucypher_dependency
 
 
 @pytest.fixture(scope="session", autouse=True)
 def oz_dependency(project):
-    _oz_dependency = project.dependencies["openzeppelin"]["5.0.0"]
+    _oz_dependency = project.dependencies["openzeppelin530"]["5.3.0"]
     return _oz_dependency
 
 
@@ -244,6 +246,108 @@ def coordinator(
 
 
 @pytest.fixture(scope="module")
+def signing_coordinator(
+    oz_dependency,
+    nucypher_dependency,
+    deployer_account,
+    taco_application,
+):
+    contract = nucypher_dependency.SigningCoordinator.deploy(
+        taco_application.address,
+        sender=deployer_account,
+    )
+    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+        contract.address,
+        deployer_account,
+        b"",
+        sender=deployer_account,
+    )
+    proxy_contract = nucypher_dependency.SigningCoordinator.at(proxy.address)
+
+    signing_coordinator_dispatcher = (
+        nucypher_dependency.SigningCoordinatorDispatcher.deploy(
+            proxy_contract.address,
+            sender=deployer_account,
+        )
+    )
+    proxy_contract.initialize(
+        TIMEOUT,
+        MAX_DKG_SIZE,
+        signing_coordinator_dispatcher.address,
+        deployer_account.address,
+        sender=deployer_account,
+    )
+
+    proxy_contract.grantRole(
+        proxy_contract.INITIATOR_ROLE(),
+        deployer_account.address,
+        sender=deployer_account,
+    )
+
+    return proxy_contract
+
+
+def _signing_coordinator_child_deployment(
+    nucypher_dependency, oz_dependency, deployer, allowed_caller
+):
+    contract = nucypher_dependency.SigningCoordinatorChild.deploy(
+        sender=deployer,
+    )
+    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+        contract.address,
+        deployer,
+        b"",
+        sender=deployer,
+    )
+    proxy_contract = nucypher_dependency.SigningCoordinatorChild.at(proxy.address)
+
+    threshold_signing_multisig = nucypher_dependency.ThresholdSigningMultisig.deploy(
+        sender=deployer,
+    )
+    signing_factory_contract = (
+        nucypher_dependency.ThresholdSigningMultisigCloneFactory.deploy(
+            threshold_signing_multisig.address,
+            proxy_contract.address,
+            sender=deployer,
+        )
+    )
+
+    proxy_contract.initialize(
+        signing_factory_contract.address, allowed_caller, sender=deployer
+    )
+    return proxy_contract
+
+
+@pytest.fixture(scope="module")
+def signing_coordinator_child(
+    chain, nucypher_dependency, oz_dependency, deployer_account, signing_coordinator
+):
+    signing_coordinator_dispatcher = (
+        nucypher_dependency.SigningCoordinatorDispatcher.at(
+            signing_coordinator.signingCoordinatorDispatcher()
+        )
+    )
+
+    _signing_coordinator_child = _signing_coordinator_child_deployment(
+        nucypher_dependency,
+        oz_dependency,
+        deployer_account,
+        signing_coordinator_dispatcher.address,
+    )
+
+    # don't need a L1Sender for the same chain as signing coordinator
+    # current chain
+    signing_coordinator_dispatcher.register(
+        chain.chain_id,
+        NULL_ADDRESS,
+        _signing_coordinator_child.address,
+        sender=deployer_account,
+    )
+
+    return _signing_coordinator_child
+
+
+@pytest.fixture(scope="module")
 def fee_model(nucypher_dependency, deployer_account, coordinator, ritual_token):
     contract = deployer_account.deploy(
         nucypher_dependency.FlatRateFeeModel,
@@ -312,6 +416,8 @@ def deployed_contracts(
     taco_application,
     taco_child_application,
     coordinator,
+    signing_coordinator,
+    signing_coordinator_child,
     fee_model,
     global_allow_list,
     subscription_manager,
@@ -324,6 +430,8 @@ def deployed_contracts(
         taco_application,
         taco_child_application,
         coordinator,
+        signing_coordinator,
+        signing_coordinator_child,
         fee_model,
         global_allow_list,
         subscription_manager,
@@ -341,7 +449,6 @@ def test_registry(deployed_contracts, module_mocker):
         yield registry
 
 
-@pytest.mark.usefixtures("test_registry")
 @pytest.fixture(scope="module")
 def testerchain(project, clock, accounts) -> TesterBlockchain:
     # Extract the web3 provider containing EthereumTester from the ape project's chain manager
@@ -410,6 +517,17 @@ def coordinator_agent(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module", autouse=True)
+def signing_coordinator_agent(testerchain, test_registry):
+    """Creates a coordinator agent"""
+    signing_coordinator = ContractAgency.get_agent(
+        SigningCoordinatorAgent,
+        registry=test_registry,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
+    )
+    return signing_coordinator
+
+
+@pytest.fixture(scope="module", autouse=True)
 def taco_application_agent(test_registry):
     _taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent,
@@ -461,3 +579,13 @@ def mock_multichain_configuration(module_mocker, testerchain):
     module_mocker.patch.object(
         Operator, "_make_condition_provider", return_value=testerchain.provider
     )
+
+
+#
+# AA contract
+#
+@pytest.fixture(scope="module")
+def aa_entry_point(project, deployer_account):
+    """Returns the AA entry point contract."""
+    entry_point = deployer_account.deploy(project.EntryPoint)
+    return entry_point

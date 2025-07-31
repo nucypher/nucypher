@@ -14,7 +14,7 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.cli.types import ChecksumAddress
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.powers import ThresholdRequestDecryptingPower
-from nucypher.network.decryption import ThresholdDecryptionClient
+from nucypher.network.concurrency import ThresholdDecryptionClient
 from nucypher.network.middleware import RestMiddleware
 
 
@@ -150,7 +150,7 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
         self,
         encrypted_requests: Dict[ChecksumAddress, EncryptedThresholdDecryptionRequest],
         threshold: int,
-        timeout: int = ThresholdDecryptionClient.DEFAULT_DECRYPTION_TIMEOUT,
+        timeout: int = ThresholdDecryptionClient.DEFAULT_TIMEOUT,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],
@@ -221,7 +221,7 @@ class DoomedDecryptionClient(ThresholdDecryptionClient):
         self,
         encrypted_requests,
         threshold: int,
-        timeout: int = ThresholdDecryptionClient.DEFAULT_DECRYPTION_TIMEOUT,
+        timeout: int = ThresholdDecryptionClient.DEFAULT_TIMEOUT,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],

@@ -12,7 +12,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.network.decryption import ThresholdDecryptionClient
+from nucypher.network.concurrency import ThresholdDecryptionClient
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
@@ -20,7 +20,7 @@ from nucypher.policy.conditions.lingo import (
     NotCompoundCondition,
     OrCompoundCondition,
     ReturnValueTest,
-    SequentialAccessControlCondition,
+    SequentialCondition,
 )
 from nucypher.policy.conditions.time import TimeCondition
 from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
@@ -99,7 +99,7 @@ def condition(test_registry):
         operand=NotCompoundCondition(operand=rpc_condition)
     )
 
-    sequential_condition = SequentialAccessControlCondition(
+    sequential_condition = SequentialCondition(
         condition_variables=[
             ConditionVariable("rpc", rpc_condition),
             ConditionVariable("contract", contract_condition),
@@ -238,7 +238,6 @@ def test_transcript_publication(coordinator_agent, cohort, ritual_id, dkg_size):
             )
             > 0
         ), "no transcript found for ursula"
-        print(f"Ursula {ursula.checksum_address} has submitted a transcript")
 
 
 def test_get_participants(coordinator_agent, cohort, ritual_id, dkg_size):
@@ -326,9 +325,7 @@ def test_authorized_decryption(
         list(latency_stats.keys()),
         key=lambda ursula_checksum: latency_stats[ursula_checksum],
     )
-    value_factory_spy = mocker.spy(
-        ThresholdDecryptionClient.ThresholdDecryptionRequestFactory, "__init__"
-    )
+    value_factory_spy = mocker.spy(ThresholdDecryptionClient.RequestFactory, "__init__")
 
     # ritual_id, ciphertext, conditions are obtained from the side channel
     bob.start_learning_loop(now=True)

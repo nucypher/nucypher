@@ -13,7 +13,7 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.policy.conditions.utils import (
     ConditionProviderManager,
-    check_and_convert_big_int_string_to_int,
+    check_and_convert_any_big_ints,
 )
 
 USER_ADDRESS_CONTEXT = ":userAddress"
@@ -126,9 +126,9 @@ def get_context_value(
             raise RequiredContextVariable(
                 f'No value provided for unrecognized context variable "{context_variable}"'
             )
-        elif isinstance(value, str):
-            # possible big int value
-            value = check_and_convert_big_int_string_to_int(value)
+
+        # possibly contains big int value(s)
+        value = check_and_convert_any_big_ints(value)
 
     return value
 
@@ -149,16 +149,14 @@ def resolve_any_context_variables(
         }
     elif isinstance(param, str):
         # either it is a context variable OR contains a context variable within it
-        # TODO separating the two cases for now out of concern of regex searching
-        #  within strings (case 2)
         if is_context_variable(param):
             return get_context_value(
                 context_variable=param, providers=providers, **context
             )
         else:
+            # Handles multiple context variables within a string (ie 'https://api.github.com/user/:foo/:bar')
             matches = re.findall(CONTEXT_REGEX, param)
             for context_var in matches:
-                # checking out of concern for faulty regex search within string
                 if context_var in context:
                     resolved_var = get_context_value(
                         context_variable=context_var, providers=providers, **context

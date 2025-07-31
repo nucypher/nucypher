@@ -55,6 +55,7 @@ from nucypher.blockchain.eth.models import (
     PHASE2,
     Coordinator,
     Ferveo,
+    SigningCoordinator,
 )
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
@@ -64,6 +65,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
 )
 from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import Logger
 
 
@@ -990,6 +992,154 @@ class CoordinatorAgent(EthereumContractAgent):
             return
         return ritual.public_key.to_dkg_public_key()
 
+
+class SigningCoordinatorAgent(EthereumContractAgent):
+    contract_name: str = "SigningCoordinator"
+
+    @contract_api(CONTRACT_CALL)
+    def get_timeout(self) -> int:
+        return self.contract.functions.timeout().call()
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_cohort_status(self, cohort_id: int) -> int:
+        result = self.contract.functions.getSigningCohortState(cohort_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_cohort_active(self, cohort_id: int) -> bool:
+        result = self.contract.functions.isCohortActive(cohort_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_signer(self, cohort_id: int, provider_address: ChecksumAddress) -> bool:
+        result = self.contract.functions.isSigner(cohort_id, provider_address).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_signer(
+        self, cohort_id: int, provider: ChecksumAddress
+    ) -> SigningCoordinator.SigningCohortParticipant:
+        data = self.contract.functions.getSigner(cohort_id, provider).call()
+        participant = next(iter(SigningCoordinator.SigningCohort.make_signers([data])))
+        return participant
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_cohort(
+        self,
+        cohort_id: int,
+    ) -> SigningCoordinator.SigningCohort:
+        result = self.contract.functions.signingCohorts(int(cohort_id)).call()
+        signing_cohort = SigningCoordinator.SigningCohort(
+            id=cohort_id,
+            initiator=ChecksumAddress(result[0]),
+            init_timestamp=result[1],
+            end_timestamp=result[2],
+            authority=ChecksumAddress(result[3]),
+            total_signatures=result[4],
+            num_signers=result[5],
+            threshold=result[6],
+            signers=[],  # solidity does not return sub-structs
+            chains=[],
+            conditions={},
+        )
+        signing_cohort.signers = list(self._get_signers(cohort_id=cohort_id))
+        signing_cohort.chains = self.get_chains(cohort_id)
+
+        for chain in signing_cohort.chains:
+            signing_cohort.conditions[chain] = self.get_signing_cohort_conditions(
+                cohort_id=cohort_id, chain_id=chain
+            )
+        return signing_cohort
+
+    def _get_signers(self, cohort_id: int):
+        data = self.contract.functions.getSigners(cohort_id).call()
+        signers = SigningCoordinator.SigningCohort.make_signers(data=data)
+        return signers
+
+    @contract_api(CONTRACT_CALL)
+    def get_chains(self, cohort_id: int) -> List[int]:
+        result = self.contract.functions.getChains(cohort_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_cohort_conditions(self, cohort_id: int, chain_id: int) -> bytes:
+        result = self.contract.functions.getSigningCohortConditions(
+            cohort_id, chain_id
+        ).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def number_of_cohorts(self) -> int:
+        result = self.contract.functions.numberOfSigningCohorts().call()
+        return result
+
+    @contract_api(TRANSACTION)
+    def initiate_signing_cohort(
+        self,
+        chain_id: int,
+        authority: ChecksumAddress,
+        providers: List[ChecksumAddress],
+        threshold: int,
+        duration: int,
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
+        contract_function: ContractFunction = (
+            self.contract.functions.initiateSigningCohort(
+                chain_id, authority, providers, threshold, duration
+            )
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
+        return receipt
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_cohort_data_hash(self, cohort_id: int) -> bytes:
+        result = self.contract.functions.getSigningCohortDataHash(cohort_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_coordinator_child(self, chain_id: int) -> ChecksumAddress:
+        result = self.contract.functions.getSigningCoordinatorChild(chain_id).call()
+        return result
+
+    @contract_api(TRANSACTION)
+    def post_signature(
+        self,
+        cohort_id: int,
+        signature: bytes,
+        transacting_power: TransactingPower,
+        async_tx_hooks: BlockchainInterface.AsyncTxHooks,
+    ) -> AsyncTx:
+        # See sprints/#145
+        contract_function: ContractFunction = (
+            self.contract.functions.postSigningCohortSignature(cohort_id, signature)
+        )
+        async_tx = self.blockchain.send_async_transaction(
+            contract_function=contract_function,
+            gas_estimation_multiplier=1.4,
+            transacting_power=transacting_power,
+            async_tx_hooks=async_tx_hooks,
+        )
+        return async_tx
+
+    @contract_api(TRANSACTION)
+    def set_signing_cohort_conditions(
+        self,
+        cohort_id: int,
+        chain_id: int,
+        conditions: ConditionLingo,
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
+        contract_function: ContractFunction = (
+            self.contract.functions.setSigningCohortConditions(
+                cohort_id, chain_id, bytes(conditions)
+            )
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
+        return receipt
 
 class ContractAgency:
     """Where agents live and die."""

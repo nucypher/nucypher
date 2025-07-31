@@ -2,36 +2,36 @@ import pytest
 from web3.exceptions import Web3Exception
 
 from nucypher.policy.conditions.base import (
-    AccessControlCondition,
+    Condition,
 )
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import (
     ConditionType,
     ConditionVariable,
     OrCompoundCondition,
-    SequentialAccessControlCondition,
+    SequentialCondition,
 )
 from nucypher.policy.conditions.utils import ConditionProviderManager
 
 
 @pytest.fixture(scope="function")
 def mock_condition_variables(mocker):
-    cond_1 = mocker.Mock(spec=AccessControlCondition)
+    cond_1 = mocker.Mock(spec=Condition)
     cond_1.verify.return_value = (True, 1)
     cond_1.to_dict.return_value = {"value": 1}
     var_1 = ConditionVariable(var_name="var1", condition=cond_1)
 
-    cond_2 = mocker.Mock(spec=AccessControlCondition)
+    cond_2 = mocker.Mock(spec=Condition)
     cond_2.verify.return_value = (True, 2)
     cond_2.to_dict.return_value = {"value": 2}
     var_2 = ConditionVariable(var_name="var2", condition=cond_2)
 
-    cond_3 = mocker.Mock(spec=AccessControlCondition)
+    cond_3 = mocker.Mock(spec=Condition)
     cond_3.verify.return_value = (True, 3)
     cond_3.to_dict.return_value = {"value": 3}
     var_3 = ConditionVariable(var_name="var3", condition=cond_3)
 
-    cond_4 = mocker.Mock(spec=AccessControlCondition)
+    cond_4 = mocker.Mock(spec=Condition)
     cond_4.verify.return_value = (True, 4)
     cond_4.to_dict.return_value = {"value": 4}
     var_4 = ConditionVariable(var_name="var4", condition=cond_4)
@@ -45,37 +45,49 @@ def test_invalid_sequential_condition(rpc_condition, time_condition):
 
     # invalid condition type
     with pytest.raises(InvalidCondition, match=ConditionType.SEQUENTIAL.value):
-        _ = SequentialAccessControlCondition(
+        _ = SequentialCondition(
             condition_type=ConditionType.TIME.value,
             condition_variables=[var_1, var_2],
         )
 
     # no variables
     with pytest.raises(InvalidCondition, match="At least two conditions"):
-        _ = SequentialAccessControlCondition(
+        _ = SequentialCondition(
             condition_variables=[],
         )
 
     # only one variable
     with pytest.raises(InvalidCondition, match="At least two conditions"):
-        _ = SequentialAccessControlCondition(
+        _ = SequentialCondition(
             condition_variables=[var_1],
         )
 
     # too many variables
     too_many_variables = [var_1, var_2, var_1, var_2]
     too_many_variables.extend(too_many_variables)  # duplicate list length
-    assert len(too_many_variables) > SequentialAccessControlCondition.MAX_NUM_CONDITIONS
+    assert len(too_many_variables) > SequentialCondition.MAX_NUM_CONDITIONS
     with pytest.raises(InvalidCondition, match="Maximum of"):
-        _ = SequentialAccessControlCondition(
+        _ = SequentialCondition(
             condition_variables=too_many_variables,
         )
 
     # duplicate var names
     dupe_var = ConditionVariable(var_1.var_name, condition=var_2.condition)
     with pytest.raises(InvalidCondition, match="Duplicate"):
-        _ = SequentialAccessControlCondition(
+        _ = SequentialCondition(
             condition_variables=[var_1, var_2, dupe_var],
+        )
+
+    # duplicate var names in nested sequential condition
+    with pytest.raises(InvalidCondition, match="Duplicate"):
+        # var_1 is duplicated in the nested condition
+        _ = SequentialCondition(
+            condition_variables=[
+                var_1,
+                ConditionVariable(
+                    "var3", SequentialCondition(condition_variables=[var_1, var_2])
+                ),
+            ],
         )
 
 
@@ -91,17 +103,17 @@ def test_nested_sequential_condition_too_many_nested_levels(
         InvalidCondition, match="nested levels of multi-conditions are allowed"
     ):
         _ = (
-            SequentialAccessControlCondition(
+            SequentialCondition(
                 condition_variables=[
                     var_1,
                     ConditionVariable(
                         "seq_1",
-                        SequentialAccessControlCondition(
+                        SequentialCondition(
                             condition_variables=[
                                 var_2,
                                 ConditionVariable(
                                     "seq_2",
-                                    SequentialAccessControlCondition(
+                                    SequentialCondition(
                                         condition_variables=[
                                             var_3,
                                             var_4,
@@ -127,14 +139,14 @@ def test_nested_compound_condition_too_many_nested_levels(
     with pytest.raises(
         InvalidCondition, match="nested levels of multi-conditions are allowed"
     ):
-        _ = SequentialAccessControlCondition(
+        _ = SequentialCondition(
             condition_variables=[
                 ConditionVariable(
                     "var1",
                     OrCompoundCondition(
                         operands=[
                             var_1.condition,
-                            SequentialAccessControlCondition(
+                            SequentialCondition(
                                 condition_variables=[
                                     var_2,
                                     var_3,
@@ -169,7 +181,7 @@ def test_sequential_condition(mock_condition_variables):
         context[f":{var_3.var_name}"] * 4,
     )
 
-    sequential_condition = SequentialAccessControlCondition(
+    sequential_condition = SequentialCondition(
         condition_variables=[var_1, var_2, var_3, var_4],
     )
 
@@ -209,7 +221,7 @@ def test_sequential_condition_all_prior_vars_passed_to_subsequent_calls(
         + 1,
     )
 
-    sequential_condition = SequentialAccessControlCondition(
+    sequential_condition = SequentialCondition(
         condition_variables=[var_1, var_2, var_3, var_4],
     )
 
@@ -238,7 +250,7 @@ def test_sequential_condition_a_call_fails(mock_condition_variables):
 
     var_4.condition.verify.side_effect = Web3Exception
 
-    sequential_condition = SequentialAccessControlCondition(
+    sequential_condition = SequentialCondition(
         condition_variables=[var_1, var_2, var_3, var_4],
     )
 
