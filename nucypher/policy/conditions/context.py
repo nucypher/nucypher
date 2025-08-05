@@ -51,6 +51,11 @@ def _resolve_user_address(
             }
     }
     """
+    if user_address_context_variable not in context:
+        raise RequiredContextVariable(
+            f'No value provided for context variable "{user_address_context_variable}"'
+        )
+
     try:
         user_address_info = context[user_address_context_variable]
         signature = user_address_info["signature"]
