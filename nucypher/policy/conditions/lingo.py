@@ -93,7 +93,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA  | SIGNING_ATTRIBUTE | SIGNING_ABI_ATTRIBUTE
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ECDSA  | SIGNING_ATTRIBUTE | SIGNING_ABI_ATTRIBUTE
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -108,7 +108,6 @@ class ConditionType(Enum):
     COMPOUND = "compound"
     SEQUENTIAL = "sequential"
     IF_THEN_ELSE = "if-then-else"
-    ADDRESS_ALLOWLIST = "address-allowlist"
     ECDSA = "ecdsa"
     SIGNING_ATTRIBUTE = "signing-attribute"
     SIGNING_ABI_ATTRIBUTE = "signing-abi-attribute"
@@ -819,7 +818,6 @@ class ConditionLingo(_Serializable):
         Inspects a given block of JSON and attempts to resolve it's intended datatype within the
         conditions expression framework.
         """
-        from nucypher.policy.conditions.address import AddressAllowlistCondition
         from nucypher.policy.conditions.ecdsa import ECDSACondition
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
         from nucypher.policy.conditions.json.api import JsonApiCondition
@@ -846,7 +844,6 @@ class ConditionLingo(_Serializable):
             JWTCondition,
             SequentialCondition,
             IfThenElseCondition,
-            AddressAllowlistCondition,
             ECDSACondition,
             SigningObjectAttributeCondition,
             SigningObjectAbiAttributeCondition,
