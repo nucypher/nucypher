@@ -11,22 +11,22 @@ from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 from nucypher.policy.conditions.utils import ConditionProviderManager
 
 
-class ContextVarCondition(Condition):
-    CONDITION_TYPE = ConditionType.CONTEXT_VAR.value
+class ContextVariableCondition(Condition):
+    CONDITION_TYPE = ConditionType.CONTEXT_VARIABLE.value
 
     class Schema(Condition.Schema):
         condition_type = fields.Str(
-            validate=validate.Equal(ConditionType.CONTEXT_VAR.value), required=True
+            validate=validate.Equal(ConditionType.CONTEXT_VARIABLE.value), required=True
         )
-        context_var = fields.Str(required=True)
+        context_variable = fields.Str(required=True)
         return_value_test = fields.Nested(ReturnValueTest.Schema(), required=True)
 
         # maintain field declaration ordering
         class Meta:
             ordered = True
 
-        @validates("context_var")
-        def validate_context_var(self, value):
+        @validates("context_variable")
+        def validate_context_variable(self, value):
             if not is_context_variable(value):
                 raise ValidationError(
                     f"Invalid value for context variable; expected a context variable, but got '{value}'"
@@ -34,22 +34,22 @@ class ContextVarCondition(Condition):
 
         @post_load
         def make(self, data, **kwargs):
-            return ContextVarCondition(**data)
+            return ContextVariableCondition(**data)
 
     def __init__(
         self,
-        context_var: str,
+        context_variable: str,
         return_value_test: ReturnValueTest,
-        condition_type: str = ConditionType.CONTEXT_VAR.value,
+        condition_type: str = ConditionType.CONTEXT_VARIABLE.value,
         name: Optional[str] = None,
     ):
-        self.context_var = context_var
+        self.context_variable = context_variable
         self.return_value_test = return_value_test
 
         super().__init__(condition_type=condition_type, name=name)
 
     def __repr__(self) -> str:
-        r = f"{self.__class__.__name__}(contextVar={self.context_var})"
+        r = f"{self.__class__.__name__}(contextVariable={self.context_variable})"
         return r
 
     def verify(
@@ -60,7 +60,7 @@ class ContextVarCondition(Condition):
         )
 
         resolved_context_var = resolve_any_context_variables(
-            param=self.context_var, providers=providers, **context
+            param=self.context_variable, providers=providers, **context
         )
 
         eval_result = resolved_return_value_test.eval(resolved_context_var)  # test
