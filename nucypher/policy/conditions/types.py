@@ -82,19 +82,6 @@ class JWTConditionDict(_Condition):
 
 
 #
-# AddressAllowlistCondition represents:
-# {
-#     "conditionType": "address-allowlist",
-#     "addresses": List[str] (Ethereum addresses)
-#     "userAddress": str (Ethereum address)
-# }
-#
-class AddressAllowlistConditionDict(_Condition):
-    addresses: List[str]
-    userAddress: str
-
-
-#
 # ContextVariableCondition represents:
 # {
 #     "conditionType": "context-var",
@@ -254,7 +241,6 @@ ConditionDict = Union[
     JWTConditionDict,
     SequentialConditionDict,
     IfThenElseConditionDict,
-    AddressAllowlistConditionDict,
     ECDSAConditionDict,
     SigningObjectAttributeCondition,
     SigningObjectAbiAttributeCondition,
