@@ -4,8 +4,8 @@ from eth_utils import to_checksum_address
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
-    InvalidConditionContext,
     InvalidConditionLingo,
+    RequiredContextVariable,
 )
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 from nucypher.policy.conditions.var import ContextVariableCondition
@@ -127,6 +127,10 @@ def test_context_variable_condition_verify_list(mocker, condition_provider_manag
     assert success is False
     assert result == value
 
+    # Test verification with missing context
+    with pytest.raises(RequiredContextVariable):
+        condition.verify(providers=condition_provider_manager)
+
 
 def test_context_variable_user_address_allowlist(
     condition_provider_manager,
@@ -150,6 +154,10 @@ def test_context_variable_user_address_allowlist(
     success, result = condition.verify(providers=condition_provider_manager, **context)
     assert success is False
     assert result == disallowed_auth_message["address"]
+
+    # Test verification with missing context
+    with pytest.raises(RequiredContextVariable):
+        condition.verify(providers=condition_provider_manager)
 
 
 def test_context_variable_user_address_allowlist_case_insensitive(
@@ -195,7 +203,3 @@ def test_context_variable_user_address_allowlist_case_insensitive(
         context = {USER_ADDRESS_CONTEXT: auth_message2}
         result, _ = condition.verify(providers=condition_provider_manager, **context)
         assert result is True
-
-        # Test verification with missing context
-        with pytest.raises(InvalidConditionContext):
-            condition.verify(providers=condition_provider_manager)
