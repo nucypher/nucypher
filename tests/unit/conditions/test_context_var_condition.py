@@ -1,7 +1,10 @@
 import pytest
+from eth_utils import to_checksum_address
 
+from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
+    InvalidConditionContext,
     InvalidConditionLingo,
 )
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
@@ -34,7 +37,7 @@ def test_invalid_context_variable_condition():
     # no return value test var
     with pytest.raises(InvalidCondition, match="Missing data for required field"):
         _ = ContextVariableCondition(
-            context_variable=":userAddress", return_value_test=None
+            context_variable=USER_ADDRESS_CONTEXT, return_value_test=None
         )
 
 
@@ -123,3 +126,76 @@ def test_context_variable_condition_verify_list(mocker, condition_provider_manag
     success, result = condition.verify(providers=condition_provider_manager, **context)
     assert success is False
     assert result == value
+
+
+def test_context_variable_user_address_allowlist(
+    condition_provider_manager,
+    valid_eip4361_auth_message_factory,
+    get_random_checksum_address,
+):
+    allowed_auth_message = valid_eip4361_auth_message_factory()
+    condition = ContextVariableCondition(
+        context_variable=USER_ADDRESS_CONTEXT,
+        return_value_test=ReturnValueTest(
+            "in", [allowed_auth_message["address"], get_random_checksum_address()]
+        ),
+    )
+    context = {USER_ADDRESS_CONTEXT: allowed_auth_message}
+    success, result = condition.verify(providers=condition_provider_manager, **context)
+    assert success is True
+    assert result == allowed_auth_message["address"]
+
+    disallowed_auth_message = valid_eip4361_auth_message_factory()
+    context = {USER_ADDRESS_CONTEXT: disallowed_auth_message}
+    success, result = condition.verify(providers=condition_provider_manager, **context)
+    assert success is False
+    assert result == disallowed_auth_message["address"]
+
+
+def test_context_variable_user_address_allowlist_case_insensitive(
+    condition_provider_manager, valid_eip4361_auth_message_factory
+):
+    """Test the verification of AddressAllowlistCondition."""
+    # Create test accounts
+
+    auth_message1 = valid_eip4361_auth_message_factory()
+    allowed_account1 = auth_message1["address"]
+
+    auth_message2 = valid_eip4361_auth_message_factory()
+    allowed_account2 = auth_message2["address"]
+
+    auth_message_not_allowed = valid_eip4361_auth_message_factory()
+
+    # ensure that verify is case-insensitive since EVM addresses are case-insensitive
+    allowed_addresses = [allowed_account1, allowed_account2]
+    checksummed_addresses = [
+        to_checksum_address(address) for address in allowed_addresses
+    ]
+    lowercase_addresses = [address.lower() for address in allowed_addresses]
+    uppercase_addresses = [address.upper() for address in allowed_addresses]
+
+    for addresses in [checksummed_addresses, lowercase_addresses, uppercase_addresses]:
+        # Create condition with allowed accounts
+        condition = ContextVariableCondition(
+            context_variable=USER_ADDRESS_CONTEXT,
+            return_value_test=ReturnValueTest("in", addresses),
+        )
+
+        # Test successful verification with allowed account
+        context = {USER_ADDRESS_CONTEXT: auth_message1}
+        result, _ = condition.verify(providers=condition_provider_manager, **context)
+        assert result is True
+
+        # Test verification with disallowed account
+        context = {USER_ADDRESS_CONTEXT: auth_message_not_allowed}
+        result, _ = condition.verify(providers=condition_provider_manager, **context)
+        assert result is False
+
+        # Test with another allowed account
+        context = {USER_ADDRESS_CONTEXT: auth_message2}
+        result, _ = condition.verify(providers=condition_provider_manager, **context)
+        assert result is True
+
+        # Test verification with missing context
+        with pytest.raises(InvalidConditionContext):
+            condition.verify(providers=condition_provider_manager)
