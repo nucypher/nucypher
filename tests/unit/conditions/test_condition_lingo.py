@@ -207,8 +207,8 @@ def lingo_with_all_condition_types(get_random_checksum_address):
         },
     }
     context_var_condition = {
-        "conditionType": ConditionType.CONTEXT_VAR.value,
-        "contextVar": ":myContextVar",
+        "conditionType": ConditionType.CONTEXT_VARIABLE.value,
+        "contextVariable": ":myContextVar",
         "returnValueTest": {
             "comparator": "!=",
             "value": 23,
