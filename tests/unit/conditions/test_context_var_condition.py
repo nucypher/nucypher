@@ -82,7 +82,7 @@ def test_context_variable_condition_schema_validation():
         ContextVariableCondition.from_dict(condition_dict)
 
 
-def test_context_variable_condition_repr(rpc_condition):
+def test_context_variable_condition_repr():
     condition = ContextVariableCondition(
         context_variable=":contextVar",
         return_value_test=ReturnValueTest("==", 19),
@@ -92,7 +92,7 @@ def test_context_variable_condition_repr(rpc_condition):
     assert "contextVariable=:contextVar" in condition_str
 
 
-def test_context_variable_condition_verify(mocker, condition_provider_manager):
+def test_context_variable_condition_verify(condition_provider_manager):
     condition = ContextVariableCondition(
         context_variable=":contextVar",
         return_value_test=ReturnValueTest("==", 19),
@@ -110,7 +110,7 @@ def test_context_variable_condition_verify(mocker, condition_provider_manager):
     assert result == value
 
 
-def test_context_variable_condition_verify_list(mocker, condition_provider_manager):
+def test_context_variable_condition_verify_list(condition_provider_manager):
     expected = [1, True, "test"]
     condition = ContextVariableCondition(
         context_variable=":contextVar",
