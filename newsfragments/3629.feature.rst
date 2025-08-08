@@ -1,0 +1,1 @@
+Added support for ``ContextVariableCondition`` that checks the value of a context variable using a return value test.

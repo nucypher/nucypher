@@ -93,7 +93,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ADDRESS_ALLOWLIST | ECDSA  | SIGNING_ATTRIBUTE | SIGNING_ABI_ATTRIBUTE
+# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ECDSA  | SIGNING_ATTRIBUTE | SIGNING_ABI_ATTRIBUTE
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -108,10 +108,10 @@ class ConditionType(Enum):
     COMPOUND = "compound"
     SEQUENTIAL = "sequential"
     IF_THEN_ELSE = "if-then-else"
-    ADDRESS_ALLOWLIST = "address-allowlist"
     ECDSA = "ecdsa"
     SIGNING_ATTRIBUTE = "signing-attribute"
     SIGNING_ABI_ATTRIBUTE = "signing-abi-attribute"
+    CONTEXT_VARIABLE = "context-variable"
 
     @classmethod
     def values(cls) -> List[str]:
@@ -818,7 +818,6 @@ class ConditionLingo(_Serializable):
         Inspects a given block of JSON and attempts to resolve it's intended datatype within the
         conditions expression framework.
         """
-        from nucypher.policy.conditions.address import AddressAllowlistCondition
         from nucypher.policy.conditions.ecdsa import ECDSACondition
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
         from nucypher.policy.conditions.json.api import JsonApiCondition
@@ -829,30 +828,31 @@ class ConditionLingo(_Serializable):
             SigningObjectAttributeCondition,
         )
         from nucypher.policy.conditions.time import TimeCondition
+        from nucypher.policy.conditions.var import ContextVariableCondition
 
         # version logical adjustments can be made here as required
 
         condition_type = condition.get("conditionType")
-        for condition in (
+        for condition_class in (
             TimeCondition,
             ContractCondition,
             RPCCondition,
             CompoundCondition,
+            ContextVariableCondition,
             JsonApiCondition,
             JsonRpcCondition,
             JWTCondition,
             SequentialCondition,
             IfThenElseCondition,
-            AddressAllowlistCondition,
             ECDSACondition,
             SigningObjectAttributeCondition,
             SigningObjectAbiAttributeCondition,
         ):
-            if condition.CONDITION_TYPE == condition_type:
-                return condition
+            if condition_class.CONDITION_TYPE == condition_type:
+                return condition_class
 
         raise InvalidConditionLingo(
-            f"Cannot resolve condition lingo, {condition}, with condition type {condition_type}"
+            f"Cannot resolve condition lingo, {condition_class}, with condition type {condition_type}"
         )
 
     @classmethod

@@ -168,15 +168,6 @@ def lingo_with_all_condition_types(get_random_checksum_address):
         "thenCondition": json_api_condition_w_auth_type,
         "elseCondition": json_rpc_condition_w_auth_type,
     }
-    address_allowlist_condition = {
-        "conditionType": ConditionType.ADDRESS_ALLOWLIST.value,
-        "userAddress": USER_ADDRESS_CONTEXT,
-        "addresses": [
-            get_random_checksum_address(),
-            get_random_checksum_address(),
-            get_random_checksum_address(),
-        ],
-    }
     signing_object_attribute_condition = {
         "conditionType": ConditionType.SIGNING_ATTRIBUTE.value,
         "signingObjectContextVar": SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
@@ -206,6 +197,14 @@ def lingo_with_all_condition_types(get_random_checksum_address):
             }
         },
     }
+    context_var_condition = {
+        "conditionType": ConditionType.CONTEXT_VARIABLE.value,
+        "contextVariable": ":myContextVar",
+        "returnValueTest": {
+            "comparator": "!=",
+            "value": 23,
+        },
+    }
     return {
         "version": ConditionLingo.VERSION,
         "condition": {
@@ -220,9 +219,9 @@ def lingo_with_all_condition_types(get_random_checksum_address):
                     "conditionType": ConditionType.COMPOUND.value,
                     "operator": "or",
                     "operands": [
-                        address_allowlist_condition,
                         signing_object_attribute_condition,
                         signing_object_abi_attribute_condition,
+                        context_var_condition,
                     ],
                 },
             ],

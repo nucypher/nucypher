@@ -11,6 +11,7 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     ReturnValueTest,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
@@ -100,3 +101,9 @@ def erc721_evm_condition(test_registry):
 @pytest.fixture(scope="function")
 def mock_skip_schema_validation(mocker):
     mocker.patch.object(_Serializable, "_validate", return_value=None)
+
+
+@pytest.fixture
+def condition_provider_manager():
+    """Fixture to provide a mock ConditionProviderManager."""
+    return ConditionProviderManager({})
