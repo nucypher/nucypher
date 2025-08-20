@@ -57,6 +57,9 @@ HANDOVER_TIMEOUT = 1800
 MAX_DKG_SIZE = 8
 FEE_RATE = 1
 
+# SigningCoordinator
+SIGNING_TIMEOUT = DKG_TIMEOUT
+
 
 #
 # General
@@ -271,7 +274,7 @@ def signing_coordinator(
         )
     )
     proxy_contract.initialize(
-        TIMEOUT,
+        SIGNING_TIMEOUT,
         MAX_DKG_SIZE,
         signing_coordinator_dispatcher.address,
         deployer_account.address,
