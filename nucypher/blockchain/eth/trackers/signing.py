@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional
 
 from web3.datastructures import AttributeDict
 
@@ -43,7 +43,7 @@ class SigningRitualTracker(RitualTracker):
         )
 
     def _get_identifier(self, event: AttributeDict) -> str:
-        return event.args.cohortId
+        return str(event.args.cohortId)
 
     def _action_required_based_on_participation_state(
         self, participation_state: SigningParticipationState, event: AttributeDict
@@ -69,41 +69,16 @@ class SigningRitualTracker(RitualTracker):
     def _create_participation_state(
         self, event: AttributeDict
     ) -> SigningParticipationState:
-        event_type = getattr(self.contract.events, event.event)
-        args = event.args
-        if event_type == self.contract.events.InitiateSigningCohort:
-            participation_state = self.SigningParticipationState(
-                participating=(self.operator.checksum_address in args.participants)
-            )
-            return participation_state
-
-        cohort_id = args.cohortId
-        # obtain information from contract
-        (
-            participating,
-            posted_signature,
-        ) = self._get_participation_state_values_from_contract(cohort_id=cohort_id)
-        participation_state = self.SigningParticipationState(
-            participating=participating,
-            already_posted_signature=posted_signature,
-        )
+        participation_state = self._get_latest_participation_state_values(event)
         return participation_state
 
     def _update_participation_state(
-        self, participation_state: SigningParticipationState, event: AttributeDict
+        self,
+        cached_participation_state: SigningParticipationState,
+        event: AttributeDict,
     ) -> None:
-        event_type = getattr(self.contract.events, event.event)
-        if (
-            event_type == self.contract.events.SigningCohortDeployed
-            and not participation_state.already_posted_signature
-        ):
-            (
-                _,  # participating ignored - we know we are participating
-                posted_signature,
-            ) = self._get_participation_state_values_from_contract(
-                cohort_id=event.args.cohortId
-            )
-            participation_state.already_posted_signature = posted_signature
+        # already tracked but cache values may be out of date
+        self._get_latest_participation_state_values(event, cached_participation_state)
 
     def _get_cohort_participant_info(
         self, cohort_id: int
@@ -124,20 +99,43 @@ class SigningRitualTracker(RitualTracker):
 
         return None
 
-    def _get_participation_state_values_from_contract(
-        self, cohort_id: int
-    ) -> Tuple[bool, bool]:
+    def _get_latest_participation_state_values(
+        self,
+        event: AttributeDict,
+        cached_participation_state: Optional[SigningParticipationState] = None,
+    ) -> SigningParticipationState:
         """
         Obtains values for ParticipationState from the Coordinator contract.
         """
-        participating = False
-        already_posted_signature = False
+        event_type = getattr(self.contract.events, event.event)
+        if cached_participation_state:
+            if cached_participation_state.participating:
+                if event_type == self.contract.events.SigningCohortDeployed:
+                    cached_participation_state.already_posted_signature = True
 
-        participant_info = self._get_cohort_participant_info(cohort_id=cohort_id)
-        if participant_info:
-            # actually participating in this ritual; get latest information
-            participating = True
-            # populate information since we already hit the contract
-            already_posted_signature = bool(participant_info.signature)
+                return cached_participation_state
+            else:
+                # not participating, nothing to do here
+                return cached_participation_state
 
-        return participating, already_posted_signature
+        new_participation_state = self.SigningParticipationState()
+        args = event.args
+
+        if event_type == self.contract.events.InitiateSigningCohort:
+            # InitiateSigningCohort has all the information we need
+            new_participation_state.participating = (
+                self.operator.checksum_address in args.participants
+            )
+        else:
+            # obtain information from contract
+            participant_info = self._get_cohort_participant_info(
+                cohort_id=args.cohortId
+            )
+            if participant_info:
+                # actually participating in this ritual; get latest information
+                new_participation_state.participating = True
+                new_participation_state.already_posted_signature = bool(
+                    participant_info.signature
+                )
+
+        return new_participation_state
