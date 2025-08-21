@@ -8,6 +8,10 @@ from nucypher.blockchain.eth.trackers.rituals import RitualTracker
 
 class SigningRitualTracker(RitualTracker):
     class SigningParticipationState(RitualTracker.ParticipationState):
+        """
+        Participation state for Signing rituals.
+        """
+
         def __init__(
             self,
             participating=False,
