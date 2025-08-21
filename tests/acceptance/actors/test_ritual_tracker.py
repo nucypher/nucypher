@@ -326,7 +326,7 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
     #
 
     # mimic already tracked prior state: not participating
-    active_ritual_tracker._participation_states[ritual_id] = (
+    active_ritual_tracker._participation_states[str(ritual_id)] = (
         active_ritual_tracker.DkgParticipationState(False, False, False)
     )
 
@@ -337,7 +337,7 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
     #
 
     # mimic already tracked prior state: participating
-    active_ritual_tracker._participation_states[ritual_id] = (
+    active_ritual_tracker._participation_states[str(ritual_id)] = (
         active_ritual_tracker.DkgParticipationState(True, False, False)
     )
 
@@ -350,7 +350,10 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
 
     # new state stored
     assert len(active_ritual_tracker._participation_states) == 1
-    assert active_ritual_tracker._participation_states[ritual_id] == participation_state
+    assert (
+        active_ritual_tracker._participation_states[str(ritual_id)]
+        == participation_state
+    )
 
     # check again
     participation_state = active_ritual_tracker._get_participation_state(event_data)
@@ -362,7 +365,10 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
 
     # no new state information
     assert len(active_ritual_tracker._participation_states) == 1
-    assert active_ritual_tracker._participation_states[ritual_id] == participation_state
+    assert (
+        active_ritual_tracker._participation_states[str(ritual_id)]
+        == participation_state
+    )
 
 
 def test_get_participation_state_end_ritual_participation_not_already_tracked(
@@ -526,7 +532,7 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     #
 
     # mimic already tracked prior state: not participating
-    active_ritual_tracker._participation_states[ritual_id] = (
+    active_ritual_tracker._participation_states[str(ritual_id)] = (
         active_ritual_tracker.DkgParticipationState(False, False, False)
     )
 
@@ -539,7 +545,7 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     #
 
     # mimic already tracked prior state: participating
-    active_ritual_tracker._participation_states[ritual_id] = (
+    active_ritual_tracker._participation_states[str(ritual_id)] = (
         active_ritual_tracker.DkgParticipationState(True, False, False)
     )
 
@@ -552,7 +558,10 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     )
 
     # no additional entry
-    assert active_ritual_tracker._participation_states[ritual_id] == participation_state
+    assert (
+        active_ritual_tracker._participation_states[str(ritual_id)]
+        == participation_state
+    )
     assert len(active_ritual_tracker._participation_states) == 1
 
 
@@ -687,10 +696,12 @@ def test_get_participation_state_purge_expired_cache_entries(
     assert len(active_ritual_tracker._participation_states) == 2
     # be sure that the states are properly stored
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_1],
+        active_ritual_tracker._participation_states[str(ritual_id_1)],
         expected_participating=True,
     )
-    check_participation_state(active_ritual_tracker._participation_states[ritual_id_2])
+    check_participation_state(
+        active_ritual_tracker._participation_states[str(ritual_id_2)]
+    )
 
     # modify time so that purge occurs when another event is received
     # fake event for ritual 2
@@ -729,8 +740,10 @@ def test_get_participation_state_purge_expired_cache_entries(
         mock_wrapped_purge_expired.assert_called()
 
     assert len(active_ritual_tracker._participation_states) == 1
-    assert active_ritual_tracker._participation_states[ritual_id_1] is None
-    check_participation_state(active_ritual_tracker._participation_states[ritual_id_2])
+    assert active_ritual_tracker._participation_states[str(ritual_id_1)] is None
+    check_participation_state(
+        active_ritual_tracker._participation_states[str(ritual_id_2)]
+    )
 
 
 @pytest_twisted.inlineCallbacks()
@@ -794,7 +807,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
         yield d
 
         assert len(active_ritual_tracker._participation_states) == (i + 1)
-        participation_state = active_ritual_tracker._participation_states[r_id]
+        participation_state = active_ritual_tracker._participation_states[str(r_id)]
         if r_id != ritual_id_4:
             operator.perform_round_1.assert_called_with(
                 ritual_id=r_id, initiator=ANY, participants=ANY, timestamp=ANY
@@ -829,19 +842,21 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     operator.perform_round_2.assert_called_with(ritual_id=ritual_id_2, timestamp=ANY)
 
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_1],
+        active_ritual_tracker._participation_states[str(ritual_id_1)],
         expected_participating=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_2],
+        active_ritual_tracker._participation_states[str(ritual_id_2)],
         expected_participating=True,
         expected_already_posted_transcript=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_3],
+        active_ritual_tracker._participation_states[str(ritual_id_3)],
         expected_participating=True,
     )
-    check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
+    check_participation_state(
+        active_ritual_tracker._participation_states[str(ritual_id_4)]
+    )
 
     #
     # Receive StartAggregationRound for ritual id 4
@@ -864,21 +879,23 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     assert operator.perform_round_2.call_count == 1  # same as before
 
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_1],
+        active_ritual_tracker._participation_states[str(ritual_id_1)],
         expected_participating=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_2],
+        active_ritual_tracker._participation_states[str(ritual_id_2)],
         expected_participating=True,
         expected_already_posted_transcript=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_3],
+        active_ritual_tracker._participation_states[str(ritual_id_3)],
         expected_participating=True,
     )
 
     # don't care about ritual 4 since not participating - so no new information stored
-    check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
+    check_participation_state(
+        active_ritual_tracker._participation_states[str(ritual_id_4)]
+    )
 
     #
     # EndRitual received for ritual id 3 (case where sequence
@@ -906,22 +923,24 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     assert len(active_ritual_tracker._participation_states) == 4
 
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_1],
+        active_ritual_tracker._participation_states[str(ritual_id_1)],
         expected_participating=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_2],
+        active_ritual_tracker._participation_states[str(ritual_id_2)],
         expected_participating=True,
         expected_already_posted_transcript=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_3],
+        active_ritual_tracker._participation_states[str(ritual_id_3)],
         expected_participating=True,
         expected_already_posted_transcript=True,
         expected_already_posted_aggregate=True,
     )
 
-    check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
+    check_participation_state(
+        active_ritual_tracker._participation_states[str(ritual_id_4)]
+    )
 
     #
     # EndRitual received for ritual id 4
@@ -946,24 +965,26 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     assert operator.perform_round_2.call_count == 1  # same as before
 
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_1],
+        active_ritual_tracker._participation_states[str(ritual_id_1)],
         expected_participating=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_2],
+        active_ritual_tracker._participation_states[str(ritual_id_2)],
         expected_participating=True,
         expected_already_posted_transcript=True,
     )
 
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_3],
+        active_ritual_tracker._participation_states[str(ritual_id_3)],
         expected_participating=True,
         expected_already_posted_transcript=True,
         expected_already_posted_aggregate=True,
     )
 
     # don't care about ritual 4 since not participating - so no new information stored
-    check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
+    check_participation_state(
+        active_ritual_tracker._participation_states[str(ritual_id_4)]
+    )
 
 
 def verify_non_participation_flow(
@@ -977,7 +998,10 @@ def verify_non_participation_flow(
 
     # new participation state stored
     assert len(active_ritual_tracker._participation_states) == 1
-    assert active_ritual_tracker._participation_states[ritual_id] == participation_state
+    assert (
+        active_ritual_tracker._participation_states[str(ritual_id)]
+        == participation_state
+    )
 
     # check again that not participating
     participation_state = active_ritual_tracker._get_participation_state(event_data)
@@ -985,7 +1009,10 @@ def verify_non_participation_flow(
 
     # no new information
     assert len(active_ritual_tracker._participation_states) == 1
-    assert active_ritual_tracker._participation_states[ritual_id] == participation_state
+    assert (
+        active_ritual_tracker._participation_states[str(ritual_id)]
+        == participation_state
+    )
 
 
 def verify_participation_flow(
@@ -1006,7 +1033,10 @@ def verify_participation_flow(
 
     # new state stored
     assert len(active_ritual_tracker._participation_states) == 1
-    assert active_ritual_tracker._participation_states[ritual_id] == participation_state
+    assert (
+        active_ritual_tracker._participation_states[str(ritual_id)]
+        == participation_state
+    )
 
     # check again if relevant
     participation_state = active_ritual_tracker._get_participation_state(event_data)
@@ -1019,7 +1049,10 @@ def verify_participation_flow(
 
     # no new information
     assert len(active_ritual_tracker._participation_states) == 1
-    assert active_ritual_tracker._participation_states[ritual_id] == participation_state
+    assert (
+        active_ritual_tracker._participation_states[str(ritual_id)]
+        == participation_state
+    )
 
     # pretend to lose previous information eg. restart of node etc.
     active_ritual_tracker._participation_states.clear()
@@ -1035,7 +1068,10 @@ def verify_participation_flow(
 
     # new state stored
     assert len(active_ritual_tracker._participation_states) == 1
-    assert active_ritual_tracker._participation_states[ritual_id] == participation_state
+    assert (
+        active_ritual_tracker._participation_states[str(ritual_id)]
+        == participation_state
+    )
 
 
 def check_event_args_match_latest_event_inputs(event: ContractEvent, args_dict: Dict):
