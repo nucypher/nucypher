@@ -76,7 +76,7 @@ class RitualTracker(EventTracker, ABC):
 
     @abstractmethod
     def _update_participation_state(
-        self, participation_state: ParticipationState, event: AttributeDict
+        self, cached_participation_state: ParticipationState, event: AttributeDict
     ) -> None:
         """
         Updates the participation state with the information from the event.
@@ -135,15 +135,15 @@ class RitualTracker(EventTracker, ABC):
                 f"Unexpected event type: '{event_type}' has no id attribute"
             )
 
-        participation_state = self._participation_states[identifier]
-        if not participation_state:
-            participation_state = self._create_participation_state(event)
-            self._participation_states[identifier] = participation_state
-            return participation_state
+        cached_participation_state = self._participation_states[identifier]
+        if not cached_participation_state:
+            # no cached state, create a new one
+            cached_participation_state = self._create_participation_state(event)
+            self._participation_states[identifier] = cached_participation_state
+            return cached_participation_state
 
-        # already tracked but not participating
-        if participation_state.participating:
-            # already tracked and participating in ritual - populate other values if necessary
-            self._update_participation_state(participation_state, event)
+        # already tracked; since "participating" state can change due to handover
+        # we need to update it
+        self._update_participation_state(cached_participation_state, event)
 
-        return participation_state
+        return cached_participation_state
