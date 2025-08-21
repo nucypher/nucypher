@@ -94,6 +94,10 @@ def test_action_required_only_for_events_with_corresponding_actions(
                 # must be departing participant
                 arg_values["incomingParticipant"] = get_random_checksum_address()
                 arg_values["departingParticipant"] = ursula.checksum_address
+            else:
+                # Handover events have additional fields (doesn't matter which address)
+                arg_values["incomingParticipant"] = get_random_checksum_address()
+                arg_values["departingParticipant"] = get_random_checksum_address()
 
             ritual_event = AttributeDict(
                 {
