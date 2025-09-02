@@ -191,7 +191,6 @@ def lingo_with_all_condition_types(get_random_checksum_address):
                             "comparator": "<",
                             "value": 1000000000000000,
                         },
-                        "nestedAbiValidation": None,
                     }
                 ]
             }

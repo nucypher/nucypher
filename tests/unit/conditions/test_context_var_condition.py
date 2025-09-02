@@ -28,14 +28,14 @@ def test_invalid_context_variable_condition():
         )
 
     # no context var
-    with pytest.raises(InvalidCondition, match="Missing data for required field"):
+    with pytest.raises(InvalidCondition, match="Field may not be null"):
         _ = ContextVariableCondition(
             context_variable=None,
             return_value_test=ReturnValueTest(comparator="==", value=0),
         )
 
     # no return value test var
-    with pytest.raises(InvalidCondition, match="Missing data for required field"):
+    with pytest.raises(InvalidCondition, match="Field may not be null"):
         _ = ContextVariableCondition(
             context_variable=USER_ADDRESS_CONTEXT, return_value_test=None
         )
