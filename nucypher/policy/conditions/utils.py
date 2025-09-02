@@ -1,6 +1,6 @@
 import re
 from http import HTTPStatus
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from marshmallow import Schema, post_dump
 from marshmallow.exceptions import SCHEMA
@@ -103,15 +103,16 @@ class CamelCaseSchema(Schema):
     and snake-case for its internal representation.
     """
 
-    SKIP_VALUES: Tuple = tuple()
-
     def on_bind_field(self, field_name, field_obj):
         field_obj.data_key = to_camelcase(field_obj.data_key or field_name)
 
     @post_dump
-    def remove_skip_values(self, data, **kwargs):
+    def remove_none_for_optional_fields(self, data, **kwargs):
+        # only include None values for required fields
         return {
-            key: value for key, value in data.items() if value not in self.SKIP_VALUES
+            key: value
+            for key, value in data.items()
+            if value is not None or self.fields[camel_case_to_snake(key)].required
         }
 
 
