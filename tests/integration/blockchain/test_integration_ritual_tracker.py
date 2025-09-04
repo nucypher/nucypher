@@ -396,7 +396,9 @@ def test_get_handover_participation_state_values(
     participation_state = active_ritual_tracker._get_latest_participation_state_values(
         mocked_event
     )
-    assert isinstance(participation_state, DkgRitualTracker.HandoverParticipationState)
+    assert isinstance(
+        participation_state, DkgRitualTracker.CohortParticipationStateDuringHandover
+    )
     assert not participation_state.participating
 
     # not part of handover but part of original ritual so participating should be True
@@ -406,7 +408,9 @@ def test_get_handover_participation_state_values(
     participation_state = active_ritual_tracker._get_latest_participation_state_values(
         mocked_event
     )
-    assert isinstance(participation_state, DkgRitualTracker.HandoverParticipationState)
+    assert isinstance(
+        participation_state, DkgRitualTracker.CohortParticipationStateDuringHandover
+    )
     assert participation_state.participating
 
     # ritualist it the incoming participant (and not part of original ritual)
@@ -414,8 +418,11 @@ def test_get_handover_participation_state_values(
     mocked_event.args.incomingParticipant = ritualist.checksum_address
     mocked_agent.is_participant.return_value = False
     participation_state = active_ritual_tracker._get_latest_participation_state_values(
-        mocked_event)
-    assert isinstance(participation_state, DkgRitualTracker.HandoverParticipationState)
+        mocked_event
+    )
+    assert isinstance(
+        participation_state, DkgRitualTracker.CohortParticipationStateDuringHandover
+    )
     assert participation_state.participating
 
     # departing participant is the ritualist
@@ -425,6 +432,9 @@ def test_get_handover_participation_state_values(
     mocked_event.args.departingParticipant = ritualist.checksum_address
     mocked_event.args.incomingParticipant = get_random_checksum_address()
     participation_state = active_ritual_tracker._get_latest_participation_state_values(
-        mocked_event)
-    assert isinstance(participation_state, DkgRitualTracker.HandoverParticipationState)
+        mocked_event
+    )
+    assert isinstance(
+        participation_state, DkgRitualTracker.CohortParticipationStateDuringHandover
+    )
     assert participation_state.participating

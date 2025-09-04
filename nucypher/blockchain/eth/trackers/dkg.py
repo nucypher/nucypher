@@ -28,9 +28,9 @@ class DkgRitualTracker(RitualTracker):
             self.already_posted_transcript = already_posted_transcript
             self.already_posted_aggregate = already_posted_aggregate
 
-    class HandoverParticipationState(RitualTracker.ParticipationState):
+    class CohortParticipationStateDuringHandover(RitualTracker.ParticipationState):
         """
-        Participation state for Handover rituals.
+        Cohort participation state during handover process.
         """
 
         PREFIX = "handover-"
@@ -81,13 +81,15 @@ class DkgRitualTracker(RitualTracker):
     def _get_identifier(self, event: AttributeDict) -> str:
         event_type = getattr(self.contract.events, event.event)
         if event_type in self.handover_event_types:
-            return f"{self.HandoverParticipationState.PREFIX}{event.args.ritualId}"
+            return f"{self.CohortParticipationStateDuringHandover.PREFIX}{event.args.ritualId}"
         else:
             return str(event.args.ritualId)
 
     def _action_required_based_on_participation_state(
         self,
-        participation_state: Union[DkgParticipationState, HandoverParticipationState],
+        participation_state: Union[
+            DkgParticipationState, CohortParticipationStateDuringHandover
+        ],
         event: AttributeDict,
     ) -> bool:
         # Let's handle separately handover events and non-handover events
@@ -158,7 +160,7 @@ class DkgRitualTracker(RitualTracker):
 
     def _create_participation_state(
         self, event: AttributeDict
-    ) -> Union[DkgParticipationState, HandoverParticipationState]:
+    ) -> Union[DkgParticipationState, CohortParticipationStateDuringHandover]:
         # obtain information from contract
         participation_state = self._get_latest_participation_state_values(event=event)
         return participation_state
@@ -166,7 +168,7 @@ class DkgRitualTracker(RitualTracker):
     def _update_participation_state(
         self,
         cached_participation_state: Union[
-            DkgParticipationState, HandoverParticipationState
+            DkgParticipationState, CohortParticipationStateDuringHandover
         ],
         event: AttributeDict,
     ) -> None:
@@ -197,9 +199,12 @@ class DkgRitualTracker(RitualTracker):
         self,
         event: AttributeDict,
         cached_participation_state: Optional[
-            Union[DkgParticipationState, HandoverParticipationState]
+            Union[
+                DkgParticipationState,
+                CohortParticipationStateDuringHandover,
+            ]
         ] = None,
-    ) -> Union[DkgParticipationState, HandoverParticipationState]:
+    ) -> Union[DkgParticipationState, CohortParticipationStateDuringHandover]:
         """
         Obtains values for current participation state.
         """
@@ -269,8 +274,10 @@ class DkgRitualTracker(RitualTracker):
     def __get_latest_state_based_on_handover_event(
         self,
         event: AttributeDict,
-        cached_participation_state: Optional[HandoverParticipationState] = None,
-    ) -> HandoverParticipationState:
+        cached_participation_state: Optional[
+            CohortParticipationStateDuringHandover
+        ] = None,
+    ) -> CohortParticipationStateDuringHandover:
         """
         Returns the participation state value for handover events.
         """
@@ -278,7 +285,7 @@ class DkgRitualTracker(RitualTracker):
         # 1) part of handover process
         # 2) part of original ritual (handover changes metadata)
         cached_participation_state = (
-            cached_participation_state or self.HandoverParticipationState()
+            cached_participation_state or self.CohortParticipationStateDuringHandover()
         )
         if cached_participation_state.participating:
             # already participating, nothing to check here
