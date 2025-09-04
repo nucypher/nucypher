@@ -3,7 +3,7 @@ from atxm.exceptions import Fault, InsufficientFunds
 from twisted.internet import reactor
 from twisted.internet.task import deferLater
 
-from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
+from nucypher.blockchain.eth.models import DKG_PHASE_1, DKG_PHASE_2, Coordinator
 from nucypher.types import PhaseId
 from tests.mock.interfaces import MockBlockchain
 
@@ -98,7 +98,7 @@ def perform_round_1_with_fault_tolerance(
     cohort_staking_provider_addresses,
     initiator,
 ):
-    phase_id = PhaseId(ritual_id=ritual_id, phase=PHASE1)
+    phase_id = PhaseId(ritual_id=ritual_id, phase=DKG_PHASE_1)
 
     # pause machine so that txs don't actually get processed until the end
     testerchain.tx_machine.pause()
@@ -292,7 +292,7 @@ def perform_round_2_with_fault_tolerance(
     ):
         yield testerchain.time_travel(seconds=1)
 
-    phase_id = PhaseId(ritual_id=ritual_id, phase=PHASE2)
+    phase_id = PhaseId(ritual_id=ritual_id, phase=DKG_PHASE_2)
 
     # pause machine so that txs don't actually get processed until the end
     testerchain.tx_machine.pause()

@@ -7,10 +7,10 @@ from nucypher_core.ferveo import (
 )
 
 from nucypher.blockchain.eth.models import (
+    DKG_PHASE_1,
+    DKG_PHASE_2,
     HANDOVER_AWAITING_BLINDED_SHARE,
     HANDOVER_AWAITING_TRANSCRIPT,
-    PHASE1,
-    PHASE2,
     Coordinator,
 )
 from nucypher.types import PhaseId
@@ -54,9 +54,9 @@ class DKGStorage:
     #
     @classmethod
     def __get_phase_key(cls, phase: int):
-        if phase == PHASE1:
+        if phase == DKG_PHASE_1:
             return cls._KEY_PHASE_1_TXS
-        elif phase == PHASE2:
+        elif phase == DKG_PHASE_2:
             return cls._KEY_PHASE_2_TXS
         elif phase == HANDOVER_AWAITING_TRANSCRIPT:
             return cls._KEY_PHASE_AWAITING_TRANSCRIPT_TXS

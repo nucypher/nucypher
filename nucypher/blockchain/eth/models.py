@@ -15,8 +15,8 @@ from nucypher_core.ferveo import (
 
 from nucypher.types import PhaseNumber
 
-PHASE1 = PhaseNumber(1)
-PHASE2 = PhaseNumber(2)
+DKG_PHASE_1 = PhaseNumber(1)
+DKG_PHASE_2 = PhaseNumber(2)
 HANDOVER_AWAITING_TRANSCRIPT = PhaseNumber(11)
 HANDOVER_AWAITING_BLINDED_SHARE = PhaseNumber(12)
 

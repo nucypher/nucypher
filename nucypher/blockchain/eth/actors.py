@@ -51,10 +51,10 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterfaceFactory,
 )
 from nucypher.blockchain.eth.models import (
+    DKG_PHASE_1,
+    DKG_PHASE_2,
     HANDOVER_AWAITING_BLINDED_SHARE,
     HANDOVER_AWAITING_TRANSCRIPT,
-    PHASE1,
-    PHASE2,
     Coordinator,
     SigningCoordinator,
 )
@@ -425,8 +425,8 @@ class Operator(BaseActor):
     ) -> BlockchainInterface.AsyncTxHooks:
 
         TX_TYPES = {
-            PHASE1: "POST_TRANSCRIPT",
-            PHASE2: "POST_AGGREGATE",
+            DKG_PHASE_1: "POST_TRANSCRIPT",
+            DKG_PHASE_2: "POST_AGGREGATE",
             HANDOVER_AWAITING_TRANSCRIPT: "HANDOVER_AWAITING_TRANSCRIPT",
             HANDOVER_AWAITING_BLINDED_SHARE: "HANDOVER_POST_BLINDED_SHARE",
         }
@@ -434,7 +434,7 @@ class Operator(BaseActor):
         tx_type = TX_TYPES[phase_id.phase]
 
         def resubmit_tx():
-            if phase_id.phase == PHASE1:
+            if phase_id.phase == DKG_PHASE_1:
                 # check status of ritual before resubmitting; prevent infinite loops
                 if not self._is_phase_1_action_required(ritual_id=phase_id.ritual_id):
                     self.log.info(
@@ -443,7 +443,7 @@ class Operator(BaseActor):
                     )
                     return
                 async_tx = self.publish_transcript(*args)
-            elif phase_id.phase == PHASE2:
+            elif phase_id.phase == DKG_PHASE_2:
                 # check status of ritual before resubmitting; prevent infinite loops
                 if not self._is_phase_2_action_required(ritual_id=phase_id.ritual_id):
                     self.log.info(
@@ -543,7 +543,7 @@ class Operator(BaseActor):
         return async_tx_hooks
 
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> AsyncTx:
-        identifier = PhaseId(ritual_id, PHASE1)
+        identifier = PhaseId(ritual_id, DKG_PHASE_1)
         async_tx_hooks = self._setup_async_hooks(identifier, ritual_id, transcript)
         async_tx = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
@@ -567,7 +567,7 @@ class Operator(BaseActor):
         participant_public_key = self.threshold_request_power.get_pubkey_from_ritual_id(
             ritual_id
         )
-        identifier = PhaseId(ritual_id=ritual_id, phase=PHASE2)
+        identifier = PhaseId(ritual_id=ritual_id, phase=DKG_PHASE_2)
         async_tx_hooks = self._setup_async_hooks(
             identifier, ritual_id, aggregated_transcript, public_key
         )
@@ -666,12 +666,12 @@ class Operator(BaseActor):
 
         # check if there is already pending tx for this ritual + round combination
         async_tx = self.dkg_storage.get_ritual_phase_async_tx(
-            phase_id=PhaseId(ritual_id, PHASE1)
+            phase_id=PhaseId(ritual_id, DKG_PHASE_1)
         )
         if async_tx:
             self.log.info(
                 f"Active ritual in progress: {self.transacting_power.account} has submitted tx "
-                f"for ritual #{ritual_id}, phase #{PHASE1} (final: {async_tx.final})"
+                f"for ritual #{ritual_id}, phase #{DKG_PHASE_1} (final: {async_tx.final})"
             )
             return async_tx
 
@@ -757,12 +757,12 @@ class Operator(BaseActor):
 
         # check if there is a pending tx for this ritual + round combination
         async_tx = self.dkg_storage.get_ritual_phase_async_tx(
-            phase_id=PhaseId(ritual_id, PHASE2)
+            phase_id=PhaseId(ritual_id, DKG_PHASE_2)
         )
         if async_tx:
             self.log.info(
                 f"Active ritual in progress: {self.transacting_power.account} has submitted tx "
-                f"for ritual #{ritual_id}, phase #{PHASE2} (final: {async_tx.final})."
+                f"for ritual #{ritual_id}, phase #{DKG_PHASE_2} (final: {async_tx.final})."
             )
             return async_tx
 

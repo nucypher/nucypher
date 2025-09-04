@@ -6,10 +6,10 @@ from atxm.exceptions import Fault, InsufficientFunds
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import (
+    DKG_PHASE_1,
+    DKG_PHASE_2,
     HANDOVER_AWAITING_BLINDED_SHARE,
     HANDOVER_AWAITING_TRANSCRIPT,
-    PHASE1,
-    PHASE2,
     Coordinator,
 )
 from nucypher.crypto.powers import RitualisticPower
@@ -174,7 +174,7 @@ def test_perform_round_1(
         # exception not raised, but None returned
         assert async_tx is None
 
-    phase_id = PhaseId(ritual_id=0, phase=PHASE1)
+    phase_id = PhaseId(ritual_id=0, phase=DKG_PHASE_1)
     assert (
         ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is None
     ), "no tx data as yet"
@@ -271,7 +271,7 @@ def test_perform_round_2(
         agent.get_ritual_status = lambda *args, **kwargs: state
         ursula.perform_round_2(ritual_id=0, timestamp=0)
 
-    phase_1_id = PhaseId(ritual_id=0, phase=PHASE1)
+    phase_1_id = PhaseId(ritual_id=0, phase=DKG_PHASE_1)
     assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_1_id) is not None
 
     # set correct state
@@ -288,7 +288,7 @@ def test_perform_round_2(
         # exception not raised, but None returned
         assert async_tx is None
 
-    phase_2_id = PhaseId(ritual_id=0, phase=PHASE2)
+    phase_2_id = PhaseId(ritual_id=0, phase=DKG_PHASE_2)
     assert (
         ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_2_id) is None
     ), "no tx data as yet"
@@ -325,7 +325,7 @@ def test_perform_round_2(
 def test_async_tx_hooks_phase_1(ursula, mocker):
     ritual_id = 0
     transcript = mocker.Mock()
-    phase_id = PhaseId(ritual_id=ritual_id, phase=PHASE1)
+    phase_id = PhaseId(ritual_id=ritual_id, phase=DKG_PHASE_1)
 
     mock_publish_transcript = mocker.Mock()
     mocker.patch.object(ursula, "publish_transcript", mock_publish_transcript)
@@ -441,7 +441,7 @@ def test_async_tx_hooks_phase_2(ursula, mocker, aggregated_transcript, dkg_publi
     ritual_id = 0
     aggregated_transcript = aggregated_transcript
     public_key = dkg_public_key
-    phase_id = PhaseId(ritual_id=ritual_id, phase=PHASE2)
+    phase_id = PhaseId(ritual_id=ritual_id, phase=DKG_PHASE_2)
 
     mock_publish_transcript = mocker.Mock()
     mocker.patch.object(ursula, "publish_transcript", mock_publish_transcript)
