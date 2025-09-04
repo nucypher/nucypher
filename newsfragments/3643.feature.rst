@@ -1,0 +1,1 @@
+Docker images are now based on the latest Debian Trixie release.
