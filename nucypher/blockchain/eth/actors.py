@@ -74,7 +74,7 @@ from nucypher.crypto.powers import (
     ThresholdRequestDecryptingPower,
     TransactingPower,
 )
-from nucypher.datastore.dkg import DKGStorage
+from nucypher.datastore.ritual import DKGStorage
 from nucypher.network.signing import (
     BaseSignatureRequest,
     SignatureResponse,
