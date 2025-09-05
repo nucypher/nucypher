@@ -106,17 +106,23 @@ class DkgRitualTracker(RitualTracker):
                 event.args.ritualId
             )
 
+            is_departing_participant_in_handover = (
+                event.args.departingParticipant == self.operator.checksum_address
+            )
+            is_incoming_participant_in_handover = (
+                event.args.incomingParticipant == self.operator.checksum_address
+            )
+
             if event_type in [
                 self.contract.events.HandoverFinalized,
                 self.contract.events.HandoverCanceled,
             ]:
                 if (
                     event_type == self.contract.events.HandoverCanceled
-                    and event.args.incomingParticipant == self.operator.checksum_address
+                    and is_incoming_participant_in_handover
                 ) or (
                     event_type == self.contract.events.HandoverFinalized
-                    and event.args.departingParticipant
-                    == self.operator.checksum_address
+                    and is_departing_participant_in_handover
                 ):
                     # if handover is canceled/finalized we need to reset the participation state
                     participation_state.participating = False
@@ -125,12 +131,6 @@ class DkgRitualTracker(RitualTracker):
                 # no further action required
                 return False
 
-            is_departing_participant_in_handover = (
-                event.args.departingParticipant == self.operator.checksum_address
-            )
-            is_incoming_participant_in_handover = (
-                event.args.incomingParticipant == self.operator.checksum_address
-            )
             # for handover events we need to act only if the operator is the departing or incoming participant
             return (
                 is_departing_participant_in_handover
