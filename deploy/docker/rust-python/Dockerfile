@@ -1,8 +1,8 @@
-FROM rust:slim-bullseye
+FROM rust:slim-trixie
 
 # prepare container
 RUN apt-get update -y
-RUN apt-get install -y sudo
+RUN apt-get install -y sudo adduser
 
 # setup user
 ARG USER
