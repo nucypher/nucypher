@@ -64,7 +64,6 @@ class Condition(_Serializable, ABC):
     CONDITION_TYPE = NotImplemented
 
     class Schema(CamelCaseSchema):
-        SKIP_VALUES = (None,)
         name = fields.Str(required=False, allow_none=True)
         condition_type = NotImplemented
 

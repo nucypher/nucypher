@@ -48,7 +48,7 @@ def test_invalid_signing_object_attribute_condition():
         )
 
     # no attribute name
-    with pytest.raises(InvalidCondition, match="Missing data for required field"):
+    with pytest.raises(InvalidCondition, match="Field may not be null"):
         _ = SigningObjectAttributeCondition(
             attribute_name=None,
             return_value_test=ReturnValueTest("==", 0),
@@ -258,7 +258,7 @@ def test_invalid_signing_object_abi_attribute_condition():
         )
 
     # no allowed abi calls
-    with pytest.raises(InvalidCondition, match="Missing data for required field"):
+    with pytest.raises(InvalidCondition, match="Field may not be null"):
         _ = SigningObjectAbiAttributeCondition(
             attribute_name="call_data", abi_validation=None
         )

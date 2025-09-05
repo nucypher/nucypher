@@ -597,7 +597,6 @@ class ReturnValueTest(_Serializable):
     COMPARATORS = tuple(_COMPARATOR_FUNCTIONS)
 
     class Schema(CamelCaseSchema):
-        SKIP_VALUES = (None,)
         comparator = fields.Str(
             required=True,
             validate=OneOf(_COMPARATOR_FUNCTIONS, error="Not a permitted comparator"),
