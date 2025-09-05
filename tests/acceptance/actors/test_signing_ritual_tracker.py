@@ -23,6 +23,25 @@ def cohort(ursulas):
     return nodes
 
 
+def test_signing_participation_state_identifier(cohort):
+    ursula = cohort[0]
+    active_ritual_tracker = SigningRitualTracker(operator=ursula)
+    cohort_id = 1234
+    for event in active_ritual_tracker.events:
+        event_data = AttributeDict(
+            {
+                "event": event.event_name,
+                "args": AttributeDict(
+                    {
+                        "cohortId": cohort_id,
+                    }
+                ),
+            }
+        )
+        state_identifier = active_ritual_tracker._get_identifier(event_data)
+        assert state_identifier == f"signing-{cohort_id}"
+
+
 def test_action_required_not_participating(cohort, get_random_checksum_address):
     ursula = cohort[0]
     agent = ursula.signing_coordinator_agent
@@ -604,20 +623,20 @@ def test_handle_event_multiple_concurrent_signing_rituals(
     assert len(active_ritual_tracker._participation_states) == 4
 
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_1)],
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_1]],
         expected_participating=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_2)],
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_2]],
         expected_participating=True,
         expected_already_posted_signature=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_3)],
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_3]],
         expected_participating=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_4)]
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_4]]
     )
 
     #
@@ -642,22 +661,22 @@ def test_handle_event_multiple_concurrent_signing_rituals(
     assert len(active_ritual_tracker._participation_states) == 4
 
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_1)],
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_1]],
         expected_participating=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_2)],
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_2]],
         expected_participating=True,
         expected_already_posted_signature=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_3)],
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_3]],
         expected_participating=True,
     )
 
     # don't care about ritual 4 since not participating - so no new information stored
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_4)]
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_4]]
     )
 
     #
@@ -682,22 +701,22 @@ def test_handle_event_multiple_concurrent_signing_rituals(
     assert len(active_ritual_tracker._participation_states) == 4
 
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_1)],
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_1]],
         expected_participating=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_2)],
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_2]],
         expected_participating=True,
         expected_already_posted_signature=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_3)],
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_3]],
         expected_participating=True,
         expected_already_posted_signature=True,
     )
 
     check_participation_state(
-        active_ritual_tracker._participation_states[str(cohort_id_4)]
+        active_ritual_tracker._participation_states[state_identifiers[cohort_id_4]]
     )
 
 

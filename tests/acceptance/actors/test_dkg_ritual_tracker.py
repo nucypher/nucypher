@@ -23,6 +23,28 @@ def cohort(ursulas):
     return nodes
 
 
+def test_participation_state_identifier_based_on_event(cohort):
+    ursula = cohort[0]
+    active_ritual_tracker = DkgRitualTracker(operator=ursula)
+    for event in active_ritual_tracker.events:
+        ritual_id = 1234
+        event_data = AttributeDict(
+            {
+                "event": event.event_name,
+                "args": AttributeDict(
+                    {
+                        "ritualId": ritual_id,
+                    }
+                ),
+            }
+        )
+        state_identifier = active_ritual_tracker._get_identifier(event_data)
+        if event.event_name.startswith("Handover"):
+            assert state_identifier == f"handover-{ritual_id}"
+        else:
+            assert state_identifier == f"dkg-{ritual_id}"
+
+
 def test_action_required_not_participating(cohort, get_random_checksum_address):
     ursula = cohort[0]
     agent = ursula.coordinator_agent

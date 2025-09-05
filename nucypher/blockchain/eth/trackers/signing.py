@@ -12,6 +12,8 @@ class SigningRitualTracker(RitualTracker):
         Participation state for Signing rituals.
         """
 
+        PREFIX = "signing-"
+
         def __init__(
             self,
             participating=False,
@@ -47,7 +49,7 @@ class SigningRitualTracker(RitualTracker):
         )
 
     def _get_identifier(self, event: AttributeDict) -> str:
-        return str(event.args.cohortId)
+        return f"{self.SigningParticipationState.PREFIX}{event.args.cohortId}"
 
     def _action_required_based_on_participation_state(
         self, participation_state: SigningParticipationState, event: AttributeDict
