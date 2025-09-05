@@ -277,7 +277,6 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
 def test_get_dkg_participation_state_values_start_ritual(
     ritualist, get_random_checksum_address
 ):
-    mocked_agent = ritualist.coordinator_agent
     active_ritual_tracker = DkgRitualTracker(operator=ritualist)
 
     participants = []
@@ -293,7 +292,9 @@ def test_get_dkg_participation_state_values_start_ritual(
     # contract not actually called for StartRitual, event is sufficient
 
     # not participating so everything should be False
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(mocked_event)
+    participation_state = active_ritual_tracker._get_latest_participation_state_values(
+        mocked_event
+    )
     assert not participation_state.participating
     assert not participation_state.already_posted_transcript
     assert not participation_state.already_posted_aggregate
@@ -302,7 +303,9 @@ def test_get_dkg_participation_state_values_start_ritual(
     participants.append(ritualist.checksum_address)
 
     # participating, but nothing submitted
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(mocked_event)
+    participation_state = active_ritual_tracker._get_latest_participation_state_values(
+        mocked_event
+    )
     assert participation_state.participating
     assert not participation_state.already_posted_transcript
     assert not participation_state.already_posted_aggregate
@@ -326,7 +329,9 @@ def test_get_dkg_participation_state_values_non_start_ritual_event(
     mocked_event.event = "StartAggregationRound"  # any event received without StartRitual first
 
     # not participating so everything should be False
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(mocked_event)
+    participation_state = active_ritual_tracker._get_latest_participation_state_values(
+        mocked_event
+    )
     assert not participation_state.participating
     assert not participation_state.already_posted_transcript
     assert not participation_state.already_posted_aggregate
@@ -338,97 +343,98 @@ def test_get_dkg_participation_state_values_non_start_ritual_event(
     mocked_agent.get_participant.return_value = ritual_participant
 
     # participating, but nothing submitted
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(mocked_event)
+    participation_state = active_ritual_tracker._get_latest_participation_state_values(
+        mocked_event
+    )
     assert participation_state.participating
     assert not participation_state.already_posted_transcript
     assert not participation_state.already_posted_aggregate
 
     # submit transcript
     ritual_participant.transcript = os.urandom(32)
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(mocked_event)
+    participation_state = active_ritual_tracker._get_latest_participation_state_values(
+        mocked_event
+    )
     assert participation_state.participating
     assert participation_state.already_posted_transcript
     assert not participation_state.already_posted_aggregate
 
     # submit aggregate
     ritual_participant.aggregated = True
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(mocked_event)
+    participation_state = active_ritual_tracker._get_latest_participation_state_values(
+        mocked_event
+    )
     assert participation_state.participating
     assert participation_state.already_posted_transcript
     assert participation_state.already_posted_aggregate
 
 
-def test_get_handover_participation_state_values_handover_request(
-    ritualist, get_random_checksum_address
+@pytest.mark.parametrize(
+    "handover_event",
+    [
+        "HandoverRequest",
+        "HandoverTranscriptPosted",
+        "HandoverFinalized",
+        "HandoverCanceled",
+    ],
+)
+def test_get_handover_participation_state_values(
+    handover_event, ritualist, get_random_checksum_address
 ):
     active_ritual_tracker = DkgRitualTracker(operator=ritualist)
 
     mocked_event = Mock()
     mocked_event.args.ritualId = 0
+    mocked_event.event = handover_event
+
+    mocked_agent = ritualist.coordinator_agent
+
+    # not part of handover or original ritual
     mocked_event.args.departingParticipant = get_random_checksum_address()
     mocked_event.args.incomingParticipant = get_random_checksum_address()
-    mocked_event.event = "HandoverRequest"
-
-    # not part of handover so everything should be False
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(mocked_event)
+    mocked_agent.is_participant.return_value = False
+    participation_state = active_ritual_tracker._get_latest_participation_state_values(
+        mocked_event
+    )
+    assert isinstance(
+        participation_state, DkgRitualTracker.CohortParticipationStateDuringHandover
+    )
     assert not participation_state.participating
-    assert not participation_state.already_posted_transcript
-    assert not participation_state.already_posted_aggregate
 
-    # departing provider is the ritualist i.e. already in cohort
-    mocked_event.args.departingParticipant = ritualist.checksum_address
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(
-        mocked_event)
+    # not part of handover but part of original ritual so participating should be True
+    mocked_event.args.departingParticipant = get_random_checksum_address()
+    mocked_event.args.incomingParticipant = get_random_checksum_address()
+    mocked_agent.is_participant.return_value = True
+    participation_state = active_ritual_tracker._get_latest_participation_state_values(
+        mocked_event
+    )
+    assert isinstance(
+        participation_state, DkgRitualTracker.CohortParticipationStateDuringHandover
+    )
     assert participation_state.participating
-    assert participation_state.already_posted_transcript
-    assert participation_state.already_posted_aggregate
 
-    # incoming participant is the ritualist not yet in cohort
+    # ritualist it the incoming participant (and not part of original ritual)
     mocked_event.args.departingParticipant = get_random_checksum_address()
     mocked_event.args.incomingParticipant = ritualist.checksum_address
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(
-        mocked_event)
+    mocked_agent.is_participant.return_value = False
+    participation_state = active_ritual_tracker._get_latest_participation_state_values(
+        mocked_event
+    )
+    assert isinstance(
+        participation_state, DkgRitualTracker.CohortParticipationStateDuringHandover
+    )
     assert participation_state.participating
-    assert not participation_state.already_posted_transcript
-    assert not participation_state.already_posted_aggregate
 
-
-def test_get_handover_participation_state_values_non_handover_request_event(
-    ritualist, get_random_checksum_address
-):
-    mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = DkgRitualTracker(operator=ritualist)
-
-    mocked_event = Mock()
-    mocked_event.args.ritualId = 0
-    mocked_event.args.departingParticipant = get_random_checksum_address()
-    mocked_event.event = "HandoverTranscriptPosted"
-
-    # not part of handover so everything should be False
-    handover = Mock()
-    handover.departing_validator = get_random_checksum_address()
-    handover.incoming_validator = get_random_checksum_address()
-
-    mocked_agent.get_handover.return_value = handover
-
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(mocked_event)
-    assert not participation_state.participating
-    assert not participation_state.already_posted_transcript
-    assert not participation_state.already_posted_aggregate
-
-    # departing provider is the ritualist i.e. already in cohort; this would be in the event
+    # departing participant is the ritualist
+    # technically you can't be a departing participant but not already be a ritual participant
+    # - just for testing coverage purposes
+    mocked_agent.is_participant.return_value = False
     mocked_event.args.departingParticipant = ritualist.checksum_address
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(
-        mocked_event)
+    mocked_event.args.incomingParticipant = get_random_checksum_address()
+    participation_state = active_ritual_tracker._get_latest_participation_state_values(
+        mocked_event
+    )
+    assert isinstance(
+        participation_state, DkgRitualTracker.CohortParticipationStateDuringHandover
+    )
     assert participation_state.participating
-    assert participation_state.already_posted_transcript
-    assert participation_state.already_posted_aggregate
-
-    # incoming participant is the ritualist not yet in cohort; not in event, go to contract
-    mocked_event.args.departingParticipant = get_random_checksum_address()
-    handover.incoming_validator = ritualist.checksum_address
-    participation_state = active_ritual_tracker._get_participation_state_values_from_contract(
-        mocked_event)
-    assert participation_state.participating
-    assert not participation_state.already_posted_transcript
-    assert not participation_state.already_posted_aggregate
