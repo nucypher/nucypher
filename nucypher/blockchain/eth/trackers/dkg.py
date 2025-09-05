@@ -102,9 +102,7 @@ class DkgRitualTracker(RitualTracker):
             # during handover process for ALL associated nodes
             # (part of handover, ALL existing participants in ritual) to avoid having
             # any stale metadata in the metadata storage cache
-            self.operator.prune_ritual_metadata_due_to_handover(
-                event.args.ritualId
-            )
+            self.operator.prune_ritual_metadata_due_to_handover(event.args.ritualId)
 
             is_departing_participant_in_handover = (
                 event.args.departingParticipant == self.operator.checksum_address
@@ -258,7 +256,9 @@ class DkgRitualTracker(RitualTracker):
             new_participation_state.participating = participating
         else:
             # get participant information from the contract
-            participant_info = self._get_ritual_participant_info(ritual_id=event.args.ritualId)
+            participant_info = self._get_ritual_participant_info(
+                ritual_id=event.args.ritualId
+            )
             if participant_info:
                 # actually participating in this ritual;
                 # populate information since we already hit the contract

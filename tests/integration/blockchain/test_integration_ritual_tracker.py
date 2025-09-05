@@ -310,6 +310,7 @@ def test_get_dkg_participation_state_values_start_ritual(
     assert not participation_state.already_posted_transcript
     assert not participation_state.already_posted_aggregate
 
+
 def test_get_dkg_participation_state_values_non_start_ritual_event(
     ritualist, get_random_checksum_address
 ):
@@ -326,7 +327,9 @@ def test_get_dkg_participation_state_values_non_start_ritual_event(
 
     mocked_event = Mock()
     mocked_event.args.ritualId = 0
-    mocked_event.event = "StartAggregationRound"  # any event received without StartRitual first
+    mocked_event.event = (
+        "StartAggregationRound"  # any event received without StartRitual first
+    )
 
     # not participating so everything should be False
     participation_state = active_ritual_tracker._get_latest_participation_state_values(

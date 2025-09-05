@@ -92,6 +92,7 @@ class JWTConditionDict(_Condition):
 class ContextVariableConditionDict(BaseExecConditionDict):
     contextVariable: str
 
+
 #
 # CompoundCondition represents:
 # {
