@@ -4,7 +4,8 @@ import time
 import traceback
 from collections import defaultdict
 from decimal import Decimal
-from typing import Dict, List, Optional, Union
+from enum import Enum
+from typing import Callable, Dict, List, Optional, Union
 
 import maya
 from atxm.exceptions import InsufficientFunds
@@ -36,6 +37,7 @@ from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
+    EthereumContractAgent,
     SigningCoordinatorAgent,
     TACoApplicationAgent,
     TACoChildApplicationAgent,
@@ -75,7 +77,7 @@ from nucypher.crypto.powers import (
     ThresholdRequestDecryptingPower,
     TransactingPower,
 )
-from nucypher.datastore.ritual import DKGStorage, SigningRitualStorage
+from nucypher.datastore.ritual import DKGStorage, RitualStorage, SigningRitualStorage
 from nucypher.network.signing import (
     BaseSignatureRequest,
     SignatureResponse,
@@ -88,6 +90,7 @@ from nucypher.policy.conditions.utils import (
 from nucypher.policy.payment import ContractPayment
 from nucypher.types import (
     PhaseId,
+    PhaseNumber,
 )
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
@@ -190,6 +193,13 @@ class Operator(BaseActor):
 
     class DecryptionFailure(Exception):
         """Decryption failed."""
+
+    class RitualType(Enum):
+        DKG = "dkg ritual"
+        SIGNING = "signing ritual"
+
+        def __str__(self) -> str:
+            return self.value
 
     def __init__(
         self,
@@ -384,6 +394,57 @@ class Operator(BaseActor):
 
         return ritual
 
+    def _make_async_tx_hooks(
+        self,
+        ritual_type: RitualType,
+        phase_id: PhaseId,
+        tx_types: Dict[PhaseNumber, str],
+        resubmit_fn: Callable,
+        storage: RitualStorage,
+        agent: EthereumContractAgent,
+    ) -> BlockchainInterface.AsyncTxHooks:
+        tx_type = tx_types[phase_id.phase]
+
+        def on_broadcast_failure(tx: FutureTx, e: Exception):
+            self.log.warn(
+                f"{tx_type} async tx {tx.id} for {ritual_type} #{phase_id.ritual_id} "
+                f"failed to broadcast {e}; the same tx will be retried"
+            )
+            agent.blockchain.tx_machine.remove_queued_transaction(tx)
+            resubmit_fn()
+
+        def on_fault(tx: FaultedTx):
+            error = f"({tx.error})" if tx.error else ""
+            self.log.warn(
+                f"{tx_type} async tx {tx.id} for {ritual_type} #{phase_id.ritual_id} "
+                f"failed with fault {tx.fault.name}{error}; resubmitting a new one"
+            )
+            resubmit_fn()
+
+        def on_finalized(tx: FinalizedTx):
+            if not tx.successful:
+                self.log.warn(
+                    f"{tx_type} async tx {tx.id} for {ritual_type} #{phase_id.ritual_id} "
+                    f"was reverted; resubmitting a new one"
+                )
+                resubmit_fn()
+            else:
+                storage.clear_ritual_phase_async_tx(phase_id=phase_id, async_tx=tx)
+
+        def on_insufficient_funds(tx: Union[FutureTx, PendingTx], e: InsufficientFunds):
+            self.log.error(
+                f"{tx_type} async tx {tx.id} for {ritual_type} #{phase_id.ritual_id} "
+                f"cannot be executed because {self.transacting_power.account[:8]} "
+                f"has insufficient funds {e}"
+            )
+
+        return BlockchainInterface.AsyncTxHooks(
+            on_broadcast_failure=on_broadcast_failure,
+            on_fault=on_fault,
+            on_finalized=on_finalized,
+            on_insufficient_funds=on_insufficient_funds,
+        )
+
     def _resolve_validators(
         self,
         ritual: Coordinator.Ritual,
@@ -426,14 +487,14 @@ class Operator(BaseActor):
         self, phase_id: PhaseId, *args
     ) -> BlockchainInterface.AsyncTxHooks:
 
-        TX_TYPES = {
+        tx_types = {
             DKG_PHASE_1: "POST_TRANSCRIPT",
             DKG_PHASE_2: "POST_AGGREGATE",
             HANDOVER_AWAITING_TRANSCRIPT: "HANDOVER_AWAITING_TRANSCRIPT",
             HANDOVER_AWAITING_BLINDED_SHARE: "HANDOVER_POST_BLINDED_SHARE",
         }
 
-        tx_type = TX_TYPES[phase_id.phase]
+        tx_type = tx_types[phase_id.phase]
 
         def resubmit_tx():
             if phase_id.phase == DKG_PHASE_1:
@@ -486,63 +547,14 @@ class Operator(BaseActor):
                 f"of type {tx_type} for DKG ritual #{phase_id.ritual_id}."
             )
 
-        def on_broadcast_failure(tx: FutureTx, e: Exception):
-            # although error, tx was not removed from atxm
-            self.log.warn(
-                f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
-                f"failed to broadcast {e}; the same tx will be retried"
-            )
-            # either multiple retries already completed for recoverable error,
-            # or simply a non-recoverable error - remove and resubmit
-            # (analogous action to a node restart of old)
-            self.coordinator_agent.blockchain.tx_machine.remove_queued_transaction(tx)
-
-            # submit a new one
-            resubmit_tx()
-
-        def on_fault(tx: FaultedTx):
-            # fault means that tx was removed from atxm
-            error = f"({tx.error})" if tx.error else ""
-            self.log.warn(
-                f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
-                f"failed with fault {tx.fault.name}{error}; resubmitting a new one"
-            )
-
-            # submit a new one.
-            resubmit_tx()
-
-        def on_finalized(tx: FinalizedTx):
-            # finalized means that tx was removed from atxm
-            if not tx.successful:
-                self.log.warn(
-                    f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
-                    f"was reverted; resubmitting a new one"
-                )
-
-                # submit a new one.
-                resubmit_tx()
-            else:
-                # success and blockchain updated - no need to store tx anymore
-                self.dkg_storage.clear_ritual_phase_async_tx(
-                    phase_id=phase_id, async_tx=tx
-                )
-
-        def on_insufficient_funds(tx: Union[FutureTx, PendingTx], e: InsufficientFunds):
-            # although error, tx was not removed from atxm
-            self.log.error(
-                f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
-                f"cannot be executed because {self.transacting_power.account[:8]} "
-                f"has insufficient funds {e}"
-            )
-
-        async_tx_hooks = BlockchainInterface.AsyncTxHooks(
-            on_broadcast_failure=on_broadcast_failure,
-            on_fault=on_fault,
-            on_finalized=on_finalized,
-            on_insufficient_funds=on_insufficient_funds,
+        return self._make_async_tx_hooks(
+            ritual_type=self.RitualType.DKG,
+            phase_id=phase_id,
+            tx_types=tx_types,
+            resubmit_fn=resubmit_tx,
+            storage=self.dkg_storage,
+            agent=self.coordinator_agent,
         )
-
-        return async_tx_hooks
 
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> AsyncTx:
         identifier = PhaseId(ritual_id, DKG_PHASE_1)
@@ -1150,20 +1162,20 @@ class Operator(BaseActor):
         self, phase_id: PhaseId, *args
     ) -> BlockchainInterface.AsyncTxHooks:
 
-        TX_TYPES = {
+        tx_types = {
             SIGNING_AWAITING_SIGNATURES: "SIGNING_AWAITING_SIGNATURES",
         }
 
-        tx_type = TX_TYPES[phase_id.phase]
+        tx_type = tx_types[phase_id.phase]
 
         def resubmit_tx():
             if phase_id.phase == SIGNING_AWAITING_SIGNATURES:
-                # check status of ritual before resubmitting; prevent infinite loops
+                # check status of cohort before resubmitting; prevent infinite loops
                 if not self._is_post_signature_action_required(
                     cohort_id=phase_id.ritual_id
                 ):
                     self.log.info(
-                        f"No need to resubmit tx: additional action not required to post signature for signing cohort #{phase_id.ritual_id}"
+                        f"No need to resubmit tx: additional action not required to post signature for signing ritual #{phase_id.ritual_id}"
                     )
                     return
                 async_tx = self._post_signature(*args)
@@ -1174,68 +1186,17 @@ class Operator(BaseActor):
 
             self.log.info(
                 f"{self.transacting_power.account[:8]} resubmitted a new async tx {async_tx.id} "
-                f"of type {tx_type} for signing cohort #{phase_id.ritual_id}."
+                f"of type {tx_type} for signing ritual #{phase_id.ritual_id}."
             )
 
-        def on_broadcast_failure(tx: FutureTx, e: Exception):
-            # although error, tx was not removed from atxm
-            self.log.warn(
-                f"{tx_type} async tx {tx.id} for signing cohort# {phase_id.ritual_id} "
-                f"failed to broadcast {e}; the same tx will be retried"
-            )
-            # either multiple retries already completed for recoverable error,
-            # or simply a non-recoverable error - remove and resubmit
-            # (analogous action to a node restart of old)
-            self.signing_coordinator_agent.blockchain.tx_machine.remove_queued_transaction(
-                tx
-            )
-
-            # submit a new one
-            resubmit_tx()
-
-        def on_fault(tx: FaultedTx):
-            # fault means that tx was removed from atxm
-            error = f"({tx.error})" if tx.error else ""
-            self.log.warn(
-                f"{tx_type} async tx {tx.id} for signing cohort# {phase_id.ritual_id} "
-                f"failed with fault {tx.fault.name}{error}; resubmitting a new one"
-            )
-
-            # submit a new one.
-            resubmit_tx()
-
-        def on_finalized(tx: FinalizedTx):
-            # finalized means that tx was removed from atxm
-            if not tx.successful:
-                self.log.warn(
-                    f"{tx_type} async tx {tx.id} for signing cohort# {phase_id.ritual_id} "
-                    f"was reverted; resubmitting a new one"
-                )
-
-                # submit a new one.
-                resubmit_tx()
-            else:
-                # success and blockchain updated - no need to store tx anymore
-                self.signing_storage.clear_ritual_phase_async_tx(
-                    phase_id=phase_id, async_tx=tx
-                )
-
-        def on_insufficient_funds(tx: Union[FutureTx, PendingTx], e: InsufficientFunds):
-            # although error, tx was not removed from atxm
-            self.log.error(
-                f"{tx_type} async tx {tx.id} for signing cohort# {phase_id.ritual_id} "
-                f"cannot be executed because {self.transacting_power.account[:8]} "
-                f"has insufficient funds {e}"
-            )
-
-        async_tx_hooks = BlockchainInterface.AsyncTxHooks(
-            on_broadcast_failure=on_broadcast_failure,
-            on_fault=on_fault,
-            on_finalized=on_finalized,
-            on_insufficient_funds=on_insufficient_funds,
+        return self._make_async_tx_hooks(
+            ritual_type=self.RitualType.SIGNING,
+            phase_id=phase_id,
+            tx_types=tx_types,
+            resubmit_fn=resubmit_tx,
+            storage=self.signing_storage,
+            agent=self.signing_coordinator_agent,
         )
-
-        return async_tx_hooks
 
     def _is_post_signature_action_required(self, cohort_id: int) -> bool:
         status = self.signing_coordinator_agent.get_signing_cohort_status(cohort_id)
