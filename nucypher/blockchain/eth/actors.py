@@ -420,7 +420,7 @@ class Operator(BaseActor):
 
         return result
 
-    def _setup_async_hooks(
+    def _setup_dkg_async_tx_hooks(
         self, phase_id: PhaseId, *args
     ) -> BlockchainInterface.AsyncTxHooks:
 
@@ -544,7 +544,9 @@ class Operator(BaseActor):
 
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> AsyncTx:
         identifier = PhaseId(ritual_id, DKG_PHASE_1)
-        async_tx_hooks = self._setup_async_hooks(identifier, ritual_id, transcript)
+        async_tx_hooks = self._setup_dkg_async_tx_hooks(
+            identifier, ritual_id, transcript
+        )
         async_tx = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
@@ -568,7 +570,7 @@ class Operator(BaseActor):
             ritual_id
         )
         identifier = PhaseId(ritual_id=ritual_id, phase=DKG_PHASE_2)
-        async_tx_hooks = self._setup_async_hooks(
+        async_tx_hooks = self._setup_dkg_async_tx_hooks(
             identifier, ritual_id, aggregated_transcript, public_key
         )
         async_tx = self.coordinator_agent.post_aggregation(
@@ -935,7 +937,7 @@ class Operator(BaseActor):
         )
         handover_transcript = bytes(handover_transcript)
         identifier = PhaseId(ritual_id=ritual_id, phase=HANDOVER_AWAITING_TRANSCRIPT)
-        async_tx_hooks = self._setup_async_hooks(
+        async_tx_hooks = self._setup_dkg_async_tx_hooks(
             identifier, ritual_id, departing_validator, handover_transcript
         )
 
@@ -1073,7 +1075,7 @@ class Operator(BaseActor):
         """Publish a handover blinded share to the Coordinator."""
         blinded_share = bytes(blinded_share)
         identifier = PhaseId(ritual_id=ritual_id, phase=HANDOVER_AWAITING_BLINDED_SHARE)
-        async_tx_hooks = self._setup_async_hooks(
+        async_tx_hooks = self._setup_dkg_async_tx_hooks(
             identifier,
             ritual_id,
             blinded_share,

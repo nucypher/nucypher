@@ -322,7 +322,7 @@ def test_perform_round_2(
     assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_2_id) is async_tx4
 
 
-def test_async_tx_hooks_phase_1(ursula, mocker):
+def test_dkg_async_tx_hooks_phase_1(ursula, mocker):
     ritual_id = 0
     transcript = mocker.Mock()
     phase_id = PhaseId(ritual_id=ritual_id, phase=DKG_PHASE_1)
@@ -335,7 +335,7 @@ def test_async_tx_hooks_phase_1(ursula, mocker):
         ursula, "publish_aggregated_transcript", mock_publish_aggregated_transcript
     )
 
-    async_tx_hooks = ursula._setup_async_hooks(phase_id, ritual_id, transcript)
+    async_tx_hooks = ursula._setup_dkg_async_tx_hooks(phase_id, ritual_id, transcript)
     mock_tx = mocker.Mock()
     mock_tx.id = 1
     mock_tx.params = MockBlockchain.FAKE_TX_PARAMS
@@ -437,7 +437,9 @@ def test_async_tx_hooks_phase_1(ursula, mocker):
     ), "no action needed, so not called"
 
 
-def test_async_tx_hooks_phase_2(ursula, mocker, aggregated_transcript, dkg_public_key):
+def test_dkg_async_tx_hooks_phase_2(
+    ursula, mocker, aggregated_transcript, dkg_public_key
+):
     ritual_id = 0
     aggregated_transcript = aggregated_transcript
     public_key = dkg_public_key
@@ -451,7 +453,7 @@ def test_async_tx_hooks_phase_2(ursula, mocker, aggregated_transcript, dkg_publi
         ursula, "publish_aggregated_transcript", mock_publish_aggregated_transcript
     )
 
-    async_tx_hooks = ursula._setup_async_hooks(
+    async_tx_hooks = ursula._setup_dkg_async_tx_hooks(
         phase_id, ritual_id, aggregated_transcript, public_key
     )
     mock_tx = mocker.Mock()
