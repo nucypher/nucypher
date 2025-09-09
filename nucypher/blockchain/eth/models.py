@@ -19,6 +19,8 @@ DKG_PHASE_1 = PhaseNumber(1)
 DKG_PHASE_2 = PhaseNumber(2)
 HANDOVER_AWAITING_TRANSCRIPT = PhaseNumber(11)
 HANDOVER_AWAITING_BLINDED_SHARE = PhaseNumber(12)
+SIGNING_AWAITING_SIGNATURES = PhaseNumber(21)
+
 
 @dataclass
 class Ferveo:
