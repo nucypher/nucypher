@@ -55,6 +55,7 @@ from nucypher.blockchain.eth.models import (
     DKG_PHASE_2,
     HANDOVER_AWAITING_BLINDED_SHARE,
     HANDOVER_AWAITING_TRANSCRIPT,
+    SIGNING_AWAITING_SIGNATURES,
     Coordinator,
     SigningCoordinator,
 )
@@ -74,7 +75,7 @@ from nucypher.crypto.powers import (
     ThresholdRequestDecryptingPower,
     TransactingPower,
 )
-from nucypher.datastore.ritual import DKGStorage
+from nucypher.datastore.ritual import DKGStorage, SigningRitualStorage
 from nucypher.network.signing import (
     BaseSignatureRequest,
     SignatureResponse,
@@ -284,6 +285,7 @@ class Operator(BaseActor):
         )
 
         self.dkg_storage = DKGStorage()
+        self.signing_storage = SigningRitualStorage()
 
     def set_provider_public_key(self) -> Union[TxReceipt, None]:
         # TODO: Here we're assuming there is one global key per node. See nucypher/#3167
@@ -1144,6 +1146,97 @@ class Operator(BaseActor):
         self.dkg_storage.clear_active_ritual_object(ritual_id)
         self.dkg_storage.clear_validators(ritual_id)
 
+    def _setup_signing_async_tx_hooks(
+        self, phase_id: PhaseId, *args
+    ) -> BlockchainInterface.AsyncTxHooks:
+
+        TX_TYPES = {
+            SIGNING_AWAITING_SIGNATURES: "SIGNING_AWAITING_SIGNATURES",
+        }
+
+        tx_type = TX_TYPES[phase_id.phase]
+
+        def resubmit_tx():
+            if phase_id.phase == SIGNING_AWAITING_SIGNATURES:
+                # check status of ritual before resubmitting; prevent infinite loops
+                if not self._is_post_signature_action_required(
+                    cohort_id=phase_id.ritual_id
+                ):
+                    self.log.info(
+                        f"No need to resubmit tx: additional action not required to post signature for signing cohort #{phase_id.ritual_id}"
+                    )
+                    return
+                async_tx = self._post_signature(*args)
+            else:
+                raise ValueError(
+                    f"Unsupported phase {phase_id.phase} for async tx resubmission"
+                )
+
+            self.log.info(
+                f"{self.transacting_power.account[:8]} resubmitted a new async tx {async_tx.id} "
+                f"of type {tx_type} for signing cohort #{phase_id.ritual_id}."
+            )
+
+        def on_broadcast_failure(tx: FutureTx, e: Exception):
+            # although error, tx was not removed from atxm
+            self.log.warn(
+                f"{tx_type} async tx {tx.id} for signing cohort# {phase_id.ritual_id} "
+                f"failed to broadcast {e}; the same tx will be retried"
+            )
+            # either multiple retries already completed for recoverable error,
+            # or simply a non-recoverable error - remove and resubmit
+            # (analogous action to a node restart of old)
+            self.signing_coordinator_agent.blockchain.tx_machine.remove_queued_transaction(
+                tx
+            )
+
+            # submit a new one
+            resubmit_tx()
+
+        def on_fault(tx: FaultedTx):
+            # fault means that tx was removed from atxm
+            error = f"({tx.error})" if tx.error else ""
+            self.log.warn(
+                f"{tx_type} async tx {tx.id} for signing cohort# {phase_id.ritual_id} "
+                f"failed with fault {tx.fault.name}{error}; resubmitting a new one"
+            )
+
+            # submit a new one.
+            resubmit_tx()
+
+        def on_finalized(tx: FinalizedTx):
+            # finalized means that tx was removed from atxm
+            if not tx.successful:
+                self.log.warn(
+                    f"{tx_type} async tx {tx.id} for signing cohort# {phase_id.ritual_id} "
+                    f"was reverted; resubmitting a new one"
+                )
+
+                # submit a new one.
+                resubmit_tx()
+            else:
+                # success and blockchain updated - no need to store tx anymore
+                self.signing_storage.clear_ritual_phase_async_tx(
+                    phase_id=phase_id, async_tx=tx
+                )
+
+        def on_insufficient_funds(tx: Union[FutureTx, PendingTx], e: InsufficientFunds):
+            # although error, tx was not removed from atxm
+            self.log.error(
+                f"{tx_type} async tx {tx.id} for signing cohort# {phase_id.ritual_id} "
+                f"cannot be executed because {self.transacting_power.account[:8]} "
+                f"has insufficient funds {e}"
+            )
+
+        async_tx_hooks = BlockchainInterface.AsyncTxHooks(
+            on_broadcast_failure=on_broadcast_failure,
+            on_fault=on_fault,
+            on_finalized=on_finalized,
+            on_insufficient_funds=on_insufficient_funds,
+        )
+
+        return async_tx_hooks
+
     def _is_post_signature_action_required(self, cohort_id: int) -> bool:
         status = self.signing_coordinator_agent.get_signing_cohort_status(cohort_id)
         if status != SigningCoordinator.RitualStatus.AWAITING_SIGNATURES:
@@ -1188,6 +1281,20 @@ class Operator(BaseActor):
             self.log.debug(f"No action required for cohort {cohort_id}.")
             return
 
+        # check if there is a pending tx for this phase
+        async_tx = self.signing_storage.get_ritual_phase_async_tx(
+            phase_id=PhaseId(cohort_id, SIGNING_AWAITING_SIGNATURES)
+        )
+        if async_tx:
+            self.log.info(
+                f"Active signing ritual in progress: {self.transacting_power.account} has submitted tx "
+                f"for cohort #{cohort_id}, post signature phase, (final: {async_tx.final})."
+            )
+            return async_tx
+
+        return self._post_signature(cohort_id)
+
+    def _post_signature(self, cohort_id: int) -> AsyncTx:
         data_hash = self.signing_coordinator_agent.get_signing_cohort_data_hash(
             cohort_id
         )
@@ -1196,17 +1303,16 @@ class Operator(BaseActor):
         )
 
         # TODO add async tx hooks
-        async_tx_hooks = BlockchainInterface.AsyncTxHooks(
-            on_broadcast_failure=None,
-            on_fault=None,
-            on_finalized=None,
-            on_insufficient_funds=None,
-        )
+        identifier = PhaseId(ritual_id=cohort_id, phase=SIGNING_AWAITING_SIGNATURES)
+        async_tx_hooks = self._setup_signing_async_tx_hooks(identifier, cohort_id)
         async_tx = self.signing_coordinator_agent.post_signature(
             cohort_id=cohort_id,
             signature=signature,
             transacting_power=self.transacting_power,
             async_tx_hooks=async_tx_hooks,
+        )
+        self.signing_storage.store_ritual_phase_async_tx(
+            phase_id=identifier, async_tx=async_tx
         )
         return async_tx
 
