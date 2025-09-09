@@ -11,6 +11,7 @@ from nucypher.blockchain.eth.models import (
     DKG_PHASE_2,
     HANDOVER_AWAITING_BLINDED_SHARE,
     HANDOVER_AWAITING_TRANSCRIPT,
+    SIGNING_AWAITING_SIGNATURES,
     Coordinator,
 )
 from nucypher.types import PhaseId, PhaseNumber
@@ -146,3 +147,26 @@ class DKGStorage(RitualStorage):
 
     def clear_active_ritual_object(self, ritual_id: int) -> bool:
         return self._clear_ritual_metadata(self._KEY_ACTIVE_RITUAL, ritual_id)
+
+
+class SigningRitualStorage(RitualStorage):
+    """A simple in-memory storage for Signing Ritual data"""
+
+    _KEY_PHASE_POST_SIGNATURE_TXS = "post_signature_txs"
+
+    _KEYS = [
+        _KEY_PHASE_POST_SIGNATURE_TXS,
+    ]
+
+    def __init__(self):
+        super().__init__()
+
+    #
+    # Signing Phases
+    #
+    @classmethod
+    def _get_phase_key(cls, phase: int):
+        if phase == SIGNING_AWAITING_SIGNATURES:
+            return cls._KEY_PHASE_POST_SIGNATURE_TXS
+        else:
+            raise ValueError(f"Unknown phase: {phase}")
