@@ -22,7 +22,7 @@ DKG_SIZE = 4
 
 
 @pytest.fixture(scope="module")
-def agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
+def coordinator_agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
     coordinator_agent: CoordinatorAgent = mock_contract_agency.get_agent(
         CoordinatorAgent, registry=None, blockchain_endpoint=MOCK_ETH_PROVIDER_URI
     )
@@ -64,14 +64,17 @@ def transacting_power(alice):
 
 
 def test_initiate_ritual(
-    agent: CoordinatorAgent, cohort, transacting_power, get_random_checksum_address
+    coordinator_agent: CoordinatorAgent,
+    cohort,
+    transacting_power,
+    get_random_checksum_address,
 ):
     # any value will do
     global_allow_list = get_random_checksum_address()
     fee_model = get_random_checksum_address()
 
     duration = 100
-    receipt = agent.initiate_ritual(
+    receipt = coordinator_agent.initiate_ritual(
         fee_model=fee_model,
         authority=transacting_power.account,
         access_controller=global_allow_list,
@@ -89,7 +92,7 @@ def test_initiate_ritual(
 
     init_timestamp = 123456
     end_timestamp = init_timestamp + duration
-    number_of_rituals = agent.number_of_rituals()
+    number_of_rituals = coordinator_agent.number_of_rituals()
     ritual_id = number_of_rituals - 1
     ritual = Coordinator.Ritual(
         id=ritual_id,
@@ -103,7 +106,7 @@ def test_initiate_ritual(
         participants=participants,
         fee_model=fee_model,
     )
-    agent.get_ritual = lambda *args, **kwargs: ritual
+    coordinator_agent.get_ritual = lambda *args, **kwargs: ritual
 
     assert receipt["transactionHash"]
 
@@ -112,7 +115,7 @@ def test_perform_round_1(
     ursula,
     random_address,
     cohort,
-    agent,
+    coordinator_agent,
     random_transcript,
     get_random_checksum_address,
 ):
@@ -137,13 +140,13 @@ def test_perform_round_1(
         participants=list(participants.values()),
         fee_model=get_random_checksum_address(),
     )
-    agent.get_ritual = lambda *args, **kwargs: ritual
-    agent.get_participant = lambda ritual_id, provider, transcript: participants[
-        provider
-    ]
+    coordinator_agent.get_ritual = lambda *args, **kwargs: ritual
+    coordinator_agent.get_participant = (
+        lambda ritual_id, provider, transcript: participants[provider]
+    )
 
-    # ensure no operation performed for non-application-state
-    non_application_states = [
+    # ensure no operation performed for non-applicable states
+    non_applicable_states = [
         Coordinator.RitualStatus.NON_INITIATED,
         Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS,
         Coordinator.RitualStatus.ACTIVE,
@@ -151,15 +154,15 @@ def test_perform_round_1(
         Coordinator.RitualStatus.DKG_TIMEOUT,
         Coordinator.RitualStatus.DKG_INVALID,
     ]
-    for state in non_application_states:
-        agent.get_ritual_status = lambda *args, **kwargs: state
+    for state in non_applicable_states:
+        coordinator_agent.get_ritual_status = lambda *args, **kwargs: state
         result = ursula.perform_round_1(
             ritual_id=0, authority=random_address, participants=cohort, timestamp=0
         )
         assert result is None  # no execution performed
 
     # set correct state
-    agent.get_ritual_status = (
+    coordinator_agent.get_ritual_status = (
         lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
@@ -196,7 +199,7 @@ def test_perform_round_1(
     assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is async_tx2
 
     # participant already posted transcript
-    participant = agent.get_participant(
+    participant = coordinator_agent.get_participant(
         ritual_id=0, provider=ursula.checksum_address, transcript=False
     )
     participant.transcript = bytes(random_transcript)
@@ -220,7 +223,7 @@ def test_perform_round_2(
     ursula,
     cohort,
     transacting_power,
-    agent,
+    coordinator_agent,
     mocker,
     random_transcript,
     get_random_checksum_address,
@@ -253,13 +256,13 @@ def test_perform_round_2(
         fee_model=get_random_checksum_address(),
     )
 
-    agent.get_ritual = lambda *args, **kwargs: ritual
-    agent.get_participant = lambda ritual_id, provider, transcript: participants[
-        provider
-    ]
+    coordinator_agent.get_ritual = lambda *args, **kwargs: ritual
+    coordinator_agent.get_participant = (
+        lambda ritual_id, provider, transcript: participants[provider]
+    )
 
-    # ensure no operation performed for non-application-state
-    non_application_states = [
+    # ensure no operation performed for non-applicable states
+    non_applicable_states = [
         Coordinator.RitualStatus.NON_INITIATED,
         Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS,
         Coordinator.RitualStatus.ACTIVE,
@@ -267,15 +270,15 @@ def test_perform_round_2(
         Coordinator.RitualStatus.DKG_TIMEOUT,
         Coordinator.RitualStatus.DKG_INVALID,
     ]
-    for state in non_application_states:
-        agent.get_ritual_status = lambda *args, **kwargs: state
+    for state in non_applicable_states:
+        coordinator_agent.get_ritual_status = lambda *args, **kwargs: state
         ursula.perform_round_2(ritual_id=0, timestamp=0)
 
     phase_1_id = PhaseId(ritual_id=0, phase=DKG_PHASE_1)
     assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_1_id) is not None
 
     # set correct state
-    agent.get_ritual_status = (
+    coordinator_agent.get_ritual_status = (
         lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
     )
 
@@ -308,7 +311,7 @@ def test_perform_round_2(
     assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_2_id) is async_tx2
 
     # No action required
-    participant = agent.get_participant(
+    participant = coordinator_agent.get_participant(
         ritual_id=0, provider=ursula.checksum_address, transcript=False
     )
     participant.aggregated = True
@@ -565,7 +568,7 @@ def test_perform_handover_transcript_phase(
     ursula,
     handover_incoming_ursula,
     cohort,
-    agent,
+    coordinator_agent,
     random_transcript,
 ):
 
@@ -579,7 +582,7 @@ def test_perform_handover_transcript_phase(
         transcript=b"",
         decryption_request_pubkey=b"",
     )
-    agent.get_handover = lambda *args, **kwargs: handover
+    coordinator_agent.get_handover = lambda *args, **kwargs: handover
 
     # ensure no operation performed when ritual is not active
     no_handover_dkg_states = [
@@ -591,7 +594,7 @@ def test_perform_handover_transcript_phase(
         Coordinator.RitualStatus.DKG_INVALID,
     ]
     for dkg_state in no_handover_dkg_states:
-        agent.get_ritual_status = lambda *args, **kwargs: dkg_state
+        coordinator_agent.get_ritual_status = lambda *args, **kwargs: dkg_state
         assert not handover_incoming_ursula._is_handover_transcript_required(
             ritual_id=0, departing_validator=ursula.checksum_address
         )
@@ -602,7 +605,9 @@ def test_perform_handover_transcript_phase(
 
     # ensure no operation performed when ritual is active but
     # handover status is not awaiting transcript
-    agent.get_ritual_status = lambda *args, **kwargs: Coordinator.RitualStatus.ACTIVE
+    coordinator_agent.get_ritual_status = (
+        lambda *args, **kwargs: Coordinator.RitualStatus.ACTIVE
+    )
     no_handover_transcript_states = [
         Coordinator.HandoverStatus.NON_INITIATED,
         Coordinator.HandoverStatus.HANDOVER_AWAITING_BLINDED_SHARE,
@@ -610,7 +615,7 @@ def test_perform_handover_transcript_phase(
         Coordinator.HandoverStatus.HANDOVER_TIMEOUT,
     ]
     for handover_state in no_handover_transcript_states:
-        agent.get_handover_status = lambda *args, **kwargs: handover_state
+        coordinator_agent.get_handover_status = lambda *args, **kwargs: handover_state
         assert not handover_incoming_ursula._is_handover_transcript_required(
             ritual_id=0, departing_validator=ursula.checksum_address
         )
@@ -620,7 +625,7 @@ def test_perform_handover_transcript_phase(
         assert async_tx is None  # no execution performed
 
     # set correct state
-    agent.get_handover_status = (
+    coordinator_agent.get_handover_status = (
         lambda *args, **kwargs: Coordinator.HandoverStatus.HANDOVER_AWAITING_TRANSCRIPT
     )
     assert handover_incoming_ursula._is_handover_transcript_required(
@@ -683,7 +688,7 @@ def test_perform_handover_blinded_share_phase(
     ursula,
     handover_incoming_ursula,
     cohort,
-    agent,
+    coordinator_agent,
 ):
     init_timestamp = 123456
     handover = Coordinator.Handover(
@@ -695,7 +700,7 @@ def test_perform_handover_blinded_share_phase(
         transcript=bytes(os.urandom(32)),
         decryption_request_pubkey=bytes(os.urandom(32)),
     )
-    agent.get_handover = lambda *args, **kwargs: handover
+    coordinator_agent.get_handover = lambda *args, **kwargs: handover
 
     # ensure no operation performed when ritual is not active
     no_handover_dkg_states = [
@@ -707,17 +712,21 @@ def test_perform_handover_blinded_share_phase(
         Coordinator.RitualStatus.DKG_INVALID,
     ]
     for dkg_state in no_handover_dkg_states:
-        agent.get_ritual_status = lambda *args, **kwargs: dkg_state
+        coordinator_agent.get_ritual_status = lambda *args, **kwargs: dkg_state
         assert not ursula._is_handover_blinded_share_required(ritual_id=0)
         async_tx = ursula.perform_handover_blinded_share_phase(ritual_id=0)
         assert async_tx is None  # no execution performed
 
     # ensure ritual is active
-    agent.get_ritual_status = lambda *args, **kwargs: Coordinator.RitualStatus.ACTIVE
+    coordinator_agent.get_ritual_status = (
+        lambda *args, **kwargs: Coordinator.RitualStatus.ACTIVE
+    )
 
     # ensure no operation performed when ritual is active but
     # handover status is not awaiting blinding share
-    agent.get_ritual_status = lambda *args, **kwargs: Coordinator.RitualStatus.ACTIVE
+    coordinator_agent.get_ritual_status = (
+        lambda *args, **kwargs: Coordinator.RitualStatus.ACTIVE
+    )
     no_handover_transcript_states = [
         Coordinator.HandoverStatus.NON_INITIATED,
         Coordinator.HandoverStatus.HANDOVER_AWAITING_TRANSCRIPT,
@@ -725,13 +734,13 @@ def test_perform_handover_blinded_share_phase(
         Coordinator.HandoverStatus.HANDOVER_TIMEOUT,
     ]
     for handover_state in no_handover_transcript_states:
-        agent.get_handover_status = lambda *args, **kwargs: handover_state
+        coordinator_agent.get_handover_status = lambda *args, **kwargs: handover_state
         assert not ursula._is_handover_blinded_share_required(ritual_id=0)
         async_tx = ursula.perform_handover_blinded_share_phase(ritual_id=0)
         assert async_tx is None  # no execution performed
 
     # set correct state
-    agent.get_handover_status = (
+    coordinator_agent.get_handover_status = (
         lambda *args, **kwargs: Coordinator.HandoverStatus.HANDOVER_AWAITING_BLINDED_SHARE
     )
     assert ursula._is_handover_blinded_share_required(ritual_id=0)
