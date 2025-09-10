@@ -4,13 +4,15 @@ from unittest.mock import patch
 import pytest
 from atxm.exceptions import Fault, InsufficientFunds
 
-from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.agents import CoordinatorAgent, SigningCoordinatorAgent
 from nucypher.blockchain.eth.models import (
     DKG_PHASE_1,
     DKG_PHASE_2,
     HANDOVER_AWAITING_BLINDED_SHARE,
     HANDOVER_AWAITING_TRANSCRIPT,
+    SIGNING_AWAITING_SIGNATURES,
     Coordinator,
+    SigningCoordinator,
 )
 from nucypher.crypto.powers import RitualisticPower
 from nucypher.types import PhaseId
@@ -41,6 +43,27 @@ def coordinator_agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
     coordinator_agent.post_blinded_share_for_handover = mock_async_tx
     coordinator_agent.get_provider_public_key = mock_get_provider_public_key
     return coordinator_agent
+
+
+@pytest.fixture(scope="module")
+def signing_coordinator_agent(mock_contract_agency) -> SigningCoordinatorAgent:
+    _signing_coordinator_agent: SigningCoordinatorAgent = (
+        mock_contract_agency.get_agent(
+            CoordinatorAgent, registry=None, blockchain_endpoint=MOCK_ETH_PROVIDER_URI
+        )
+    )
+
+    def mock_get_signing_cohort_data_hash(*args, **kwargs):
+        return b"\x00" * 32
+
+    def mock_async_tx(*args, **kwargs):
+        return MockBlockchain.mock_async_tx()
+
+    _signing_coordinator_agent.post_signature = mock_async_tx
+    _signing_coordinator_agent.get_signing_cohort_data_hash = (
+        mock_get_signing_cohort_data_hash
+    )
+    return _signing_coordinator_agent
 
 
 @pytest.fixture(scope="module")
@@ -775,3 +798,171 @@ def test_perform_handover_blinded_share_phase(
     async_tx2 = ursula.perform_handover_blinded_share_phase(ritual_id=0)
     assert async_tx2 is async_tx
     assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is async_tx2
+
+
+def test_perform_post_signature(
+    ursula,
+    cohort,
+    transacting_power,
+    mocker,
+    signing_coordinator_agent,
+    get_random_checksum_address,
+):
+    cohort_id = 0
+    kwargs = {
+        "cohort_id": cohort_id,
+        "chain_id": 1234,
+        "authority": get_random_checksum_address,
+        "participants": cohort,
+        "timestamp": 0,
+    }
+
+    # ensure no operation performed for non-applicable states
+    non_applicable_states = [
+        SigningCoordinator.RitualStatus.NON_INITIATED,
+        SigningCoordinator.RitualStatus.TIMEOUT,
+        SigningCoordinator.RitualStatus.ACTIVE,
+        SigningCoordinator.RitualStatus.EXPIRED,
+    ]
+    for state in non_applicable_states:
+        signing_coordinator_agent.get_signing_cohort_status = (
+            lambda *args, **kwargs: state
+        )
+        result = ursula.perform_post_signature(**kwargs)
+        assert result is None  # no execution performed
+
+    # set correct state
+    signing_coordinator_agent.get_signing_cohort_status = (
+        lambda *args, **kwargs: SigningCoordinator.RitualStatus.AWAITING_SIGNATURES
+    )
+
+    signature_phase_id = PhaseId(ritual_id=cohort_id, phase=SIGNING_AWAITING_SIGNATURES)
+    assert (
+        ursula.signing_storage.get_ritual_phase_async_tx(phase_id=signature_phase_id)
+        is None
+    ), "no tx data as yet"
+
+    async_tx = ursula.perform_post_signature(**kwargs)
+
+    # check async tx tracking
+    assert (
+        ursula.signing_storage.get_ritual_phase_async_tx(signature_phase_id) is async_tx
+    )
+
+    # trying again yields same tx
+    async_tx2 = ursula.perform_post_signature(**kwargs)
+    assert async_tx2 is async_tx
+    assert (
+        ursula.signing_storage.get_ritual_phase_async_tx(signature_phase_id)
+        is async_tx2
+    )
+
+    # No action required
+    participant = mocker.Mock()
+    signing_coordinator_agent.get_signer = lambda *args, **kwargs: participant
+    participant.signature = os.urandom(32)
+
+    result = ursula.perform_post_signature(**kwargs)
+    assert result is None
+
+    # Action required but async tx already fired
+    participant.signature = False
+    async_tx3 = ursula.perform_post_signature(**kwargs)
+    assert async_tx3 is async_tx
+    assert (
+        ursula.signing_storage.get_ritual_phase_async_tx(signature_phase_id)
+        is async_tx3
+    )
+
+
+def test_signing_async_tx_hooks_awaiting_signature(ursula, mocker):
+    cohort_id = 0
+    phase_id = PhaseId(ritual_id=cohort_id, phase=SIGNING_AWAITING_SIGNATURES)
+
+    mock_post_signature = mocker.Mock()
+    mocker.patch.object(ursula, "_post_signature", mock_post_signature)
+
+    async_tx_hooks = ursula._setup_signing_async_tx_hooks(phase_id, cohort_id)
+    mock_tx = mocker.Mock()
+    mock_tx.id = 1
+    mock_tx.params = MockBlockchain.FAKE_TX_PARAMS
+
+    resubmit_call_count = 0
+
+    # broadcast - just logging
+    mock_tx.txhash = MockBlockchain.FAKE_TX_HASH
+    async_tx_hooks.on_broadcast(mock_tx)
+    assert mock_post_signature.call_count == 0
+
+    # insufficient funds - just logging
+    async_tx_hooks.on_insufficient_funds(mock_tx, InsufficientFunds())
+    assert mock_post_signature.call_count == resubmit_call_count, "no change"
+
+    #
+    # With resubmitted tx
+    #
+    mocker.patch.object(ursula, "_is_post_signature_action_required", return_value=True)
+
+    # broadcast failure
+    async_tx_hooks.on_broadcast_failure(mock_tx, Exception("test"))
+    resubmit_call_count += 1
+    assert mock_post_signature.call_count == resubmit_call_count, "tx resubmitted"
+    mock_post_signature.assert_called_with(cohort_id)
+
+    # fault
+    mock_tx.fault = Fault.TIMEOUT
+    mock_tx.error = "fault error"
+    async_tx_hooks.on_fault(mock_tx)
+    resubmit_call_count += 1
+    assert mock_post_signature.call_count == resubmit_call_count, "tx resubmitted"
+    mock_post_signature.assert_called_with(cohort_id)
+
+    clear_ritual_spy = mocker.spy(ursula.signing_storage, "clear_ritual_phase_async_tx")
+
+    # finalized - unsuccessful
+    mock_tx.successful = False
+    async_tx_hooks.on_finalized(mock_tx)
+    resubmit_call_count += 1
+    assert mock_post_signature.call_count == resubmit_call_count, "tx resubmitted"
+    mock_post_signature.assert_called_with(cohort_id)
+    assert clear_ritual_spy.call_count == 0, "not called because unsuccessful"
+
+    # finalized - successful
+    mock_tx.successful = True
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_post_signature.call_count == resubmit_call_count
+    ), "no change because successful"
+    clear_ritual_spy.assert_called_once_with(
+        phase_id, mock_tx
+    ), "cleared tx because successful"
+
+    #
+    # Without resubmitted tx i.e. action not required
+    #
+    mocker.patch.object(
+        ursula, "_is_post_signature_action_required", return_value=False
+    )
+    current_call_count = mock_post_signature.call_count
+
+    async_tx_hooks.on_broadcast_failure(mock_tx, Exception("test"))
+    assert (
+        mock_post_signature.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    async_tx_hooks.on_fault(mock_tx)
+    assert (
+        mock_post_signature.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    mock_tx.successful = True
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_post_signature.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    mock_tx.successful = False
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_post_signature.call_count == current_call_count
+    ), "no action needed, so not called"
