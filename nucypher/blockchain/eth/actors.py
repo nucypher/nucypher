@@ -1230,6 +1230,7 @@ class Operator(BaseActor):
         timestamp: int,
     ) -> Optional[AsyncTx]:
         if self.checksum_address not in participants:
+            # should never happen
             message = (
                 f"{self.checksum_address}|{self.wallet_address} "
                 f"is not a member of cohort {cohort_id}"
