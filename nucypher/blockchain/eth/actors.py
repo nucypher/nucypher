@@ -77,7 +77,11 @@ from nucypher.crypto.powers import (
     ThresholdRequestDecryptingPower,
     TransactingPower,
 )
-from nucypher.datastore.ritual import DKGStorage, RitualStorage, SigningRitualStorage
+from nucypher.datastore.ritual import (
+    DKGRitualStorage,
+    RitualStorage,
+    SigningRitualStorage,
+)
 from nucypher.network.signing import (
     BaseSignatureRequest,
     SignatureResponse,
@@ -294,7 +298,7 @@ class Operator(BaseActor):
             condition_blockchain_endpoints
         )
 
-        self.dkg_storage = DKGStorage()
+        self.dkg_storage = DKGRitualStorage()
         self.signing_storage = SigningRitualStorage()
 
     def set_provider_public_key(self) -> Union[TxReceipt, None]:

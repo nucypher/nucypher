@@ -74,7 +74,7 @@ class RitualStorage(abc.ABC):
             return False
 
 
-class DKGStorage(RitualStorage):
+class DKGRitualStorage(RitualStorage):
     """A simple in-memory storage for DKG/Handover ritual data"""
 
     # round 1

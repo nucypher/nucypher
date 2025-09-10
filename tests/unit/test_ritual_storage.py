@@ -7,11 +7,11 @@ from nucypher.blockchain.eth.models import (
     HANDOVER_AWAITING_TRANSCRIPT,
     SIGNING_AWAITING_SIGNATURES,
 )
-from nucypher.datastore.ritual import DKGStorage, SigningRitualStorage
+from nucypher.datastore.ritual import DKGRitualStorage, SigningRitualStorage
 from nucypher.types import PhaseId, PhaseNumber
 
 
-@pytest.mark.parametrize("storage_class", [DKGStorage, SigningRitualStorage])
+@pytest.mark.parametrize("storage_class", [DKGRitualStorage, SigningRitualStorage])
 def test_store_for_non_existent_phase(storage_class, mocker):
     storage = storage_class()
     phase_id = PhaseId(ritual_id=1, phase=PhaseNumber(10000000))
@@ -20,7 +20,7 @@ def test_store_for_non_existent_phase(storage_class, mocker):
         storage.store_ritual_phase_async_tx(phase_id, async_tx)
 
 
-@pytest.mark.parametrize("storage_class", [DKGStorage, SigningRitualStorage])
+@pytest.mark.parametrize("storage_class", [DKGRitualStorage, SigningRitualStorage])
 def test_retrieve_for_non_existent_phase(storage_class):
     storage = storage_class()
     phase_id = PhaseId(ritual_id=1, phase=PhaseNumber(10000000))
@@ -28,7 +28,7 @@ def test_retrieve_for_non_existent_phase(storage_class):
         storage.get_ritual_phase_async_tx(phase_id)
 
 
-@pytest.mark.parametrize("storage_class", [DKGStorage, SigningRitualStorage])
+@pytest.mark.parametrize("storage_class", [DKGRitualStorage, SigningRitualStorage])
 def test_clear_for_non_existent_phase(storage_class, mocker):
     storage = storage_class()
     phase_id = PhaseId(ritual_id=1, phase=PhaseNumber(10000000))
@@ -41,7 +41,7 @@ def test_clear_for_non_existent_phase(storage_class, mocker):
     "storage_class, phase_numbers",
     [
         (
-            DKGStorage,
+            DKGRitualStorage,
             [
                 DKG_PHASE_1,
                 DKG_PHASE_2,
@@ -66,7 +66,7 @@ def test_store_and_get_async_tx(storage_class, phase_numbers, mocker):
     "storage_class, phase_numbers",
     [
         (
-            DKGStorage,
+            DKGRitualStorage,
             [
                 DKG_PHASE_1,
                 DKG_PHASE_2,
@@ -120,7 +120,7 @@ def test_store_and_clear_individual_async_tx(storage_class, phase_numbers, mocke
     "storage_class, phase_numbers",
     [
         (
-            DKGStorage,
+            DKGRitualStorage,
             [
                 DKG_PHASE_1,
                 DKG_PHASE_2,
