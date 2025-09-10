@@ -25,10 +25,10 @@ class RitualStorage(abc.ABC):
     def __init__(self):
         self._data = defaultdict(dict)
 
-    def clear(self, id):
+    def clear(self, ritual_id):
         for key in self._KEYS:
             try:
-                del self._data[key][id]
+                del self._data[key][ritual_id]
             except KeyError:
                 continue
 
