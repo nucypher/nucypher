@@ -155,3 +155,65 @@ def test_store_and_clear_all_async_tx(storage_class, phase_numbers, mocker):
         phase_id = PhaseId(ritual_id=ritual_id, phase=PhaseNumber(phase_number))
         retrieved_tx = storage.get_ritual_phase_async_tx(phase_id)
         assert retrieved_tx is None
+
+
+def test_dkg_storage_validators(mocker):
+    storage = DKGRitualStorage()
+    ritual_id_1 = 1
+    validators_1 = [mocker.Mock(), mocker.Mock(), mocker.Mock()]
+    storage.store_validators(ritual_id_1, validators_1)
+
+    ritual_id_2 = 2
+    validators_2 = [mocker.Mock(), mocker.Mock(), mocker.Mock()]
+    storage.store_validators(ritual_id_2, validators_2)
+
+    assert storage.get_validators(ritual_id_1) == validators_1
+
+    assert storage.get_validators(ritual_id_2) == validators_2
+    assert validators_2 != validators_1
+
+    # non-existent ritual id
+    assert storage.get_validators(ritual_id=10) is None
+
+    # clear non-existent ritual id
+    assert storage.clear_validators(ritual_id=10) is False
+
+    # clear existing ritual id
+    assert storage.clear_validators(ritual_id=ritual_id_1) is True
+    assert storage.get_validators(ritual_id_1) is None
+
+    # other ritual unaffected
+    assert storage.get_validators(ritual_id_2) == validators_2
+
+
+def test_dkg_storage_active_ritual(mocker):
+    storage = DKGRitualStorage()
+    ritual_id_1 = 1
+    active_ritual_1 = mocker.Mock()
+    active_ritual_1.id = ritual_id_1
+    active_ritual_1.total_aggregations = active_ritual_1.dkg_size = 5
+    storage.store_active_ritual(active_ritual_1)
+
+    ritual_id_2 = 2
+    active_ritual_2 = mocker.Mock()
+    active_ritual_2.id = ritual_id_2
+    active_ritual_2.total_aggregations = active_ritual_2.dkg_size = 7
+    storage.store_active_ritual(active_ritual_2)
+
+    assert storage.get_active_ritual(ritual_id_1) == active_ritual_1
+
+    assert storage.get_active_ritual(ritual_id_2) == active_ritual_2
+    assert active_ritual_2 != active_ritual_1
+
+    # non-existent ritual id
+    assert storage.get_active_ritual(ritual_id=10) is None
+
+    # clear non-existent ritual id
+    assert storage.clear_active_ritual_object(ritual_id=10) is False
+
+    # clear existing ritual id
+    assert storage.clear_active_ritual_object(ritual_id=ritual_id_1) is True
+    assert storage.get_active_ritual(ritual_id_1) is None
+
+    # other ritual unaffected
+    assert storage.get_active_ritual(ritual_id_2) == active_ritual_2
