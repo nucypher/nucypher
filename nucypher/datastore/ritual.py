@@ -27,13 +27,10 @@ class RitualStorage(abc.ABC):
 
     def clear(self, ritual_id):
         for key in self._KEYS:
-            try:
-                del self._data[key][ritual_id]
-            except KeyError:
-                continue
+            self._clear_ritual_metadata(key, ritual_id)
 
     #
-    # DKG Phases
+    # Ritual Phases
     #
     @classmethod
     @abstractmethod
@@ -42,21 +39,17 @@ class RitualStorage(abc.ABC):
 
     def store_ritual_phase_async_tx(self, phase_id: PhaseId, async_tx: AsyncTx):
         key = self._get_phase_key(phase_id.phase)
-        self._data[key][phase_id.ritual_id] = async_tx
+        self._store_ritual_metadata(key, phase_id.ritual_id, async_tx)
 
     def clear_ritual_phase_async_tx(self, phase_id: PhaseId, async_tx: AsyncTx) -> bool:
         key = self._get_phase_key(phase_id.phase)
-        if self._data[key].get(phase_id.ritual_id) is async_tx:
-            try:
-                del self._data[key][phase_id.ritual_id]
-                return True
-            except KeyError:
-                pass
+        if self._get_ritual_metadata(key, phase_id.ritual_id) is async_tx:
+            return self._clear_ritual_metadata(key, phase_id.ritual_id)
         return False
 
     def get_ritual_phase_async_tx(self, phase_id: PhaseId) -> Optional[AsyncTx]:
         key = self._get_phase_key(phase_id.phase)
-        return self._data[key].get(phase_id.ritual_id)
+        return self._get_ritual_metadata(key, phase_id.ritual_id)
 
     # Metadata
     def _store_ritual_metadata(self, key: str, ritual_id: int, metadata) -> None:
@@ -104,7 +97,7 @@ class DKGRitualStorage(RitualStorage):
     # DKG Phases
     #
     @classmethod
-    def _get_phase_key(cls, phase: int):
+    def _get_phase_key(cls, phase: PhaseNumber):
         if phase == DKG_PHASE_1:
             return cls._KEY_PHASE_1_TXS
         elif phase == DKG_PHASE_2:
@@ -165,7 +158,7 @@ class SigningRitualStorage(RitualStorage):
     # Signing Phases
     #
     @classmethod
-    def _get_phase_key(cls, phase: int):
+    def _get_phase_key(cls, phase: PhaseNumber):
         if phase == SIGNING_AWAITING_SIGNATURES:
             return cls._KEY_PHASE_POST_SIGNATURE_TXS
         else:
