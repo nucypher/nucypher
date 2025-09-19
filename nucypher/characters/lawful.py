@@ -596,6 +596,31 @@ class Bob(Character):
                 encrypted_decryption_request
             )
 
+        ignore_list = [
+            "0xa6e3a08fae33898fc31c4f6c7a584827d809352d",
+            "0xa7baca5a92842689359fb1782e75d6eff59152e6",
+            "0xa829c2e33907ab03d27d5dbb39effd8386112789",
+            "0xb0c9f472b2066691ab7fee5b6702c28ab35888b2",
+            "0xb8ee380fd71eaccb4948dd7cee5b6fcb822fc4fc",
+            "0xb98a82ab97171504bf9ea0ac62a3f34bffe5f510",
+            "0xc1268db05e7bd38bd85b2c3fef80f8968a2c933a",
+            "0xc4f03e31bf9677b4c76315931a2cbcf40c6db1be",
+            "0xcc5d4b816e34d9dccb898872f58317e8af110fc2",
+            "0xd517479acaef258baa3ba6a351e9c714a79d597e",
+            "0xd6edf0bc0c19f87ecef67632bfcd212ce8324ab9",
+            "0xda08c16c86b78cd56cb10fdc0370efc549d8638b",
+            "0xe58dfd1bc7f3ca2b694bdfdc1c6cac80179a7515",
+            "0xe6c074228932f53c9e50928ad69db760649a8c4d",
+        ]
+        ignore_list = [to_checksum_address(addr) for addr in ignore_list]
+        for addr in ignore_list:
+            if addr in decryption_request_mapping:
+                del decryption_request_mapping[addr]
+                del shared_secrets[addr]
+                self.log.info(
+                    f"Intentionally ignoring {addr} for decryption share gathering."
+                )
+
         decryption_client = self._threshold_decryption_client_class(learner=self)
         successes, failures = decryption_client.gather_encrypted_decryption_shares(
             encrypted_requests=decryption_request_mapping,
