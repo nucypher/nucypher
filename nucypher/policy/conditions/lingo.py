@@ -10,7 +10,7 @@ from hashlib import md5
 from inspect import signature
 from typing import Any, List, Optional, Tuple, Type, Union
 
-from eth_utils import is_hexstr
+from eth_utils import is_hexstr, keccak
 from hexbytes import HexBytes
 from marshmallow import (
     Schema,
@@ -330,6 +330,18 @@ _OPERATOR_FUNCTIONS = {
     "float": lambda a: float(a),
     "int": lambda a: int(a),
     "str": lambda a: str(a),
+    # JSON conversion
+    "fromJson": lambda a: json.loads(a if isinstance(a, str) else a.decode()),
+    "toJson": lambda a: json.dumps(a),
+    # hex conversion
+    "fromHex": lambda a: bytes(HexBytes(a)),
+    "toHex": lambda a: (
+        HexBytes(a).hex()
+        if isinstance(a, (bytes, bytearray))
+        else HexBytes(a.encode() if isinstance(a, str) else str(a).encode()).hex()
+    ),
+    # hashing
+    "keccak": lambda a: HexBytes(keccak(a.encode() if isinstance(a, str) else a)).hex(),
 }
 
 MAX_VARIABLE_OPERATIONS = 5
