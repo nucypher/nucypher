@@ -62,6 +62,28 @@ OPERATION_TEST_CASES = [
         "Do not confuse one story for all stories",
         "Do not confuse one story for all stories",
     ),  # -- Anonymous
+    # JSON conversion
+    ("toJson", None, {"key": "value"}, '{"key": "value"}'),
+    ("toJson", None, [1, 2, 3], "[1, 2, 3]"),
+    ("fromJson", None, '{"key": "value"}', {"key": "value"}),
+    ("fromJson", None, "[1, 2, 3]", [1, 2, 3]),
+    # hex conversion
+    ("toHex", None, b"\x00\x01\x02", "0x000102"),
+    ("toHex", None, "test", "0x74657374"),
+    ("fromHex", None, "0x74657374", b"test"),
+    # keccak hashing
+    (
+        "keccak",
+        None,
+        "",
+        "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+    ),
+    (
+        "keccak",
+        None,
+        "test",
+        "0x9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658",
+    ),
 ]
 
 
@@ -107,9 +129,9 @@ def test_type_errors_in_evaluation(operation):
         op = VariableOperation(operation=operation)
     else:
         op = VariableOperation(operation=operation, value=value)
-    # Skip type error test for bool and str casting operations because
-    # they can handle any input without raising TypeError
-    if operation in ["bool", "str"]:
+    # Skip type error test for operations that can handle any input without raising TypeError
+    # or that raise different exceptions (e.g., JSONDecodeError for fromJson)
+    if operation in ["bool", "str", "toJson", "fromJson", "toHex", "fromHex", "keccak"]:
         return
 
     with pytest.raises(TypeError):
@@ -242,6 +264,128 @@ def test_overloaded_operators():
     ]
     result = VariableOperation.evaluate_operations(operations, initial)
     assert result == "TACoTACoTACo!"
+
+
+def test_string_concatenation():
+    # Test basic string concatenation
+    initial = "Hello"
+    operations = [
+        VariableOperation(operation="+=", value=" "),
+        VariableOperation(operation="+=", value="World"),
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == "Hello World"
+
+    # Test building a sentence word by word
+    initial = ""
+    operations = [
+        VariableOperation(operation="+=", value="Threshold"),
+        VariableOperation(operation="+=", value=" "),
+        VariableOperation(operation="+=", value="Access"),
+        VariableOperation(operation="+=", value=" "),
+        VariableOperation(operation="+=", value="Control"),
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == "Threshold Access Control"
+
+    # Test string multiplication followed by concatenation
+    initial = "Nu"
+    operations = [
+        VariableOperation(operation="*=", value=2),  # NuNu
+        VariableOperation(operation="+=", value="Cypher"),  # NuNuCypher
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == "NuNuCypher"
+
+
+def test_json_hex_conversion_operators():
+    # Test JSON to hex and back
+    initial = {"address": "0x123", "amount": 100}
+    operations = [
+        VariableOperation(operation="toJson"),  # '{"address": "0x123", "amount": 100}'
+        VariableOperation(operation="toHex"),  # hex representation
+        VariableOperation(operation="fromHex"),  # back to JSON string bytes
+        VariableOperation(operation="fromJson"),  # back to original dict
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == initial
+
+    # Test hex conversion round trip
+    initial = b"\xde\xad\xbe\xef"
+    operations = [
+        VariableOperation(operation="toHex"),  # "0xdeadbeef"
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == "0xdeadbeef"
+
+    # Convert back
+    operations = [
+        VariableOperation(operation="fromHex"),  # b"\xde\xad\xbe\xef"
+    ]
+    result = VariableOperation.evaluate_operations(operations, result)
+    assert result == initial
+
+
+def test_keccak_hashing():
+    # Test keccak of empty string
+    initial = ""
+    operations = [
+        VariableOperation(operation="keccak"),
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert (
+        result == "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+    )
+
+    # Test keccak of a known string
+    initial = "test"
+    operations = [
+        VariableOperation(operation="keccak"),
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert (
+        result == "0x9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
+    )
+
+    # Test keccak of bytes
+    initial = b"test"
+    operations = [
+        VariableOperation(operation="keccak"),
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert (
+        result == "0x9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
+    )
+
+
+def test_json_hex_comparison_use_case():
+    """
+    Test the practical use case of comparing hex representation with object representation
+    to ensure they represent the same data.
+    """
+    # Start with an object
+    original_object = {"address": "0xabc", "value": 42, "nested": {"key": "data"}}
+
+    # Convert to JSON, then to hex
+    operations_to_hex = [
+        VariableOperation(operation="toJson"),
+        VariableOperation(operation="toHex"),
+    ]
+    hex_representation = VariableOperation.evaluate_operations(
+        operations_to_hex, original_object
+    )
+
+    # Now convert hex back to object and compare
+    operations_from_hex = [
+        VariableOperation(operation="fromHex"),
+        VariableOperation(operation="fromJson"),
+    ]
+    reconstructed_object = VariableOperation.evaluate_operations(
+        operations_from_hex, hex_representation
+    )
+
+    # They should be equal
+    assert reconstructed_object == original_object
 
 
 def test_context_variable_resolution_in_operations():
