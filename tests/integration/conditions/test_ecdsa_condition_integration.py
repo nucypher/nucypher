@@ -1,8 +1,5 @@
-import json
-
 from ecdsa import Ed25519, SECP256k1, SigningKey
 from ecdsa.util import sigencode_string
-from hexbytes import HexBytes
 
 from nucypher.policy.conditions.ecdsa import ECDSACondition, ECDSAVerificationCall
 from nucypher.policy.conditions.json.json import JsonCondition
@@ -10,9 +7,13 @@ from nucypher.policy.conditions.lingo import (
     AndCompoundCondition,
     CompoundCondition,
     ConditionLingo,
-    OrCompoundCondition,
+    ConditionVariable,
     ReturnValueTest,
+    SequentialCondition,
+    VariableOperation,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
+from nucypher.policy.conditions.var import ContextVariableCondition
 
 # Create test key pair for ECDSA signing
 TEST_SIGNING_KEY = SigningKey.generate(curve=SECP256k1)
@@ -135,180 +136,6 @@ def test_ecdsa_in_compound_condition():
     assert and_lingo.eval(**context) is True
 
 
-def test_discord_ed25519_with_ecdsa_condition():
-    # Discord Ed25519 test vector
-    public_key_hex = "b853dd9f496723daf64bf2f5a886086f790df66e61d7b6f7f98a50c9e5ede8f3"
-    signature_hex = "0a12acb96843700b724f1c9dba3075a7fc482677e0c713eb6be63bfea406fb33b4715975f1062b2dff95127bd559ee23758911bd217760727dc44e7880bc6e04"
-    timestamp = "1749368683"
-    body = '{"app_permissions":"2248473465835073","application_id":"1380486651436073092","attachment_size_limit":10485760,"authorizing_integration_owners":{"0":"1380488052169769110"},"channel":{"flags":0,"guild_id":"1380488052169769110","icon_emoji":{"id":null,"name":"👋"},"id":"1380488052169769113","last_message_id":"1380528253168652328","name":"general","nsfw":false,"parent_id":"1380488052169769111","permissions":"2251799813685247","position":0,"rate_limit_per_user":0,"theme_color":null,"topic":null,"type":0},"channel_id":"1380488052169769113","context":0,"data":{"id":"1380515955146358918","name":"sign","options":[{"name":"message","type":3,"value":"llamas"}],"type":1},"entitlement_sku_ids":[],"entitlements":[],"guild":{"features":[],"id":"1380488052169769110","locale":"en-US"},"guild_id":"1380488052169769110","guild_locale":"en-US","id":"1381177107555680327","locale":"en-US","member":{"avatar":null,"banner":null,"communication_disabled_until":null,"deaf":false,"flags":0,"joined_at":"2025-06-06T10:06:39.888000+00:00","mute":false,"nick":null,"pending":false,"permissions":"2251799813685247","premium_since":null,"roles":[],"unusual_dm_activity_until":null,"user":{"avatar":"9c5483a989a10edc8b831b6c8f284724","avatar_decoration_data":null,"clan":null,"collectibles":null,"discriminator":"0","global_name":"kprasch","id":"410212090289192960","primary_guild":null,"public_flags":0,"username":"kprasch"}},"token":"aW50ZXJhY3Rpb246MTM4MTE3NzEwNzU1NTY4MDMyNzo2ZlVlTkdIQVFIdkdhNUN2bXlYZ1RCRkZ5YkpuVm9WUG5Bbjl0TTMyUkFTenZGYXNXclBCMjZWUWJlalczcllRak9sc0JZR3Q4WW9sODBRcDg2c2hrYmRkYzlWcjF3TjdlRFVDMVBVTkZ3Z2VmRUp4VkI1MkZGNmVvM3hkWXd1Qg","type":2,"version":1}'
-
-    # ===== PART 1: Original test - ECDSA only with new context structure =====
-    # Create ECDSACondition that constructs message from timestamp + discordPayload
-    ecdsa_condition = ECDSACondition(
-        message=":timestamp:discordPayload",  # Message template concatenates these two
-        signature=":signature",
-        verifying_key=public_key_hex,
-        curve=Ed25519.name,
-    )
-
-    # Create condition lingo with just ECDSA
-    lingo = ConditionLingo(ecdsa_condition)
-
-    # Context with only 3 variables: timestamp, signature, and discordPayload
-    context = {
-        ":timestamp": timestamp,
-        ":discordPayload": body,
-        ":signature": signature_hex,
-    }
-    result = lingo.eval(**context)
-    assert (
-        result is True
-    ), "Discord Ed25519 signature should be valid using ECDSACondition with template message."
-
-    # ===== PART 2: Expanded test - ECDSA + JSON conditions compounded =====
-    # Create JSON conditions that parse the discordPayload directly from context
-    # JSON condition 1: Check the message value from the command options
-    json_message_condition = JsonCondition(
-        data=":discordPayload",  # Parse JSON from the discordPayload context variable
-        query="$.data.options[0].value",
-        return_value_test=ReturnValueTest("==", "'llamas'"),
-    )
-
-    # JSON condition 2: Check the username
-    json_username_condition = JsonCondition(
-        data=":discordPayload",  # Same discordPayload variable
-        query="$.member.user.username",
-        return_value_test=ReturnValueTest("==", "'kprasch'"),
-    )
-
-    # JSON condition 3: Check the user ID
-    json_userid_condition = JsonCondition(
-        data=":discordPayload",
-        query="$.member.user.id",
-        return_value_test=ReturnValueTest("==", "'410212090289192960'"),
-    )
-
-    # JSON condition 4: Check the command name
-    json_command_condition = JsonCondition(
-        data=":discordPayload",
-        query="$.data.name",
-        return_value_test=ReturnValueTest("==", "'sign'"),
-    )
-
-    # JSON condition 5: Check the guild ID
-    json_guild_condition = JsonCondition(
-        data=":discordPayload",
-        query="$.guild_id",
-        return_value_test=ReturnValueTest("==", "'1380488052169769110'"),
-    )
-
-    # Create compound conditions combining ECDSA with JSON conditions
-    # Compound 1: ECDSA AND message value check
-    and_ecdsa_message_condition = AndCompoundCondition(
-        operands=[ecdsa_condition, json_message_condition]
-    )
-
-    # Compound 2: ECDSA AND all user info checks
-    and_ecdsa_user_info_condition = AndCompoundCondition(
-        operands=[
-            ecdsa_condition,
-            json_username_condition,
-            json_userid_condition,
-        ]
-    )
-
-    # Compound 3: Complex nested condition - (ECDSA AND command) AND (username OR guild)
-    complex_nested_condition = AndCompoundCondition(
-        operands=[
-            AndCompoundCondition(operands=[ecdsa_condition, json_command_condition]),
-            OrCompoundCondition(
-                operands=[json_username_condition, json_guild_condition]
-            ),
-        ]
-    )
-
-    # Compound 4: All conditions must be true
-    all_conditions_and = AndCompoundCondition(
-        operands=[
-            ecdsa_condition,
-            json_message_condition,
-            json_username_condition,
-            json_userid_condition,
-            json_command_condition,
-        ]
-    )
-
-    # Test all compound conditions with the same 3-variable context
-    # Test 1: ECDSA AND message value
-    lingo_and_message = ConditionLingo(and_ecdsa_message_condition)
-    result = lingo_and_message.eval(**context)
-    assert result is True, "ECDSA + message value compound condition should pass"
-
-    # Test 2: ECDSA AND user info
-    lingo_and_user = ConditionLingo(and_ecdsa_user_info_condition)
-    result = lingo_and_user.eval(**context)
-    assert result is True, "ECDSA + user info compound condition should pass"
-
-    # Test 3: Complex nested condition
-    lingo_complex = ConditionLingo(complex_nested_condition)
-    result = lingo_complex.eval(**context)
-    assert result is True, "Complex nested compound condition should pass"
-
-    # Test 4: All conditions AND
-    lingo_all = ConditionLingo(all_conditions_and)
-    result = lingo_all.eval(**context)
-    assert result is True, "All conditions compounded with AND should pass"
-
-    # Test failure cases
-    # Modify context to make JSON conditions fail
-    wrong_context = context.copy()
-    # Parse and modify the JSON payload
-    wrong_body_json = json.loads(body)
-    wrong_body_json["data"]["options"][0]["value"] = "alpacas"  # Wrong message
-    wrong_body = json.dumps(wrong_body_json)
-    wrong_context[":discordPayload"] = wrong_body
-
-    # This should fail because message value doesn't match
-    result = lingo_and_message.eval(**wrong_context)
-    assert result is False, "Should fail when message value is wrong"
-
-    # Test with invalid signature but valid JSON
-    invalid_sig_context = context.copy()
-    invalid_sig_context[":signature"] = "0" * len(signature_hex)  # Invalid signature
-
-    result = lingo_and_message.eval(**invalid_sig_context)
-    assert result is False, "Should fail when signature is invalid"
-
-    # Test OR condition - should pass if at least one condition is true
-    or_condition = OrCompoundCondition(
-        operands=[
-            ecdsa_condition,
-            json_message_condition,
-        ]
-    )
-    lingo_or = ConditionLingo(or_condition)
-
-    # Valid signature, wrong JSON - should still pass due to OR
-    mixed_context = {
-        ":timestamp": timestamp,
-        ":signature": signature_hex,
-        ":discordPayload": wrong_body,  # Wrong message value in JSON
-    }
-    result = lingo_or.eval(**mixed_context)
-    assert (
-        result is True
-    ), "OR condition should pass when at least one condition is true"
-
-    # Both invalid - should fail
-    both_invalid_context = {
-        ":timestamp": timestamp,
-        ":signature": "0" * len(signature_hex),  # Invalid signature
-        ":discordPayload": wrong_body,  # Wrong message value in JSON
-    }
-    result = lingo_or.eval(**both_invalid_context)
-    assert result is False, "OR condition should fail when all conditions are false"
-
-
 def test_discord_json_from_body_string():
     """Test parsing Discord body JSON string directly from context variable with 3-variable context"""
     # Discord Ed25519 test vector
@@ -402,3 +229,164 @@ def test_discord_json_from_body_string():
     lingo_numeric = ConditionLingo(numeric_compound)
     result = lingo_numeric.eval(**context)
     assert result is True, "Numeric comparison from JSON should work"
+
+
+def test_discord_with_sequential_concatenation():
+    """Test using Sequential condition to concatenate timestamp and payload in-lingo"""
+    # Discord Ed25519 test vector
+    public_key_hex = "b853dd9f496723daf64bf2f5a886086f790df66e61d7b6f7f98a50c9e5ede8f3"
+    signature_hex = "0a12acb96843700b724f1c9dba3075a7fc482677e0c713eb6be63bfea406fb33b4715975f1062b2dff95127bd559ee23758911bd217760727dc44e7880bc6e04"
+    timestamp = "1749368683"
+    body = '{"app_permissions":"2248473465835073","application_id":"1380486651436073092","attachment_size_limit":10485760,"authorizing_integration_owners":{"0":"1380488052169769110"},"channel":{"flags":0,"guild_id":"1380488052169769110","icon_emoji":{"id":null,"name":"👋"},"id":"1380488052169769113","last_message_id":"1380528253168652328","name":"general","nsfw":false,"parent_id":"1380488052169769111","permissions":"2251799813685247","position":0,"rate_limit_per_user":0,"theme_color":null,"topic":null,"type":0},"channel_id":"1380488052169769113","context":0,"data":{"id":"1380515955146358918","name":"sign","options":[{"name":"message","type":3,"value":"llamas"}],"type":1},"entitlement_sku_ids":[],"entitlements":[],"guild":{"features":[],"id":"1380488052169769110","locale":"en-US"},"guild_id":"1380488052169769110","guild_locale":"en-US","id":"1381177107555680327","locale":"en-US","member":{"avatar":null,"banner":null,"communication_disabled_until":null,"deaf":false,"flags":0,"joined_at":"2025-06-06T10:06:39.888000+00:00","mute":false,"nick":null,"pending":false,"permissions":"2251799813685247","premium_since":null,"roles":[],"unusual_dm_activity_until":null,"user":{"avatar":"9c5483a989a10edc8b831b6c8f284724","avatar_decoration_data":null,"clan":null,"collectibles":null,"discriminator":"0","global_name":"kprasch","id":"410212090289192960","primary_guild":null,"public_flags":0,"username":"kprasch"}},"token":"aW50ZXJhY3Rpb246MTM4MTE3NzEwNzU1NTY4MDMyNzo2ZlVlTkdIQVFIdkdhNUN2bXlYZ1RCRkZ5YkpuVm9WUG5Bbjl0TTMyUkFTenZGYXNXclBCMjZWUWJlalczcllRak9sc0JZR3Q4WW9sODBRcDg2c2hrYmRkYzlWcjF3TjdlRFVDMVBVTkZ3Z2VmRUp4VkI1MkZGNmVvM3hkWXd1Qg","type":2,"version":1}'
+
+    # ===== Method 1: Sequential condition to concatenate timestamp + discordPayload =====
+    # Create a Sequential condition that:
+    # 1. Gets the timestamp from context
+    # 2. Concatenates it with discordPayload using += operator
+    # 3. Stores result as :message for ECDSA to use
+
+    # Step 1: Get timestamp from context
+    timestamp_condition = ContextVariableCondition(
+        context_variable=":timestamp", return_value_test=ReturnValueTest("!=", "''")
+    )
+
+    # Step 2: Create a condition variable that gets timestamp and concatenates with payload
+    message_builder = ConditionVariable(
+        var_name="message",  # This will be available as :message
+        condition=timestamp_condition,
+        operations=[
+            # Use += operator to concatenate the discordPayload
+            VariableOperation(operation="+=", value=":discordPayload")
+        ],
+    )
+
+    # Step 3: Add a JSON condition as second variable (to meet minimum 2 variables)
+    # This parses and validates the Discord payload
+    json_check_var = ConditionVariable(
+        var_name="commandValue",
+        condition=JsonCondition(
+            data=":discordPayload",
+            query="$.data.options[0].value",
+            return_value_test=ReturnValueTest("==", "'llamas'"),
+        ),
+    )
+
+    # Now create ECDSA condition that uses the concatenated message
+    ecdsa_var = ConditionVariable(
+        var_name="signatureValid",
+        condition=ECDSACondition(
+            message=":message",  # Uses the result from sequential condition
+            signature=":signature",
+            verifying_key=public_key_hex,
+            curve=Ed25519.name,
+        ),
+    )
+
+    # Create the sequential condition with all 3 variables:
+    # 1. Build message from timestamp + payload
+    # 2. Parse and validate JSON command value
+    # 3. Verify ECDSA signature
+    sequential = SequentialCondition(
+        condition_variables=[message_builder, json_check_var, ecdsa_var]
+    )
+
+    # Context with only 3 variables
+    context = {
+        ":timestamp": timestamp,
+        ":discordPayload": body,
+        ":signature": signature_hex,
+    }
+
+    # Sequential conditions require providers argument
+    result, _ = sequential.verify(providers=ConditionProviderManager({}), **context)
+    assert result is True, "Sequential concatenation + ECDSA should work"
+
+    # ===== Method 2: Multiple operations to build formatted message =====
+    # This demonstrates building a more complex string with multiple concatenations
+
+    # Build message with operations: timestamp + separator + payload
+    formatted_message_builder = ConditionVariable(
+        var_name="formattedMessage",
+        condition=timestamp_condition,  # Reuse the timestamp condition from method 1
+        operations=[
+            # Can add multiple concatenations (up to 5 operations max)
+            VariableOperation(operation="+=", value=":discordPayload"),
+            # Could add more transformations if needed:
+            # VariableOperation(operation="str"),  # Ensure it's a string
+        ],
+    )
+
+    # Add ECDSA verification as second variable
+    ecdsa_formatted_var = ConditionVariable(
+        var_name="signatureValid2",
+        condition=ECDSACondition(
+            message=":formattedMessage",
+            signature=":signature",
+            verifying_key=public_key_hex,
+            curve=Ed25519.name,
+        ),
+    )
+
+    sequential_formatted = SequentialCondition(
+        condition_variables=[formatted_message_builder, ecdsa_formatted_var]
+    )
+
+    result_formatted, _ = sequential_formatted.verify(
+        providers=ConditionProviderManager({}), **context
+    )
+    assert result_formatted is True, "Formatted message concatenation should work"
+
+    # ===== Method 3: Sequential with JSON parsing =====
+    # Concatenate message, then also parse JSON from discordPayload
+
+    # First build the message (reuse timestamp_condition)
+    message_var_3 = ConditionVariable(
+        var_name="message",
+        condition=timestamp_condition,  # Reuse the timestamp condition
+        operations=[VariableOperation(operation="+=", value=":discordPayload")],
+    )
+
+    # Then parse a value from the JSON payload
+    json_value_var = ConditionVariable(
+        var_name="commandValue",
+        condition=JsonCondition(
+            data=":discordPayload",
+            query="$.data.options[0].value",
+            return_value_test=ReturnValueTest("==", "'llamas'"),
+        ),
+    )
+
+    # ECDSA using the built message
+    ecdsa_with_json_var = ConditionVariable(
+        var_name="signatureValid3",
+        condition=ECDSACondition(
+            message=":message",
+            signature=":signature",
+            verifying_key=public_key_hex,
+            curve=Ed25519.name,
+        ),
+    )
+
+    # Sequential condition that does all three:
+    # 1. Build message from timestamp + payload
+    # 2. Parse and validate JSON command value
+    # 3. Verify ECDSA signature
+    sequential_with_json = SequentialCondition(
+        condition_variables=[message_var_3, json_value_var, ecdsa_with_json_var]
+    )
+
+    result_with_json, _ = sequential_with_json.verify(
+        providers=ConditionProviderManager({}), **context
+    )
+    assert (
+        result_with_json is True
+    ), "Sequential with message building and JSON parsing should work"
+
+    # Test failure case - wrong signature
+    wrong_context = context.copy()
+    wrong_context[":signature"] = "0" * len(signature_hex)
+
+    result_fail, _ = sequential.verify(
+        providers=ConditionProviderManager({}), **wrong_context
+    )
+    assert result_fail is False, "Should fail with invalid signature"
