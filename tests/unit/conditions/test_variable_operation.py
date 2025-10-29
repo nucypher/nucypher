@@ -73,19 +73,31 @@ OPERATION_TEST_CASES = [
     ("toHex", None, 17, "0x11"),  # integers supported
     ("toHex", None, bytearray([0x11, 0x22]), "0x1122"),  # bytearray supported
     ("fromHex", None, "0x74657374", b"test"),
-    # keccak hashing
+    # keccak hashing - returns bytes
     (
         "keccak",
         None,
         "",
-        "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+        b"\xc5\xd2F\x01\x86\xf7#<\x92~}\xb2\xdc\xc7\x03\xc0\xe5\x00\xb6S\xca\x82';{\xfa\xd8\x04]\x85\xa4p",
     ),
     (
         "keccak",
         None,
         "test",
-        "0x9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658",
+        b'\x9c"\xff_!\xf0\xb8\x1b\x11>c\xf7\xdbm\xa9O\xed\xef\x11\xb2\x11\x9b@\x88\xb8\x96d\xfb\x9a<\xb6X',
     ),
+    (
+        "keccak",
+        None,
+        24,
+        b"e\x85B<\xb6Ek\x1dIW\xf6EM/\x00O\x0cOX\xd5:\x00\x08$\x12\xd5\xc2\xefK\x1b1\xfd",
+    ),  # int
+    (
+        "keccak",
+        None,
+        b"testing",
+        b"_\x16\xf4\xc7\xf1I\xacO\x95\x10\xd9\xcf\x8c\xf3\x84\x03\x8a\xd3H\xb3\xbc\xdc\x01\x91_\x95\xde\x12\xdf\x9d\x1b\x02",
+    ),  # bytes
 ]
 
 
@@ -133,13 +145,14 @@ def test_type_errors_in_evaluation(operation):
         op = VariableOperation(operation=operation, value=value)
     # Skip type error test for operations that can handle any input without raising TypeError.
     # These operations are designed to accept any input type and will not raise TypeError.
+    # - bool, str, toJson: explicitly designed to handle any type
+    # - keccak: converts any type to string representation before hashing
     if operation in ["bool", "str", "toJson", "keccak"]:
         return
 
     # Skip type error test for operations that may raise exceptions other than TypeError,
     # such as JSONDecodeError for 'fromJson' or ValueError for 'fromHex'.
-    # Also skip toHex because it accepts common types (str, bytes, int) that this test would use,
-    # but has its own specific TypeError test for unsupported types (test_tohex_type_errors).
+    # toHex has its own specific TypeError test (test_tohex_type_errors).
     if operation in ["fromJson", "fromHex", "toHex"]:
         return
 
@@ -336,24 +349,26 @@ def test_json_hex_conversion_operators():
 
 
 def test_keccak_hashing():
-    # Test keccak of empty string
+    # Test keccak of empty string - returns bytes
     initial = ""
     operations = [
         VariableOperation(operation="keccak"),
     ]
     result = VariableOperation.evaluate_operations(operations, initial)
     assert (
-        result == "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        result
+        == b"\xc5\xd2F\x01\x86\xf7#<\x92~}\xb2\xdc\xc7\x03\xc0\xe5\x00\xb6S\xca\x82';{\xfa\xd8\x04]\x85\xa4p"
     )
 
-    # Test keccak of a known string
+    # Test keccak of a known string - returns bytes
     initial = "test"
     operations = [
         VariableOperation(operation="keccak"),
     ]
     result = VariableOperation.evaluate_operations(operations, initial)
     assert (
-        result == "0x9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
+        result
+        == b'\x9c"\xff_!\xf0\xb8\x1b\x11>c\xf7\xdbm\xa9O\xed\xef\x11\xb2\x11\x9b@\x88\xb8\x96d\xfb\x9a<\xb6X'
     )
 
     # Test keccak of bytes
@@ -363,7 +378,8 @@ def test_keccak_hashing():
     ]
     result = VariableOperation.evaluate_operations(operations, initial)
     assert (
-        result == "0x9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
+        result
+        == b'\x9c"\xff_!\xf0\xb8\x1b\x11>c\xf7\xdbm\xa9O\xed\xef\x11\xb2\x11\x9b@\x88\xb8\x96d\xfb\x9a<\xb6X'
     )
 
 
@@ -432,3 +448,14 @@ def test_tohex_type_errors():
     # Test that list raises TypeError
     with pytest.raises(TypeError, match="Invalid value for hex conversion"):
         VariableOperation.evaluate_operations([op], [1, 2, 3])
+
+
+def test_tojson_type_errors():
+    """Test that toJson raises TypeError for unsupported types like bytes"""
+    op = VariableOperation(operation="toJson")
+
+    # Test that bytes raises TypeError
+    with pytest.raises(
+        TypeError, match="Object of type bytes is not JSON serializable"
+    ):
+        VariableOperation.evaluate_operations([op], b"test")

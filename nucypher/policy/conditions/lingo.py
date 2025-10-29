@@ -353,13 +353,17 @@ _OPERATOR_FUNCTIONS = {
     "int": lambda a: int(a),
     "str": lambda a: str(a),
     # JSON conversion
-    "fromJson": lambda a: json.loads(a if isinstance(a, str) else a.decode()),
+    "fromJson": lambda a: json.loads(a),
     "toJson": lambda a: json.dumps(a),
     # hex conversion
     "fromHex": lambda a: bytes(HexBytes(a)),
     "toHex": _to_hex,
     # hashing
-    "keccak": lambda a: HexBytes(keccak(a.encode() if isinstance(a, str) else a)).hex(),
+    "keccak": lambda a: keccak(
+        a.encode()
+        if isinstance(a, str)
+        else (a if isinstance(a, (bytes, bytearray)) else str(a).encode())
+    ),
 }
 
 MAX_VARIABLE_OPERATIONS = 5
