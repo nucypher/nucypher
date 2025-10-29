@@ -301,6 +301,28 @@ _COMPARATOR_FUNCTIONS = {
 }
 
 
+def _to_hex(value):
+    """
+    Convert value to hex string.
+
+    Supports bytes, bytearray, int, and str types.
+    Strings are encoded to UTF-8 before conversion.
+
+    :param value: Value to convert to hex
+    :return: Hex string with 0x prefix
+    :raises TypeError: If value type cannot be converted to hex
+    """
+    try:
+        if isinstance(value, str):
+            # Encode regular strings to UTF-8
+            value = value.encode("utf-8")
+        # HexBytes handles bytes, bytearray, and int
+        h = HexBytes(value)
+        return h.hex()
+    except (TypeError, ValueError) as e:
+        raise TypeError(f"Invalid value for hex conversion: {e}")
+
+
 # should raise TypeError for invalid inputs
 _OPERATOR_FUNCTIONS = {
     # We can add all kinds of operators over time, this is just a base start - given that
@@ -335,11 +357,7 @@ _OPERATOR_FUNCTIONS = {
     "toJson": lambda a: json.dumps(a),
     # hex conversion
     "fromHex": lambda a: bytes(HexBytes(a)),
-    "toHex": lambda a: (
-        HexBytes(a).hex()
-        if isinstance(a, (bytes, bytearray))
-        else HexBytes(a.encode() if isinstance(a, str) else str(a).encode()).hex()
-    ),
+    "toHex": _to_hex,
     # hashing
     "keccak": lambda a: HexBytes(keccak(a.encode() if isinstance(a, str) else a)).hex(),
 }

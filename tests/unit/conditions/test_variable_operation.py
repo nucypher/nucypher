@@ -70,6 +70,8 @@ OPERATION_TEST_CASES = [
     # hex conversion
     ("toHex", None, b"\x00\x01\x02", "0x000102"),
     ("toHex", None, "test", "0x74657374"),
+    ("toHex", None, 17, "0x11"),  # integers supported
+    ("toHex", None, bytearray([0x11, 0x22]), "0x1122"),  # bytearray supported
     ("fromHex", None, "0x74657374", b"test"),
     # keccak hashing
     (
@@ -129,9 +131,16 @@ def test_type_errors_in_evaluation(operation):
         op = VariableOperation(operation=operation)
     else:
         op = VariableOperation(operation=operation, value=value)
-    # Skip type error test for operations that can handle any input without raising TypeError
-    # or that raise different exceptions (e.g., JSONDecodeError for fromJson)
-    if operation in ["bool", "str", "toJson", "fromJson", "toHex", "fromHex", "keccak"]:
+    # Skip type error test for operations that can handle any input without raising TypeError.
+    # These operations are designed to accept any input type and will not raise TypeError.
+    if operation in ["bool", "str", "toJson", "keccak"]:
+        return
+
+    # Skip type error test for operations that may raise exceptions other than TypeError,
+    # such as JSONDecodeError for 'fromJson' or ValueError for 'fromHex'.
+    # Also skip toHex because it accepts common types (str, bytes, int) that this test would use,
+    # but has its own specific TypeError test for unsupported types (test_tohex_type_errors).
+    if operation in ["fromJson", "fromHex", "toHex"]:
         return
 
     with pytest.raises(TypeError):
@@ -406,3 +415,20 @@ def test_context_variable_resolution_in_operations():
     resolved_operations = VariableOperation.with_resolved_context(operations, **context)
     result = VariableOperation.evaluate_operations(resolved_operations, initial)
     assert result == 35
+
+
+def test_tohex_type_errors():
+    """Test that toHex raises TypeError for unsupported types like float"""
+    op = VariableOperation(operation="toHex")
+
+    # Test that float raises TypeError
+    with pytest.raises(TypeError, match="Invalid value for hex conversion"):
+        VariableOperation.evaluate_operations([op], 3.14)
+
+    # Test that None raises TypeError
+    with pytest.raises(TypeError, match="Invalid value for hex conversion"):
+        VariableOperation.evaluate_operations([op], None)
+
+    # Test that list raises TypeError
+    with pytest.raises(TypeError, match="Invalid value for hex conversion"):
+        VariableOperation.evaluate_operations([op], [1, 2, 3])
