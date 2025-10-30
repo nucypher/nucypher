@@ -90,8 +90,8 @@ OPERATION_TEST_CASES = [
         "keccak",
         None,
         24,
-        b"e\x85B<\xb6Ek\x1dIW\xf6EM/\x00O\x0cOX\xd5:\x00\x08$\x12\xd5\xc2\xefK\x1b1\xfd",
-    ),  # int
+        b'\xf1\xadZ\xc1\x84\xf0\x82\x1d\x8f\x12\x1f\x00)\xe0\x0fF\xeeg2i\xe9O\xd8v\x97)\x13"\x9fup\xab',
+    ),  # int - hashes the byte value 24, not string "24"
     (
         "keccak",
         None,
@@ -144,16 +144,14 @@ def test_type_errors_in_evaluation(operation):
     else:
         op = VariableOperation(operation=operation, value=value)
     # Skip type error test for operations that can handle any input without raising TypeError.
-    # These operations are designed to accept any input type and will not raise TypeError.
-    # - bool, str, toJson: explicitly designed to handle any type
-    # - keccak: converts any type to string representation before hashing
-    if operation in ["bool", "str", "toJson", "keccak"]:
+    # - bool, str: explicitly designed to handle any type
+    if operation in ["bool", "str"]:
         return
 
     # Skip type error test for operations that may raise exceptions other than TypeError,
     # such as JSONDecodeError for 'fromJson' or ValueError for 'fromHex'.
-    # toHex has its own specific TypeError test (test_tohex_type_errors).
-    if operation in ["fromJson", "fromHex", "toHex"]:
+    # Or operations that have their own specific TypeError tests.
+    if operation in ["fromJson", "fromHex", "toHex", "toJson", "keccak"]:
         return
 
     with pytest.raises(TypeError):
