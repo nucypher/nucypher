@@ -359,11 +359,7 @@ _OPERATOR_FUNCTIONS = {
     "fromHex": lambda a: bytes(HexBytes(a)),
     "toHex": _to_hex,
     # hashing
-    "keccak": lambda a: keccak(
-        a.encode()
-        if isinstance(a, str)
-        else (a if isinstance(a, (bytes, bytearray)) else str(a).encode())
-    ),
+    "keccak": lambda a: keccak(a.encode() if isinstance(a, str) else a),
 }
 
 MAX_VARIABLE_OPERATIONS = 5
