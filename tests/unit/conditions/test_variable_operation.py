@@ -144,22 +144,18 @@ def test_type_errors_in_evaluation(operation):
     else:
         op = VariableOperation(operation=operation, value=value)
     # Skip type error test for operations that can handle any input without raising TypeError.
-    # - bool, str: explicitly designed to handle any type
+    # These operations are designed to accept any input type and will not raise TypeError.
     if operation in ["bool", "str"]:
         return
 
-    # Skip type error test for operations that may raise exceptions other than TypeError,
-    # such as JSONDecodeError for 'fromJson' or ValueError for 'fromHex'.
-    # Or operations that have their own specific TypeError tests.
-    if operation in ["fromJson", "fromHex", "toHex", "toJson", "keccak"]:
-        return
-
     with pytest.raises(TypeError):
-        if operation in ["int", "float"]:
+        if operation in ["int", "float", "fromJson", "toHex", "fromHex", "keccak"]:
             variable_value = ["some", "list"]
         elif operation in ["%=", "len", "max", "min"]:
             # special cases where the functions can handle strings as the initial variable value
             variable_value = 10
+        elif operation in ["toJson"]:
+            variable_value = b"abc"  # bytes are not JSON serializable
         else:
             variable_value = "initial_value_that_does_not_make_sense"
 
