@@ -1,0 +1,1 @@
+Extend ``JWTCondition`` to accept a flag to return false on failure instead of raising an exception.
