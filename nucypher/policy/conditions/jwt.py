@@ -135,7 +135,10 @@ class JWTCondition(Condition):
         condition_type: str = ConditionType.JWT.value,
         name: Optional[str] = None,
         expected_issuer: Optional[str] = None,
+        return_false_on_failure: Optional[bool] = False,
     ):
+        self.return_false_on_failure = return_false_on_failure
+
         try:
             self.execution_call = JWTVerificationCall(
                 jwt_token=jwt_token,
@@ -165,6 +168,14 @@ class JWTCondition(Condition):
         return self.execution_call.expected_issuer
 
     def verify(self, **context) -> Tuple[bool, Any]:
-        payload = self.execution_call.execute(**context)
+        try:
+            payload = self.execution_call.execute(**context)
+        except JWTException as e:
+            if self.return_false_on_failure:
+                error_msg = f"JWT verification failed: {str(e)}"
+                return False, error_msg
+            else:
+                raise e
+
         result = True
         return result, payload

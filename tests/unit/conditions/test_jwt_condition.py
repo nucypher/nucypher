@@ -259,3 +259,25 @@ def test_jwt_condition_verify_valid_token_with_expiration():
     success, payload = condition.verify(**context)
     assert success
     assert payload == {"exp": ISSUED_AT + 999}
+
+
+def test_jwt_conditions_with_return_false_on_failure():
+    condition = JWTCondition(
+        jwt_token=":contextVar",
+        algorithm="ES256",
+        public_key=TEST_ECDSA_PUBLIC_KEY,
+        return_false_on_failure=True,
+    )
+
+    # Invalid JWT token
+    context = {":contextVar": "invalid.token.here"}
+    success, payload = condition.verify(**context)
+    assert not success
+    assert payload.startswith("JWT verification failed: ")
+
+    # Expired JWT token
+    expired_token = jwt_token(with_iat=True, expiration_offset=-100)
+    context = {":contextVar": expired_token}
+    success, payload = condition.verify(**context)
+    assert not success
+    assert payload.startswith("JWT verification failed: ")
