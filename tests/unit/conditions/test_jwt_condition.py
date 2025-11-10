@@ -162,9 +162,9 @@ def test_jwt_condition_verify():
     )
 
     context = {":anotherContextVariableForJWTs": token}
-    success, result = condition.verify(**context)
+    success, payload = condition.verify(**context)
     assert success
-    assert result == {}
+    assert payload == {}
 
 
 def test_jwt_condition_verify_of_jwt_with_custom_claims():
@@ -175,9 +175,9 @@ def test_jwt_condition_verify_of_jwt_with_custom_claims():
     )
 
     context = {":anotherContextVariableForJWTs": token}
-    success, result = condition.verify(**context)
+    success, payload = condition.verify(**context)
     assert success
-    assert result == {"foo": "bar"}
+    assert payload == {"foo": "bar"}
 
 
 def test_jwt_condition_verify_with_correct_issuer():
@@ -189,9 +189,9 @@ def test_jwt_condition_verify_with_correct_issuer():
     )
 
     context = {":anotherContextVariableForJWTs": token}
-    success, result = condition.verify(**context)
+    success, payload = condition.verify(**context)
     assert success
-    assert result == {"iss": "Isabel"}
+    assert payload == {"iss": "Isabel"}
 
 
 def test_jwt_condition_verify_with_invalid_issuer():
@@ -231,6 +231,6 @@ def test_jwt_condition_verify_valid_token_with_expiration():
     )
 
     context = {":contextVar": expired_token}
-    success, result = condition.verify(**context)
+    success, payload = condition.verify(**context)
     assert success
-    assert result == {"exp": ISSUED_AT + 999}
+    assert payload == {"exp": ISSUED_AT + 999}
