@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import jwt
 from cryptography.hazmat.backends import default_backend
@@ -23,10 +23,11 @@ class JWTVerificationCall(ExecutionCall):
         "RS256",
     )  # https://datatracker.ietf.org/doc/html/rfc7518#section-3.1
 
-    SECP_CURVE_FOR_ES256 = "secp256r1"
+    _SECP_CURVE_FOR_ES256 = "secp256r1"
 
     class Schema(ExecutionCall.Schema):
         jwt_token = fields.Str(required=True)
+        algorithm = fields.Str(required=True)
         # TODO: See #3572 for a discussion about deprecating this in favour of the expected issuer
         public_key = fields.Str(
             required=True
@@ -45,6 +46,13 @@ class JWTVerificationCall(ExecutionCall):
                     f"Invalid value for JWT token; expected a context variable, but got '{value}'"
                 )
 
+        @validates("algorithm")
+        def validate_algorithm(self, value):
+            if value not in JWTVerificationCall._valid_jwt_algorithms:
+                raise ValidationError(
+                    f"Invalid JWT algorithm; expected one of {JWTVerificationCall._valid_jwt_algorithms}, but got '{value}'"
+                )
+
         @validates("public_key")
         def validate_public_key(self, value):
             try:
@@ -55,7 +63,7 @@ class JWTVerificationCall(ExecutionCall):
                     return
                 elif isinstance(public_key, ec.EllipticCurvePublicKey):
                     curve = public_key.curve
-                    if curve.name != JWTVerificationCall.SECP_CURVE_FOR_ES256:
+                    if curve.name != JWTVerificationCall._SECP_CURVE_FOR_ES256:
                         raise ValidationError(
                             f"Invalid EC public key curve: {curve.name}"
                         )
@@ -65,10 +73,12 @@ class JWTVerificationCall(ExecutionCall):
     def __init__(
         self,
         jwt_token: str,
+        algorithm: str,
         public_key: str,
         expected_issuer: Optional[str] = None,
     ):
         self.jwt_token = jwt_token
+        self.algorithm = algorithm
         self.public_key = public_key
         self.expected_issuer = expected_issuer
 
@@ -76,7 +86,7 @@ class JWTVerificationCall(ExecutionCall):
 
         super().__init__()
 
-    def execute(self, **context) -> Any:
+    def execute(self, **context) -> Dict[str, Any]:
         jwt_token = resolve_any_context_variables(self.jwt_token, **context)
 
         require = []
@@ -87,7 +97,7 @@ class JWTVerificationCall(ExecutionCall):
             payload = jwt.decode(
                 jwt=jwt_token,
                 key=self.public_key,
-                algorithms=self._valid_jwt_algorithms,
+                algorithms=[self.algorithm],
                 options=dict(require=require),
                 issuer=self.expected_issuer,
             )
@@ -120,6 +130,7 @@ class JWTCondition(Condition):
     def __init__(
         self,
         jwt_token: str,
+        algorithm: str,
         public_key: str,
         condition_type: str = ConditionType.JWT.value,
         name: Optional[str] = None,
@@ -128,6 +139,7 @@ class JWTCondition(Condition):
         try:
             self.execution_call = JWTVerificationCall(
                 jwt_token=jwt_token,
+                algorithm=algorithm,
                 public_key=public_key,
                 expected_issuer=expected_issuer,
             )
@@ -139,6 +151,10 @@ class JWTCondition(Condition):
     @property
     def jwt_token(self):
         return self.execution_call.jwt_token
+
+    @property
+    def algorithm(self):
+        return self.execution_call.algorithm
 
     @property
     def public_key(self):
