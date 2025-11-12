@@ -1,6 +1,9 @@
 import json
 
+import jwt
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from web3.exceptions import Web3Exception
 
 from nucypher.policy.conditions.base import (
@@ -11,8 +14,10 @@ from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
 )
 from nucypher.policy.conditions.json.json import JsonCondition
+from nucypher.policy.conditions.jwt import JWTCondition
 from nucypher.policy.conditions.lingo import (
     MAX_VARIABLE_OPERATIONS,
+    AtLeastCompoundCondition,
     ConditionType,
     ConditionVariable,
     OrCompoundCondition,
@@ -504,6 +509,145 @@ def test_sequential_condition_discord_json_message_processing():
         providers=ConditionProviderManager({}), **context
     )
     assert result is True
+
+
+def test_sequential_condition_jwt_processing():
+
+    # Setup keys
+    private_key_alice = ec.generate_private_key(ec.SECP256R1())
+    private_key_bob = ec.generate_private_key(ec.SECP256R1())
+
+    public_key_alice = private_key_alice.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+    public_key_bob = private_key_bob.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+    # Signature Policy definition
+    jwt_condition_alice = JWTCondition(
+        jwt_token=":signed_statement_from_alice",
+        algorithm="ES256",
+        public_key=public_key_alice,
+        return_false_on_failure=True,
+    )
+
+    jwt_condition_bob = JWTCondition(
+        jwt_token=":signed_statement_from_bob",
+        algorithm="ES256",
+        public_key=public_key_bob,
+        return_false_on_failure=True,
+    )
+
+    at_least_one_signed_condition = AtLeastCompoundCondition(
+        operands=[jwt_condition_alice, jwt_condition_bob],
+        threshold=1,
+    )
+
+    at_least_one_expected_statement_condition = AtLeastCompoundCondition(
+        operands=[
+            JsonCondition(
+                data=":statements",
+                query="$[0]",
+                return_value_test=ReturnValueTest(
+                    comparator="==",
+                    value=":expected_statement",
+                ),
+            ),
+            JsonCondition(
+                data=":statements",
+                query="$[1]",
+                return_value_test=ReturnValueTest(
+                    comparator="==",
+                    value=":expected_statement",
+                ),
+            ),
+        ],
+        threshold=1,
+    )
+
+    accounting_consolidation_condition = SequentialCondition(
+        condition_variables=[
+            # 1. Validate at least one JWT signature and extract statements
+            ConditionVariable(
+                var_name="statements",
+                condition=at_least_one_signed_condition,
+            ),
+            # 2. Validate at least one statement matches expected
+            ConditionVariable(
+                var_name="expected_statement_check",
+                condition=at_least_one_expected_statement_condition,
+            ),
+            # 3. Validate statement content
+            ConditionVariable(
+                var_name="statement_check_json",
+                condition=JsonCondition(
+                    data=":expected_statement",
+                    query="$.book_status",
+                    return_value_test=ReturnValueTest("==", "'consolidated'"),
+                ),
+            ),
+            # 4. More conditions can be used to perform additional checks, for example:
+            # - External API calls
+            # - On-chain contract calls
+        ]
+    )
+
+    # Signing statements
+    statement = {
+        "sales": [
+            {"item": "foo", "amount": 1000, "timestamp": 1762456000},
+            {"item": "bar", "amount": 1500, "timestamp": 1762455111},
+        ],
+        "book_status": "consolidated",
+    }
+
+    signed_statement_alice = jwt.encode(statement, private_key_alice, algorithm="ES256")
+    signed_statement_bob = jwt.encode(statement, private_key_bob, algorithm="ES256")
+
+    # Verification (various success scenarios)
+    success_stories = [
+        (signed_statement_alice, signed_statement_bob),
+        (signed_statement_alice, ""),
+        ("", signed_statement_bob),
+    ]
+
+    for alice_input, bob_input in success_stories:
+        context = {
+            ":expected_statement": statement,
+            ":signed_statement_from_alice": alice_input,
+            ":signed_statement_from_bob": bob_input,
+        }
+        result, values = accounting_consolidation_condition.verify(
+            providers=ConditionProviderManager({}), **context
+        )
+
+        assert result is True
+        assert len(values) == 3
+        # First condition: at least one valid signature
+        assert values[0].count(statement) >= 1
+        # Second condition: first statement matches expected statement
+        assert values[1].count(statement) >= 1
+        # Third condition: statement content check
+        assert values[2] == "consolidated"
+
+    # Verification (failure scenario)
+    context = {
+        ":expected_statement": statement,
+        ":signed_statement_from_alice": "invalid_jwt_token",
+        ":signed_statement_from_bob": "invalid_jwt_token",
+    }
+    result, values = accounting_consolidation_condition.verify(
+        providers=ConditionProviderManager({}), **context
+    )
+
+    assert result is False
+    assert len(values) == 1
+    # First condition failed: all signatures are invalid and returned False
+    assert values[0] == ["False", "False"]
 
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
