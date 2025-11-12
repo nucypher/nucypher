@@ -172,8 +172,8 @@ class JWTCondition(Condition):
             payload = self.execution_call.execute(**context)
         except JWTException as e:
             if self.return_false_on_failure:
-                error_msg = f"JWT verification failed: {str(e)}"
-                return False, error_msg
+                # error_msg = f"JWT verification failed: {str(e)}"
+                return False, "False"  # FIXME: Temporary --> Discuss with team
             else:
                 raise e
 
