@@ -89,8 +89,10 @@ class JsonRpcConditionDict(BaseExecConditionDict):
 
 class JWTConditionDict(_Condition):
     jwtToken: str
+    algorithm: str
     publicKey: str  # TODO: See #3572 for a discussion about deprecating this in favour of the expected issuer
     expectedIssuer: NotRequired[str]
+    returnFalseOnFailure: NotRequired[bool]
 
 
 #

@@ -115,6 +115,7 @@ def lingo_with_all_condition_types(get_random_checksum_address):
         # JWT
         "conditionType": ConditionType.JWT.value,
         "jwtToken": ":token",
+        "algorithm": "ES256",
         "publicKey": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXHVxB7s5SR7I9cWwry/JkECIReka\nCwG3uOLCYbw5gVzn4dRmwMyYUJFcQWuFSfECRK+uQOOXD0YSEucBq0p5tA==\n-----END PUBLIC KEY-----",
     }
     sequential_condition = {

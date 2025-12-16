@@ -1,4 +1,5 @@
 import calendar
+import re
 from datetime import datetime, timezone
 
 import jwt
@@ -10,31 +11,6 @@ from marshmallow import validates
 from nucypher.policy.conditions.base import ExecutionCall
 from nucypher.policy.conditions.exceptions import InvalidCondition, JWTException
 from nucypher.policy.conditions.jwt import JWTCondition, JWTVerificationCall
-
-TEST_ECDSA_PRIVATE_KEY_RAW_B64 = (
-    "MHcCAQEEIHAhM7P6HG3LgkDvgvfDeaMA6uELj+jEKWsSeOpS/SfYoAoGCCqGSM49\n"
-    "AwEHoUQDQgAEXHVxB7s5SR7I9cWwry/JkECIRekaCwG3uOLCYbw5gVzn4dRmwMyY\n"
-    "UJFcQWuFSfECRK+uQOOXD0YSEucBq0p5tA=="
-)
-
-TEST_ECDSA_PRIVATE_KEY = (  # TODO: Workaround to bypass pre-commit hook that detects private keys in code
-    "-----BEGIN EC"
-    + " PRIVATE KEY"
-    + f"-----\n{TEST_ECDSA_PRIVATE_KEY_RAW_B64}\n-----END EC"
-    + " PRIVATE KEY-----"
-)
-
-TEST_ECDSA_PUBLIC_KEY = (
-    "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXHVxB7s5SR7I9cWwry"
-    "/JkECIReka\nCwG3uOLCYbw5gVzn4dRmwMyYUJFcQWuFSfECRK+uQOOXD0YSEucBq0p5tA==\n-----END PUBLIC "
-    "KEY-----"
-)
-
-ISSUED_AT = calendar.timegm(datetime.now(tz=timezone.utc).utctimetuple())
-
-TEST_JWT_TOKEN = jwt.encode(
-    {"iat": ISSUED_AT}, TEST_ECDSA_PRIVATE_KEY, algorithm="ES256"
-)
 
 
 def generate_pem_keypair(elliptic_curve):
@@ -58,6 +34,13 @@ def generate_pem_keypair(elliptic_curve):
     ).decode("utf-8")
 
     return pem_public_key, pem_private_key
+
+
+TEST_ECDSA_PUBLIC_KEY, TEST_ECDSA_PRIVATE_KEY = generate_pem_keypair(ec.SECP256R1())
+ISSUED_AT = calendar.timegm(datetime.now(tz=timezone.utc).utctimetuple())
+TEST_JWT_TOKEN = jwt.encode(
+    {"iat": ISSUED_AT}, TEST_ECDSA_PRIVATE_KEY, algorithm="ES256"
+)
 
 
 def jwt_token(
@@ -94,12 +77,16 @@ def test_jwt_verification_call_invalid():
     token = jwt_token()
     message = r"Invalid value for JWT token; expected a context variable"
     with pytest.raises(ExecutionCall.InvalidExecutionCall, match=message):
-        JWTVerificationCall(jwt_token=token, public_key=TEST_ECDSA_PUBLIC_KEY)
+        JWTVerificationCall(
+            jwt_token=token, algorithm="ES256", public_key=TEST_ECDSA_PUBLIC_KEY
+        )
 
 
 def test_jwt_verification_call_valid():
     token = jwt_token()
-    call = MockJWTVerificationCall(jwt_token=token, public_key=TEST_ECDSA_PUBLIC_KEY)
+    call = MockJWTVerificationCall(
+        jwt_token=token, algorithm="ES256", public_key=TEST_ECDSA_PUBLIC_KEY
+    )
     assert call.execute()
 
 
@@ -107,7 +94,20 @@ def test_jwt_condition_missing_jwt_token():
     with pytest.raises(
         InvalidCondition, match="'jwt_token' field - Field may not be null."
     ):
-        _ = JWTCondition(jwt_token=None, public_key=None)
+        _ = JWTCondition(
+            jwt_token=None, algorithm="ES256", public_key=TEST_ECDSA_PUBLIC_KEY
+        )
+
+
+def test_jwt_condition_missing_algorithm():
+    with pytest.raises(
+        InvalidCondition, match="'algorithm' field - Field may not be null."
+    ):
+        _ = JWTCondition(
+            jwt_token=":aContextVariableForJWTs",
+            algorithm=None,
+            public_key=TEST_ECDSA_PUBLIC_KEY,
+        )
 
 
 def test_jwt_condition_missing_public_key():
@@ -115,7 +115,9 @@ def test_jwt_condition_missing_public_key():
         InvalidCondition, match="'public_key' field - Field may not be null."
     ):
         _ = JWTCondition(
-            jwt_token=":ok_ok_this_is_a_variable_for_a_jwt", public_key=None
+            jwt_token=":ok_ok_this_is_a_variable_for_a_jwt",
+            algorithm="ES256",
+            public_key=None,
         )
 
 
@@ -126,19 +128,23 @@ def test_jwt_condition_invalid_public_key():
     ):
         _ = JWTCondition(
             jwt_token=":ok_ok_this_is_a_variable_for_a_jwt",
+            algorithm="ES256",
             public_key="-----BEGIN PUBLIC KEY----- haha, gotcha! 👌 -----END PUBLIC KEY-----",
         )
 
 
-def test_jwt_condition_but_unsupported_public_key():
+def test_jwt_condition_but_unsupported_algorithm():
     pem_secp521_public_key, _ = generate_pem_keypair(ec.SECP521R1())
 
     with pytest.raises(
         InvalidCondition,
-        match="'public_key' field - Invalid public key format: Invalid EC public key curve",
+        match=re.escape(
+            "'algorithm' field - Invalid JWT algorithm; expected one of ('ES256', 'RS256'), but got 'ES512'"
+        ),
     ):
         _ = JWTCondition(
             jwt_token=":ok_ok_this_is_a_variable_for_a_jwt",
+            algorithm="ES512",
             public_key=pem_secp521_public_key,
         )
 
@@ -146,6 +152,7 @@ def test_jwt_condition_but_unsupported_public_key():
 def test_jwt_condition_initialization():
     condition = JWTCondition(
         jwt_token=":aContextVariableForJWTs",
+        algorithm="ES256",
         public_key=TEST_ECDSA_PUBLIC_KEY,
     )
 
@@ -158,46 +165,62 @@ def test_jwt_condition_verify():
     token = jwt_token(with_iat=False)
     condition = JWTCondition(
         jwt_token=":anotherContextVariableForJWTs",
+        algorithm="ES256",
         public_key=TEST_ECDSA_PUBLIC_KEY,
     )
 
     context = {":anotherContextVariableForJWTs": token}
-    success, result = condition.verify(**context)
+    success, payload = condition.verify(**context)
     assert success
-    assert result == {}
+    assert payload == {}
+
+
+def test_jwt_condition_verify_of_invalid_jwt():
+    condition = JWTCondition(
+        jwt_token=":anotherContextVariableForJWTs",
+        algorithm="ES256",
+        public_key=TEST_ECDSA_PUBLIC_KEY,
+    )
+
+    context = {":anotherContextVariableForJWTs": "obviously.invalid.token"}
+    with pytest.raises(JWTException):
+        _ = condition.verify(**context)
 
 
 def test_jwt_condition_verify_of_jwt_with_custom_claims():
     token = jwt_token(with_iat=False, claims={"foo": "bar"})
     condition = JWTCondition(
         jwt_token=":anotherContextVariableForJWTs",
+        algorithm="ES256",
         public_key=TEST_ECDSA_PUBLIC_KEY,
     )
 
     context = {":anotherContextVariableForJWTs": token}
-    success, result = condition.verify(**context)
+    success, payload = condition.verify(**context)
     assert success
-    assert result == {"foo": "bar"}
+    assert payload == {"foo": "bar"}
 
 
 def test_jwt_condition_verify_with_correct_issuer():
     token = jwt_token(with_iat=False, claims={"iss": "Isabel"})
     condition = JWTCondition(
         jwt_token=":anotherContextVariableForJWTs",
+        algorithm="ES256",
         public_key=TEST_ECDSA_PUBLIC_KEY,
         expected_issuer="Isabel",
     )
 
     context = {":anotherContextVariableForJWTs": token}
-    success, result = condition.verify(**context)
+    success, payload = condition.verify(**context)
     assert success
-    assert result == {"iss": "Isabel"}
+    assert payload == {"iss": "Isabel"}
 
 
 def test_jwt_condition_verify_with_invalid_issuer():
     token = jwt_token(with_iat=False, claims={"iss": "Isabel"})
     condition = JWTCondition(
         jwt_token=":anotherContextVariableForJWTs",
+        algorithm="ES256",
         public_key=TEST_ECDSA_PUBLIC_KEY,
         expected_issuer="Isobel",
     )
@@ -213,6 +236,7 @@ def test_jwt_condition_verify_expired_token():
 
     condition = JWTCondition(
         jwt_token=":contextVar",
+        algorithm="ES256",
         public_key=TEST_ECDSA_PUBLIC_KEY,
     )
 
@@ -227,10 +251,33 @@ def test_jwt_condition_verify_valid_token_with_expiration():
 
     condition = JWTCondition(
         jwt_token=":contextVar",
+        algorithm="ES256",
         public_key=TEST_ECDSA_PUBLIC_KEY,
     )
 
     context = {":contextVar": expired_token}
-    success, result = condition.verify(**context)
+    success, payload = condition.verify(**context)
     assert success
-    assert result == {"exp": ISSUED_AT + 999}
+    assert payload == {"exp": ISSUED_AT + 999}
+
+
+def test_jwt_conditions_with_return_false_on_failure():
+    condition = JWTCondition(
+        jwt_token=":contextVar",
+        algorithm="ES256",
+        public_key=TEST_ECDSA_PUBLIC_KEY,
+        return_false_on_failure=True,
+    )
+
+    # Invalid JWT token
+    context = {":contextVar": "invalid.token.here"}
+    success, payload = condition.verify(**context)
+    assert not success
+    assert payload.startswith("JWT verification failed: ")
+
+    # Expired JWT token
+    expired_token = jwt_token(with_iat=True, expiration_offset=-100)
+    context = {":contextVar": expired_token}
+    success, payload = condition.verify(**context)
+    assert not success
+    assert payload.startswith("JWT verification failed: ")
