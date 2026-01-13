@@ -375,6 +375,7 @@ _OPERATOR_FUNCTIONS = {
     "*=": pyoperator.mul,
     "/=": pyoperator.truediv,
     "%=": pyoperator.mod,
+    "**=": pyoperator.pow,
     "index": lambda a, b: a[b],
     "round": lambda a, b: round(a, b),
     # unary operations i.e. don't require 2nd 'b' value to be passed;

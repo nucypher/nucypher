@@ -13,6 +13,9 @@ OPERATION_TEST_CASES = [
     ("*=", 2, 3, 6),
     ("/=", 2, 6, 3.0),
     ("%=", 2, 5, 1),
+    ("**=", 2, 3, 9),  # 3 ** 2 = 9
+    ("**=", 3, 2, 8),  # 2 ** 3 = 8
+    ("**=", 18, 10, 1000000000000000000),  # 10 ** 18 for token decimals
     ("abs", None, -3, 3),
     ("abs", None, 3, 3),
     ("avg", None, [1, 2, 3], 2),
@@ -453,3 +456,77 @@ def test_tojson_type_errors():
         TypeError, match="Object of type bytes is not JSON serializable"
     ):
         VariableOperation.evaluate_operations([op], b"test")
+
+
+def test_exponent_operator_for_token_decimals():
+    """Test the **= operator for ERC-20 token decimal conversion use case."""
+    # Common use case: convert token decimals to multiplier
+    # For USDC (6 decimals): 10 ** 6 = 1000000
+    initial = 10
+    operations = [
+        VariableOperation(operation="**=", value=6),  # 10 ** 6 = 1000000
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == 1000000
+
+    # For ETH/most tokens (18 decimals): 10 ** 18
+    operations = [
+        VariableOperation(operation="**=", value=18),  # 10 ** 18
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == 1000000000000000000
+
+    # Cascading: get decimals, compute multiplier, then multiply amount
+    # Simulates: amount * (10 ** decimals)
+    initial = 10  # base for exponent
+    operations = [
+        VariableOperation(operation="**=", value=6),  # 10 ** 6 = 1000000
+        VariableOperation(
+            operation="*=", value=100
+        ),  # 1000000 * 100 = 100000000 (100 USDC in smallest unit)
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == 100000000
+
+
+def test_exponent_operator_edge_cases():
+    """Test edge cases for the **= operator."""
+    # Anything to the power of 0 is 1
+    initial = 5
+    operations = [
+        VariableOperation(operation="**=", value=0),
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == 1
+
+    # 0 to any positive power is 0
+    initial = 0
+    operations = [
+        VariableOperation(operation="**=", value=5),
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == 0
+
+    # 1 to any power is 1
+    initial = 1
+    operations = [
+        VariableOperation(operation="**=", value=100),
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == 1
+
+    # Negative exponent gives float
+    initial = 2
+    operations = [
+        VariableOperation(operation="**=", value=-1),
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == 0.5
+
+    # Float base
+    initial = 2.5
+    operations = [
+        VariableOperation(operation="**=", value=2),
+    ]
+    result = VariableOperation.evaluate_operations(operations, initial)
+    assert result == 6.25
