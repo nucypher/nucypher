@@ -1,0 +1,1 @@
+Add ``index_within_array`` parameter to ABI parameter validation for signing conditions, enabling validation of array elements in batch transactions and multicall operations.
