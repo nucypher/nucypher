@@ -448,7 +448,7 @@ def test_abi_parameter_validation_array_errors():
                         AbiParameterValidation(
                             parameter_index=0,
                             index_within_array=0,  # ERROR: address is not array
-                            return_value_test=ReturnValueTest("==", "0xAddr"),
+                            return_value_test=ReturnValueTest("==", ":userAddress"),
                         )
                     ]
                 }
@@ -467,8 +467,7 @@ def test_abi_parameter_validation_array_indexing(condition_provider_manager):
     # Encode a batchTransfer call with array parameters
     call_data = encode_human_readable_call(
         "batchTransfer(address[],uint256[])",
-        [recipient1, recipient2],
-        [1000, 2000],
+        [[recipient1, recipient2], [1000, 2000]],
     )
 
     user_op = UserOperation(
@@ -553,8 +552,10 @@ def test_abi_parameter_validation_array_of_tuples(condition_provider_manager):
     call_data = encode_human_readable_call(
         "executeBatch((address,uint256,bytes)[])",
         [
-            (recipient1, 1000000, b"\x00"),
-            (recipient2, 2000000, b"\x01"),
+            [
+                (recipient1, 1000000, b"\x00"),
+                (recipient2, 2000000, b"\x01"),
+            ]
         ],
     )
 
@@ -620,8 +621,7 @@ def test_abi_parameter_validation_array_out_of_bounds(condition_provider_manager
 
     call_data = encode_human_readable_call(
         "batchTransfer(address[],uint256[])",
-        [recipient1],  # Only one element
-        [1000],
+        [[recipient1], [1000]],  # Only one element in each array
     )
 
     user_op = UserOperation(
