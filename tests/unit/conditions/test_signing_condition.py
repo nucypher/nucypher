@@ -458,7 +458,7 @@ def test_abi_parameter_validation_array_errors():
 
 def test_abi_parameter_validation_array_indexing(condition_provider_manager):
     """Test index_within_array for simple array types."""
-    from nucypher.policy.conditions.signing.base import SigningObject
+    from nucypher_core import UserOperation
 
     # Create test data with an array of addresses
     recipient1 = "0x" + "11" * 20
@@ -471,8 +471,17 @@ def test_abi_parameter_validation_array_indexing(condition_provider_manager):
         [1000, 2000],
     )
 
-    signing_object = SigningObject(sender="0xSender", call_data=call_data)
-    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+    user_op = UserOperation(
+        sender="0x" + "ab" * 20,
+        nonce=0,
+        call_data=call_data,
+        call_gas_limit=1,
+        verification_gas_limit=2,
+        pre_verification_gas=3,
+        max_fee_per_gas=4,
+        max_priority_fee_per_gas=5,
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: user_op}
 
     # Test validation of first element in address array
     condition = SigningObjectAbiAttributeCondition(
@@ -534,7 +543,7 @@ def test_abi_parameter_validation_array_indexing(condition_provider_manager):
 
 def test_abi_parameter_validation_array_of_tuples(condition_provider_manager):
     """Test index_within_array + index_within_tuple for batch operations."""
-    from nucypher.policy.conditions.signing.base import SigningObject
+    from nucypher_core import UserOperation
 
     # Create test data with an array of tuples (address, uint256, bytes)
     recipient1 = "0x" + "11" * 20
@@ -549,8 +558,17 @@ def test_abi_parameter_validation_array_of_tuples(condition_provider_manager):
         ],
     )
 
-    signing_object = SigningObject(sender="0xSender", call_data=call_data)
-    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+    user_op = UserOperation(
+        sender="0x" + "ab" * 20,
+        nonce=0,
+        call_data=call_data,
+        call_gas_limit=1,
+        verification_gas_limit=2,
+        pre_verification_gas=3,
+        max_fee_per_gas=4,
+        max_priority_fee_per_gas=5,
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: user_op}
 
     # Test validation of amount field (index 1) in first tuple (index 0)
     condition = SigningObjectAbiAttributeCondition(
@@ -595,7 +613,7 @@ def test_abi_parameter_validation_array_of_tuples(condition_provider_manager):
 
 def test_abi_parameter_validation_array_out_of_bounds(condition_provider_manager):
     """Test that array index out of bounds raises error."""
-    from nucypher.policy.conditions.signing.base import SigningObject
+    from nucypher_core import UserOperation
 
     # Create test data with a small array
     recipient1 = "0x" + "11" * 20
@@ -606,8 +624,17 @@ def test_abi_parameter_validation_array_out_of_bounds(condition_provider_manager
         [1000],
     )
 
-    signing_object = SigningObject(sender="0xSender", call_data=call_data)
-    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+    user_op = UserOperation(
+        sender="0x" + "ab" * 20,
+        nonce=0,
+        call_data=call_data,
+        call_gas_limit=1,
+        verification_gas_limit=2,
+        pre_verification_gas=3,
+        max_fee_per_gas=4,
+        max_priority_fee_per_gas=5,
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: user_op}
 
     # Try to access index 5 when array only has 1 element
     condition = SigningObjectAbiAttributeCondition(
