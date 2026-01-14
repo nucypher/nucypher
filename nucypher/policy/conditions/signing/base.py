@@ -162,6 +162,10 @@ class AbiParameterValidation(_Serializable):
     class Schema(CamelCaseSchema):
         parameter_index = fields.Integer(validate=Range(min=0), required=True)
 
+        index_within_array = fields.Integer(
+            validate=Range(min=0), allow_none=True, required=False
+        )
+
         index_within_tuple = fields.Integer(
             validate=Range(min=0), allow_none=True, required=False
         )
@@ -196,11 +200,13 @@ class AbiParameterValidation(_Serializable):
     def __init__(
         self,
         parameter_index: int,
+        index_within_array: Optional[int] = None,
         index_within_tuple: Optional[int] = None,
         return_value_test: Optional[ReturnValueTest] = None,
         nested_abi_validation: Optional["AbiCallValidation"] = None,
     ):
         self.parameter_index = parameter_index
+        self.index_within_array = index_within_array
         self.index_within_tuple = index_within_tuple
         self.return_value_test = return_value_test
         self.nested_abi_validation = nested_abi_validation
@@ -210,6 +216,21 @@ class AbiParameterValidation(_Serializable):
     def get_value(self, args):
         parameter_value = args[self.parameter_index]
 
+        # First, index into array if specified
+        if self.index_within_array is not None:
+            if not isinstance(parameter_value, (list, tuple)):
+                raise ValueError(
+                    f"Invalid data type for checking call data; expected list or tuple for array indexing, received {type(parameter_value)}"
+                )
+
+            if self.index_within_array >= len(parameter_value):
+                raise ValueError(
+                    f"Array index {self.index_within_array} is out of range for array of length {len(parameter_value)}"
+                )
+
+            parameter_value = parameter_value[self.index_within_array]
+
+        # Then, index into tuple if specified
         if self.index_within_tuple is not None:
             if not isinstance(parameter_value, tuple):
                 raise ValueError(
@@ -277,8 +298,27 @@ class AbiCallValidation(_Serializable):
                             f"the ABI decode string '{human_signature}'. "
                         )
 
+                    # Validate index_within_array for array types
+                    if parameter_value_check.index_within_array is not None:
+                        arg_type = arg_types[parameter_value_check.parameter_index]
+                        # Check if the parameter is an array type (ends with [])
+                        if not arg_type.endswith("[]"):
+                            raise ValidationError(
+                                f"Args value at index '{parameter_value_check.parameter_index}' is not an array type. "
+                                f"index_within_array can only be used with array types (e.g., 'type[]'), but got '{arg_type}'"
+                            )
+                        # Note: We cannot validate the array index bounds at schema validation time
+                        # since array length is only known at runtime
+
                     if parameter_value_check.index_within_tuple is not None:
                         tuple_args = arg_types[parameter_value_check.parameter_index]
+
+                        # If we have index_within_array, the arg_type is an array of tuples (e.g., "(address,uint256,bytes)[]")
+                        # We need to strip the [] to get the tuple type
+                        if parameter_value_check.index_within_array is not None:
+                            if tuple_args.endswith("[]"):
+                                tuple_args = tuple_args[:-2]  # Remove trailing []
+
                         if not (
                             tuple_args.startswith("(") and tuple_args.endswith(")")
                         ):
