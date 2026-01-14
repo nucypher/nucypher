@@ -436,6 +436,199 @@ def test_invalid_signing_object_abi_attribute_condition():
         )
 
 
+def test_abi_parameter_validation_array_errors():
+    """Test error handling for index_within_array."""
+    # Using index_within_array on non-array type should fail at schema validation
+    with pytest.raises(Exception, match="is not an array type"):
+        _ = SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_validation=AbiCallValidation(
+                {
+                    "transfer(address,uint256)": [
+                        AbiParameterValidation(
+                            parameter_index=0,
+                            index_within_array=0,  # ERROR: address is not array
+                            return_value_test=ReturnValueTest("==", "0xAddr"),
+                        )
+                    ]
+                }
+            ),
+        )
+
+
+def test_abi_parameter_validation_array_indexing(condition_provider_manager):
+    """Test index_within_array for simple array types."""
+    from nucypher.policy.conditions.signing.base import SigningObject
+
+    # Create test data with an array of addresses
+    recipient1 = "0x" + "11" * 20
+    recipient2 = "0x" + "22" * 20
+
+    # Encode a batchTransfer call with array parameters
+    call_data = encode_human_readable_call(
+        "batchTransfer(address[],uint256[])",
+        [recipient1, recipient2],
+        [1000, 2000],
+    )
+
+    signing_object = SigningObject(sender="0xSender", call_data=call_data)
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+
+    # Test validation of first element in address array
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "batchTransfer(address[],uint256[])": [
+                    AbiParameterValidation(
+                        parameter_index=0,
+                        index_within_array=0,
+                        return_value_test=ReturnValueTest("==", recipient1),
+                    )
+                ]
+            }
+        ),
+    )
+
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
+
+    # Test validation of second element in address array
+    condition2 = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "batchTransfer(address[],uint256[])": [
+                    AbiParameterValidation(
+                        parameter_index=0,
+                        index_within_array=1,
+                        return_value_test=ReturnValueTest("==", recipient2),
+                    )
+                ]
+            }
+        ),
+    )
+
+    allowed, _ = condition2.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
+
+    # Test validation of uint256 array
+    condition3 = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "batchTransfer(address[],uint256[])": [
+                    AbiParameterValidation(
+                        parameter_index=1,
+                        index_within_array=1,
+                        return_value_test=ReturnValueTest("==", 2000),
+                    )
+                ]
+            }
+        ),
+    )
+
+    allowed, _ = condition3.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
+
+
+def test_abi_parameter_validation_array_of_tuples(condition_provider_manager):
+    """Test index_within_array + index_within_tuple for batch operations."""
+    from nucypher.policy.conditions.signing.base import SigningObject
+
+    # Create test data with an array of tuples (address, uint256, bytes)
+    recipient1 = "0x" + "11" * 20
+    recipient2 = "0x" + "22" * 20
+
+    # Encode an executeBatch call with array of tuples
+    call_data = encode_human_readable_call(
+        "executeBatch((address,uint256,bytes)[])",
+        [
+            (recipient1, 1000000, b"\x00"),
+            (recipient2, 2000000, b"\x01"),
+        ],
+    )
+
+    signing_object = SigningObject(sender="0xSender", call_data=call_data)
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+
+    # Test validation of amount field (index 1) in first tuple (index 0)
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "executeBatch((address,uint256,bytes)[])": [
+                    AbiParameterValidation(
+                        parameter_index=0,
+                        index_within_array=0,
+                        index_within_tuple=1,
+                        return_value_test=ReturnValueTest("==", 1000000),
+                    )
+                ]
+            }
+        ),
+    )
+
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
+
+    # Test validation of address field (index 0) in second tuple (index 1)
+    condition2 = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "executeBatch((address,uint256,bytes)[])": [
+                    AbiParameterValidation(
+                        parameter_index=0,
+                        index_within_array=1,
+                        index_within_tuple=0,
+                        return_value_test=ReturnValueTest("==", recipient2),
+                    )
+                ]
+            }
+        ),
+    )
+
+    allowed, _ = condition2.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
+
+
+def test_abi_parameter_validation_array_out_of_bounds(condition_provider_manager):
+    """Test that array index out of bounds raises error."""
+    from nucypher.policy.conditions.signing.base import SigningObject
+
+    # Create test data with a small array
+    recipient1 = "0x" + "11" * 20
+
+    call_data = encode_human_readable_call(
+        "batchTransfer(address[],uint256[])",
+        [recipient1],  # Only one element
+        [1000],
+    )
+
+    signing_object = SigningObject(sender="0xSender", call_data=call_data)
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: signing_object}
+
+    # Try to access index 5 when array only has 1 element
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "batchTransfer(address[],uint256[])": [
+                    AbiParameterValidation(
+                        parameter_index=0,
+                        index_within_array=5,  # Out of bounds
+                        return_value_test=ReturnValueTest("==", recipient1),
+                    )
+                ]
+            }
+        ),
+    )
+
+    with pytest.raises(ValueError, match="out of range"):
+        condition.verify(providers=condition_provider_manager, **context)
+
+
 def test_signing_object_abi_attribute_condition_initialization():
     condition = SigningObjectAbiAttributeCondition(
         attribute_name="call_data",
