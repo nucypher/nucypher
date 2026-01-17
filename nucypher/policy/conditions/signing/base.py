@@ -113,11 +113,27 @@ class SigningObjectAttributeCondition(BaseSigningObjectAttributeCondition):
             validate=validate.Equal(ConditionType.SIGNING_ATTRIBUTE.value),
             required=True,
         )
-        return_value_test = fields.Nested(ReturnValueTest.Schema(), required=True)
+        return_value_test = fields.Nested(
+            ReturnValueTest.Schema(), required=False, allow_none=True
+        )
 
         # maintain field declaration ordering
         class Meta:
             ordered = True
+
+        @validates_schema
+        def validate_return_value_test_required(self, data, **kwargs):
+            # returnValueTest is only optional inside ConditionVariable context
+            # or when directly constructing via Python (not deserializing from user input)
+            if self.context.get("in_condition_variable", False):
+                return
+            if self.context.get("direct_construction", False):
+                return
+            if data.get("return_value_test") is None:
+                raise ValidationError(
+                    "returnValueTest is required",
+                    field_name="returnValueTest",
+                )
 
         @post_load
         def make(self, data, **kwargs):
@@ -126,7 +142,7 @@ class SigningObjectAttributeCondition(BaseSigningObjectAttributeCondition):
     def __init__(
         self,
         attribute_name: str,
-        return_value_test: ReturnValueTest,
+        return_value_test: Optional[ReturnValueTest] = None,
         signing_object_context_var: str = SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
         condition_type: str = ConditionType.SIGNING_ATTRIBUTE.value,
         name: Optional[str] = None,
@@ -142,11 +158,15 @@ class SigningObjectAttributeCondition(BaseSigningObjectAttributeCondition):
     def verify(
         self, providers: ConditionProviderManager, **context
     ) -> Tuple[bool, Any]:
+        raw_attribute_value = self.get_attribute_value(providers=providers, **context)
+
+        if self.return_value_test is None:
+            # No test defined - extraction success = condition success
+            return True, raw_attribute_value
+
         resolved_return_value_test = self.return_value_test.with_resolved_context(
             providers=providers, **context
         )
-
-        raw_attribute_value = self.get_attribute_value(providers=providers, **context)
 
         # TODO: not the cleanest way to handle a string value needing to be quoted
         #  for evaluation checking

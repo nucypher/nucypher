@@ -34,11 +34,22 @@ def test_invalid_context_variable_condition():
             return_value_test=ReturnValueTest(comparator="==", value=0),
         )
 
-    # no return value test var
-    with pytest.raises(InvalidCondition, match="Field may not be null"):
-        _ = ContextVariableCondition(
-            context_variable=USER_ADDRESS_CONTEXT, return_value_test=None
+    # no return value test via from_dict (standalone) - should fail
+    with pytest.raises(InvalidConditionLingo, match="returnValueTest"):
+        _ = ContextVariableCondition.from_dict(
+            {
+                "conditionType": "context-variable",
+                "contextVariable": USER_ADDRESS_CONTEXT,
+                # no returnValueTest - should fail for standalone
+            }
         )
+
+    # no return value test via direct construction - now allowed
+    # (returns True, value when verified)
+    condition = ContextVariableCondition(
+        context_variable=USER_ADDRESS_CONTEXT, return_value_test=None
+    )
+    assert condition.return_value_test is None
 
 
 def test_context_variable_condition_initialization():

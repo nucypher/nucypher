@@ -95,11 +95,16 @@ class _ConditionField(fields.Dict):
 
     def _deserialize(self, value, attr, data, **kwargs):
         lingo_version = self.context.get("lingo_version")
+        in_condition_variable = self.context.get("in_condition_variable", False)
         condition_data = value
         condition_class = ConditionLingo.resolve_condition_class(
             condition=condition_data, version=lingo_version
         )
-        instance = condition_class.from_dict(condition_data)
+        # Pass context to nested condition schema for conditional validation
+        schema = condition_class.Schema()
+        schema.context["lingo_version"] = lingo_version
+        schema.context["in_condition_variable"] = in_condition_variable
+        instance = schema.load(condition_data)
         return instance
 
 
@@ -532,6 +537,12 @@ class ConditionVariable(_Serializable):
             ],
             required=False,
         )
+
+        @pre_load
+        def set_condition_variable_context(self, data, **kwargs):
+            # Signal to nested condition that returnValueTest is optional
+            self.context["in_condition_variable"] = True
+            return data
 
         @post_load
         def make(self, data, **kwargs):
@@ -1221,12 +1232,28 @@ class ExecutionCallCondition(Condition):
     EXECUTION_CALL_TYPE = NotImplemented
 
     class Schema(Condition.Schema):
-        return_value_test = fields.Nested(ReturnValueTest.Schema(), required=True)
+        return_value_test = fields.Nested(
+            ReturnValueTest.Schema(), required=False, allow_none=True
+        )
+
+        @validates_schema
+        def validate_return_value_test_required(self, data, **kwargs):
+            # returnValueTest is only optional inside ConditionVariable context
+            # or when directly constructing via Python (not deserializing from user input)
+            if self.context.get("in_condition_variable", False):
+                return
+            if self.context.get("direct_construction", False):
+                return
+            if data.get("return_value_test") is None:
+                raise ValidationError(
+                    "returnValueTest is required",
+                    field_name="returnValueTest",
+                )
 
     def __init__(
         self,
         condition_type: str,
-        return_value_test: ReturnValueTest,
+        return_value_test: Optional[ReturnValueTest] = None,
         name: Optional[str] = None,
         *args,
         **kwargs,
@@ -1244,8 +1271,15 @@ class ExecutionCallCondition(Condition):
         """
         Verifies the condition is met by performing execution call and
         evaluating the return value test.
+
+        If return_value_test is None, returns (True, result) - meaning
+        successful extraction is considered a passing condition.
         """
         result = self.execution_call.execute(*args, **kwargs)
+
+        if self.return_value_test is None:
+            # No test defined - extraction success = condition success
+            return True, result
 
         resolved_return_value_test = self.return_value_test.with_resolved_context(
             **kwargs

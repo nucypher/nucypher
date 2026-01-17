@@ -54,7 +54,12 @@ class _Serializable:
         return instance
 
     def _validate(self, **kwargs):
-        errors = self.Schema().validate(data=self.to_dict())
+        schema = self.Schema()
+        # When validating a directly-constructed object (not deserializing from user input),
+        # allow optional fields like returnValueTest to be None. This is indicated by the
+        # 'direct_construction' context flag.
+        schema.context["direct_construction"] = True
+        errors = schema.validate(data=self.to_dict())
         if errors:
             error_message = extract_single_error_message_from_schema_errors(errors)
             raise ValueError(f"Invalid {self.__class__.__name__}: {error_message}")

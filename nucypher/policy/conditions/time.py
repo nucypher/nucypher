@@ -65,6 +65,10 @@ class TimeCondition(RPCCondition):
         @validates_schema
         def validate_expected_return_type(self, data, **kwargs):
             return_value_test = data.get("return_value_test")
+            if return_value_test is None:
+                # No return value test - skip validation
+                return
+
             if return_value_test.operations:
                 # skip validation since operations modify the value to check
                 return
@@ -81,13 +85,14 @@ class TimeCondition(RPCCondition):
             return TimeCondition(**data)
 
     def __repr__(self) -> str:
-        r = f"{self.__class__.__name__}(timestamp={self.return_value_test.value}, chain={self.chain})"
+        timestamp = self.return_value_test.value if self.return_value_test else None
+        r = f"{self.__class__.__name__}(timestamp={timestamp}, chain={self.chain})"
         return r
 
     def __init__(
         self,
-        return_value_test: ReturnValueTest,
         chain: int,
+        return_value_test: Optional[ReturnValueTest] = None,
         method: str = TimeRPCCall.METHOD,
         condition_type: str = ConditionType.TIME.value,
         name: Optional[str] = None,
@@ -103,4 +108,4 @@ class TimeCondition(RPCCondition):
 
     @property
     def timestamp(self):
-        return self.return_value_test.value
+        return self.return_value_test.value if self.return_value_test else None

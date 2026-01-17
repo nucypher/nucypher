@@ -48,7 +48,7 @@ class _Condition(TypedDict):
 
 
 class BaseExecConditionDict(_Condition):
-    returnValueTest: ReturnValueTestDict
+    returnValueTest: NotRequired[ReturnValueTestDict]
 
 
 class RPCConditionDict(BaseExecConditionDict):
@@ -194,7 +194,7 @@ class _BaseSigningObjectAttributeCondition(_SigningObjectCondition):
 #     "returnValueTest: <>
 # }
 class SigningObjectAttributeCondition(_BaseSigningObjectAttributeCondition):
-    returnValueTest: ReturnValueTestDict
+    returnValueTest: NotRequired[ReturnValueTestDict]
 
 
 # AbiParameterValidation represents:

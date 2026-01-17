@@ -9,6 +9,7 @@ from nucypher.policy.conditions.base import (
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     InvalidCondition,
+    InvalidConditionLingo,
 )
 from nucypher.policy.conditions.json.json import JsonCondition
 from nucypher.policy.conditions.lingo import (
@@ -586,3 +587,320 @@ def test_sequential_condition_a_call_fails(mock_condition_variables):
 
     with pytest.raises(Web3Exception):
         _ = sequential_condition.verify(providers=ConditionProviderManager({}))
+
+
+# Tests for optional returnValueTest feature.
+#
+# When a condition is inside a ConditionVariable (sequential conditions),
+# returnValueTest can be omitted. In this case:
+# - The condition returns (True, extracted_value) if extraction succeeds
+# - Operations on ConditionVariable still work
+
+
+def test_json_condition_without_return_value_test_in_condition_variable():
+    """JsonCondition without returnValueTest inside ConditionVariable is valid."""
+    mock_discord_message_json = {
+        "data": {
+            "options": [
+                {"name": "amount", "value": "0.0001"},
+                {"name": "recipient", "value": "0xABC123"},
+            ],
+        },
+    }
+
+    # JsonCondition without returnValueTest - pure extraction
+    amount_json_condition = JsonCondition(
+        data=":discord_message",
+        query="$.data.options[?(@.name=='amount')].value",
+        # No returnValueTest - this is the key test
+    )
+
+    # Second condition with returnValueTest - validates the extracted value
+    validate_condition = ContextVariableCondition(
+        context_variable=":amount",
+        return_value_test=ReturnValueTest(
+            comparator="==",
+            value="0.0001",
+        ),
+    )
+
+    sequential_condition = SequentialCondition(
+        condition_variables=[
+            ConditionVariable(
+                var_name="amount",
+                condition=amount_json_condition,
+            ),
+            ConditionVariable(
+                var_name="validated",
+                condition=validate_condition,
+            ),
+        ]
+    )
+
+    context = {":discord_message": json.dumps(mock_discord_message_json)}
+    result, values = sequential_condition.verify(
+        providers=ConditionProviderManager({}), **context
+    )
+
+    assert result is True
+    assert values[0] == "0.0001"  # Extracted value from JSON
+    assert values[1] == "0.0001"  # Validated value
+
+
+def test_json_condition_without_return_value_test_with_operations():
+    """JsonCondition without returnValueTest but with ConditionVariable operations."""
+    mock_discord_message_json = {
+        "data": {
+            "options": [{"name": "amount", "value": "0.0001"}],
+        },
+    }
+
+    # JsonCondition without returnValueTest - pure extraction
+    amount_json_condition = JsonCondition(
+        data=":discord_message",
+        query="$.data.options[?(@.name=='amount')].value",
+        # No returnValueTest
+    )
+
+    # Validate the transformed value
+    validate_condition = ContextVariableCondition(
+        context_variable=":amount",
+        return_value_test=ReturnValueTest(
+            comparator="==",
+            value=_eth_to_wei(0.0001),
+        ),
+    )
+
+    sequential_condition = SequentialCondition(
+        condition_variables=[
+            ConditionVariable(
+                var_name="amount",
+                condition=amount_json_condition,
+                operations=[
+                    VariableOperation(operation="ethToWei"),
+                ],
+            ),
+            ConditionVariable(
+                var_name="validated",
+                condition=validate_condition,
+            ),
+        ]
+    )
+
+    context = {":discord_message": json.dumps(mock_discord_message_json)}
+    result, values = sequential_condition.verify(
+        providers=ConditionProviderManager({}), **context
+    )
+
+    assert result is True
+    # values[0] is the raw extracted value before operations
+    assert values[0] == "0.0001"
+    # values[1] is the transformed value from the second condition
+    assert values[1] == _eth_to_wei(0.0001)
+
+
+def test_context_variable_condition_without_return_value_test():
+    """ContextVariableCondition without returnValueTest inside ConditionVariable."""
+    # First condition extracts with returnValueTest
+    first_condition = JsonCondition(
+        data=":input",
+        query="$.value",
+        return_value_test=ReturnValueTest(comparator=">", value=0),
+    )
+
+    # Second condition: pure passthrough without returnValueTest
+    passthrough_condition = ContextVariableCondition(
+        context_variable=":extracted",
+        # No returnValueTest - just pass the value through
+    )
+
+    # Third condition validates
+    validate_condition = ContextVariableCondition(
+        context_variable=":passthrough",
+        return_value_test=ReturnValueTest(comparator="==", value=42),
+    )
+
+    sequential_condition = SequentialCondition(
+        condition_variables=[
+            ConditionVariable(var_name="extracted", condition=first_condition),
+            ConditionVariable(var_name="passthrough", condition=passthrough_condition),
+            ConditionVariable(var_name="validated", condition=validate_condition),
+        ]
+    )
+
+    context = {":input": json.dumps({"value": 42})}
+    result, values = sequential_condition.verify(
+        providers=ConditionProviderManager({}), **context
+    )
+
+    assert result is True
+    assert values[0] == 42
+    assert values[1] == 42  # Passthrough value
+    assert values[2] == 42  # Validated value
+
+
+def test_standalone_json_condition_requires_return_value_test():
+    """JsonCondition outside ConditionVariable requires returnValueTest."""
+    # This should fail because returnValueTest is required outside ConditionVariable
+    condition_dict = {
+        "version": "1.0.0",
+        "condition": {
+            "conditionType": "json",
+            "data": ":someData",
+            "query": "$.value",
+            # No returnValueTest - should fail
+        },
+    }
+
+    with pytest.raises(InvalidConditionLingo, match="returnValueTest"):
+        ConditionLingo.from_dict(condition_dict)
+
+
+def test_standalone_context_variable_condition_requires_return_value_test():
+    """ContextVariableCondition outside ConditionVariable requires returnValueTest."""
+    condition_dict = {
+        "version": "1.0.0",
+        "condition": {
+            "conditionType": "context-variable",
+            "contextVariable": ":someVar",
+            # No returnValueTest - should fail
+        },
+    }
+
+    with pytest.raises(InvalidConditionLingo, match="returnValueTest"):
+        ConditionLingo.from_dict(condition_dict)
+
+
+def test_sequential_with_mixed_conditions():
+    """Sequential condition with some conditions having returnValueTest and some without."""
+    mock_data = {
+        "amount": "100",
+        "recipient": "0xABC",
+    }
+
+    # First condition: extraction without returnValueTest
+    extract_amount = JsonCondition(
+        data=":data",
+        query="$.amount",
+        # No returnValueTest
+    )
+
+    # Second condition: extraction with returnValueTest (validation)
+    extract_and_validate_recipient = JsonCondition(
+        data=":data",
+        query="$.recipient",
+        return_value_test=ReturnValueTest(
+            comparator="!=",
+            value="0x0",
+        ),
+    )
+
+    # Third condition: validate amount
+    validate_amount = ContextVariableCondition(
+        context_variable=":extractedAmount",
+        return_value_test=ReturnValueTest(
+            comparator="==",
+            value="100",
+        ),
+    )
+
+    sequential_condition = SequentialCondition(
+        condition_variables=[
+            ConditionVariable(var_name="extractedAmount", condition=extract_amount),
+            ConditionVariable(
+                var_name="validatedRecipient",
+                condition=extract_and_validate_recipient,
+            ),
+            ConditionVariable(var_name="finalCheck", condition=validate_amount),
+        ]
+    )
+
+    context = {":data": json.dumps(mock_data)}
+    result, values = sequential_condition.verify(
+        providers=ConditionProviderManager({}), **context
+    )
+
+    assert result is True
+    assert values[0] == "100"  # Extracted amount (no returnValueTest)
+    assert values[1] == "0xABC"  # Validated recipient (with returnValueTest)
+    assert values[2] == "100"  # Final validated amount
+
+
+def test_serialization_roundtrip_without_return_value_test():
+    """Condition without returnValueTest serializes and deserializes correctly."""
+    # Create a sequential condition with a nested condition without returnValueTest
+    condition_dict = {
+        "version": "1.0.0",
+        "condition": {
+            "conditionType": "sequential",
+            "conditionVariables": [
+                {
+                    "varName": "extracted",
+                    "condition": {
+                        "conditionType": "json",
+                        "data": ":input",
+                        "query": "$.value",
+                        # No returnValueTest
+                    },
+                },
+                {
+                    "varName": "validated",
+                    "condition": {
+                        "conditionType": "context-variable",
+                        "contextVariable": ":extracted",
+                        "returnValueTest": {
+                            "comparator": "==",
+                            "value": 42,
+                        },
+                    },
+                },
+            ],
+        },
+    }
+
+    # Deserialize
+    lingo = ConditionLingo.from_dict(condition_dict)
+
+    # Serialize back
+    serialized = lingo.to_dict()
+
+    # Check that the first condition has no returnValueTest
+    first_condition = serialized["condition"]["conditionVariables"][0]["condition"]
+    assert "returnValueTest" not in first_condition
+
+    # Check that the second condition still has returnValueTest
+    second_condition = serialized["condition"]["conditionVariables"][1]["condition"]
+    assert "returnValueTest" in second_condition
+    assert second_condition["returnValueTest"]["comparator"] == "=="
+    assert second_condition["returnValueTest"]["value"] == 42
+
+
+def test_verify_returns_true_without_return_value_test():
+    """Verify returns (True, value) when returnValueTest is None."""
+    # Create JsonCondition without returnValueTest
+    json_cond = JsonCondition(
+        data=":input",
+        query="$.value",
+        # No returnValueTest
+    )
+
+    context = {":input": json.dumps({"value": 42})}
+    result, value = json_cond.verify(**context)
+
+    # Should return True (extraction succeeded) and the extracted value
+    assert result is True
+    assert value == 42
+
+
+def test_context_variable_verify_returns_true_without_return_value_test():
+    """ContextVariableCondition.verify returns (True, value) when returnValueTest is None."""
+    ctx_cond = ContextVariableCondition(
+        context_variable=":myVar",
+        # No returnValueTest
+    )
+
+    context = {":myVar": "test_value"}
+    result, value = ctx_cond.verify(providers=ConditionProviderManager({}), **context)
+
+    assert result is True
+    assert value == "test_value"

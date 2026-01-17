@@ -1,7 +1,14 @@
 import json
 from typing import Any, Optional, Tuple
 
-from marshmallow import ValidationError, fields, post_load, validate, validates
+from marshmallow import (
+    ValidationError,
+    fields,
+    post_load,
+    validate,
+    validates,
+    validates_schema,
+)
 
 from nucypher.policy.conditions.base import Condition
 from nucypher.policy.conditions.context import (
@@ -31,13 +38,29 @@ class JsonCondition(Condition):
         )
         data = fields.Str(required=True)
         query = JSONPathField(required=False, allow_none=True)
-        return_value_test = fields.Nested(ReturnValueTest.Schema(), required=True)
+        return_value_test = fields.Nested(
+            ReturnValueTest.Schema(), required=False, allow_none=True
+        )
 
         @validates("data")
         def validate_data(self, value):
             if not is_context_variable(value):
                 raise ValidationError(
                     f"Invalid value for data; expected a context variable, but got '{value}'"
+                )
+
+        @validates_schema
+        def validate_return_value_test_required(self, data, **kwargs):
+            # returnValueTest is only optional inside ConditionVariable context
+            # or when directly constructing via Python (not deserializing from user input)
+            if self.context.get("in_condition_variable", False):
+                return
+            if self.context.get("direct_construction", False):
+                return
+            if data.get("return_value_test") is None:
+                raise ValidationError(
+                    "returnValueTest is required",
+                    field_name="returnValueTest",
                 )
 
         @post_load
@@ -47,7 +70,7 @@ class JsonCondition(Condition):
     def __init__(
         self,
         data: str,
-        return_value_test: ReturnValueTest,
+        return_value_test: Optional[ReturnValueTest] = None,
         query: Optional[str] = None,
         condition_type: Optional[str] = ConditionType.JSON.value,
         name: Optional[str] = None,
@@ -61,6 +84,9 @@ class JsonCondition(Condition):
     def verify(self, **context) -> Tuple[bool, Any]:
         """
         Verifies the JSON condition by executing the query and evaluating the result.
+
+        If return_value_test is None, returns (True, result) - meaning
+        successful extraction is considered a passing condition.
         """
         # Resolve context variables in data if needed
         resolved_data = resolve_any_context_variables(self.data, **context)
@@ -76,6 +102,10 @@ class JsonCondition(Condition):
 
         # Apply JSONPath query
         result = query_json_data(resolved_data, self.query, **context)
+
+        if self.return_value_test is None:
+            # No test defined - extraction success = condition success
+            return True, result
 
         # Evaluate against return value test
         resolved_return_value_test = self.return_value_test.with_resolved_context(

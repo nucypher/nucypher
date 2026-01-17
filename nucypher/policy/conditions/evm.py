@@ -154,6 +154,10 @@ class RPCCondition(ExecutionCallCondition):
             method = data.get("method")
             return_value_test = data.get("return_value_test")
 
+            if return_value_test is None:
+                # No return value test - skip validation
+                return
+
             if return_value_test.operations:
                 # skip validation since operations modify the value to check
                 return
@@ -182,7 +186,7 @@ class RPCCondition(ExecutionCallCondition):
         self,
         chain: int,
         method: str,
-        return_value_test: ReturnValueTest,
+        return_value_test: Optional[ReturnValueTest] = None,
         condition_type: str = ConditionType.RPC.value,
         name: Optional[str] = None,
         parameters: Optional[List[Any]] = None,
@@ -220,14 +224,18 @@ class RPCCondition(ExecutionCallCondition):
     def verify(
         self, providers: ConditionProviderManager, **context
     ) -> Tuple[bool, Any]:
+        result = self.execution_call.execute(providers=providers, **context)
+
+        if self.return_value_test is None:
+            # No test defined - extraction success = condition success
+            return True, result
+
         resolved_return_value_test = self.return_value_test.with_resolved_context(
             providers=providers, **context
         )
         return_value_test = self._align_comparator_value_with_abi(
             resolved_return_value_test
         )
-
-        result = self.execution_call.execute(providers=providers, **context)
 
         eval_result = return_value_test.eval(result)  # test
         return eval_result, result
@@ -366,6 +374,10 @@ class ContractCondition(RPCCondition):
 
             # validate return type based on contract function
             return_value_test = data.get("return_value_test")
+            if return_value_test is None:
+                # No return value test - skip validation
+                return
+
             if return_value_test.operations:
                 # skip validation since operations modify the value to check
                 return

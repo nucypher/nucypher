@@ -131,8 +131,16 @@ class BaseJsonRequestCondition(ExecutionCallCondition, ABC):
     def verify(self, **context) -> Tuple[bool, Any]:
         """
         Verifies the JSON condition.
+
+        If return_value_test is None, returns (True, result) - meaning
+        successful extraction is considered a passing condition.
         """
         result = self.execution_call.execute(**context)
+
+        if self.return_value_test is None:
+            # No test defined - extraction success = condition success
+            return True, result
+
         resolved_return_value_test = self.return_value_test.with_resolved_context(
             **context
         )
