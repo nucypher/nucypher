@@ -7,6 +7,8 @@ from nucypher.utilities.abi import (
     decode_human_readable_call,
     encode_human_readable_call,
     is_valid_human_readable_signature,
+    parse_tuple_fields,
+    resolve_abi_type_with_indices,
 )
 
 
@@ -152,3 +154,81 @@ def test_encode_decode_human_readable_abi(human_signature, expected_method_name,
             encoded_call_data,
             return_method_name=True,
         )
+
+
+@pytest.mark.parametrize(
+    "tuple_type, expected_fields",
+    [
+        ("(address,uint256,bytes)", ["address", "uint256", "bytes"]),
+        ("(address)", ["address"]),
+        ("((address,uint256),bytes)", ["(address,uint256)", "bytes"]),
+        ("(address[],(uint256,bool),bytes)", ["address[]", "(uint256,bool)", "bytes"]),
+        (
+            "((address,uint256)[],bytes,uint256)",
+            ["(address,uint256)[]", "bytes", "uint256"],
+        ),
+    ],
+)
+def test_parse_tuple_fields(tuple_type, expected_fields):
+    assert parse_tuple_fields(tuple_type) == expected_fields
+
+
+def test_parse_tuple_fields_invalid():
+    with pytest.raises(ValueError, match="Not a tuple type"):
+        parse_tuple_fields("address")
+
+    with pytest.raises(ValueError, match="Not a tuple type"):
+        parse_tuple_fields("uint256[]")
+
+
+@pytest.mark.parametrize(
+    "abi_type, sub_indices, expected_type",
+    [
+        # Simple array indexing
+        ("address[]", [0], "address"),
+        ("uint256[]", [0], "uint256"),
+        # Simple tuple indexing
+        ("(address,uint256,bytes)", [0], "address"),
+        ("(address,uint256,bytes)", [1], "uint256"),
+        ("(address,uint256,bytes)", [2], "bytes"),
+        # Array of tuples (array first, then tuple)
+        ("(address,uint256,bytes)[]", [0], "(address,uint256,bytes)"),
+        ("(address,uint256,bytes)[]", [0, 0], "address"),
+        ("(address,uint256,bytes)[]", [0, 1], "uint256"),
+        ("(address,uint256,bytes)[]", [0, 2], "bytes"),
+        # Tuple of arrays (tuple first, then array)
+        ("(address[],uint256[],bytes)", [0], "address[]"),
+        ("(address[],uint256[],bytes)", [0, 0], "address"),
+        ("(address[],uint256[],bytes)", [1, 0], "uint256"),
+        # Deeply nested
+        ("((address,uint256)[],bytes)[]", [0], "((address,uint256)[],bytes)"),
+        ("((address,uint256)[],bytes)[]", [0, 0], "(address,uint256)[]"),
+        ("((address,uint256)[],bytes)[]", [0, 0, 0], "(address,uint256)"),
+        ("((address,uint256)[],bytes)[]", [0, 0, 0, 0], "address"),
+        ("((address,uint256)[],bytes)[]", [0, 0, 0, 1], "uint256"),
+        ("((address,uint256)[],bytes)[]", [0, 1], "bytes"),
+        # Empty indices returns original type
+        ("(address,uint256,bytes)[]", [], "(address,uint256,bytes)[]"),
+    ],
+)
+def test_resolve_abi_type_with_indices(abi_type, sub_indices, expected_type):
+    assert resolve_abi_type_with_indices(abi_type, sub_indices) == expected_type
+
+
+def test_resolve_abi_type_with_indices_errors():
+    # Index into non-indexable type
+    with pytest.raises(ValueError, match="not indexable"):
+        resolve_abi_type_with_indices("address", [0])
+
+    with pytest.raises(ValueError, match="not indexable"):
+        resolve_abi_type_with_indices("uint256", [0])
+
+    # Tuple index out of range
+    with pytest.raises(ValueError, match="out of range"):
+        resolve_abi_type_with_indices("(address,uint256)", [5])
+
+    # Multiple steps with error at second step
+    with pytest.raises(ValueError, match="not indexable"):
+        resolve_abi_type_with_indices(
+            "(address,uint256)[]", [0, 0, 0]
+        )  # address is not indexable

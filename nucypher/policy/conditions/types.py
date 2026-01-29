@@ -199,14 +199,14 @@ class SigningObjectAttributeCondition(_BaseSigningObjectAttributeCondition):
 
 # AbiParameterValidation represents:
 # {
-#     "parameterIndex": str
-#     "indexWithinTuple": int
+#     "parameterIndex": int
+#     "subIndices": [int]  # Sequential indices for navigating nested structures
 #     "returnValueTest: <>
 #     "nestedAbiValidation: <>
 # }
 class AbiParameterValidation(TypedDict):
     parameterIndex: int
-    indexWithinTuple: NotRequired[int]
+    subIndices: NotRequired[List[int]]
     # either returnValueTest or nestedAbiValidation
     returnValueTest: NotRequired[ReturnValueTestDict]
     nestedAbiValidation: NotRequired["AbiCallValidation"]
