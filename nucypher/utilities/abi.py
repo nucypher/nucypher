@@ -76,6 +76,89 @@ def encode_human_readable_call(human_signature: str, args: list) -> bytes:
     return selector + eth_abi.encode(types, args)
 
 
+def parse_tuple_fields(tuple_type: str) -> List[str]:
+    """
+    Parse a tuple type string into its component field types.
+
+    Examples:
+        "(address,uint256,bytes)" -> ["address", "uint256", "bytes"]
+        "((address,uint256),bytes)" -> ["(address,uint256)", "bytes"]
+
+    Raises ValueError if the string is not a valid tuple type.
+    """
+    if not (tuple_type.startswith("(") and tuple_type.endswith(")")):
+        raise ValueError(f"Not a tuple type: {tuple_type}")
+
+    # Strip outer parentheses
+    inner = tuple_type[1:-1]
+
+    fields = []
+    depth = 0
+    current = []
+
+    for char in inner:
+        if char == "," and depth == 0:
+            fields.append("".join(current).strip())
+            current = []
+        else:
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+            current.append(char)
+
+    if current:
+        fields.append("".join(current).strip())
+
+    if depth != 0:
+        raise ValueError(f"Mismatched parentheses in tuple type: {tuple_type}")
+
+    return fields
+
+
+def resolve_abi_type_with_indices(abi_type: str, sub_indices: List[int]) -> str:
+    """
+    Navigate through an ABI type using sub_indices and return the final type.
+
+    At each step:
+    - If the type ends with "[]", it's an array - strip "[]" and continue
+    - If the type is "(...)"-wrapped, it's a tuple - extract the field at the index
+
+    Args:
+        abi_type: The starting ABI type string (e.g., "(address,uint256,bytes)[]")
+        sub_indices: List of indices to navigate through the type
+
+    Returns:
+        The final type after applying all indices
+
+    Raises:
+        ValueError: If indices don't match the type structure
+    """
+    current_type = abi_type
+
+    for i, idx in enumerate(sub_indices):
+        if current_type.endswith("[]"):
+            # Array type - strip [] to get element type
+            # Note: We can't validate array bounds at schema time (runtime only)
+            current_type = current_type[:-2]
+        elif current_type.startswith("(") and current_type.endswith(")"):
+            # Tuple type - extract the field at index
+            fields = parse_tuple_fields(current_type)
+            if idx >= len(fields):
+                raise ValueError(
+                    f"Index {idx} at sub_indices position {i} is out of range "
+                    f"for tuple with {len(fields)} fields: {current_type}"
+                )
+            current_type = fields[idx]
+        else:
+            raise ValueError(
+                f"Cannot apply index at sub_indices position {i}: "
+                f"type '{current_type}' is not indexable (not an array or tuple)"
+            )
+
+    return current_type
+
+
 def decode_human_readable_call(
     human_signature: str, call_data: bytes, return_method_name: bool = True
 ) -> Tuple[Union[str, bytes], List[Any]]:
