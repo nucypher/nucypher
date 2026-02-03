@@ -44,6 +44,9 @@ jobs:
         file: ./deploy/docker/Dockerfile
         push: true
         tags: nucypher/nucypher:lynx
+        build-args: |
+          GIT_COMMIT=${{ github.sha }}
+          GIT_REF_NAME=${{ github.ref_name }}
 
     - name: Build and push Docker image (tag)
       if: ${{ github.ref_type == 'tag' }}
@@ -55,3 +58,6 @@ jobs:
         tags: |
           nucypher/nucypher:${{github.ref_name}}
           nucypher/nucypher:lynx
+        build-args: |
+          GIT_COMMIT=${{ github.sha }}
+          GIT_REF_NAME=${{ github.ref_name }}
