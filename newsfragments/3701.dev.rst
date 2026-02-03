@@ -1,0 +1,1 @@
+Expose Docker build metadata as environment variables to Ursula container. This allows runtime access to Git commit hash and ref name for debugging and tracking purposes.
