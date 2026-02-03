@@ -1,5 +1,6 @@
 import contextlib
 import json
+import os
 import time
 from queue import Queue
 from typing import (
@@ -90,6 +91,10 @@ from nucypher.characters.banners import (
     URSULA_BANNER,
 )
 from nucypher.characters.base import Character, Learner
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_GIT_COMMIT,
+    NUCYPHER_ENVVAR_GIT_REF_NAME,
+)
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -1339,6 +1344,11 @@ class Ursula(Teacher, Character, Operator):
         domain = self.domain
         version = nucypher.__version__
 
+        git_commit = os.getenv(NUCYPHER_ENVVAR_GIT_COMMIT, default="unknown-commit")
+        git_ref_name = os.getenv(
+            NUCYPHER_ENVVAR_GIT_REF_NAME, default="unknown-ref-name"
+        )
+
         fleet_state = self.known_nodes.latest_state()
         previous_fleet_states = self.known_nodes.previous_states(4)
 
@@ -1368,6 +1378,8 @@ class Ursula(Teacher, Character, Operator):
                 self.signing_ritual_tracker.scanner.get_last_scanned_block(),
             ),
             ferveo_public_key=bytes(self.public_keys(RitualisticPower)).hex(),
+            git_commit=git_commit,
+            git_ref_name=git_ref_name,
         )
 
     def as_external_validator(self) -> Validator:
@@ -1392,6 +1404,8 @@ class LocalUrsulaStatus(NamedTuple):
     balance_eth: float
     block_height: int
     ferveo_public_key: str
+    git_commit: str
+    git_ref_name: str
 
     def to_json(self) -> Dict[str, Any]:
         if self.known_nodes is None:
@@ -1414,6 +1428,8 @@ class LocalUrsulaStatus(NamedTuple):
             balance_eth=self.balance_eth,
             block_height=self.block_height,
             ferveo_public_key=self.ferveo_public_key,
+            git_commit=self.git_commit,
+            git_ref_name=self.git_ref_name,
         )
 
 
