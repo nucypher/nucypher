@@ -25,3 +25,13 @@ RUN pip3 install . --no-deps
 # Layer 3: Set environment variables
 RUN export PATH="$HOME/.local/bin:$PATH"
 CMD ["/bin/bash"]
+
+# Layer 4: Build metadata
+ARG GIT_COMMIT="unknown-commit"
+ARG GIT_REF_NAME="unknown-ref-name"
+
+ENV NUCYPHER_GIT_COMMIT=$GIT_COMMIT
+ENV NUCYPHER_GIT_REF_NAME=$GIT_REF_NAME
+
+LABEL org.opencontainers.image.revision=$GIT_COMMIT
+LABEL org.opencontainers.image.version=$GIT_REF_NAME
