@@ -151,6 +151,12 @@ def character_span(character):
     .checksum {
         font-family: monospace;
     }
+
+    .build_metadata {
+        font-family: monospace;
+        font-size: small;
+        padding-left: 1em;
+    }
 </style>
 </body>
 
@@ -165,7 +171,9 @@ def character_span(character):
         </tr>
         <tr>
             <td><i>Running:</i></td>
-            <td>v${ status_info.version }</td>
+            <td>v${ status_info.version }
+                <span class=".build_metadata">(${ status_info.git_ref_name}, ${ status_info.git_commit})</span>
+            </td>
         </tr>
         <tr>
             <td><i>Domain:</i></td>
