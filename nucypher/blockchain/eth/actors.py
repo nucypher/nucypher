@@ -336,7 +336,10 @@ class Operator(BaseActor):
 
     @staticmethod
     def _make_condition_provider(uri: str) -> HTTPProvider:
-        provider = HTTPProvider(endpoint_uri=uri)
+        provider = HTTPProvider(
+            endpoint_uri=uri,
+            request_kwargs={"headers": {"Accept-Encoding": "gzip"}},
+        )
         return provider
 
     def get_condition_provider_manager(

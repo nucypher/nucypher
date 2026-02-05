@@ -14,7 +14,10 @@ def _get_http_provider(endpoint) -> BaseProvider:
 
     return HTTPProvider(
         endpoint_uri=endpoint,
-        request_kwargs={"timeout": BlockchainInterface.TIMEOUT},
+        request_kwargs={
+            "timeout": BlockchainInterface.TIMEOUT,
+            "headers": {"Accept-Encoding": "gzip"},
+        },
     )
 
 
