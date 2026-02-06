@@ -22,7 +22,6 @@ from unittest.mock import Mock, patch
 import pytest
 from marshmallow import fields
 from web3 import Web3
-from web3.providers import BaseProvider
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.base import Condition
@@ -132,9 +131,7 @@ def test_evaluate_condition_eval_returns_false():
         with pytest.raises(ConditionEvalError) as eval_error:
             evaluate_condition_lingo(
                 condition_lingo=condition_lingo,
-                providers=ConditionProviderManager(
-                    {1: Mock(spec=BaseProvider)}
-                ),  # fake provider
+                providers=ConditionProviderManager({}),
                 context={"key": "value"},  # fake context
             )
         assert eval_error.value.status_code == HTTPStatus.FORBIDDEN
@@ -151,12 +148,7 @@ def test_evaluate_condition_eval_returns_true():
 
         evaluate_condition_lingo(
             condition_lingo=condition_lingo,
-            providers=ConditionProviderManager(
-                {
-                    1: Mock(spec=BaseProvider),
-                    2: Mock(spec=BaseProvider),
-                }
-            ),
+            providers=ConditionProviderManager({}),
             context={
                 "key1": "value1",
                 "key2": "value2",
@@ -205,14 +197,12 @@ def test_camel_case_schema():
 def test_condition_provider_manager(mocker):
     # no condition to chain
     with pytest.raises(NoConnectionToChain, match="No connection to chain ID"):
-        manager = ConditionProviderManager(
-            providers={2: [mocker.Mock(spec=BaseProvider)]}
-        )
+        manager = ConditionProviderManager(providers={2: ["https://provider.test"]})
         _ = list(manager.web3_endpoints(chain_id=1))
 
     # multiple providers
     manager = ConditionProviderManager(
-        providers={2: [mocker.Mock(spec=BaseProvider), mocker.Mock(spec=BaseProvider)]}
+        providers={2: ["https://provider1.test", "https://provider2.test"]}
     )
     w3_instances = list(manager.web3_endpoints(chain_id=2))
     assert len(w3_instances) == 2
@@ -225,13 +215,16 @@ def test_condition_provider_manager(mocker):
     w3_1.eth.chain_id = 2
     w3_2 = mocker.Mock()
     w3_2.eth.chain_id = 2
+    manager = ConditionProviderManager(
+        providers={2: ["https://provider1.test", "https://provider2.test"]}
+    )
     with patch.object(manager, "_configure_w3", side_effect=[w3_1, w3_2]):
         assert list(manager.web3_endpoints(chain_id=2)) == [w3_1, w3_2]
 
     # preferential provider
-    preferential_providers = [mocker.Mock(spec=BaseProvider) for _ in range(3)]
-    other_providers = [mocker.Mock(spec=BaseProvider) for _ in range(2)]
-    chain_3_providers = [mocker.Mock(spec=BaseProvider) for _ in range(2)]
+    preferential_providers = [f"https://pref.provider.{i}.test" for i in range(3)]
+    other_providers = [f"https://other.provider.{i}.test" for i in range(2)]
+    chain_3_providers = [f"https://chain3.provider.{i}.test" for i in range(2)]
     manager = ConditionProviderManager(
         providers={2: other_providers, 3: chain_3_providers},
         preferential_providers={2: preferential_providers},
@@ -241,26 +234,26 @@ def test_condition_provider_manager(mocker):
 
     # preferential is first and order maintained
     for i, w3_instance in enumerate(w3_instances[: len(preferential_providers)]):
-        assert w3_instance.provider == preferential_providers[i]
+        assert w3_instance.provider.endpoint_uri == preferential_providers[i]
 
     # other providers follow in random order
     for w3_instance in w3_instances[len(preferential_providers) :]:
-        assert w3_instance.provider in other_providers
+        assert w3_instance.provider.endpoint_uri in other_providers
 
     chain_3_w3_instances = list(manager.web3_endpoints(chain_id=3))
     assert len(chain_3_w3_instances) == len(chain_3_providers)
     for w3_instance in chain_3_w3_instances:
-        assert w3_instance.provider in chain_3_providers
+        assert w3_instance.provider.endpoint_uri in chain_3_providers
 
     # order randomized
-    all_providers = [mocker.Mock(spec=BaseProvider) for _ in range(10)]
+    all_providers = [f"https://provider.{i}.test" for i in range(10)]
     manager = ConditionProviderManager(providers={2: all_providers})
     num_times_different = 0
     for i in range(5):
         w3_instances_first = list(manager.web3_endpoints(chain_id=2))
         w3_instances_second = list(manager.web3_endpoints(chain_id=2))
         if any(
-            w31.provider != w32.provider
+            w31.provider.endpoint_uri != w32.provider.endpoint_uri
             for w31, w32 in zip(w3_instances_first, w3_instances_second)
         ):
             num_times_different += 1
