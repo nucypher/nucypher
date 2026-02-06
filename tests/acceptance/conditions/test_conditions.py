@@ -6,7 +6,7 @@ from unittest import mock
 import pytest
 from eth_account.messages import defunct_hash_message, encode_defunct
 from hexbytes import HexBytes
-from web3 import HTTPProvider, Web3
+from web3 import Web3
 from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
@@ -146,7 +146,7 @@ def test_rpc_condition_evaluation_multiple_chain_providers(
             "2": ["fake2"],
             "3": ["fake3"],
             "4": ["fake4"],
-            TESTERCHAIN_CHAIN_ID: [testerchain.provider],
+            TESTERCHAIN_CHAIN_ID: [TEST_ETH_PROVIDER_URI],
         }
     )
 
@@ -171,15 +171,22 @@ def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
     condition_providers = ConditionProviderManager(
         {
             TESTERCHAIN_CHAIN_ID: [
-                mocker.Mock(spec=BaseProvider),
-                mocker.Mock(spec=BaseProvider),
-                mocker.Mock(spec=BaseProvider),
+                "https://provider.1.test",
+                "https://provider.2.test",
+                "https://provider.3.test",
             ]
         }
+    )
+    mocker.patch.object(
+        condition_providers,
+        "_make_provider",
+        side_effect=lambda *args, **kwargs: mocker.Mock(spec=BaseProvider),
     )
 
     with pytest.raises(RPCExecutionFailed):
         _ = rpc_condition.verify(providers=condition_providers, **context)
+
+    assert condition_providers._make_provider.call_count == 3
 
 
 @mock.patch(
@@ -194,12 +201,22 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
     condition_providers = ConditionProviderManager(
         {
             TESTERCHAIN_CHAIN_ID: [
-                mocker.Mock(spec=BaseProvider),
-                mocker.Mock(spec=BaseProvider),
-                mocker.Mock(spec=BaseProvider),
-                testerchain.provider,
+                "https://provider.1.test",
+                "https://provider.2.test",
+                "https://provider.3.test",
+                TEST_ETH_PROVIDER_URI,
             ]
         }
+    )
+    mocker.patch.object(
+        condition_providers,
+        "_make_provider",
+        side_effect=[
+            mocker.Mock(spec=BaseProvider),
+            mocker.Mock(spec=BaseProvider),
+            mocker.Mock(spec=BaseProvider),
+            testerchain.provider,
+        ],
     )
 
     condition_result, call_result = rpc_condition.verify(
@@ -211,6 +228,8 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
     assert call_result == Web3.to_wei(
         1_000_000, "ether"
     )  # same value used in rpc_condition fixture
+
+    assert condition_providers._make_provider.call_count == 4
 
 
 @mock.patch(
@@ -225,12 +244,12 @@ def test_rpc_condition_evaluation_no_connection_to_chain(
     # condition providers for other unrelated chains
     providers = ConditionProviderManager(
         {
-            1: [mock.Mock()],  # mainnet
-            11155111: [mock.Mock()],  # Sepolia
+            1: ["https://mainnet.provider"],  # mainnet
+            11155111: ["https://sepolia.provider"],  # Sepolia
         }
     )
 
-    with pytest.raises(NoConnectionToChain):
+    with pytest.raises(NoConnectionToChain, match="No connection to chain ID"):
         rpc_condition.verify(providers=providers, **context)
 
 
@@ -268,7 +287,7 @@ def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
     context[":balanceContextVar"] = invalid_balance
     condition_result, call_result = rpc_condition.verify(
         providers=ConditionProviderManager(
-            {testerchain.client.chain_id: [testerchain.provider]}
+            {testerchain.client.chain_id: [TEST_ETH_PROVIDER_URI]}
         ),
         **context,
     )
@@ -1151,8 +1170,8 @@ def test_poap_contract_condition(get_context_value_mock):
     gnosis_providers = ConditionProviderManager(
         {
             100: [
-                HTTPProvider("https://gnosis.drpc.org"),
-                HTTPProvider("https://gnosis-public.nodies.app"),
+                "https://gnosis.drpc.org",
+                "https://gnosis-public.nodies.app",
             ]
         }
     )
