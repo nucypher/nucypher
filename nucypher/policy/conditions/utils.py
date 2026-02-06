@@ -1,13 +1,17 @@
 import decimal
 import random
 import re
+import threading
+import time
 from collections import OrderedDict
 from http import HTTPStatus
 from typing import Any, Dict, Iterator, List, Optional, Union
 
+import requests
 from eth_utils import currency
 from marshmallow import Schema, post_dump
 from marshmallow.exceptions import SCHEMA
+from requests.adapters import HTTPAdapter
 from web3 import HTTPProvider, Web3
 from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
@@ -120,43 +124,118 @@ def _convert_any_decimals_to_floats(
 
 
 class ConditionProviderManager:
+    """
+    Concurrency-friendly RPC endpoint manager
+
+    Key behaviors:
+      - Caches Web3 per (thread, endpoint_url) to avoid sharing requests.Session across threads.
+      - Uses a tuned requests.Session with larger urllib3 pool.
+      - Uses per-endpoint semaphores for backpressure, BUT:
+            *does not block* when saturated; it tries the next endpoint.
+      - On errors, moves on to a different endpoint.
+    """
+
     def __init__(
         self,
-        providers: Dict[int, List[HTTPProvider]],
-        preferential_providers: Optional[Dict[int, List[HTTPProvider]]] = None,
+        providers: Dict[int, List[str]],
+        preferential_providers: Optional[Dict[int, List[str]]] = None,
+        connection_pool_max_size: int = 5,
+        # this can be more dynamic since preferential may/may not be dedicated
+        max_inflight_requests_per_endpoint: int = 3,
+        saturated_retries: int = 2,
+        saturated_retry_delay_seconds: float = 1.0,
     ):
         self.providers = providers
         self.preferential_providers = preferential_providers
+
+        # connection management
+        self.connection_pool_max_size = connection_pool_max_size
+        self.max_inflight_requests_per_endpoint = max_inflight_requests_per_endpoint
+
+        self.saturated_retries = saturated_retries
+        self.saturated_retry_delay_seconds = saturated_retry_delay_seconds
+
+        # Thread-local cache: endpoint_url -> Web3
+        self._thread_local_storage = threading.local()
+
+        # global per-endpoint concurrency
+        self._lock = threading.Lock()
+        self._semaphores: Dict[str, threading.Semaphore] = {}
+
         self.logger = Logger(__name__)
 
     def web3_endpoints(self, chain_id: int) -> Iterator[Web3]:
-        rpc_providers = []
+        endpoints = []
 
         if self.preferential_providers:
             preferential_list = self.preferential_providers.get(chain_id, None)
             if preferential_list:
-                rpc_providers.extend(preferential_list)
+                endpoints.extend(preferential_list)
 
         other_providers = self.providers.get(chain_id, None)
         if other_providers:
-            random.shuffle(other_providers)
-            rpc_providers.extend(other_providers)
+            shuffled = list(other_providers)
+            random.shuffle(shuffled)
+            endpoints.extend(shuffled)
 
-        if not rpc_providers:
+        if not endpoints:
             raise NoConnectionToChain(chain=chain_id)
 
-        iterator_returned_at_least_one = False
-        for provider in rpc_providers:
-            w3 = self._configure_w3(provider=provider)
-            yield w3
-            iterator_returned_at_least_one = True
+        # Attempt rounds: try each endpoint up to max_attempts.
+        # If all saturated, optionally sleep briefly and retry a few times.
+        rounds = 1 + self.saturated_retries
+        for round_idx in range(rounds):
+            yielded_any = False
 
-        # if we get here, it is because there were endpoints, but issue with configuring them
-        if not iterator_returned_at_least_one:
-            raise NoConnectionToChain(
-                chain=chain_id,
-                message=f"Problematic provider endpoints for chain ID {chain_id}",
-            )
+            for endpoint in endpoints:
+                semaphore = self._get_semaphore_for_endpoint(endpoint)
+
+                # skip saturated endpoints without blocking
+                if not semaphore.acquire(blocking=False):
+                    continue
+                try:
+                    w3 = self._get_thread_w3(endpoint)
+                    yielded_any = True
+                    yield w3
+                finally:
+                    semaphore.release()
+
+            if yielded_any:
+                # already yielded an endpoint
+                return
+
+            if round_idx < rounds - 1:
+                time.sleep(self.saturated_retry_delay_seconds)
+
+        # If we get here, everything was saturated for all rounds
+        raise NoConnectionToChain(chain=chain_id, message="All endpoints saturated")
+
+    def _get_semaphore_for_endpoint(self, endpoint: str) -> threading.Semaphore:
+        with self._lock:
+            semaphore = self._semaphores.get(endpoint, None)
+            if semaphore is None:
+                semaphore = threading.Semaphore(self.max_inflight_requests_per_endpoint)
+                self._semaphores[endpoint] = semaphore
+        return semaphore
+
+    def _get_thread_w3(self, endpoint: str):
+        cache = getattr(self._thread_local_storage, "w3_cache", None)
+        if cache is None:
+            cache = {}
+            self._thread_local_storage.w3_cache = cache
+
+        w3 = cache.get(endpoint, None)
+        if w3 is None:
+            session = self._make_session()
+            provider = self._make_provider(endpoint, session=session)  # timeout?
+            w3 = self._configure_w3(provider)
+            cache[endpoint] = w3
+
+        return w3
+
+    @staticmethod
+    def _make_provider(endpoint: str, session: requests.Session) -> HTTPProvider:
+        return HTTPProvider(endpoint, session=session)
 
     @staticmethod
     def _configure_w3(provider: BaseProvider) -> Web3:
@@ -166,6 +245,16 @@ class ConditionProviderManager:
         w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
         return w3
 
+    def _make_session(self):
+        s = requests.Session()
+        adapter = HTTPAdapter(
+            pool_connections=self.connection_pool_max_size,
+            pool_maxsize=self.connection_pool_max_size,
+            pool_block=False,
+        )
+        s.mount("http://", adapter)
+        s.mount("https://", adapter)
+        return s
 
 
 class ConditionEvalError(Exception):

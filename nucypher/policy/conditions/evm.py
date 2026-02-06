@@ -111,7 +111,6 @@ class RPCCall(ExecutionCall):
             )
 
         endpoints = providers.web3_endpoints(self.chain)
-
         latest_error = ""
         for w3 in endpoints:
             try:

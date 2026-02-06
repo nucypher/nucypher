@@ -174,7 +174,7 @@ def rpc_endpoint_health_check(
     provider_chain = int(result, 16)
     try:
         if provider_chain != chain_id:
-            LOGGER.debug(
+            LOGGER.warn(
                 f"RPC endpoint is invalid for chain; expected chain ID {chain_id}, but detected {provider_chain}"
             )
             return False
