@@ -263,8 +263,8 @@ class RpcEndpointManager:
     ) -> T:
         endpoints = self._get_candidates(endpoint_sort_strategy)
         last_exc = None
+        session = self.session_manager.get_session()
         for endpoint in endpoints:
-            session = self.session_manager.get_session()
             try:
                 with endpoint.get_web3(
                     session=session, request_timeout=request_timeout
