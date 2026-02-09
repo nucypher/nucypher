@@ -32,7 +32,7 @@ class ThreadLocalSessionManager:
 
         return session
 
-    def _make_session(self):
+    def _make_session(self) -> requests.Session:
         s = requests.Session()
         adapter = HTTPAdapter(
             pool_connections=self.max_pool_size,
@@ -106,33 +106,43 @@ class RPCEndpoint:
 
         self._lock = threading.Lock()
 
+    def is_cooled_down(self) -> bool:
+        now = time.monotonic()
+        with self._lock:
+            return self.cool_down_until <= now
+
     @contextmanager
     def get_web3(
         self, session: Session, request_timeout: Union[float, Tuple[float, float]]
     ):
-        with self._lock:
-            self.num_in_flight_usage += 1
-        try:
-            w3 = Web3(
-                Web3.HTTPProvider(
-                    self.endpoint,
-                    session=session,
-                    request_kwargs={"timeout": request_timeout},
-                )
+        w3 = Web3(
+            Web3.HTTPProvider(
+                self.endpoint,
+                session=session,
+                request_kwargs={"timeout": request_timeout},
             )
-            w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
-            yield w3
-        finally:
-            with self._lock:
-                self.num_in_flight_usage -= 1
+        )
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
+        yield w3
 
-    def is_available(self) -> bool:
+    def try_acquire(self) -> bool:
         now = time.monotonic()
         with self._lock:
-            return (
+            if (
                 self.cool_down_until <= now
                 and self.num_in_flight_usage < self.in_flight_capacity
-            )
+            ):
+                self.num_in_flight_usage += 1
+                return True
+
+            return False
+
+    def release(self) -> None:
+        with self._lock:
+            self.num_in_flight_usage -= 1
+            if self.num_in_flight_usage < 0:
+                raise RuntimeError("In-flight count should never be negative")
+
 
     def report_success(self, latency_ms: float) -> None:
         with self._lock:
@@ -248,12 +258,11 @@ class RpcEndpointManager:
         self.saturated_retry_delay_s = saturated_retry_delay_s
 
     @staticmethod
-    def _available_and_sorted(
+    def _cooled_down_and_sorted(
         endpoints: List[RPCEndpoint],
         endpoint_sort_strategy: Optional[EndpointSortStrategy] = None,
     ) -> List[RPCEndpoint]:
-        available = [e for e in endpoints if e.is_available()]
-
+        available = [e for e in endpoints if e.is_cooled_down()]
         if not endpoint_sort_strategy:
             return available
 
@@ -271,14 +280,18 @@ class RpcEndpointManager:
             candidates = []
 
             # add preferred endpoints first, then others
-            preferred_endpoints = self._available_and_sorted(
+            preferred_endpoints = self._cooled_down_and_sorted(
                 self.preferred_endpoints, endpoint_sort_strategy
             )
             candidates.extend(preferred_endpoints)
 
             # add non-preferred endpoints
-            other_endpoints = self._available_and_sorted(
-                self.endpoints, endpoint_sort_strategy
+            other_endpoints = list(self.endpoints)
+            if not endpoint_sort_strategy:
+                # shuffle if no sorting strategy to help distribute load across equally healthy endpoints
+                random.shuffle(other_endpoints)
+            other_endpoints = self._cooled_down_and_sorted(
+                other_endpoints, endpoint_sort_strategy
             )
             candidates.extend(other_endpoints)
 
@@ -301,6 +314,11 @@ class RpcEndpointManager:
         last_exc = None
         session = self.session_manager.get_session()
         for endpoint in endpoints:
+            if not endpoint.try_acquire():
+                # Something changed between when we got the candidates and now,
+                #  so skip this endpoint and try the next one.
+                continue
+
             try:
                 with endpoint.get_web3(
                     session=session, request_timeout=request_timeout
@@ -308,13 +326,14 @@ class RpcEndpointManager:
                     start = time.perf_counter()
                     result = fn(w3)
                     latency_ms = (time.perf_counter() - start) * 1000.0
-
             except Exception as e:
                 last_exc = e
                 endpoint.report_failure(e)
                 continue
             else:
                 endpoint.report_success(latency_ms)
+            finally:
+                endpoint.release()
 
             return result
 
