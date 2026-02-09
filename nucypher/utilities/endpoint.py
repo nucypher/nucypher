@@ -1,6 +1,7 @@
-import random
 import threading
 import time
+from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Callable, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import requests
@@ -37,7 +38,7 @@ class ThreadLocalSessionManager:
             pool_connections=self.max_pool_size,
             pool_maxsize=self.max_pool_size,
             max_retries=self.retries,
-            pool_block=False,
+            pool_block=False,  # TODO: should this be True instead?
         )
         s.mount("http://", adapter)
         s.mount("https://", adapter)
@@ -56,6 +57,14 @@ class RPCEndpoint:
      - is_available() checks if the endpoint is currently available (not in cool down).
     """
 
+    @dataclass(frozen=True)
+    class EndpointStats:
+        current_latency_ms: float
+        consecutive_failures: int
+        cool_down_until: float
+        num_in_flight_usage: int
+        last_used: float
+
     def __init__(self, endpoint: str, max_backoff_s=10.0):
         self.endpoint = endpoint
         self.max_backoff_s = max_backoff_s
@@ -63,9 +72,30 @@ class RPCEndpoint:
         self.current_latency_ms = 0.0
         self.consecutive_failures = 0
         self.cool_down_until = 0.0
+        self.num_in_flight_usage = 0
         self.last_used = 0.0
 
         self._lock = threading.Lock()
+
+    @contextmanager
+    def get_web3(
+        self, session: Session, request_timeout: Union[float, Tuple[float, float]]
+    ):
+        with self._lock:
+            self.num_in_flight_usage += 1
+        try:
+            w3 = Web3(
+                Web3.HTTPProvider(
+                    self.endpoint,
+                    session=session,
+                    request_kwargs={"timeout": request_timeout},
+                )
+            )
+            w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
+            yield w3
+        finally:
+            with self._lock:
+                self.num_in_flight_usage -= 1
 
     def is_available(self, now: Optional[float] = None) -> bool:
         now = time.time() if now is None else now
@@ -89,6 +119,16 @@ class RPCEndpoint:
                 backoff = min(self.max_backoff_s, 2 ** (self.consecutive_failures - 1))
                 self.cool_down_until = now + backoff
 
+    def get_stats_snapshot(self) -> EndpointStats:
+        with self._lock:
+            return self.EndpointStats(
+                current_latency_ms=self.current_latency_ms,
+                consecutive_failures=self.consecutive_failures,
+                cool_down_until=self.cool_down_until,
+                num_in_flight_usage=self.num_in_flight_usage,
+                last_used=self.last_used,
+            )
+
 
 class RpcEndpointManager:
     """
@@ -98,6 +138,8 @@ class RpcEndpointManager:
      - Prioritizes preferred endpoints if provided.
      - Thread-safe for concurrent use.
     """
+
+    EndpointSortStrategy = Callable[[RPCEndpoint.EndpointStats], Tuple]
 
     class NoEndpointsAvailable(Exception):
         """All endpoints are in cool down or at max in-flight requests."""
@@ -110,14 +152,14 @@ class RpcEndpointManager:
         saturated_retries: int = 2,
         saturated_retry_delay_s: float = 1.0,
     ):
-        self._lock = threading.Lock()
         self.session_manager = session_manager
         self.preferred_endpoints: List[RPCEndpoint] = []
-        for url in preferred_endpoints:
-            self.preferred_endpoints.append(
-                # TODO make configurable?
-                RPCEndpoint(endpoint=url, max_backoff_s=5.0)
-            )
+        if preferred_endpoints:
+            for url in preferred_endpoints:
+                self.preferred_endpoints.append(
+                    # TODO make configurable?
+                    RPCEndpoint(endpoint=url, max_backoff_s=5.0)
+                )
 
         self.endpoints: List[RPCEndpoint] = []
         for url in endpoints:
@@ -129,69 +171,76 @@ class RpcEndpointManager:
         self.saturated_retries = saturated_retries
         self.saturated_retry_delay_s = saturated_retry_delay_s
 
-    def _get_candidates(self) -> List[RPCEndpoint]:
-        with self._lock:
+    @staticmethod
+    def _available_and_sorted(
+        endpoints: List[RPCEndpoint],
+        endpoint_sort_strategy: Optional[EndpointSortStrategy] = None,
+    ) -> List[RPCEndpoint]:
+        available = [e for e in endpoints if e.is_available()]
+
+        if not endpoint_sort_strategy:
+            return available
+
+        snapshots = [(e, e.get_stats_snapshot()) for e in available]
+        snapshots.sort(key=lambda pair: endpoint_sort_strategy(pair[1]))
+        return [pair[0] for pair in snapshots]
+
+    def _get_candidates(
+        self, endpoint_sort_strategy: Optional[EndpointSortStrategy] = None
+    ) -> List[RPCEndpoint]:
+        # Attempt rounds: try each endpoint up to max_attempts.
+        # If all saturated, optionally sleep briefly and retry a few times.
+        rounds = 1 + self.saturated_retries
+        for round_idx in range(rounds):
             candidates = []
-            # Attempt rounds: try each endpoint up to max_attempts.
-            # If all saturated, optionally sleep briefly and retry a few times.
-            rounds = 1 + self.saturated_retries
-            for round_idx in range(rounds):
 
-                # TODO - consider prioritizing endpoints with:
-                # 1. lower latency
-                # 2. fewer in-flight requests (if we track that)
-                # 3. longer time since last used (to allow cool down to complete)
+            # add preferred endpoints first, then others
+            preferred_endpoints = self._available_and_sorted(
+                self.preferred_endpoints, endpoint_sort_strategy
+            )
+            candidates.extend(preferred_endpoints)
 
-                non_preferred_endpoints = list(self.endpoints)
-                random.shuffle(non_preferred_endpoints)
-                for endpoint in self.preferred_endpoints + non_preferred_endpoints:
-                    if endpoint.is_available():
-                        candidates.append(endpoint)
+            # add non-preferred endpoints
+            other_endpoints = self._available_and_sorted(
+                self.endpoints, endpoint_sort_strategy
+            )
+            candidates.extend(other_endpoints)
 
-                if candidates:
-                    return candidates
+            if candidates:
+                return candidates
 
-                if round_idx < self.saturated_retries:
-                    time.sleep(
-                        self.saturated_retry_delay_s
-                    )  # brief sleep before retrying
+            if round_idx < self.saturated_retries:
+                time.sleep(self.saturated_retry_delay_s)  # brief sleep before retrying
 
         # If we get here, everything was saturated for all rounds
         raise self.NoEndpointsAvailable("All endpoints saturated")
-
-    def _get_web3(
-        self, endpoint: RPCEndpoint, request_timeout: Union[float, Tuple[float, float]]
-    ) -> Web3:
-        session = self.session_manager.get_session()
-        w3 = Web3(
-            Web3.HTTPProvider(
-                endpoint.endpoint,
-                session=session,
-                request_kwargs={"timeout": request_timeout},
-            )
-        )
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
-        return w3
 
     def call(
         self,
         fn: Callable[[Web3], T],
         request_timeout: Union[float, Tuple[float, float]],
+        endpoint_sort_strategy: Optional[EndpointSortStrategy] = None,
     ) -> T:
-        candidates = self._get_candidates()
+        endpoints = self._get_candidates(endpoint_sort_strategy)
         last_exc = None
-        for candidate in candidates:
-            w3 = self._get_web3(candidate, request_timeout)
-            start = time.perf_counter()
-            try:
-                result = fn(w3)
-            except Exception as e:
-                last_exc = e
-                candidate.report_failure(e)
-                continue
-
-            latency_ms = (time.perf_counter() - start) * 1000.0
-            candidate.report_success(latency_ms)
+        for endpoint in endpoints:
+            session = self.session_manager.get_session()
+            with endpoint.get_web3(
+                session=session, request_timeout=request_timeout
+            ) as w3:
+                try:
+                    start = time.perf_counter()
+                    result = fn(w3)
+                    latency_ms = (time.perf_counter() - start) * 1000.0
+                except Exception as e:
+                    last_exc = e
+                    endpoint.report_failure(e)
+                    continue
+            endpoint.report_success(latency_ms)
             return result
 
-        raise last_exc
+        if last_exc is not None:
+            raise last_exc
+
+        # should never happen
+        raise RuntimeError("No endpoints tried (unexpected)")
