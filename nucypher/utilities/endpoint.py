@@ -97,8 +97,8 @@ class RPCEndpoint:
             with self._lock:
                 self.num_in_flight_usage -= 1
 
-    def is_available(self, now: Optional[float] = None) -> bool:
-        now = time.time() if now is None else now
+    def is_available(self) -> bool:
+        now = time.monotonic()
         with self._lock:
             return self.cool_down_until <= now
 
@@ -110,14 +110,13 @@ class RPCEndpoint:
             self.cool_down_until = 0.0
 
     def report_failure(self, exc: Exception) -> None:
-        now = time.time()
         with self._lock:
-            self.last_used = now
+            self.last_used = time.time()
             # TODO - handle rate limit failures more specifically
             self.consecutive_failures += 1
             if self.consecutive_failures >= 2:
                 backoff = min(self.max_backoff_s, 2 ** (self.consecutive_failures - 1))
-                self.cool_down_until = now + backoff
+                self.cool_down_until = time.monotonic() + backoff
 
     def get_stats_snapshot(self) -> EndpointStats:
         with self._lock:
@@ -225,18 +224,21 @@ class RpcEndpointManager:
         last_exc = None
         for endpoint in endpoints:
             session = self.session_manager.get_session()
-            with endpoint.get_web3(
-                session=session, request_timeout=request_timeout
-            ) as w3:
-                try:
+            try:
+                with endpoint.get_web3(
+                    session=session, request_timeout=request_timeout
+                ) as w3:
                     start = time.perf_counter()
                     result = fn(w3)
                     latency_ms = (time.perf_counter() - start) * 1000.0
-                except Exception as e:
-                    last_exc = e
-                    endpoint.report_failure(e)
-                    continue
-            endpoint.report_success(latency_ms)
+
+            except Exception as e:
+                last_exc = e
+                endpoint.report_failure(e)
+                continue
+            else:
+                endpoint.report_success(latency_ms)
+
             return result
 
         if last_exc is not None:
