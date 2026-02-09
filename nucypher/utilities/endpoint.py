@@ -1,3 +1,4 @@
+import random
 import threading
 import time
 from contextlib import contextmanager
@@ -84,6 +85,7 @@ class RPCEndpoint:
         max_in_flight_capacity: int = 50,
         ewma_alpha: float = 0.5,
         target_latency_ms: float = 2000.0,  # 2s
+        rng: Optional[random.Random] = None,
     ):
         self.endpoint = endpoint
         self.max_backoff_s = max_backoff_s
@@ -103,6 +105,8 @@ class RPCEndpoint:
         # https://corporatefinanceinstitute.com/resources/career-map/sell-side/capital-markets/exponentially-weighted-moving-average-ewma/
         self.ewma_alpha = ewma_alpha
         self.ewma_latency_ms = 0.0
+
+        self._rng = rng or random.Random()
 
         self._lock = threading.Lock()
 
@@ -186,7 +190,11 @@ class RPCEndpoint:
 
             if self.consecutive_failures >= 2:
                 backoff = min(self.max_backoff_s, 2 ** (self.consecutive_failures - 1))
-                self.cool_down_until = time.monotonic() + backoff
+                # add some jitter to avoid common backoff patterns
+                backoff_jitter = min(
+                    self._rng.uniform(0.8, 1.2) * backoff, self.max_backoff_s
+                )
+                self.cool_down_until = time.monotonic() + backoff_jitter
 
     def get_stats_snapshot(self) -> EndpointStats:
         with self._lock:
