@@ -59,13 +59,24 @@ class RPCEndpoint:
 
     @dataclass(frozen=True)
     class EndpointStats:
-        current_latency_ms: float
+        """
+        Snapshot of the endpoint's current health and usage stats for external inspection or sorting.
+         - latest_latency_ms: most recent latency measurement in milliseconds.
+         - ewma_latency_ms: exponentially weighted moving average of latency for trend tracking.
+         - consecutive_failures: number of consecutive failures since last success.
+         - cool_down_until: timestamp until which the endpoint is in cool down (monotonic time).
+         - num_in_flight_usage: current number of in-flight usages of this endpoint.
+         - in_flight_capacity: current maximum allowed in-flight usages based on health.
+         - last_used: real-world timestamp of the last time this endpoint was used (success or failure).
+        """
+
+        latest_latency_ms: float
+        ewma_latency_ms: float
         consecutive_failures: int
         cool_down_until: float
         num_in_flight_usage: int
         in_flight_capacity: int
         last_used: float
-        ewma_latency_ms: float
 
     def __init__(
         self,
@@ -79,7 +90,7 @@ class RPCEndpoint:
         self.endpoint = endpoint
         self.max_backoff_s = max_backoff_s
 
-        self.current_latency_ms = 0.0
+        self.latest_latency_ms = 0.0
         self.consecutive_failures = 0
         self.cool_down_until = 0.0
         self.last_used = 0.0
@@ -128,7 +139,7 @@ class RPCEndpoint:
     def report_success(self, latency_ms: float) -> None:
         with self._lock:
             self.last_used = time.time()
-            self.current_latency_ms = latency_ms
+            self.latest_latency_ms = latency_ms
             self.consecutive_failures = 0
             self.cool_down_until = 0.0  # reset cool down on success
 
@@ -173,7 +184,7 @@ class RPCEndpoint:
     def get_stats_snapshot(self) -> EndpointStats:
         with self._lock:
             return self.EndpointStats(
-                current_latency_ms=self.current_latency_ms,
+                latest_latency_ms=self.latest_latency_ms,
                 consecutive_failures=self.consecutive_failures,
                 cool_down_until=self.cool_down_until,
                 num_in_flight_usage=self.num_in_flight_usage,
