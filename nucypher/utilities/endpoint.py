@@ -143,13 +143,12 @@ class RPCEndpoint:
             if self.num_in_flight_usage < 0:
                 raise RuntimeError("In-flight count should never be negative")
 
-
     def report_success(self, latency_ms: float) -> None:
         with self._lock:
             self.last_used = time.time()
             self.latest_latency_ms = latency_ms
             self.consecutive_failures = 0
-            self.cool_down_until = 0.0  # reset cool down on success
+            self.cool_down_until = time.monotonic()  # reset cool down on success
 
             self.ewma_latency_ms = (
                 latency_ms
