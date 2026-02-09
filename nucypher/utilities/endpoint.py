@@ -64,7 +64,6 @@ class RPCEndpoint:
          - latest_latency_ms: most recent latency measurement in milliseconds.
          - ewma_latency_ms: exponentially weighted moving average of latency for trend tracking.
          - consecutive_failures: number of consecutive failures since last success.
-         - cool_down_until: timestamp until which the endpoint is in cool down (monotonic time).
          - num_in_flight_usage: current number of in-flight usages of this endpoint.
          - in_flight_capacity: current maximum allowed in-flight usages based on health.
          - last_used: real-world timestamp of the last time this endpoint was used (success or failure).
@@ -73,7 +72,6 @@ class RPCEndpoint:
         latest_latency_ms: float
         ewma_latency_ms: float
         consecutive_failures: int
-        cool_down_until: float
         num_in_flight_usage: int
         in_flight_capacity: int
         last_used: float
@@ -186,7 +184,6 @@ class RPCEndpoint:
             return self.EndpointStats(
                 latest_latency_ms=self.latest_latency_ms,
                 consecutive_failures=self.consecutive_failures,
-                cool_down_until=self.cool_down_until,
                 num_in_flight_usage=self.num_in_flight_usage,
                 in_flight_capacity=self.in_flight_capacity,
                 last_used=self.last_used,
