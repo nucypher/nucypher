@@ -65,6 +65,7 @@ class RPCEndpoint:
         num_in_flight_usage: int
         in_flight_capacity: int
         last_used: float
+        ewma_latency_ms: float
 
     def __init__(
         self,
@@ -72,6 +73,8 @@ class RPCEndpoint:
         max_backoff_s=10.0,
         min_in_flight_capacity: int = 10,
         max_in_flight_capacity: int = 50,
+        ewma_alpha: float = 0.5,
+        target_latency_ms: float = 2000.0,  # 2s
     ):
         self.endpoint = endpoint
         self.max_backoff_s = max_backoff_s
@@ -85,6 +88,12 @@ class RPCEndpoint:
         self.min_in_flight_capacity = min_in_flight_capacity
         self.in_flight_capacity = min_in_flight_capacity
         self.max_in_flight_capacity = max_in_flight_capacity
+
+        self.target_latency_ms = target_latency_ms
+
+        # https://corporatefinanceinstitute.com/resources/career-map/sell-side/capital-markets/exponentially-weighted-moving-average-ewma/
+        self.ewma_alpha = ewma_alpha
+        self.ewma_latency_ms = 0.0
 
         self._lock = threading.Lock()
 
@@ -123,9 +132,24 @@ class RPCEndpoint:
             self.consecutive_failures = 0
             self.cool_down_until = 0.0  # reset cool down on success
 
-            if latency_ms < (
-                2 * 1000.0
-            ):  # TODO 2s arbitrary threshold for "good" latency
+            self.ewma_latency_ms = (
+                latency_ms
+                if self.ewma_latency_ms == 0.0
+                else (
+                    # exponential weighted moving average update
+                    self.ewma_alpha * latency_ms
+                    + (1 - self.ewma_alpha) * self.ewma_latency_ms
+                )
+            )
+
+            # proactive decrease on slow-but-successful responses
+            if self.ewma_latency_ms > self.target_latency_ms * 1.5:
+                # starting to get out of hand, start to reduce capacity
+                self.in_flight_capacity = max(
+                    self.min_in_flight_capacity, self.in_flight_capacity - 1
+                )
+            # additional capacity if performing well
+            elif self.ewma_latency_ms <= self.target_latency_ms:
                 self.in_flight_capacity = min(
                     self.max_in_flight_capacity, self.in_flight_capacity + 1
                 )
@@ -155,6 +179,7 @@ class RPCEndpoint:
                 num_in_flight_usage=self.num_in_flight_usage,
                 in_flight_capacity=self.in_flight_capacity,
                 last_used=self.last_used,
+                ewma_latency_ms=self.ewma_latency_ms,
             )
 
 
@@ -181,6 +206,7 @@ class RpcEndpointManager:
         saturated_retry_delay_s: float = 1.0,
         min_in_flight_capacity: int = 10,
         max_in_flight_capacity: int = 50,
+        target_latency_ms: float = 2000.0,  # 2s
     ):
         self.session_manager = session_manager
         self.preferred_endpoints: List[RPCEndpoint] = []
@@ -193,6 +219,7 @@ class RpcEndpointManager:
                         max_backoff_s=3.0,
                         min_in_flight_capacity=min_in_flight_capacity,
                         max_in_flight_capacity=max_in_flight_capacity,
+                        target_latency_ms=target_latency_ms,
                     )
                 )
 
@@ -205,6 +232,7 @@ class RpcEndpointManager:
                     max_backoff_s=10.0,
                     min_in_flight_capacity=min_in_flight_capacity,
                     max_in_flight_capacity=max_in_flight_capacity,
+                    target_latency_ms=target_latency_ms,
                 )
             )
 
