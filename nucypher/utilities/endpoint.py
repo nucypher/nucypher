@@ -19,7 +19,7 @@ class ThreadLocalSessionManager:
     Each thread gets its own connection pool(s) and keep-alives.
     """
 
-    def __init__(self, max_pool_size: int = 10, retries: int = 0):
+    def __init__(self, max_pool_size: int = 20, retries: int = 0):
         self._thread_local_storage = threading.local()
         self.max_pool_size = max_pool_size
         self.retries = retries
@@ -38,7 +38,7 @@ class ThreadLocalSessionManager:
             pool_connections=self.max_pool_size,
             pool_maxsize=self.max_pool_size,
             max_retries=self.retries,
-            pool_block=False,  # TODO: should this be True instead?
+            pool_block=True,
         )
         s.mount("http://", adapter)
         s.mount("https://", adapter)
@@ -54,7 +54,7 @@ class RPCEndpoint:
      - Designed to be used within RpcEndpointManager for managing multiple endpoints.
      - Does not handle actual request sending, just tracks health and availability.
      - Cool down logic is simple: after 2 consecutive failures, it goes into cool down with exponential backoff up to max_backoff_s.
-     - is_available() checks if the endpoint is currently available (not in cool down).
+     - is_available() checks if the endpoint is currently available (not in cool down and not exceeding capacity).
     """
 
     @dataclass(frozen=True)
@@ -63,17 +63,28 @@ class RPCEndpoint:
         consecutive_failures: int
         cool_down_until: float
         num_in_flight_usage: int
+        in_flight_capacity: int
         last_used: float
 
-    def __init__(self, endpoint: str, max_backoff_s=10.0):
+    def __init__(
+        self,
+        endpoint: str,
+        max_backoff_s=10.0,
+        min_in_flight_capacity: int = 10,
+        max_in_flight_capacity: int = 50,
+    ):
         self.endpoint = endpoint
         self.max_backoff_s = max_backoff_s
 
         self.current_latency_ms = 0.0
         self.consecutive_failures = 0
         self.cool_down_until = 0.0
-        self.num_in_flight_usage = 0
         self.last_used = 0.0
+
+        self.num_in_flight_usage = 0
+        self.min_in_flight_capacity = min_in_flight_capacity
+        self.in_flight_capacity = min_in_flight_capacity
+        self.max_in_flight_capacity = max_in_flight_capacity
 
         self._lock = threading.Lock()
 
@@ -100,20 +111,37 @@ class RPCEndpoint:
     def is_available(self) -> bool:
         now = time.monotonic()
         with self._lock:
-            return self.cool_down_until <= now
+            return (
+                self.cool_down_until <= now
+                and self.num_in_flight_usage < self.in_flight_capacity
+            )
 
     def report_success(self, latency_ms: float) -> None:
         with self._lock:
             self.last_used = time.time()
             self.current_latency_ms = latency_ms
             self.consecutive_failures = 0
-            self.cool_down_until = 0.0
+            self.cool_down_until = 0.0  # reset cool down on success
+
+            if latency_ms < (
+                2 * 1000.0
+            ):  # TODO 2s arbitrary threshold for "good" latency
+                self.in_flight_capacity = min(
+                    self.max_in_flight_capacity, self.in_flight_capacity + 1
+                )
 
     def report_failure(self, exc: Exception) -> None:
         with self._lock:
             self.last_used = time.time()
             # TODO - handle rate limit failures more specifically
             self.consecutive_failures += 1
+
+            # decrease in flight capacity on failure, but never below minimum
+            # either back to min or 1/2 of current capacity, whichever is higher
+            self.in_flight_capacity = max(
+                self.min_in_flight_capacity, self.in_flight_capacity // 2
+            )
+
             if self.consecutive_failures >= 2:
                 backoff = min(self.max_backoff_s, 2 ** (self.consecutive_failures - 1))
                 self.cool_down_until = time.monotonic() + backoff
@@ -125,6 +153,7 @@ class RPCEndpoint:
                 consecutive_failures=self.consecutive_failures,
                 cool_down_until=self.cool_down_until,
                 num_in_flight_usage=self.num_in_flight_usage,
+                in_flight_capacity=self.in_flight_capacity,
                 last_used=self.last_used,
             )
 
@@ -150,6 +179,8 @@ class RpcEndpointManager:
         preferred_endpoints: Optional[Iterable[str]] = None,
         saturated_retries: int = 2,
         saturated_retry_delay_s: float = 1.0,
+        min_in_flight_capacity: int = 10,
+        max_in_flight_capacity: int = 50,
     ):
         self.session_manager = session_manager
         self.preferred_endpoints: List[RPCEndpoint] = []
@@ -157,14 +188,24 @@ class RpcEndpointManager:
             for url in preferred_endpoints:
                 self.preferred_endpoints.append(
                     # TODO make configurable?
-                    RPCEndpoint(endpoint=url, max_backoff_s=5.0)
+                    RPCEndpoint(
+                        endpoint=url,
+                        max_backoff_s=3.0,
+                        min_in_flight_capacity=min_in_flight_capacity,
+                        max_in_flight_capacity=max_in_flight_capacity,
+                    )
                 )
 
         self.endpoints: List[RPCEndpoint] = []
         for url in endpoints:
             self.endpoints.append(
                 # TODO make configurable?
-                RPCEndpoint(endpoint=url, max_backoff_s=60.0)
+                RPCEndpoint(
+                    endpoint=url,
+                    max_backoff_s=10.0,
+                    min_in_flight_capacity=min_in_flight_capacity,
+                    max_in_flight_capacity=max_in_flight_capacity,
+                )
             )
 
         self.saturated_retries = saturated_retries
@@ -212,7 +253,7 @@ class RpcEndpointManager:
                 time.sleep(self.saturated_retry_delay_s)  # brief sleep before retrying
 
         # If we get here, everything was saturated for all rounds
-        raise self.NoEndpointsAvailable("All endpoints saturated")
+        raise self.NoEndpointsAvailable("All endpoints at capacity or in cool down")
 
     def call(
         self,
