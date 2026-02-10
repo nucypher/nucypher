@@ -5,14 +5,14 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, wait
 from functools import partial
 from threading import Lock
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Optional
 
 import click
 from eth_utils import to_checksum_address
 from web3 import HTTPProvider, Web3
 from web3.middleware import geth_poa_middleware
 
-from nucypher.utilities.endpoint import RpcEndpointManager, ThreadLocalSessionManager
+from nucypher.utilities.endpoint import RPCEndpointManager, ThreadLocalSessionManager
 
 # ETH mainnet
 PUBLIC_RPC_ENDPOINTS = [
@@ -75,13 +75,18 @@ def _do_w3_things(endpoint_usage_stats: Dict[str, AtomicCounter], w3: Web3) -> N
 
 
 def new_strategy_rpc_call(
-    rpc_manager: RpcEndpointManager,
+    rpc_manager: RPCEndpointManager,
     failures: AtomicCounter,
     endpoint_usage_stats: Dict[str, AtomicCounter],
+    endpoint_sort_strategy: Optional[RPCEndpointManager.EndpointSortStrategy] = None,
 ) -> None:
     try:
         do_things = partial(_do_w3_things, endpoint_usage_stats)
-        rpc_manager.call(fn=do_things, request_timeout=5)
+        rpc_manager.call(
+            fn=do_things,
+            request_timeout=5,
+            endpoint_sort_strategy=endpoint_sort_strategy,
+        )
         click.secho("RPC call succeeded", fg="green")
     except Exception as e:
         click.secho(
@@ -143,6 +148,40 @@ def legacy_strategy_rpc_call(
         failures.increment()
 
 
+STRATEGIES = [
+    "latency",
+    "latest_latency",
+    "headroom_then_latency",
+    "fewest_in_flight_then_latency",
+    "last_used",
+]
+
+
+def get_endpoint_sort_strategy(
+    strategy: str,
+) -> RPCEndpointManager.EndpointSortStrategy:
+    if strategy == "latency":
+        # sort by latency (lowest latency first)
+        return lambda stats: (stats.ewma_latency_ms,)
+    elif strategy == "latest_latency":
+        # sort by latest latency (most recently updated latency first)
+        return lambda stats: (stats.latest_latency_ms,)
+    elif strategy == "headroom_then_latency":
+        # sort by headroom (endpoint with most headroom first), then latency (lowest latency first)
+        return lambda stats: (
+            -(stats.in_flight_capacity - stats.num_in_flight_usage),
+            stats.ewma_latency_ms,
+        )
+    elif strategy == "fewest_in_flight_then_latency":
+        # sort by lowest num in flight usage, then latency
+        return lambda stats: (stats.num_in_flight_usage, stats.ewma_latency_ms)
+    elif strategy == "last_used":
+        # sort by last used time (oldest first)
+        return lambda stats: (stats.last_used,)
+
+    raise ValueError(f"Strategy '{strategy}' not implemented")
+
+
 @click.command()
 @click.option(
     "--new-strategy/--legacy-strategy",
@@ -178,24 +217,39 @@ def legacy_strategy_rpc_call(
     type=click.STRING,
     required=True,
 )
+@click.option(
+    "--sort-strategy",
+    help="The strategy to use for sorting endpoints in the new strategy.",
+    type=click.Choice(STRATEGIES),
+    required=False,
+)
 def rpc_stress_test(
     new_strategy: bool,
     num_threads: int,
     test_executions: int,
     timeout: int,
     preferred_endpoint: str,
+    sort_strategy: str,
 ) -> None:
     """
     Runs a stress test that can use either the new load balancing strategy or the legacy strategy
     by performing a number of concurrent RPC calls while tracking the number of failures and usage
     of each endpoint.
     """
+    if sort_strategy and not new_strategy:
+        raise click.UsageError(
+            "The --sort-strategy option can only be used with the --new-strategy option."
+        )
+    endpoint_sort_strategy = (
+        get_endpoint_sort_strategy(sort_strategy) if sort_strategy else None
+    )
+
     condition_provider_manager = None
     rpc_endpoint_manager = None
 
     if new_strategy:
         thread_local_session_manager = ThreadLocalSessionManager()
-        rpc_endpoint_manager = RpcEndpointManager(
+        rpc_endpoint_manager = RPCEndpointManager(
             session_manager=thread_local_session_manager,
             preferred_endpoints=[preferred_endpoint],
             endpoints=PUBLIC_RPC_ENDPOINTS,
@@ -221,6 +275,7 @@ def rpc_stress_test(
                         rpc_endpoint_manager,
                         failures,
                         endpoint_usage_stats,
+                        endpoint_sort_strategy,
                     )
                 else:
                     f = executor.submit(
@@ -242,6 +297,8 @@ def rpc_stress_test(
     click.secho(
         f"Strategy used: {'NEW STRATEGY' if new_strategy else 'LEGACY'}", bold=True
     )
+    if sort_strategy:
+        click.echo(f"\tEndpoint sort strategy: {sort_strategy}")
     click.echo(f"\tNum failures: {failures.get_value()}")
     click.echo("\tEndpoints:")
     click.echo(
