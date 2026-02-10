@@ -208,7 +208,7 @@ class RPCEndpoint:
             )
 
 
-class RpcEndpointManager:
+class RPCEndpointManager:
     """
     Manages multiple RPC endpoints with automatic failover and basic health tracking.
      - Tracks latency and failures for each endpoint.
