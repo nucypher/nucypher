@@ -79,7 +79,7 @@ class RPCEndpoint:
 
     def __init__(
         self,
-        endpoint: str,
+        endpoint_uri: str,
         max_backoff_s=10.0,
         min_in_flight_capacity: int = 10,
         max_in_flight_capacity: int = 50,
@@ -87,124 +87,140 @@ class RPCEndpoint:
         target_latency_ms: float = 2000.0,  # 2s
         rng: Optional[random.Random] = None,
     ):
-        self.endpoint = endpoint
+        self.endpoint_uri = endpoint_uri
         self.max_backoff_s = max_backoff_s
 
-        self.latest_latency_ms = 0.0
-        self.consecutive_failures = 0
-        self.cool_down_until = 0.0
-        self.last_used = 0.0
+        self._latest_latency_ms = 0.0
+        self._consecutive_failures = 0
+        self._cool_down_until = 0.0
+        self._last_used = 0.0
 
-        self.num_in_flight_usage = 0
+        self._num_in_flight_usage = 0
         self.min_in_flight_capacity = min_in_flight_capacity
-        self.in_flight_capacity = min_in_flight_capacity
+        self._in_flight_capacity = min_in_flight_capacity
         self.max_in_flight_capacity = max_in_flight_capacity
 
         self.target_latency_ms = target_latency_ms
 
         # https://corporatefinanceinstitute.com/resources/career-map/sell-side/capital-markets/exponentially-weighted-moving-average-ewma/
         self.ewma_alpha = ewma_alpha
-        self.ewma_latency_ms = 0.0
+        self._ewma_latency_ms = 0.0
 
-        self._rng = rng or random.Random()
+        self.rng = rng or random.Random()
 
         self._lock = threading.Lock()
 
     def is_cooled_down(self) -> bool:
         now = time.monotonic()
         with self._lock:
-            return self.cool_down_until <= now
+            return self._cool_down_until <= now
 
     @contextmanager
     def get_web3(
         self, session: Session, request_timeout: Union[float, Tuple[float, float]]
     ):
-        w3 = Web3(
-            Web3.HTTPProvider(
-                self.endpoint,
-                session=session,
-                request_kwargs={"timeout": request_timeout},
-            )
-        )
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
+        provider = self._make_provider(self.endpoint_uri, session, request_timeout)
+        w3 = self._configure_w3(provider)
         yield w3
+
+    @staticmethod
+    def _make_provider(
+        endpoint_uri: str,
+        session: Session,
+        request_timeout: Union[float, Tuple[float, float]],
+    ) -> Web3.HTTPProvider:
+        # makes testing easier by having a static method create the provider so it can be mocked
+        return Web3.HTTPProvider(
+            endpoint_uri,
+            session=session,
+            request_kwargs={"timeout": request_timeout},
+        )
+
+    @staticmethod
+    def _configure_w3(provider: Web3.HTTPProvider) -> Web3:
+        # makes testing easier by having a static method create the web3 instance so it can be mocked
+        # Instantiate a local web3 instance
+        w3 = Web3(provider)
+        # inject web3 middleware to handle POA chain extra_data field.
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
+        return w3
 
     def try_acquire(self) -> bool:
         now = time.monotonic()
         with self._lock:
             if (
-                self.cool_down_until <= now
-                and self.num_in_flight_usage < self.in_flight_capacity
+                self._cool_down_until <= now
+                and self._num_in_flight_usage < self._in_flight_capacity
             ):
-                self.num_in_flight_usage += 1
+                self._num_in_flight_usage += 1
                 return True
 
             return False
 
     def release(self) -> None:
         with self._lock:
-            self.num_in_flight_usage -= 1
-            if self.num_in_flight_usage < 0:
+            self._num_in_flight_usage -= 1
+            if self._num_in_flight_usage < 0:
                 raise RuntimeError("In-flight count should never be negative")
 
     def report_success(self, latency_ms: float) -> None:
         with self._lock:
-            self.last_used = time.time()
-            self.latest_latency_ms = latency_ms
-            self.consecutive_failures = 0
-            self.cool_down_until = time.monotonic()  # reset cool down on success
+            self._last_used = time.time()
+            self._latest_latency_ms = latency_ms
+            self._consecutive_failures = 0
+            self._cool_down_until = time.monotonic()  # reset cool down on success
 
-            self.ewma_latency_ms = (
+            self._ewma_latency_ms = (
                 latency_ms
-                if self.ewma_latency_ms == 0.0
+                if self._ewma_latency_ms == 0.0
                 else (
                     # exponential weighted moving average update
                     self.ewma_alpha * latency_ms
-                    + (1 - self.ewma_alpha) * self.ewma_latency_ms
+                    + (1 - self.ewma_alpha) * self._ewma_latency_ms
                 )
             )
 
             # proactive decrease on slow-but-successful responses
-            if self.ewma_latency_ms > self.target_latency_ms * 1.5:
+            if self._ewma_latency_ms > self.target_latency_ms * 1.5:
                 # starting to get out of hand, start to reduce capacity
-                self.in_flight_capacity = max(
-                    self.min_in_flight_capacity, self.in_flight_capacity - 1
+                self._in_flight_capacity = max(
+                    self.min_in_flight_capacity, self._in_flight_capacity - 1
                 )
             # additional capacity if performing well
-            elif self.ewma_latency_ms <= self.target_latency_ms:
-                self.in_flight_capacity = min(
-                    self.max_in_flight_capacity, self.in_flight_capacity + 1
+            elif self._ewma_latency_ms <= self.target_latency_ms:
+                self._in_flight_capacity = min(
+                    self.max_in_flight_capacity, self._in_flight_capacity + 1
                 )
 
     def report_failure(self, exc: Exception) -> None:
         with self._lock:
-            self.last_used = time.time()
+            self._last_used = time.time()
             # TODO - handle rate limit failures more specifically
-            self.consecutive_failures += 1
+            self._consecutive_failures += 1
 
             # decrease in flight capacity on failure, but never below minimum
             # either back to min or 1/2 of current capacity, whichever is higher
-            self.in_flight_capacity = max(
-                self.min_in_flight_capacity, self.in_flight_capacity // 2
+            self._in_flight_capacity = max(
+                self.min_in_flight_capacity, self._in_flight_capacity // 2
             )
 
-            if self.consecutive_failures >= 2:
-                backoff = min(self.max_backoff_s, 2 ** (self.consecutive_failures - 1))
+            if self._consecutive_failures >= 2:
+                backoff = min(self.max_backoff_s, 2 ** (self._consecutive_failures - 1))
                 # add some jitter to avoid common backoff patterns
                 backoff_jitter = min(
-                    self._rng.uniform(0.8, 1.2) * backoff, self.max_backoff_s
+                    self.rng.uniform(0.8, 1.2) * backoff, self.max_backoff_s
                 )
-                self.cool_down_until = time.monotonic() + backoff_jitter
+                self._cool_down_until = time.monotonic() + backoff_jitter
 
     def get_stats_snapshot(self) -> EndpointStats:
         with self._lock:
             return self.EndpointStats(
-                latest_latency_ms=self.latest_latency_ms,
-                consecutive_failures=self.consecutive_failures,
-                num_in_flight_usage=self.num_in_flight_usage,
-                in_flight_capacity=self.in_flight_capacity,
-                last_used=self.last_used,
-                ewma_latency_ms=self.ewma_latency_ms,
+                latest_latency_ms=self._latest_latency_ms,
+                consecutive_failures=self._consecutive_failures,
+                num_in_flight_usage=self._num_in_flight_usage,
+                in_flight_capacity=self._in_flight_capacity,
+                last_used=self._last_used,
+                ewma_latency_ms=self._ewma_latency_ms,
             )
 
 
@@ -240,7 +256,7 @@ class RPCEndpointManager:
                 self.preferred_endpoints.append(
                     # TODO make configurable?
                     RPCEndpoint(
-                        endpoint=url,
+                        endpoint_uri=url,
                         max_backoff_s=3.0,
                         min_in_flight_capacity=min_in_flight_capacity,
                         max_in_flight_capacity=max_in_flight_capacity,
@@ -253,7 +269,7 @@ class RPCEndpointManager:
             self.endpoints.append(
                 # TODO make configurable?
                 RPCEndpoint(
-                    endpoint=url,
+                    endpoint_uri=url,
                     max_backoff_s=10.0,
                     min_in_flight_capacity=min_in_flight_capacity,
                     max_in_flight_capacity=max_in_flight_capacity,
@@ -314,7 +330,7 @@ class RPCEndpointManager:
     def call(
         self,
         fn: Callable[[Web3], T],
-        request_timeout: Union[float, Tuple[float, float]],
+        request_timeout: Union[float, Tuple[float, float]] = 5.0,
         endpoint_sort_strategy: Optional[EndpointSortStrategy] = None,
     ) -> T:
         endpoints = self._get_candidates(endpoint_sort_strategy)
