@@ -251,18 +251,23 @@ class RPCEndpointManager:
     ):
         self.session_manager = session_manager
         self.preferred_endpoints: List[RPCEndpoint] = []
-        if preferred_endpoints:
-            for url in preferred_endpoints:
-                self.preferred_endpoints.append(
-                    # TODO make configurable?
-                    RPCEndpoint(
-                        endpoint_uri=url,
-                        max_backoff_s=3.0,
-                        min_in_flight_capacity=min_in_flight_capacity,
-                        max_in_flight_capacity=max_in_flight_capacity,
-                        target_latency_ms=target_latency_ms,
-                    )
+
+        preferred_endpoints = preferred_endpoints or []
+        endpoints = endpoints or []
+        if set(preferred_endpoints) & set(endpoints):
+            raise ValueError("Preferred endpoints cannot overlap with other endpoints")
+
+        for url in preferred_endpoints:
+            self.preferred_endpoints.append(
+                # TODO make configurable?
+                RPCEndpoint(
+                    endpoint_uri=url,
+                    max_backoff_s=3.0,
+                    min_in_flight_capacity=min_in_flight_capacity,
+                    max_in_flight_capacity=max_in_flight_capacity,
+                    target_latency_ms=target_latency_ms,
                 )
+            )
 
         self.endpoints: List[RPCEndpoint] = []
         for url in endpoints:
@@ -276,6 +281,9 @@ class RPCEndpointManager:
                     target_latency_ms=target_latency_ms,
                 )
             )
+
+        if not self.preferred_endpoints and not self.endpoints:
+            raise ValueError("At least one endpoint URI must be provided")
 
         self.saturated_retries = saturated_retries
         self.saturated_retry_delay_s = saturated_retry_delay_s
