@@ -14,10 +14,12 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+import time
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import List, Optional, Tuple, Type
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from marshmallow import fields
@@ -68,6 +70,7 @@ from nucypher.policy.conditions.utils import (
     extract_condition_failure_details,
     to_camelcase,
 )
+from nucypher.utilities.endpoint import RPCEndpoint
 from tests.constants import INT256_MIN, TESTERCHAIN_CHAIN_ID, UINT256_MAX
 from tests.unit.conditions.test_jwt_condition import TEST_ECDSA_PUBLIC_KEY
 
@@ -192,6 +195,101 @@ def test_camel_case_schema():
 
     reloaded_function = schema.load(output)
     assert reloaded_function == {"field_name_with_underscores": f"{value}"}
+
+
+class TestConditionProviderManager:
+    """
+    Tests for ConditionProviderManager.
+
+    NOTE: The actual logic of making web3 calls and sorting endpoints is tested in the
+    RPCEndpointManager tests.
+    """
+
+    def test_preferential_overlap_raises(self):
+        providers = {2: ["https://provider.test"]}
+        preferential = {2: ["https://provider.test"]}  # overlap
+        with pytest.raises(
+            ValueError, match="Preferential providers for chain ID 2 cannot overlap"
+        ):
+            ConditionProviderManager(
+                providers=providers, preferential_providers=preferential
+            )
+
+    def test_supported_chains_and_manager_construction(self, mocker):
+        providers = {
+            2: ["https://p1.test"],
+            4: ["https://p4.test"],
+            3: ["https://p2.test", "https://p3.test"],
+        }
+        preferential = {2: ["https://pref.test"]}
+
+        # Patch out the real RPCEndpointManager to avoid network/configuration side effects.
+        fake_manager = MagicMock()
+        with mocker.patch(
+            "nucypher.policy.conditions.utils.RPCEndpointManager",
+            return_value=fake_manager,
+        ):
+            m = ConditionProviderManager(
+                providers=providers, preferential_providers=preferential
+            )
+            chains = m.supported_chains()
+            assert chains == {2, 3, 4}
+
+    def test_exec_web3_call_no_connection_to_chain(self, mocker):
+        m = ConditionProviderManager(providers={2: ["https://p.test"]})
+        with pytest.raises(NoConnectionToChain, match="No connection to chain ID 1"):
+            _ = m.exec_web3_call(chain_id=1, fn=lambda w3: None)
+
+    def test_exec_web3_call_invokes_endpoint_manager_call(self, mocker):
+        mock_mgr = MagicMock()
+        result = "You can change your wife, your politics, your religion. But never, never can you change your favorite football team."  # - Eric Cantona
+        mock_mgr.call.return_value = result
+
+        def mock_fn(w3):
+            return "no saying"
+
+        with mocker.patch(
+            "nucypher.policy.conditions.utils.RPCEndpointManager", return_value=mock_mgr
+        ):
+            m = ConditionProviderManager(providers={2: ["https://p.test"]})
+            res = m.exec_web3_call(chain_id=2, fn=mock_fn)
+
+        assert res == result
+        mock_mgr.call.assert_called_once()
+        mock_mgr.call.assert_called_with(
+            fn=mock_fn,
+            request_timeout=ConditionProviderManager._DEFAULT_WEB3_CALL_TIMEOUT,
+            endpoint_sort_strategy=ConditionProviderManager._sort_by_latency,
+        )
+
+        customized_timeout = 10.0
+        with mocker.patch(
+            "nucypher.policy.conditions.utils.RPCEndpointManager", return_value=mock_mgr
+        ):
+            m = ConditionProviderManager(providers={2: ["https://p.test"]})
+            res = m.exec_web3_call(
+                chain_id=2, fn=mock_fn, request_timeout=customized_timeout
+            )
+
+        assert res == result
+        # customized timeout and default sorting strategy provided
+        mock_mgr.call.assert_called_with(
+            fn=mock_fn,
+            request_timeout=customized_timeout,
+            endpoint_sort_strategy=ConditionProviderManager._sort_by_latency,
+        )
+
+    def test_sort_by_latency_returns_proper_value_in_tuple(self):
+        ewma_latency_ms = 6.4
+        stats = RPCEndpoint.EndpointStats(
+            latest_latency_ms=4.2,
+            ewma_latency_ms=ewma_latency_ms,
+            consecutive_failures=1,
+            num_in_flight_usage=4,
+            in_flight_capacity=20,
+            last_used=time.time() - 10,
+        )
+        assert ConditionProviderManager._sort_by_latency(stats) == (ewma_latency_ms,)
 
 
 @pytest.mark.parametrize(
