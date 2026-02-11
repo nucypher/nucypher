@@ -162,6 +162,9 @@ class ConditionProviderManager:
 
         self.logger = Logger(__name__)
 
+    def supported_chains(self) -> List[int]:
+        return list(self._rpc_endpoint_managers.keys())
+
     @staticmethod
     def _sort_by_latency(stats: RPCEndpoint.EndpointStats) -> Tuple:
         return (stats.ewma_latency_ms,)
