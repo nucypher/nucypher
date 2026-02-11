@@ -279,8 +279,15 @@ class CompoundCondition(MultiCondition):
         values = []
         num_passed_conditions = 0
         overall_result = True if self.operator == self.AND_OPERATOR else False
+        _tolerant = self.operator in (self.OR_OPERATOR, self.AT_LEAST_OPERATOR)
         for condition in self.operands:
-            current_result, current_value = condition.verify(*args, **kwargs)
+            try:
+                current_result, current_value = condition.verify(*args, **kwargs)
+            except ConditionEvaluationFailed as e:
+                if not _tolerant:
+                    raise
+                current_result = False
+                current_value = str(e)
             values.append(current_value)
             if current_result:
                 num_passed_conditions += 1
