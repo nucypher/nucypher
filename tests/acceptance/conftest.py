@@ -16,7 +16,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
 from nucypher.crypto.powers import TransactingPower
-from nucypher.policy.conditions.utils import ConditionProviderManager
+from nucypher.utilities.endpoint import RPCEndpoint
 from nucypher.utilities.logging import Logger
 from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
@@ -586,14 +586,16 @@ def mock_multichain_configuration(module_mocker, testerchain):
         Operator, "_make_condition_provider", return_value=testerchain.provider
     )
 
-    def _mock_make_provider(endpoint, session):
+    def _mock_make_provider(endpoint, session, request_kwargs):
         if endpoint == TEST_ETH_PROVIDER_URI:
             return testerchain.provider
         else:
-            return HTTPProvider(endpoint, session=session)
+            return HTTPProvider(
+                endpoint, session=session, request_kwargs=request_kwargs
+            )
 
     module_mocker.patch.object(
-        ConditionProviderManager, "_make_provider", side_effect=_mock_make_provider
+        RPCEndpoint, "_make_provider", side_effect=_mock_make_provider
     )
 
 

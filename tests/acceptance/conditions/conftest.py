@@ -19,7 +19,9 @@ from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 @pytest.fixture()
 def condition_providers(mocker, testerchain):
     providers = mocker.Mock(spec=ConditionProviderManager)
-    providers.web3_endpoints.return_value = [Web3(testerchain.provider)]
+    providers.exec_web3_call.side_effect = lambda fn, *args, **kwargs: fn(
+        Web3(testerchain.provider)
+    )
     yield providers
 
 @pytest.fixture()

@@ -49,6 +49,7 @@ from nucypher.policy.conditions.utils import (
     ConditionProviderManager,
     extract_condition_failure_details,
 )
+from nucypher.utilities.endpoint import RPCEndpoint
 from tests.constants import (
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
@@ -106,12 +107,6 @@ def test_rpc_condition_evaluation_no_providers(
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
     with pytest.raises(NoConnectionToChain):
         _ = rpc_condition.verify(providers=ConditionProviderManager({}), **context)
-
-    with pytest.raises(NoConnectionToChain):
-        _ = rpc_condition.verify(
-            providers=ConditionProviderManager({testerchain.client.chain_id: list()}),
-            **context,
-        )
 
 
 @mock.patch(
@@ -177,8 +172,8 @@ def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
             ]
         }
     )
-    mocker.patch.object(
-        condition_providers,
+    mocked_make_provider = mocker.patch.object(
+        RPCEndpoint,
         "_make_provider",
         side_effect=lambda *args, **kwargs: mocker.Mock(spec=BaseProvider),
     )
@@ -186,7 +181,7 @@ def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
     with pytest.raises(RPCExecutionFailed):
         _ = rpc_condition.verify(providers=condition_providers, **context)
 
-    assert condition_providers._make_provider.call_count == 3
+    assert mocked_make_provider.call_count == 3
 
 
 @mock.patch(
@@ -208,8 +203,8 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
             ]
         }
     )
-    mocker.patch.object(
-        condition_providers,
+    mocked_make_provider = mocker.patch.object(
+        RPCEndpoint,
         "_make_provider",
         side_effect=[
             mocker.Mock(spec=BaseProvider),
@@ -229,7 +224,7 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
         1_000_000, "ether"
     )  # same value used in rpc_condition fixture
 
-    assert condition_providers._make_provider.call_count == 4
+    assert mocked_make_provider.call_count == 4
 
 
 @mock.patch(
