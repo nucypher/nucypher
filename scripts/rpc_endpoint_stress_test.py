@@ -12,6 +12,7 @@ from eth_utils import to_checksum_address
 from web3 import HTTPProvider, Web3
 from web3.middleware import geth_poa_middleware
 
+from nucypher.blockchain.eth.utils import obfuscate_rpc_url
 from nucypher.utilities.endpoint import RPCEndpointManager, ThreadLocalSessionManager
 
 # ETH mainnet
@@ -87,7 +88,6 @@ def new_strategy_rpc_call(
             request_timeout=5,
             endpoint_sort_strategy=endpoint_sort_strategy,
         )
-        click.secho("RPC call succeeded", fg="green")
     except Exception as e:
         click.secho(
             f"![FAILURE] RPC call failed with error: {e.__class__.__name__}: {e}",
@@ -134,7 +134,6 @@ def legacy_strategy_rpc_call(
     for w3 in endpoints:
         try:
             _do_w3_things(endpoint_usage_stats, w3)
-            click.secho(f"{w3.provider.endpoint_uri} RPC call succeeded", fg="green")
             return
         except Exception as e:
             latest_error = f"RPC call failed: {e.__class__.__name__}: {e}"
@@ -302,7 +301,7 @@ def rpc_stress_test(
     click.echo(f"\tNum failures: {failures.get_value()}")
     click.echo("\tEndpoints:")
     click.echo(
-        f"\t\t {preferred_endpoint} was used {endpoint_usage_stats[preferred_endpoint].get_value()} times."
+        f"\t\t {obfuscate_rpc_url(preferred_endpoint)} was used {endpoint_usage_stats[preferred_endpoint].get_value()} times."
     )
     for url in PUBLIC_RPC_ENDPOINTS:
         click.echo(
