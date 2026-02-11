@@ -7,7 +7,7 @@ from web3 import HTTPProvider
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
-from nucypher.policy.conditions.utils import ConditionProviderManager
+from nucypher.utilities.endpoint import RPCEndpoint
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import (
     MOCK_IP_ADDRESS,
@@ -138,19 +138,20 @@ def disable_check_grant_requirements(session_mocker):
     session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)
 
 
-
 @pytest.fixture(scope="module", autouse=True)
 def mock_multichain_configuration(module_mocker, testerchain):
     module_mocker.patch.object(
         Operator, "_make_condition_provider", return_value=testerchain.provider
     )
 
-    def _mock_make_provider(endpoint, session):
+    def _mock_make_provider(endpoint, session, request_kwargs):
         if endpoint == TEST_ETH_PROVIDER_URI:
             return testerchain.provider
         else:
-            return HTTPProvider(endpoint, session=session)
+            return HTTPProvider(
+                endpoint, session=session, request_kwargs=request_kwargs
+            )
 
     module_mocker.patch.object(
-        ConditionProviderManager, "_make_provider", side_effect=_mock_make_provider
+        RPCEndpoint, "_make_provider", side_effect=_mock_make_provider
     )
