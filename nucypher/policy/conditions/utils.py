@@ -2,7 +2,7 @@ import decimal
 import re
 from collections import OrderedDict
 from http import HTTPStatus
-from typing import Any, Callable, Dict, List, Optional, T, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, T, Tuple, Union
 
 from eth_utils import currency
 from marshmallow import Schema, post_dump
@@ -123,10 +123,12 @@ def _convert_any_decimals_to_floats(
 
 class ConditionProviderManager:
     """
-    Concurrency-friendly RPC endpoint manager
-      - Manages use of multiple endpoints with a bias to preferred endpoints
-      - On errors, moves on to a different endpoint.
+    Concurrency-friendly RPC endpoint manager which is responsible for managing
+    RPC endpoints across for different chains and executing web3 calls with proper error handling
+    and endpoint selection.
     """
+
+    _DEFAULT_WEB3_CALL_TIMEOUT = 5.0
 
     def __init__(
         self,
@@ -162,19 +164,28 @@ class ConditionProviderManager:
 
         self.logger = Logger(__name__)
 
-    def supported_chains(self) -> List[int]:
-        return list(self._rpc_endpoint_managers.keys())
+    def supported_chains(self) -> Set[int]:
+        """
+        Return the set of chain IDs for which this manager has RPC endpoints.
+        """
+        return set(self._rpc_endpoint_managers.keys())
 
     @staticmethod
     def _sort_by_latency(stats: RPCEndpoint.EndpointStats) -> Tuple:
+        """
+        Sort strategy for RPC endpoints based on EWMA latency; endpoints with lower latency will be prioritized.
+        """
         return (stats.ewma_latency_ms,)
 
     def exec_web3_call(
         self,
         chain_id: int,
         fn: Callable[[Web3], T],
-        request_timeout: Union[float, Tuple[float, float]] = 5.0,
+        request_timeout: Union[float, Tuple[float, float]] = _DEFAULT_WEB3_CALL_TIMEOUT,
     ):
+        """
+        Efficiently executes a web3 call using the available RPC endpoints for the specified chain ID.
+        """
         manager = self._rpc_endpoint_managers.get(chain_id, None)
         if not manager:
             raise NoConnectionToChain(chain=chain_id)
