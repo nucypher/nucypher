@@ -1,0 +1,4 @@
+Handle ``ConditionEvaluationFailed`` in compound OR and AT_LEAST conditions.
+Previously, if one operand raised (e.g. a JSON path with no matches), the entire
+compound condition failed even when other branches would satisfy it. Failing
+operands are now treated as ``False`` for OR and AT_LEAST operators.
