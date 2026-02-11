@@ -133,8 +133,8 @@ class ConditionProviderManager:
         providers: Dict[int, List[str]],
         preferential_providers: Optional[Dict[int, List[str]]] = None,
     ):
-        self.session_manager = ThreadLocalSessionManager()
-        self.rpc_endpoint_managers = dict()
+        self._session_manager = ThreadLocalSessionManager()
+        self._rpc_endpoint_managers = dict()
 
         preferential_providers = preferential_providers or {}
         for chain_id, endpoint_list in preferential_providers.items():
@@ -146,17 +146,17 @@ class ConditionProviderManager:
                     f"Preferential providers for chain ID {chain_id} cannot overlap with other providers"
                 )
 
-            self.rpc_endpoint_managers[chain_id] = RPCEndpointManager(
-                session_manager=self.session_manager,
+            self._rpc_endpoint_managers[chain_id] = RPCEndpointManager(
+                session_manager=self._session_manager,
                 preferred_endpoints=preferred_providers,
                 endpoints=other_providers,
             )
 
         for chaid_id, endpoint_list in providers.items():
             # not already in endpoint managers from preferential providers
-            if chaid_id not in self.rpc_endpoint_managers:
-                self.rpc_endpoint_managers[chaid_id] = RPCEndpointManager(
-                    session_manager=self.session_manager,
+            if chaid_id not in self._rpc_endpoint_managers:
+                self._rpc_endpoint_managers[chaid_id] = RPCEndpointManager(
+                    session_manager=self._session_manager,
                     endpoints=endpoint_list,
                 )
 
@@ -172,7 +172,7 @@ class ConditionProviderManager:
         fn: Callable[[Web3], T],
         request_timeout: Union[float, Tuple[float, float]] = 5.0,
     ):
-        manager = self.rpc_endpoint_managers.get(chain_id, None)
+        manager = self._rpc_endpoint_managers.get(chain_id, None)
         if not manager:
             raise NoConnectionToChain(chain=chain_id)
 
