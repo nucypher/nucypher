@@ -21,7 +21,11 @@ from nucypher.policy.conditions.exceptions import (
     ReturnValueEvaluationError,
 )
 from nucypher.policy.conditions.types import ContextDict, Lingo
-from nucypher.utilities.endpoint import RPCEndpointManager, ThreadLocalSessionManager
+from nucypher.utilities.endpoint import (
+    RPCEndpoint,
+    RPCEndpointManager,
+    ThreadLocalSessionManager,
+)
 from nucypher.utilities.logging import Logger
 
 __LOGGER = Logger("condition-eval")
@@ -158,6 +162,10 @@ class ConditionProviderManager:
 
         self.logger = Logger(__name__)
 
+    @staticmethod
+    def _sort_by_latency(stats: RPCEndpoint.EndpointStats) -> Tuple:
+        return (stats.ewma_latency_ms,)
+
     def exec_web3_call(
         self,
         chain_id: int,
@@ -168,8 +176,11 @@ class ConditionProviderManager:
         if not manager:
             raise NoConnectionToChain(chain=chain_id)
 
-        # TODO sorting (?)
-        return manager.call(fn=fn, request_timeout=request_timeout)
+        return manager.call(
+            fn=fn,
+            request_timeout=request_timeout,
+            endpoint_sort_strategy=self._sort_by_latency,
+        )
 
 
 class ConditionEvalError(Exception):
