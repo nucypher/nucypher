@@ -171,6 +171,7 @@ class RPCEndpoint:
             endpoint_uri=endpoint_uri,
             session=session,
             request_kwargs={
+                "headers": {"Accept-Encoding": "gzip"},
                 "timeout": request_timeout,
             },
         )
