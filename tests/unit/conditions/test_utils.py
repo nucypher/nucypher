@@ -19,11 +19,12 @@ import time
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import List, Optional, Tuple, Type
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch
 
 import pytest
 from marshmallow import fields
 from web3 import Web3
+from web3.manager import RequestManager
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.base import Condition
@@ -235,6 +236,33 @@ class TestConditionProviderManager:
             chains = m.supported_chains()
             assert chains == {2, 3, 4}
 
+    def test_default_middlewares(self):
+        """
+        Defensive unit test that ensures that if the web3.py default middleware list changes
+        that we are made aware of that, and should revisit the defaults used by ConditionProviderManager.
+        """
+        w3 = Web3()
+        web3_default_middlewares = RequestManager.default_middlewares(w3)
+        expected_web3_middlewares = {
+            "gas_price_strategy",
+            "name_to_address",
+            "attrdict",
+            "validation",
+            "abi",
+            "gas_estimate",
+        }
+        for middleware, name in web3_default_middlewares:
+            assert name in expected_web3_middlewares, "unexpected middleware"
+
+        condition_provider_middlewares = (
+            ConditionProviderManager._get_default_middlewares()
+        )
+        expected_condition_provider_middlewares = {"attrdict", "abi"}
+        for middleware, name in condition_provider_middlewares:
+            assert (
+                name in expected_condition_provider_middlewares
+            ), "unexpected ConditionProviderManager middleware"
+
     def test_exec_web3_call_no_connection_to_chain(self, mocker):
         m = ConditionProviderManager(providers={2: ["https://p.test"]})
         with pytest.raises(NoConnectionToChain, match="No connection to chain ID 1"):
@@ -260,6 +288,7 @@ class TestConditionProviderManager:
             fn=mock_fn,
             request_timeout=ConditionProviderManager._DEFAULT_WEB3_CALL_TIMEOUT,
             endpoint_sort_strategy=ConditionProviderManager._sort_by_latency,
+            override_middleware_stack=[(ANY, "attrdict"), (ANY, "abi")],
         )
 
         customized_timeout = 10.0
@@ -277,6 +306,7 @@ class TestConditionProviderManager:
             fn=mock_fn,
             request_timeout=customized_timeout,
             endpoint_sort_strategy=ConditionProviderManager._sort_by_latency,
+            override_middleware_stack=[(ANY, "attrdict"), (ANY, "abi")],
         )
 
     def test_sort_by_latency_returns_proper_value_in_tuple(self):

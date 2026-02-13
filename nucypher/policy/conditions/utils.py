@@ -2,12 +2,14 @@ import decimal
 import re
 from collections import OrderedDict
 from http import HTTPStatus
-from typing import Any, Callable, Dict, List, Optional, Set, T, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, T, Tuple, Union
 
 from eth_utils import currency
 from marshmallow import Schema, post_dump
 from marshmallow.exceptions import SCHEMA
 from web3 import Web3
+from web3.middleware import abi_middleware, attrdict_middleware
+from web3.types import Middleware
 
 from nucypher.policy import conditions
 from nucypher.policy.conditions.exceptions import (
@@ -177,6 +179,16 @@ class ConditionProviderManager:
         """
         return (stats.ewma_latency_ms,)
 
+    @staticmethod
+    def _get_default_middlewares() -> Sequence[Tuple[Middleware, str]]:
+        """
+        Get the default middlewares to apply to Web3 instances.
+        """
+        return [
+            (attrdict_middleware, "attrdict"),
+            (abi_middleware, "abi"),
+        ]
+
     def exec_web3_call(
         self,
         chain_id: int,
@@ -190,10 +202,12 @@ class ConditionProviderManager:
         if not manager:
             raise NoConnectionToChain(chain=chain_id)
 
+        default_middlewares = self._get_default_middlewares()
         return manager.call(
             fn=fn,
             request_timeout=request_timeout,
             endpoint_sort_strategy=self._sort_by_latency,
+            override_middleware_stack=default_middlewares,
         )
 
 

@@ -3,13 +3,14 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Callable, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import requests
 from requests import Session
 from requests.adapters import HTTPAdapter
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
+from web3.types import Middleware
 
 T = TypeVar("T")
 
@@ -117,10 +118,15 @@ class RPCEndpoint:
 
     @contextmanager
     def get_web3(
-        self, session: Session, request_timeout: Union[float, Tuple[float, float]]
+        self,
+        session: Session,
+        request_timeout: Union[float, Tuple[float, float]],
+        override_middleware_stack: Optional[Sequence[Tuple[Middleware, str]]] = None,
     ):
         provider = self._make_provider(self.endpoint_uri, session, request_timeout)
-        w3 = self._configure_w3(provider)
+        w3 = self._configure_w3(
+            provider, override_middleware_stack=override_middleware_stack
+        )
         yield w3
 
     @staticmethod
@@ -137,10 +143,13 @@ class RPCEndpoint:
         )
 
     @staticmethod
-    def _configure_w3(provider: Web3.HTTPProvider) -> Web3:
+    def _configure_w3(
+        provider: Web3.HTTPProvider,
+        override_middleware_stack: Optional[Sequence[Tuple[Middleware, str]]] = None,
+    ) -> Web3:
         # makes testing easier by having a static method create the web3 instance so it can be mocked
         # Instantiate a local web3 instance
-        w3 = Web3(provider)
+        w3 = Web3(provider, middlewares=override_middleware_stack)
         # inject web3 middleware to handle POA chain extra_data field.
         w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
         return w3
@@ -340,7 +349,16 @@ class RPCEndpointManager:
         fn: Callable[[Web3], T],
         request_timeout: Union[float, Tuple[float, float]] = 5.0,
         endpoint_sort_strategy: Optional[EndpointSortStrategy] = None,
+        override_middleware_stack: Optional[Sequence[Tuple[Middleware, str]]] = None,
     ) -> T:
+        """
+        Executes web3 calls with automatic endpoint selection, failover, and health tracking.
+        :param fn: A function that takes a Web3 instance and performs the desired calls, returning a result.
+        :param request_timeout: Timeout for the web3 provider requests, can be a single float or a (connect_timeout, read_timeout) tuple.
+        :param endpoint_sort_strategy: Optional function to sort endpoints based on their stats for prioritization.
+        :param override_middleware_stack: Optional sequence of (middleware, name) tuples to override Web3 default middlewares
+        :return: The result of the provided function executed with a Web3 instance from a healthy endpoint.
+        """
         endpoints = self._get_candidates(endpoint_sort_strategy)
         last_exc = None
         session = self.session_manager.get_session()
@@ -352,7 +370,9 @@ class RPCEndpointManager:
 
             try:
                 with endpoint.get_web3(
-                    session=session, request_timeout=request_timeout
+                    session=session,
+                    request_timeout=request_timeout,
+                    override_middleware_stack=override_middleware_stack,
                 ) as w3:
                     start = time.perf_counter()
                     result = fn(w3)
