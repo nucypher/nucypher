@@ -2,16 +2,13 @@ from collections import defaultdict
 
 import pytest
 from eth_utils.crypto import keccak
-from web3 import HTTPProvider
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
-from nucypher.utilities.endpoint import RPCEndpoint
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import (
     MOCK_IP_ADDRESS,
-    TEST_ETH_PROVIDER_URI,
 )
 
 # Don't re-lock accounts in the background while making commitments
@@ -142,16 +139,4 @@ def disable_check_grant_requirements(session_mocker):
 def mock_multichain_configuration(module_mocker, testerchain):
     module_mocker.patch.object(
         Operator, "_make_condition_provider", return_value=testerchain.provider
-    )
-
-    def _mock_make_provider(endpoint, session, request_kwargs):
-        if endpoint == TEST_ETH_PROVIDER_URI:
-            return testerchain.provider
-        else:
-            return HTTPProvider(
-                endpoint, session=session, request_kwargs=request_kwargs
-            )
-
-    module_mocker.patch.object(
-        RPCEndpoint, "_make_provider", side_effect=_mock_make_provider
     )

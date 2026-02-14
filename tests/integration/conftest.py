@@ -3,6 +3,7 @@ from typing import Iterable, Optional
 
 import pytest
 from eth_account.account import Account
+from web3 import HTTPProvider
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
@@ -27,11 +28,13 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
 from nucypher.policy.payment import SubscriptionManagerPayment
+from nucypher.utilities.endpoint import RPCEndpoint
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
     TEMPORARY_DOMAIN,
+    TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
 from tests.mock.agents import MockContractAgency
@@ -286,16 +289,30 @@ def multichain_ursulas(ursulas, multichain_ids):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_rpc_endpoints(module_mocker):
+def mock_rpc_endpoints(module_mocker, testerchain):
     """Mock RPC endpoints for integration tests"""
 
     def mock_get_default_endpoints(domain):
         # Return test endpoints for the testerchain
-        return {TESTERCHAIN_CHAIN_ID: ["http://localhost:8545"]}
+        return {TESTERCHAIN_CHAIN_ID: [TEST_ETH_PROVIDER_URI]}
 
     module_mocker.patch(
         "nucypher.blockchain.eth.utils.get_default_rpc_endpoints",
         side_effect=mock_get_default_endpoints,
+    )
+
+    def _mock_make_provider(endpoint, session, request_timeout):
+        if endpoint == TEST_ETH_PROVIDER_URI:
+            return testerchain.provider
+        else:
+            return HTTPProvider(
+                endpoint_uri=endpoint,
+                session=session,
+                request_kwargs={"timeout": request_timeout},
+            )
+
+    module_mocker.patch.object(
+        RPCEndpoint, "_make_provider", side_effect=_mock_make_provider
     )
 
 
