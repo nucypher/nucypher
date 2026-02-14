@@ -303,6 +303,10 @@ def rpc_stress_test(
     click.echo(
         f"\t\t {obfuscate_rpc_url(preferred_endpoint)} was used {endpoint_usage_stats[preferred_endpoint].get_value()} times."
     )
+    if new_strategy:
+        click.echo(
+            f"\t\t\t Stats: {rpc_endpoint_manager.preferred_endpoints[0].get_stats_snapshot()}"
+        )
     for url in PUBLIC_RPC_ENDPOINTS:
         click.echo(
             f"\t\t {url} was used {endpoint_usage_stats[url].get_value()} times."
