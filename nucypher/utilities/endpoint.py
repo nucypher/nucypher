@@ -211,6 +211,8 @@ class RPCEndpoint:
     def report_failure(self, exc: Exception) -> None:
         with self._lock:
             self._last_used = time.time()
+            now = time.monotonic()
+
             # TODO - handle rate limit failures more specifically
             self._consecutive_failures += 1
 
@@ -226,7 +228,7 @@ class RPCEndpoint:
                 backoff_jitter = min(
                     self.rng.uniform(0.8, 1.2) * backoff, self.max_backoff_s
                 )
-                self._cool_down_until = time.monotonic() + backoff_jitter
+                self._cool_down_until = now + backoff_jitter
 
     def get_stats_snapshot(self) -> EndpointStats:
         with self._lock:
