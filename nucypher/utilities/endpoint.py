@@ -22,6 +22,11 @@ class ThreadLocalSessionManager:
     """
 
     def __init__(self, max_pool_size: int = 20, retries: int = 0):
+        if max_pool_size <= 0:
+            raise ValueError("max_pool_size must be positive")
+        if retries < 0:
+            raise ValueError("retries must be non-negative")
+
         self._thread_local_storage = threading.local()
         self.max_pool_size = max_pool_size
         self.retries = retries
@@ -89,6 +94,21 @@ class RPCEndpoint:
         scale_up_utilization_threshold: float = 0.5,
         rng: Optional[random.Random] = None,
     ):
+        if max_backoff_s <= 0:
+            raise ValueError("max_backoff_s must be positive")
+        if min_in_flight_capacity <= 0:
+            raise ValueError("min_in_flight_capacity must be positive")
+        if max_in_flight_capacity < min_in_flight_capacity:
+            raise ValueError(
+                "max_in_flight_capacity must be greater than or equal to min_in_flight_capacity"
+            )
+        if not (0 < ewma_alpha < 1.0):
+            raise ValueError("ewma_alpha must be between 0 and 1")
+        if target_latency_ms <= 0:
+            raise ValueError("target_latency_ms must be positive")
+        if not (0 < scale_up_utilization_threshold < 1.0):
+            raise ValueError("scale_up_utilization_threshold must be between 0 and 1")
+
         self.endpoint_uri = endpoint_uri
         self.max_backoff_s = max_backoff_s
 
@@ -128,7 +148,7 @@ class RPCEndpoint:
     ):
         provider = self._make_provider(self.endpoint_uri, session, request_timeout)
         w3 = self._configure_w3(
-            provider, override_middleware_stack=override_middleware_stack
+            provider=provider, override_middleware_stack=override_middleware_stack
         )
         yield w3
 
@@ -140,9 +160,11 @@ class RPCEndpoint:
     ) -> Web3.HTTPProvider:
         # makes testing easier by having a static method create the provider so it can be mocked
         return Web3.HTTPProvider(
-            endpoint_uri,
+            endpoint_uri=endpoint_uri,
             session=session,
-            request_kwargs={"timeout": request_timeout},
+            request_kwargs={
+                "timeout": request_timeout,
+            },
         )
 
     @staticmethod
@@ -152,7 +174,7 @@ class RPCEndpoint:
     ) -> Web3:
         # makes testing easier by having a static method create the web3 instance so it can be mocked
         # Instantiate a local web3 instance
-        w3 = Web3(provider, middlewares=override_middleware_stack)
+        w3 = Web3(provider=provider, middlewares=override_middleware_stack)
         # inject web3 middleware to handle POA chain extra_data field.
         w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
         return w3
