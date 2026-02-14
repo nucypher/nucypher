@@ -86,6 +86,7 @@ class RPCEndpoint:
         max_in_flight_capacity: int = 50,
         ewma_alpha: float = 0.5,
         target_latency_ms: float = 2000.0,  # 2s
+        scale_up_utilization_threshold: float = 0.5,
         rng: Optional[random.Random] = None,
     ):
         self.endpoint_uri = endpoint_uri
@@ -108,6 +109,8 @@ class RPCEndpoint:
         self._ewma_latency_ms = 0.0
 
         self.rng = rng or random.Random()
+
+        self.scale_up_utilization_threshold = scale_up_utilization_threshold
 
         self._lock = threading.Lock()
 
@@ -197,9 +200,13 @@ class RPCEndpoint:
                 )
             # additional capacity if performing well
             elif self._ewma_latency_ms <= self.target_latency_ms:
-                self._in_flight_capacity = min(
-                    self.max_in_flight_capacity, self._in_flight_capacity + 1
+                utilization_factor = (
+                    self._num_in_flight_usage / self._in_flight_capacity
                 )
+                if utilization_factor >= self.scale_up_utilization_threshold:
+                    self._in_flight_capacity = min(
+                        self.max_in_flight_capacity, self._in_flight_capacity + 1
+                    )
 
     def report_failure(self, exc: Exception) -> None:
         with self._lock:
