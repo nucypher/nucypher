@@ -83,6 +83,16 @@ class RPCEndpoint:
         in_flight_capacity: int
         last_used: float
 
+        def __str__(self):
+            return (
+                f"EndpointStats(latency={self.latest_latency_ms:.2f}ms, "
+                f"ewma_latency={self.ewma_latency_ms:.2f}ms, "
+                f"consecutive_failures={self.consecutive_failures}, "
+                f"in_flight_usage={self.num_in_flight_usage}, "
+                f"in_flight_cap={self.in_flight_capacity}, "
+                f"last_used={self.last_used})"
+            )
+
     def __init__(
         self,
         endpoint_uri: str,
