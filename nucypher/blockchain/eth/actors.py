@@ -70,6 +70,7 @@ from nucypher.blockchain.eth.trackers import dkg, signing
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import (
     get_healthy_default_rpc_endpoints,
+    get_http_provider,
     obfuscate_rpc_url,
     rpc_endpoint_health_check,
     truncate_checksum_address,
@@ -336,11 +337,7 @@ class Operator(BaseActor):
 
     @staticmethod
     def _make_condition_provider(uri: str) -> HTTPProvider:
-        provider = HTTPProvider(
-            endpoint_uri=uri,
-            request_kwargs={"headers": {"Accept-Encoding": "gzip"}},
-        )
-        return provider
+        return get_http_provider(endpoint=uri)
 
     def get_condition_provider_manager(
         self, operator_configured_endpoints: Dict[int, List[str]]

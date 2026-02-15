@@ -1,5 +1,3 @@
-
-from web3 import HTTPProvider
 from web3.providers import BaseProvider
 
 from nucypher.exceptions import DevelopmentInstallationRequired
@@ -7,18 +5,6 @@ from nucypher.exceptions import DevelopmentInstallationRequired
 
 class ProviderError(Exception):
     pass
-
-
-def _get_http_provider(endpoint) -> BaseProvider:
-    from nucypher.blockchain.eth.interfaces import BlockchainInterface
-
-    return HTTPProvider(
-        endpoint_uri=endpoint,
-        request_kwargs={
-            "timeout": BlockchainInterface.TIMEOUT,
-            "headers": {"Accept-Encoding": "gzip"},
-        },
-    )
 
 
 def _get_pyevm_test_backend():

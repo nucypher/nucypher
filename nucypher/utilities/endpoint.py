@@ -12,6 +12,8 @@ from web3 import Web3
 from web3.middleware import geth_poa_middleware
 from web3.types import Middleware
 
+from nucypher.blockchain.eth.utils import get_http_provider
+
 
 class ThreadLocalSessionManager:
     """
@@ -167,13 +169,8 @@ class RPCEndpoint:
         request_timeout: Union[float, Tuple[float, float]],
     ) -> Web3.HTTPProvider:
         # makes testing easier by having a static method create the provider so it can be mocked
-        return Web3.HTTPProvider(
-            endpoint_uri=endpoint_uri,
-            session=session,
-            request_kwargs={
-                "headers": {"Accept-Encoding": "gzip"},
-                "timeout": request_timeout,
-            },
+        return get_http_provider(
+            endpoint=endpoint_uri, session=session, request_timeout=request_timeout
         )
 
     @staticmethod
