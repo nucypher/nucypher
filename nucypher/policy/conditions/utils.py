@@ -126,7 +126,7 @@ def _convert_any_decimals_to_floats(
 class ConditionProviderManager:
     """
     Concurrency-friendly RPC endpoint manager which is responsible for managing
-    RPC endpoints across for different chains and executing web3 calls with proper error handling
+    RPC endpoints for different chains and executing web3 calls with proper error handling
     and endpoint selection.
     """
 

@@ -212,7 +212,7 @@ def get_endpoint_sort_strategy(
 @click.option(
     "--preferred-endpoint",
     "-p",
-    help="Preferred endpoint to use (in addition to rpc endpoint.",
+    help="Preferred endpoint to use (in addition to default rpc endpoints).",
     type=click.STRING,
     required=True,
 )
