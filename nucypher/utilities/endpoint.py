@@ -3,7 +3,7 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Callable, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, Callable, Iterable, List, Optional, Sequence, Tuple, Union
 
 import requests
 from requests import Session
@@ -11,8 +11,6 @@ from requests.adapters import HTTPAdapter
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
 from web3.types import Middleware
-
-T = TypeVar("T")
 
 
 class ThreadLocalSessionManager:
@@ -58,10 +56,10 @@ class RPCEndpoint:
      - Tracks current latency and consecutive failures.
      - Automatically cools down after a certain number of failures, with exponential backoff.
      - Thread-safe for concurrent access and updates.
-     - Designed to be used within RpcEndpointManager for managing multiple endpoints.
+     - Designed to be used within RPCEndpointManager for managing multiple endpoints.
      - Does not handle actual request sending, just tracks health and availability.
      - Cool down logic is simple: after 2 consecutive failures, it goes into cool down with exponential backoff up to max_backoff_s.
-     - is_available() checks if the endpoint is currently available (not in cool down and not exceeding capacity).
+     - Availability is enforced via try_acquire(), which respects cool down and in-flight capacity limits.
     """
 
     @dataclass(frozen=True)
@@ -212,7 +210,7 @@ class RPCEndpoint:
             self._last_used = time.time()
             self._latest_latency_ms = latency_ms
             self._consecutive_failures = 0
-            self._cool_down_until = time.monotonic()  # reset cool down on success
+            self._cool_down_until = 0.0  # reset cool down on success
 
             self._ewma_latency_ms = (
                 latency_ms
@@ -387,11 +385,11 @@ class RPCEndpointManager:
 
     def call(
         self,
-        fn: Callable[[Web3], T],
+        fn: Callable[[Web3], Any],
         request_timeout: Union[float, Tuple[float, float]] = 5.0,
         endpoint_sort_strategy: Optional[EndpointSortStrategy] = None,
         override_middleware_stack: Optional[Sequence[Tuple[Middleware, str]]] = None,
-    ) -> T:
+    ) -> Any:
         """
         Executes web3 calls with automatic endpoint selection, failover, and health tracking.
         :param fn: A function that takes a Web3 instance and performs the desired calls, returning a result.

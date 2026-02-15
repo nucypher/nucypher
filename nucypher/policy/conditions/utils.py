@@ -2,7 +2,7 @@ import decimal
 import re
 from collections import OrderedDict
 from http import HTTPStatus
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, T, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from eth_utils import currency
 from marshmallow import Schema, post_dump
@@ -141,10 +141,8 @@ class ConditionProviderManager:
         self._rpc_endpoint_managers = dict()
 
         preferential_providers = preferential_providers or {}
-        for chain_id, endpoint_list in preferential_providers.items():
-            preferred_providers = preferential_providers[chain_id]
+        for chain_id, preferred_providers in preferential_providers.items():
             other_providers = providers.get(chain_id, [])
-
             if set(preferred_providers) & set(other_providers):
                 raise ValueError(
                     f"Preferential providers for chain ID {chain_id} cannot overlap with other providers"
@@ -156,10 +154,10 @@ class ConditionProviderManager:
                 endpoints=other_providers,
             )
 
-        for chaid_id, endpoint_list in providers.items():
+        for chain_id, endpoint_list in providers.items():
             # not already in endpoint managers from preferential providers
-            if chaid_id not in self._rpc_endpoint_managers:
-                self._rpc_endpoint_managers[chaid_id] = RPCEndpointManager(
+            if chain_id not in self._rpc_endpoint_managers:
+                self._rpc_endpoint_managers[chain_id] = RPCEndpointManager(
                     session_manager=self._session_manager,
                     endpoints=endpoint_list,
                 )
@@ -192,9 +190,9 @@ class ConditionProviderManager:
     def exec_web3_call(
         self,
         chain_id: int,
-        fn: Callable[[Web3], T],
+        fn: Callable[[Web3], Any],
         request_timeout: Union[float, Tuple[float, float]] = _DEFAULT_WEB3_CALL_TIMEOUT,
-    ):
+    ) -> Any:
         """
         Efficiently executes a web3 call using the available RPC endpoints for the specified chain ID.
         """
