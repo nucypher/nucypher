@@ -695,6 +695,27 @@ class TestRPCEndpoint:
 class TestRPCEndpointManager:
     """Focused unit tests for RPCEndpointManager behavior."""
 
+    def test_at_least_one_endpoint_must_be_provided(self):
+        session_manager = ThreadLocalSessionManager(max_pool_size=2)
+        with pytest.raises(
+            ValueError, match="At least one endpoint URI must be provided"
+        ):
+            RPCEndpointManager(session_manager=session_manager, endpoints=[])
+
+    def test_preferred_endpoints_must_be_distinct_from_regular_endpoints(self):
+        session_manager = ThreadLocalSessionManager(max_pool_size=2)
+        endpoints = ["https://one.example", "https://two.example"]
+        preferred = ["https://one.example"]  # overlap with regular endpoints
+
+        with pytest.raises(
+            ValueError, match="Preferred endpoints cannot overlap with other endpoints"
+        ):
+            RPCEndpointManager(
+                session_manager=session_manager,
+                endpoints=endpoints,
+                preferred_endpoints=preferred,
+            )
+
     def test_preferred_endpoint_bias(self, mocker):
         session_manager = ThreadLocalSessionManager(max_pool_size=2)
         endpoints = ["https://one.example", "https://two.example"]
