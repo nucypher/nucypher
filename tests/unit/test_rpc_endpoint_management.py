@@ -399,6 +399,57 @@ class TestRPCEndpoint:
                 endpoint.release()
                 num_in_flight_usages -= 1
 
+    def test_ewma_latency_calculation(self):
+        endpoint = RPCEndpoint(endpoint_uri=self.URI, ewma_alpha=0.5)
+
+        assert endpoint.try_acquire()
+        try:
+            # report a latency of 100ms
+            endpoint.report_success(latency_ms=100)
+            assert endpoint._ewma_latency_ms == 100
+            assert endpoint.get_stats_snapshot().ewma_latency_ms == 100
+
+            assert endpoint._latest_latency_ms == 100
+            assert endpoint.get_stats_snapshot().latest_latency_ms == 100
+        finally:
+            endpoint.release()
+
+        assert endpoint.try_acquire()
+        try:
+            # report a latency of 300ms, ewma should be (0.5 * 300) + (0.5 * 100) = 200ms
+            endpoint.report_success(latency_ms=300)
+            assert endpoint._ewma_latency_ms == 200
+            assert endpoint.get_stats_snapshot().ewma_latency_ms == 200
+
+            assert endpoint._latest_latency_ms == 300
+            assert endpoint.get_stats_snapshot().latest_latency_ms == 300
+        finally:
+            endpoint.release()
+
+        assert endpoint.try_acquire()
+        try:
+            # report a latency of 50ms, ewma should be (0.5 * 50) + (0.5 * 200) = 125ms
+            endpoint.report_success(latency_ms=50)
+            assert endpoint._ewma_latency_ms == 125
+            assert endpoint.get_stats_snapshot().ewma_latency_ms == 125
+
+            assert endpoint._latest_latency_ms == 50
+            assert endpoint.get_stats_snapshot().latest_latency_ms == 50
+        finally:
+            endpoint.release()
+
+        assert endpoint.try_acquire()
+        try:
+            # report a latency of 400ms, ewma should be (0.5 * 1000) + (0.5 * 125) = 562.5ms
+            endpoint.report_success(latency_ms=1000)
+            assert endpoint._ewma_latency_ms == 562.5
+            assert endpoint.get_stats_snapshot().ewma_latency_ms == 562.5
+
+            assert endpoint._latest_latency_ms == 1000
+            assert endpoint.get_stats_snapshot().latest_latency_ms == 1000
+        finally:
+            endpoint.release()
+
     def test_report_failure(self):
         initial_min_capacity = 10
         max_capacity = 100
