@@ -147,7 +147,10 @@ def signing_stress_test(
     )
     click.echo(f"\nTotal time: {time_taken:.2f}s")
     click.echo(f"Cohort ID: {cohort_id}")
-    click.echo(f"Num failures: {failures.get_value()}")
+    click.secho(
+        f"Num failures: {failures.get_value()}",
+        fg="red" if failures.get_value() > 0 else None,
+    )
     values = stats_collector.get_values()
     if values:
         click.echo(f"Statistics for successful requests: {len(values)}")
