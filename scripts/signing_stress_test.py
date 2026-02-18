@@ -5,7 +5,6 @@ from threading import Lock
 from typing import Any, Dict
 
 import click
-import numpy
 import requests
 
 from nucypher.utilities.logging import GlobalLoggerSettings
@@ -158,8 +157,9 @@ def signing_stress_test(
         click.echo(f"\tMedian: {statistics.median(values):.2f}s")
         click.echo(f"\tMax: {max(values):.2f}s")
         click.echo(f"\tMin: {min(values):.2f}s")
-        click.echo(f"\tp90: {numpy.percentile(values, 90):0.2f}s")
-        click.echo(f"\tp95: {numpy.percentile(values, 95):0.2f}s")
+        percentiles = statistics.quantiles(data=values, n=100, method="inclusive")
+        click.echo(f"\tp90: {percentiles[89]:0.2f}s")  # 95%
+        click.echo(f"\tp95: {percentiles[94]:0.2f}s")  # 90%
 
 
 if __name__ == "__main__":
