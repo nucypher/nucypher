@@ -1,16 +1,15 @@
 import decimal
-import random
 import re
 from collections import OrderedDict
 from http import HTTPStatus
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from eth_utils import currency
 from marshmallow import Schema, post_dump
 from marshmallow.exceptions import SCHEMA
-from web3 import HTTPProvider, Web3
-from web3.middleware import geth_poa_middleware
-from web3.providers import BaseProvider
+from web3 import Web3
+from web3.middleware import abi_middleware, attrdict_middleware
+from web3.types import Middleware
 
 from nucypher.policy import conditions
 from nucypher.policy.conditions.exceptions import (
@@ -24,6 +23,11 @@ from nucypher.policy.conditions.exceptions import (
     ReturnValueEvaluationError,
 )
 from nucypher.policy.conditions.types import ContextDict, Lingo
+from nucypher.utilities.endpoint import (
+    RPCEndpoint,
+    RPCEndpointManager,
+    ThreadLocalSessionManager,
+)
 from nucypher.utilities.logging import Logger
 
 __LOGGER = Logger("condition-eval")
@@ -120,52 +124,89 @@ def _convert_any_decimals_to_floats(
 
 
 class ConditionProviderManager:
+    """
+    Concurrency-friendly RPC endpoint manager which is responsible for managing
+    RPC endpoints for different chains and executing web3 calls with proper error handling
+    and endpoint selection.
+    """
+
+    _DEFAULT_WEB3_CALL_TIMEOUT = 5.0
+
     def __init__(
         self,
-        providers: Dict[int, List[HTTPProvider]],
-        preferential_providers: Optional[Dict[int, List[HTTPProvider]]] = None,
+        providers: Dict[int, List[str]],
+        preferential_providers: Optional[Dict[int, List[str]]] = None,
     ):
-        self.providers = providers
-        self.preferential_providers = preferential_providers
-        self.logger = Logger(__name__)
+        self._session_manager = ThreadLocalSessionManager()
+        self._rpc_endpoint_managers = dict()
 
-    def web3_endpoints(self, chain_id: int) -> Iterator[Web3]:
-        rpc_providers = []
+        preferential_providers = preferential_providers or {}
+        for chain_id, preferred_providers in preferential_providers.items():
+            other_providers = providers.get(chain_id, [])
+            if set(preferred_providers) & set(other_providers):
+                raise ValueError(
+                    f"Preferential providers for chain ID {chain_id} cannot overlap with other providers"
+                )
 
-        if self.preferential_providers:
-            preferential_list = self.preferential_providers.get(chain_id, None)
-            if preferential_list:
-                rpc_providers.extend(preferential_list)
-
-        other_providers = self.providers.get(chain_id, None)
-        if other_providers:
-            random.shuffle(other_providers)
-            rpc_providers.extend(other_providers)
-
-        if not rpc_providers:
-            raise NoConnectionToChain(chain=chain_id)
-
-        iterator_returned_at_least_one = False
-        for provider in rpc_providers:
-            w3 = self._configure_w3(provider=provider)
-            yield w3
-            iterator_returned_at_least_one = True
-
-        # if we get here, it is because there were endpoints, but issue with configuring them
-        if not iterator_returned_at_least_one:
-            raise NoConnectionToChain(
-                chain=chain_id,
-                message=f"Problematic provider endpoints for chain ID {chain_id}",
+            self._rpc_endpoint_managers[chain_id] = RPCEndpointManager(
+                session_manager=self._session_manager,
+                preferred_endpoints=preferred_providers,
+                endpoints=other_providers,
             )
 
-    @staticmethod
-    def _configure_w3(provider: BaseProvider) -> Web3:
-        # Instantiate a local web3 instance
-        w3 = Web3(provider)
-        # inject web3 middleware to handle POA chain extra_data field.
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0, name="poa")
-        return w3
+        for chain_id, endpoint_list in providers.items():
+            # not already in endpoint managers from preferential providers
+            if chain_id not in self._rpc_endpoint_managers:
+                self._rpc_endpoint_managers[chain_id] = RPCEndpointManager(
+                    session_manager=self._session_manager,
+                    endpoints=endpoint_list,
+                )
 
+        self.logger = Logger(__name__)
+
+    def supported_chains(self) -> Set[int]:
+        """
+        Return the set of chain IDs for which this manager has RPC endpoints.
+        """
+        return set(self._rpc_endpoint_managers.keys())
+
+    @staticmethod
+    def _sort_by_latency(stats: RPCEndpoint.EndpointStats) -> Tuple:
+        """
+        Sort strategy for RPC endpoints based on EWMA latency; endpoints with lower latency will be prioritized.
+        """
+        return (stats.ewma_latency_ms,)
+
+    @staticmethod
+    def _get_default_middlewares() -> Sequence[Tuple[Middleware, str]]:
+        """
+        Get the default middlewares to apply to Web3 instances.
+        """
+        return [
+            (attrdict_middleware, "attrdict"),
+            (abi_middleware, "abi"),
+        ]
+
+    def exec_web3_call(
+        self,
+        chain_id: int,
+        fn: Callable[[Web3], Any],
+        request_timeout: Union[float, Tuple[float, float]] = _DEFAULT_WEB3_CALL_TIMEOUT,
+    ) -> Any:
+        """
+        Efficiently executes a web3 call using the available RPC endpoints for the specified chain ID.
+        """
+        manager = self._rpc_endpoint_managers.get(chain_id, None)
+        if not manager:
+            raise NoConnectionToChain(chain=chain_id)
+
+        default_middlewares = self._get_default_middlewares()
+        return manager.call(
+            fn=fn,
+            request_timeout=request_timeout,
+            endpoint_sort_strategy=self._sort_by_latency,
+            override_middleware_stack=default_middlewares,
+        )
 
 
 class ConditionEvalError(Exception):

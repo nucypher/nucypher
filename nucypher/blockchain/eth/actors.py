@@ -70,6 +70,7 @@ from nucypher.blockchain.eth.trackers import dkg, signing
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import (
     get_healthy_default_rpc_endpoints,
+    get_http_provider,
     obfuscate_rpc_url,
     rpc_endpoint_health_check,
     truncate_checksum_address,
@@ -336,8 +337,7 @@ class Operator(BaseActor):
 
     @staticmethod
     def _make_condition_provider(uri: str) -> HTTPProvider:
-        provider = HTTPProvider(endpoint_uri=uri)
-        return provider
+        return get_http_provider(endpoint=uri)
 
     def get_condition_provider_manager(
         self, operator_configured_endpoints: Dict[int, List[str]]
@@ -378,12 +378,13 @@ class Operator(BaseActor):
                     raise self.ActorError(
                         f"Operator-configured RPC condition endpoint {obfuscate_rpc_url(uri)} does not belong to chain {chain_id}"
                     )
+                # TODO: the chain id above is duplicated for the health check - fix logic
                 healthy = rpc_endpoint_health_check(chain_id=chain_id, endpoint=uri)
                 if not healthy:
                     self.log.warn(
-                        f"Operator-configured RPC condition endpoint {obfuscate_rpc_url(uri)} is unhealthy"
+                        f"Operator-configured RPC condition endpoint {obfuscate_rpc_url(uri)} (chainID={chain_id}) is unhealthy"
                     )
-                configured_endpoints[int(chain_id)].append(provider)
+                configured_endpoints[int(chain_id)].append(uri)
                 duplicated_endpoint_check[chain_id].add(uri)
 
         # Ingest default/fallback RPC providers for each chain
@@ -396,8 +397,7 @@ class Operator(BaseActor):
                         f"Fallback blockchain endpoint, {obfuscate_rpc_url(uri)}, is duplicated for condition evaluation on chain {chain_id}; skipping"
                     )
                     continue
-                provider = self._make_condition_provider(uri)
-                public_endpoints[chain_id].append(provider)
+                public_endpoints[chain_id].append(uri)
                 duplicated_endpoint_check[chain_id].add(uri)
 
         self.log.info(

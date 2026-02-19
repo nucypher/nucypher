@@ -10,8 +10,9 @@ from nucypher.policy.conditions.lingo import (
     ReturnValueTest,
 )
 from nucypher.policy.conditions.time import TimeCondition
-from nucypher.policy.conditions.utils import ConditionProviderManager
+from nucypher.utilities.endpoint import RPCEndpoint, RPCEndpointManager
 from nucypher.utilities.logging import GlobalLoggerSettings
+from tests.constants import TEST_ETH_PROVIDER_URI
 from tests.utils.policy import make_message_kits
 
 GlobalLoggerSettings.start_text_file_logging()
@@ -72,11 +73,12 @@ def test_single_retrieve_with_multichain_conditions(
         encrypted_treasure_map=enacted_policy.treasure_map,
         alice_verifying_key=enacted_policy.publisher_verifying_key,
     )
+
     monkeymodule.setattr(
-        ConditionProviderManager,
-        "web3_endpoints",
-        lambda *args, **kwargs: [testerchain.w3],
-    )
+        RPCEndpointManager,
+        "_get_candidates",
+        lambda *args, **kwargs: [RPCEndpoint(endpoint_uri=TEST_ETH_PROVIDER_URI)],
+    )  # a base, and fallback
 
     cleartexts = bob.retrieve_and_decrypt(
         message_kits=message_kits,
@@ -99,9 +101,12 @@ def test_single_decryption_request_with_faulty_rpc_endpoint(
     )
 
     monkeymodule.setattr(
-        ConditionProviderManager,
-        "web3_endpoints",
-        lambda *args, **kwargs: [testerchain.w3, testerchain.w3],
+        RPCEndpointManager,
+        "_get_candidates",
+        lambda *args, **kwargs: [
+            RPCEndpoint(endpoint_uri=TEST_ETH_PROVIDER_URI),
+            RPCEndpoint(endpoint_uri=TEST_ETH_PROVIDER_URI),
+        ],
     )  # a base, and fallback
 
     rpc_calls = defaultdict(int)

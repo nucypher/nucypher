@@ -14,15 +14,17 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+import time
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import List, Optional, Tuple, Type
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch
 
 import pytest
 from marshmallow import fields
 from web3 import Web3
-from web3.providers import BaseProvider
+from web3.manager import RequestManager
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.base import Condition
@@ -69,6 +71,7 @@ from nucypher.policy.conditions.utils import (
     extract_condition_failure_details,
     to_camelcase,
 )
+from nucypher.utilities.endpoint import RPCEndpoint
 from tests.constants import INT256_MIN, TESTERCHAIN_CHAIN_ID, UINT256_MAX
 from tests.unit.conditions.test_jwt_condition import TEST_ECDSA_PUBLIC_KEY
 
@@ -132,9 +135,7 @@ def test_evaluate_condition_eval_returns_false():
         with pytest.raises(ConditionEvalError) as eval_error:
             evaluate_condition_lingo(
                 condition_lingo=condition_lingo,
-                providers=ConditionProviderManager(
-                    {1: Mock(spec=BaseProvider)}
-                ),  # fake provider
+                providers=ConditionProviderManager({}),
                 context={"key": "value"},  # fake context
             )
         assert eval_error.value.status_code == HTTPStatus.FORBIDDEN
@@ -151,12 +152,7 @@ def test_evaluate_condition_eval_returns_true():
 
         evaluate_condition_lingo(
             condition_lingo=condition_lingo,
-            providers=ConditionProviderManager(
-                {
-                    1: Mock(spec=BaseProvider),
-                    2: Mock(spec=BaseProvider),
-                }
-            ),
+            providers=ConditionProviderManager({}),
             context={
                 "key1": "value1",
                 "key2": "value2",
@@ -202,69 +198,128 @@ def test_camel_case_schema():
     assert reloaded_function == {"field_name_with_underscores": f"{value}"}
 
 
-def test_condition_provider_manager(mocker):
-    # no condition to chain
-    with pytest.raises(NoConnectionToChain, match="No connection to chain ID"):
-        manager = ConditionProviderManager(
-            providers={2: [mocker.Mock(spec=BaseProvider)]}
-        )
-        _ = list(manager.web3_endpoints(chain_id=1))
+class TestConditionProviderManager:
+    """
+    Tests for ConditionProviderManager.
 
-    # multiple providers
-    manager = ConditionProviderManager(
-        providers={2: [mocker.Mock(spec=BaseProvider), mocker.Mock(spec=BaseProvider)]}
-    )
-    w3_instances = list(manager.web3_endpoints(chain_id=2))
-    assert len(w3_instances) == 2
-    for w3_instance in w3_instances:
-        assert w3_instance  # actual object returned
-        assert w3_instance.middleware_onion.get("poa")  # poa middleware injected
+    NOTE: The actual logic of making web3 calls and sorting endpoints is tested in the
+    RPCEndpointManager tests.
+    """
 
-    # specific w3 instances
-    w3_1 = mocker.Mock()
-    w3_1.eth.chain_id = 2
-    w3_2 = mocker.Mock()
-    w3_2.eth.chain_id = 2
-    with patch.object(manager, "_configure_w3", side_effect=[w3_1, w3_2]):
-        assert list(manager.web3_endpoints(chain_id=2)) == [w3_1, w3_2]
-
-    # preferential provider
-    preferential_providers = [mocker.Mock(spec=BaseProvider) for _ in range(3)]
-    other_providers = [mocker.Mock(spec=BaseProvider) for _ in range(2)]
-    chain_3_providers = [mocker.Mock(spec=BaseProvider) for _ in range(2)]
-    manager = ConditionProviderManager(
-        providers={2: other_providers, 3: chain_3_providers},
-        preferential_providers={2: preferential_providers},
-    )
-    w3_instances = list(manager.web3_endpoints(chain_id=2))
-    assert len(w3_instances) == (len(preferential_providers) + len(other_providers))
-
-    # preferential is first and order maintained
-    for i, w3_instance in enumerate(w3_instances[: len(preferential_providers)]):
-        assert w3_instance.provider == preferential_providers[i]
-
-    # other providers follow in random order
-    for w3_instance in w3_instances[len(preferential_providers) :]:
-        assert w3_instance.provider in other_providers
-
-    chain_3_w3_instances = list(manager.web3_endpoints(chain_id=3))
-    assert len(chain_3_w3_instances) == len(chain_3_providers)
-    for w3_instance in chain_3_w3_instances:
-        assert w3_instance.provider in chain_3_providers
-
-    # order randomized
-    all_providers = [mocker.Mock(spec=BaseProvider) for _ in range(10)]
-    manager = ConditionProviderManager(providers={2: all_providers})
-    num_times_different = 0
-    for i in range(5):
-        w3_instances_first = list(manager.web3_endpoints(chain_id=2))
-        w3_instances_second = list(manager.web3_endpoints(chain_id=2))
-        if any(
-            w31.provider != w32.provider
-            for w31, w32 in zip(w3_instances_first, w3_instances_second)
+    def test_preferential_overlap_raises(self):
+        providers = {2: ["https://provider.test"]}
+        preferential = {2: ["https://provider.test"]}  # overlap
+        with pytest.raises(
+            ValueError, match="Preferential providers for chain ID 2 cannot overlap"
         ):
-            num_times_different += 1
-    assert num_times_different > 0  # at least one time the order differed
+            ConditionProviderManager(
+                providers=providers, preferential_providers=preferential
+            )
+
+    def test_supported_chains_and_manager_construction(self, mocker):
+        providers = {
+            2: ["https://p1.test"],
+            4: ["https://p4.test"],
+            3: ["https://p2.test", "https://p3.test"],
+        }
+        preferential = {2: ["https://pref.test"]}
+
+        # Patch out the real RPCEndpointManager to avoid network/configuration side effects.
+        fake_manager = MagicMock()
+        with mocker.patch(
+            "nucypher.policy.conditions.utils.RPCEndpointManager",
+            return_value=fake_manager,
+        ):
+            m = ConditionProviderManager(
+                providers=providers, preferential_providers=preferential
+            )
+            chains = m.supported_chains()
+            assert chains == {2, 3, 4}
+
+    def test_default_middlewares(self):
+        """
+        Defensive unit test that ensures that if the web3.py default middleware list changes
+        that we are made aware of that, and should revisit the defaults used by ConditionProviderManager.
+        """
+        w3 = Web3()
+        web3_default_middlewares = RequestManager.default_middlewares(w3)
+        expected_web3_middlewares = {
+            "gas_price_strategy",
+            "name_to_address",
+            "attrdict",
+            "validation",
+            "abi",
+            "gas_estimate",
+        }
+        for middleware, name in web3_default_middlewares:
+            assert name in expected_web3_middlewares, "unexpected middleware"
+
+        condition_provider_middlewares = (
+            ConditionProviderManager._get_default_middlewares()
+        )
+        expected_condition_provider_middlewares = {"attrdict", "abi"}
+        for middleware, name in condition_provider_middlewares:
+            assert (
+                name in expected_condition_provider_middlewares
+            ), "unexpected ConditionProviderManager middleware"
+
+    def test_exec_web3_call_no_connection_to_chain(self, mocker):
+        m = ConditionProviderManager(providers={2: ["https://p.test"]})
+        with pytest.raises(NoConnectionToChain, match="No connection to chain ID 1"):
+            _ = m.exec_web3_call(chain_id=1, fn=lambda w3: None)
+
+    def test_exec_web3_call_invokes_endpoint_manager_call(self, mocker):
+        mock_mgr = MagicMock()
+        result = "You can change your wife, your politics, your religion. But never, never can you change your favorite football team."  # - Eric Cantona
+        mock_mgr.call.return_value = result
+
+        def mock_fn(w3):
+            return "no saying"
+
+        with mocker.patch(
+            "nucypher.policy.conditions.utils.RPCEndpointManager", return_value=mock_mgr
+        ):
+            m = ConditionProviderManager(providers={2: ["https://p.test"]})
+            res = m.exec_web3_call(chain_id=2, fn=mock_fn)
+
+        assert res == result
+        mock_mgr.call.assert_called_once()
+        mock_mgr.call.assert_called_with(
+            fn=mock_fn,
+            request_timeout=ConditionProviderManager._DEFAULT_WEB3_CALL_TIMEOUT,
+            endpoint_sort_strategy=ConditionProviderManager._sort_by_latency,
+            override_middleware_stack=[(ANY, "attrdict"), (ANY, "abi")],
+        )
+
+        customized_timeout = 10.0
+        with mocker.patch(
+            "nucypher.policy.conditions.utils.RPCEndpointManager", return_value=mock_mgr
+        ):
+            m = ConditionProviderManager(providers={2: ["https://p.test"]})
+            res = m.exec_web3_call(
+                chain_id=2, fn=mock_fn, request_timeout=customized_timeout
+            )
+
+        assert res == result
+        # customized timeout and default sorting strategy provided
+        mock_mgr.call.assert_called_with(
+            fn=mock_fn,
+            request_timeout=customized_timeout,
+            endpoint_sort_strategy=ConditionProviderManager._sort_by_latency,
+            override_middleware_stack=[(ANY, "attrdict"), (ANY, "abi")],
+        )
+
+    def test_sort_by_latency_returns_proper_value_in_tuple(self):
+        ewma_latency_ms = 6.4
+        stats = RPCEndpoint.EndpointStats(
+            latest_latency_ms=4.2,
+            ewma_latency_ms=ewma_latency_ms,
+            consecutive_failures=1,
+            num_in_flight_usage=4,
+            in_flight_capacity=20,
+            last_used=time.time() - 10,
+        )
+        assert ConditionProviderManager._sort_by_latency(stats) == (ewma_latency_ms,)
 
 
 @pytest.mark.parametrize(

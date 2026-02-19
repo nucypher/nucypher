@@ -178,8 +178,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         """
         # TODO: When non-evm chains are supported, bump the version.
         #  this can return a list of chain names or other verifiable identifiers.
-        providers = this_node.condition_provider_manager.providers
-        sorted_chain_ids = sorted(list(providers))
+        supported_chains = this_node.condition_provider_manager.supported_chains()
+        sorted_chain_ids = sorted(supported_chains)
         payload = {"version": 1.0, "evm": sorted_chain_ids}
         return Response(json.dumps(payload), mimetype="application/json")
 

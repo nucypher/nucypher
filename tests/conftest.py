@@ -135,7 +135,6 @@ def disable_check_grant_requirements(session_mocker):
     session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)
 
 
-
 @pytest.fixture(scope="module", autouse=True)
 def mock_multichain_configuration(module_mocker, testerchain):
     module_mocker.patch.object(

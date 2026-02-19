@@ -23,12 +23,12 @@ from web3.types import TxParams, TxReceipt
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
-    _get_http_provider,
     _get_mock_test_provider,
     _get_pyevm_test_provider,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.utils import (
+    get_http_provider,
     get_transaction_name,
     get_tx_cost_data,
     obfuscate_rpc_url,
@@ -393,7 +393,9 @@ class BlockchainInterface:
             elif provider_scheme == "mock":
                 self._provider = _get_mock_test_provider(endpoint)
             elif provider_scheme == "http" or provider_scheme == "https":
-                self._provider = _get_http_provider(endpoint)
+                self._provider = get_http_provider(
+                    endpoint=endpoint, request_timeout=self.TIMEOUT
+                )
             else:
                 raise self.UnsupportedProvider(
                     f"{endpoint} is an invalid or unsupported blockchain provider URI"

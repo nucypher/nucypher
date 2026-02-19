@@ -10,7 +10,6 @@ import pytest
 from hexbytes import HexBytes
 from marshmallow import post_load
 from web3 import Web3
-from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.evm import ContractCall, ContractCondition
 from nucypher.policy.conditions.exceptions import (
@@ -138,11 +137,17 @@ def _check_execution_logic(
             json.dumps(condition_dict)
         )
         fake_execution_contract_condition.set_execution_return_value(execution_result)
-        fake_providers = Mock(spec=ConditionProviderManager)
-        fake_providers.web3_endpoints.return_value = [Mock(BaseProvider)]
+
+        fake_condition_provider_manager = Mock(spec=ConditionProviderManager)
+
+        def mock_exec_web3_call(fn, *args, **kwargs):
+            w3 = Mock(spec=Web3)
+            return fn(w3)
+
+        fake_condition_provider_manager.exec_web3_call.side_effect = mock_exec_web3_call
 
         condition_result, call_result = fake_execution_contract_condition.verify(
-            fake_providers, **context
+            fake_condition_provider_manager, **context
         )
 
         if expected_outcome is None:

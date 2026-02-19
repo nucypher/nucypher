@@ -335,7 +335,11 @@ def test_authenticate_eip1271(mocker, get_random_checksum_address):
     providers = mocker.Mock(spec=ConditionProviderManager)
     w3 = mocker.Mock()
     w3.eth.contract.return_value = eip1271_mock_contract
-    providers.web3_endpoints.return_value = [w3]
+
+    def mock_exec_web3_call(fn, *args, **kwargs):
+        return fn(w3)
+
+    providers.exec_web3_call.side_effect = mock_exec_web3_call
 
     # valid signature
     EIP1271Auth.authenticate(
@@ -389,22 +393,19 @@ def test_authenticate_eip1271(mocker, get_random_checksum_address):
     # bad w3 instance failed for some reason
     w3_bad = mocker.Mock()
     w3_bad.eth.contract.side_effect = ValueError("something went wrong")
-    providers.web3_endpoints.return_value = [w3_bad]
+
+    def mock_bad_exec_web3_call(fn, *args, **kwargs):
+        return fn(w3_bad)
+
+    providers.exec_web3_call.side_effect = mock_bad_exec_web3_call
     with pytest.raises(EvmAuth.AuthenticationFailed, match="something went wrong"):
         EIP1271Auth.authenticate(
             typedData, valid_message_signature, eip1271_mock_contract.address, providers
         )
     assert w3_bad.eth.contract.call_count == 1, "one call that failed"
 
-    # fall back to good w3 instances
-    providers.web3_endpoints.return_value = [w3_bad, w3_bad, w3]
-    EIP1271Auth.authenticate(
-        typedData, valid_message_signature, eip1271_mock_contract.address, providers
-    )
-    assert w3_bad.eth.contract.call_count == 3, "two more calls that failed"
-
     # no connection to chain
-    providers.web3_endpoints.side_effect = NoConnectionToChain(
+    providers.exec_web3_call.side_effect = NoConnectionToChain(
         chain=TESTERCHAIN_CHAIN_ID
     )
     with pytest.raises(EvmAuth.AuthenticationFailed, match="No connection to chain ID"):

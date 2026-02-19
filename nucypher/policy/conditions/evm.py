@@ -1,3 +1,4 @@
+from functools import partial
 from typing import (
     Any,
     List,
@@ -29,6 +30,7 @@ from nucypher.policy.conditions.context import (
     resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
+    NoConnectionToChain,
     RequiredContextVariable,
     RPCExecutionFailed,
 )
@@ -110,24 +112,18 @@ class RPCCall(ExecutionCall):
                 param=self.parameters, providers=providers, **context
             )
 
-        endpoints = providers.web3_endpoints(self.chain)
-
-        latest_error = ""
-        for w3 in endpoints:
-            try:
-                result = self._execute(w3, resolved_parameters)
-                break
-            except RequiredContextVariable:
-                raise
-            except Exception as e:
-                latest_error = f"RPC call '{self.method}' failed: {e}"
-                self.LOG.warn(f"{latest_error}, attempting to try next endpoint.")
-                # Something went wrong. Try the next endpoint.
-                continue
-        else:
-            # Fuck.
+        try:
+            result = providers.exec_web3_call(
+                chain_id=self.chain,
+                fn=partial(self._execute, resolved_parameters=resolved_parameters),
+            )
+        except RequiredContextVariable:
+            raise
+        except NoConnectionToChain:
+            raise
+        except Exception as e:
             raise RPCExecutionFailed(
-                f"RPC call '{self.method}' failed; latest error - {latest_error}"
+                f"RPC call '{self.method}' failed; latest error - {e}"
             )
 
         return result

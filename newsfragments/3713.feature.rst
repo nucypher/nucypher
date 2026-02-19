@@ -1,0 +1,1 @@
+Enable GZIP compression by default for rpc requests. The GZIP compression feature is controlled by the ``NUCYPHER_ENABLE_RPC_GZIP_COMPRESSION`` environment variable which defaults to ``True``.

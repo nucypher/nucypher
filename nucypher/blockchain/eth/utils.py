@@ -1,18 +1,22 @@
+import os
 import time
 from decimal import Decimal
 from functools import cache
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse, urlunparse
 
 import requests
 from eth_typing import ChecksumAddress
 from requests import RequestException
-from web3 import Web3
+from web3 import HTTPProvider, Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
 from web3.types import TxParams
 
 from nucypher.blockchain.eth.constants import CHAINLIST_URL_TEMPLATE
 from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_ENABLE_RPC_GZIP_COMPRESSION,
+)
 from nucypher.utilities.logging import Logger
 
 LOGGER = Logger("utility")
@@ -174,7 +178,7 @@ def rpc_endpoint_health_check(
     provider_chain = int(result, 16)
     try:
         if provider_chain != chain_id:
-            LOGGER.debug(
+            LOGGER.warn(
                 f"RPC endpoint is invalid for chain; expected chain ID {chain_id}, but detected {provider_chain}"
             )
             return False
@@ -299,3 +303,26 @@ def get_healthy_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]
     }
 
     return healthy
+
+
+ENABLE_RPC_GZIP_COMPRESSION = (
+    os.getenv(NUCYPHER_ENVVAR_ENABLE_RPC_GZIP_COMPRESSION, default="True")
+).lower() == "true"
+
+
+def get_http_provider(
+    endpoint: str,
+    request_timeout: Optional[Union[float, Tuple[float, float]]] = None,
+    session: Optional[requests.Session] = None,
+) -> HTTPProvider:
+    request_kwargs = {}
+    if request_timeout is not None:
+        request_kwargs = {
+            "timeout": request_timeout,
+        }
+    if ENABLE_RPC_GZIP_COMPRESSION:
+        request_kwargs["headers"] = {"Accept-Encoding": "gzip"}
+
+    return HTTPProvider(
+        endpoint_uri=endpoint, session=session, request_kwargs=request_kwargs
+    )
