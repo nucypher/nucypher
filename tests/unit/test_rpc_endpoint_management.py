@@ -1356,7 +1356,8 @@ class TestRPCEndpointManager:
         # endpoints get shuffled so any ties can be random; mock the random.shuffle to keep the
         # order deterministic for testing
         mocked_shuffle = mocker.patch(
-            "nucypher.utilities.endpoint.random.shuffle", side_effect=lambda x: x
+            "nucypher.utilities.endpoint.random.shuffle",
+            side_effect=lambda x: None,  # do nothing
         )
 
         manager = RPCEndpointManager(
