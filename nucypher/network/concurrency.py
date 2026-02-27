@@ -11,7 +11,7 @@ from nucypher_core import (
 )
 
 from nucypher.network.client import ThresholdAccessControlClient
-from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
+from nucypher.utilities.concurrency import VariableBatchSizeValueFactory, WorkerPool
 
 
 class NetworkRequestClient(ThresholdAccessControlClient):
@@ -22,18 +22,50 @@ class NetworkRequestClient(ThresholdAccessControlClient):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    class RequestFactory(BatchValueFactory):
+    class RequestFactory(VariableBatchSizeValueFactory):
+        """
+        A ValueFactory for WorkerPool that allows us to specify a dynamic batch size based
+        on the number of successes so far.
+        """
+
+        """
+        :param ursulas_to_contact: The list of ursula addresses to contact.
+        :param threshold: The number of successful responses required to meet the threshold for this request.
+        :param threshold_batch_buffer_factor: A multiplier to add extra buffer to the batch size of nodes contacted in addition to the the threshold.
+        """
         def __init__(
             self,
             ursulas_to_contact: List[ChecksumAddress],
             threshold: int,
-            batch_size: int,
+            threshold_batch_buffer_factor: float = 0.25,
         ):
             super().__init__(
                 values=ursulas_to_contact,
                 required_successes=threshold,
-                batch_size=batch_size,
             )
+
+            if threshold_batch_buffer_factor is None or not (
+                0 <= threshold_batch_buffer_factor <= 1.0
+            ):
+                raise ValueError(
+                    "Threshold batch buffer factor must be between 0 and 1"
+                )
+
+            self._required_successes_plus_buffer = math.ceil(
+                threshold * (1 + threshold_batch_buffer_factor)
+            )
+
+        def get_custom_batch_size(self, successes) -> int:
+            if self.required_successes <= successes:
+                # should never get here since the WorkerPool should stop once we have enough successes
+                raise ValueError(
+                    "Current successes cannot be greater than or equal to the threshold"
+                )
+
+            additional_successes_needed = (
+                self._required_successes_plus_buffer - successes
+            )
+            return additional_successes_needed
 
     def execute(
         self,
@@ -58,7 +90,6 @@ class NetworkRequestClient(ThresholdAccessControlClient):
             worker=worker,
             value_factory=self.RequestFactory(
                 ursulas_to_contact=ursulas_to_contact,
-                batch_size=math.ceil(threshold * 1.25),
                 threshold=threshold,
             ),
             target_successes=threshold,

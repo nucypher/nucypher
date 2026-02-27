@@ -1,6 +1,12 @@
+import math
+
 import pytest
 
-from nucypher.utilities.concurrency import BatchValueFactory
+from nucypher.network.concurrency import NetworkRequestClient
+from nucypher.utilities.concurrency import (
+    BatchValueFactory,
+    VariableBatchSizeValueFactory,
+)
 
 NUM_VALUES = 20
 
@@ -194,3 +200,184 @@ def test_batch_value_factory_batching_non_divisible(values):
     # get list again
     value_list = value_factory(successes=0)  # successes not achieved
     assert not value_list, "no successes achieved but no more values available"
+
+
+class MyVariableBatchSizeFactory(VariableBatchSizeValueFactory):
+    def __init__(self, values, required_successes, batch_size_func):
+        super().__init__(values=values, required_successes=required_successes)
+        self.batch_size_fn = batch_size_func
+
+    def get_custom_batch_size(self, successes):
+        return self.batch_size_fn(successes)
+
+
+def test_variable_batch_size_factory_constant_batching():
+    # A constant batch size function behaves like BatchValueFactory with that batch size
+    vals = list(range(10))
+    factory = MyVariableBatchSizeFactory(
+        values=vals, required_successes=10, batch_size_func=lambda s: 3
+    )
+
+    assert factory(successes=0) == [0, 1, 2]
+    assert factory(successes=0) == [3, 4, 5]
+    assert factory(successes=0) == [6, 7, 8]
+    assert factory(successes=0) == [9]
+    assert factory(successes=0) is None
+
+
+def test_variable_batch_size_factory_zero_batch_raises():
+    # If the provided function returns a non-positive batch size, call raises ValueError
+    vals = [1, 2, 3]
+    factory = MyVariableBatchSizeFactory(
+        values=vals, required_successes=3, batch_size_func=lambda s: 0
+    )
+    with pytest.raises(ValueError):
+        factory(successes=0)
+
+
+def test_variable_batch_size_factory_respects_success_threshold():
+    # If successes already meet required_successes, factory returns None immediately
+    vals = list(range(5))
+    factory = MyVariableBatchSizeFactory(
+        values=vals, required_successes=3, batch_size_func=lambda s: 2
+    )
+    assert factory(successes=3) is None
+
+
+def test_variable_batch_size_factory_decreasing_batch_size():
+    # Batch size may change depending on successes; ensure remaining items are returned
+    vals = list(range(6))
+    factory = MyVariableBatchSizeFactory(
+        values=vals, required_successes=6, batch_size_func=lambda s: 4 if s < 2 else 1
+    )
+
+    assert factory(successes=0) == [0, 1, 2, 3]
+    # Next call asks for batch size 4 again (since successes param still < 2), but only 2 remain
+    assert factory(successes=1) == [4, 5]
+    assert factory(successes=0) is None
+
+
+@pytest.mark.parametrize("extra_buffer_factor", [-0.1, -0.01, None, 1.1, 1.5])
+def test_request_factory_invalid_extra_buffer(
+    get_random_checksum_address, extra_buffer_factor
+):
+    ursulas = [get_random_checksum_address() for _ in range(5)]
+    threshold = 3
+
+    with pytest.raises(
+        ValueError, match="Threshold batch buffer factor must be between 0 and 1"
+    ):
+        NetworkRequestClient.RequestFactory(
+            ursulas_to_contact=ursulas,
+            threshold=threshold,
+            threshold_batch_buffer_factor=extra_buffer_factor,
+        )
+
+
+def test_request_factory_required_successes_with_buffer_calc(
+    get_random_checksum_address,
+):
+    ursulas = [get_random_checksum_address() for _ in range(10)]
+    threshold = 4
+    extra_buffer = 0.5
+    req = NetworkRequestClient.RequestFactory(
+        ursulas_to_contact=ursulas,
+        threshold=threshold,
+        threshold_batch_buffer_factor=extra_buffer,
+    )
+
+    assert req._required_successes_plus_buffer == int(threshold * (1 + extra_buffer))
+
+
+def test_request_factory_get_custom_batch_size_simple(get_random_checksum_address):
+    n_ursulas = 9  # odd number
+    ursulas = [get_random_checksum_address() for _ in range(n_ursulas)]
+    threshold = 1
+    extra_buffer = 0.0  # no buffer
+    req = NetworkRequestClient.RequestFactory(
+        ursulas_to_contact=ursulas,
+        threshold=threshold,
+        threshold_batch_buffer_factor=extra_buffer,
+    )
+
+    for i in range(n_ursulas):
+        assert req(successes=0) == ursulas[i * threshold : (i + 1) * threshold]
+
+
+def test_request_factory_get_custom_batch_size_simple_remainder_at_end(
+    get_random_checksum_address,
+):
+    n_ursulas = 9  # odd number
+    ursulas = [get_random_checksum_address() for _ in range(n_ursulas)]
+    threshold = 2
+    extra_buffer = 0.0  # no buffer
+
+    req = NetworkRequestClient.RequestFactory(
+        ursulas_to_contact=ursulas,
+        threshold=threshold,
+        threshold_batch_buffer_factor=extra_buffer,
+    )
+
+    num_iterations = n_ursulas // threshold
+    for i in range(num_iterations):
+        assert req(successes=0) == ursulas[i * threshold : (i + 1) * threshold]
+
+    # extra iteration where only 1 value remains; use 1 success to trigger the last value being
+    # returned otherwise there wouldn't be sufficient values to meet threshold and error would be raised
+    assert req(successes=1) == ursulas[-1:]
+
+
+def test_request_factory_get_custom_batch_size_normal(get_random_checksum_address):
+    n_ursulas = 10  # more than needed
+    ursulas = [get_random_checksum_address() for _ in range(n_ursulas)]
+    threshold = 4
+    extra_buffer = 0.5
+    req = NetworkRequestClient.RequestFactory(
+        ursulas_to_contact=ursulas,
+        threshold=threshold,
+        threshold_batch_buffer_factor=extra_buffer,
+    )
+
+    threshold_with_buffer = math.ceil(threshold * (1 + extra_buffer))
+
+    # first iteration returns threshold_with_buffer values, second call returns remaining values
+    assert req(successes=0) == ursulas[0:threshold_with_buffer]
+    assert req(successes=0) == ursulas[threshold_with_buffer:]
+
+
+def test_request_factory_get_custom_batch_size_remaining_less_than_needed(
+    get_random_checksum_address,
+):
+    n_ursulas = 7
+    ursulas = [get_random_checksum_address() for _ in range(n_ursulas)]
+    threshold = 6
+    extra_buffer = 0.5
+    req = NetworkRequestClient.RequestFactory(
+        ursulas_to_contact=ursulas,
+        threshold=threshold,
+        threshold_batch_buffer_factor=extra_buffer,
+    )
+
+    threshold_with_buffer = math.ceil(threshold * (1 + extra_buffer))
+
+    assert (
+        threshold_with_buffer > n_ursulas
+    ), "threshold with buffer should be greater than total values"
+    assert (
+        req(successes=0) == ursulas
+    ), "should return all values since threshold with buffer is greater than total values"
+
+
+def test_request_factory_raises_on_successes_ge_threshold(get_random_checksum_address):
+    n_ursulas = 5
+    ursulas = [get_random_checksum_address() for _ in range(n_ursulas)]
+
+    threshold = 3
+    req = NetworkRequestClient.RequestFactory(
+        ursulas_to_contact=ursulas, threshold=threshold
+    )
+    with pytest.raises(
+        ValueError,
+        match="Current successes cannot be greater than or equal to the threshold",
+    ):
+        req.get_custom_batch_size(successes=threshold)
