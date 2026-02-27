@@ -17,6 +17,7 @@ from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 class NetworkRequestClient(ThresholdAccessControlClient):
     DEFAULT_TIMEOUT = 30
     DEFAULT_STAGGER_TIMEOUT = 3
+    DEFAULT_MAX_WORKER_THREADS_PER_REQUEST = 10
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -61,9 +62,9 @@ class NetworkRequestClient(ThresholdAccessControlClient):
                 threshold=threshold,
             ),
             target_successes=threshold,
-            threadpool_size=math.ceil(
-                threshold * 1.5
-            ),  # TODO should we cap this (say 40?)
+            threadpool_size=min(
+                self.DEFAULT_MAX_WORKER_THREADS_PER_REQUEST, math.ceil(threshold * 1.5)
+            ),
             timeout=timeout,
             stagger_timeout=stagger_timeout,
         )
