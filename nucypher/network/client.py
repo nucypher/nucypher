@@ -29,14 +29,15 @@ class ThresholdAccessControlClient:
             self._learner.learn_from_teacher_node()
 
         all_known_ursulas = self._learner.known_nodes.addresses()
-
-        # Push all unknown Ursulas from the map in the queue for learning
-        unknown_ursulas = ursulas - all_known_ursulas
+        ursulas_to_know = set(ursulas)
 
         # If we know enough to decrypt, we can proceed.
-        known_ursulas = ursulas & all_known_ursulas
+        known_ursulas = ursulas_to_know & all_known_ursulas
         if len(known_ursulas) >= threshold:
             return
+
+        # Push all unknown Ursulas from the map in the queue for learning
+        unknown_ursulas = ursulas_to_know - all_known_ursulas
 
         # | <--- shares                                            ---> |
         # | <--- threshold               ---> | <--- allow_missing ---> |
