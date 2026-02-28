@@ -1,6 +1,6 @@
 import math
 from http import HTTPStatus
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from eth_typing import ChecksumAddress
 from nucypher_core import (
@@ -74,6 +74,7 @@ class NetworkRequestClient(ThresholdAccessControlClient):
         threshold: int,
         timeout: int,
         stagger_timeout: int = DEFAULT_STAGGER_TIMEOUT,
+        max_worker_threads: Optional[int] = None,
     ) -> Tuple[Dict, Dict]:
 
         ursulas_to_contact = (
@@ -84,6 +85,11 @@ class NetworkRequestClient(ThresholdAccessControlClient):
             else list(requests)
         )
 
+        if max_worker_threads is None:
+            max_worker_threads = min(
+                self.DEFAULT_MAX_WORKER_THREADS_PER_REQUEST, math.ceil(threshold * 1.5)
+            )
+
         # Discussion about WorkerPool parameters:
         # "https://github.com/nucypher/nucypher/pull/3393#discussion_r1456307991"
         worker_pool = WorkerPool(
@@ -93,9 +99,7 @@ class NetworkRequestClient(ThresholdAccessControlClient):
                 threshold=threshold,
             ),
             target_successes=threshold,
-            threadpool_size=min(
-                self.DEFAULT_MAX_WORKER_THREADS_PER_REQUEST, math.ceil(threshold * 1.5)
-            ),
+            threadpool_size=max_worker_threads,
             timeout=timeout,
             stagger_timeout=stagger_timeout,
         )
@@ -134,6 +138,7 @@ class ThresholdDecryptionClient(NetworkRequestClient):
         threshold: int,
         timeout: int = NetworkRequestClient.DEFAULT_TIMEOUT,
         stagger_timeout: int = NetworkRequestClient.DEFAULT_STAGGER_TIMEOUT,
+        max_worker_threads: Optional[int] = None,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],
@@ -179,6 +184,7 @@ class ThresholdDecryptionClient(NetworkRequestClient):
             threshold=threshold,
             timeout=timeout,
             stagger_timeout=stagger_timeout,
+            max_worker_threads=max_worker_threads,
         )
 
         return successes, failures
@@ -201,6 +207,7 @@ class SigningRequestClient(NetworkRequestClient):
         threshold: int,
         timeout: int = NetworkRequestClient.DEFAULT_TIMEOUT,
         stagger_timeout: int = NetworkRequestClient.DEFAULT_STAGGER_TIMEOUT,
+        max_worker_threads: Optional[int] = None,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdSignatureResponse],
         Dict[ChecksumAddress, str],
@@ -246,6 +253,7 @@ class SigningRequestClient(NetworkRequestClient):
             threshold=threshold,
             timeout=timeout,
             stagger_timeout=stagger_timeout,
+            max_worker_threads=max_worker_threads,
         )
 
         return successes, failures
