@@ -207,9 +207,10 @@ class SigningObjectAttributeCondition(_BaseSigningObjectAttributeCondition):
 class AbiParameterValidation(TypedDict):
     parameterIndex: int
     subIndices: NotRequired[List[int]]
-    # either returnValueTest or nestedAbiValidation
+    # either returnValueTest or nestedAbiValidation or nestedAbiDecode
     returnValueTest: NotRequired[ReturnValueTestDict]
     nestedAbiValidation: NotRequired["AbiCallValidation"]
+    nestedAbiDecode: NotRequired["AbiDecodeValidationDict"]
 
 
 # AbiCallValidation
@@ -220,6 +221,16 @@ class AbiParameterValidation(TypedDict):
 # }
 class AbiCallValidation(TypedDict):
     allowedAbiCalls = Dict[str, List[AbiParameterValidation]]
+
+
+# AbiDecodeValidation
+# {
+#    "type": str  (e.g. "(address,uint256)")
+#    "validations": [AbiParameterValidation]
+# }
+class AbiDecodeValidationDict(TypedDict):
+    type: str
+    validations: List[AbiParameterValidation]
 
 
 # SigningObjectAbiAttributeCondition represents:

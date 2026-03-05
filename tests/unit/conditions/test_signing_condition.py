@@ -2,6 +2,7 @@ import copy
 import json
 import random
 
+import eth_abi
 import pytest
 from ecdsa import SECP256k1, SigningKey
 from ecdsa.util import sigencode_string
@@ -28,6 +29,7 @@ from nucypher.policy.conditions.lingo import (
 from nucypher.policy.conditions.signing.base import (
     SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
     AbiCallValidation,
+    AbiDecodeValidation,
     AbiParameterValidation,
     SigningObjectAbiAttributeCondition,
     SigningObjectAttributeCondition,
@@ -371,7 +373,9 @@ def test_invalid_signing_object_abi_attribute_condition():
         )
 
     # both return value test and nested_validation provided which isn't allowed
-    with pytest.raises(ValueError, match="return value test or nested abi validation"):
+    with pytest.raises(
+        ValueError, match="returnValueTest, nestedAbiValidation, or nestedAbiDecode"
+    ):
         _ = SigningObjectAbiAttributeCondition(
             attribute_name="call_data",
             abi_validation=AbiCallValidation(
@@ -1327,3 +1331,259 @@ def test_signing_restriction_based_points_value_from_rest_endpoint(
         [erc20_token_address.lower(), [amount]],
     ]
     assert mocked_get.call_count == 1
+
+
+def test_abi_decode_validation_batch_execution(
+    condition_provider_manager, get_random_checksum_address
+):
+    """Test nestedAbiDecode for ERC-7579 batch execution data."""
+    recipient = get_random_checksum_address()
+    fee_recipient = get_random_checksum_address()
+
+    transfer_call = encode_human_readable_call(
+        "transfer(address,uint256)", [recipient, 1000000]
+    )
+    fee_call = encode_human_readable_call(
+        "transfer(address,uint256)", [fee_recipient, 10000]
+    )
+
+    usdc = get_random_checksum_address()
+    batch_data = eth_abi.encode(
+        ["(address,uint256,bytes)[]"],
+        [[(usdc, 0, transfer_call), (usdc, 0, fee_call)]],
+    )
+
+    BATCH_MODE = bytes.fromhex("01" + "00" * 31)
+    call_data = encode_human_readable_call(
+        "execute(bytes32,bytes)", [BATCH_MODE, batch_data]
+    )
+
+    user_op = UserOperation(
+        sender=get_random_checksum_address(),
+        nonce=0,
+        call_data=call_data,
+        call_gas_limit=1,
+        verification_gas_limit=2,
+        pre_verification_gas=3,
+        max_fee_per_gas=4,
+        max_priority_fee_per_gas=5,
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: user_op}
+
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "execute(bytes32,bytes)": [
+                    AbiParameterValidation(
+                        parameter_index=0,
+                        return_value_test=ReturnValueTest(
+                            "==", "0x" + BATCH_MODE.hex()
+                        ),
+                    ),
+                    AbiParameterValidation(
+                        parameter_index=1,
+                        nested_abi_decode=AbiDecodeValidation(
+                            type="(address,uint256,bytes)[]",
+                            validations=[
+                                AbiParameterValidation(
+                                    parameter_index=0,
+                                    sub_indices=[0, 0],
+                                    return_value_test=ReturnValueTest("==", usdc),
+                                ),
+                                AbiParameterValidation(
+                                    parameter_index=0,
+                                    sub_indices=[0, 2],
+                                    nested_abi_validation=AbiCallValidation(
+                                        {
+                                            "transfer(address,uint256)": [
+                                                AbiParameterValidation(
+                                                    parameter_index=0,
+                                                    return_value_test=ReturnValueTest(
+                                                        "==", recipient
+                                                    ),
+                                                ),
+                                                AbiParameterValidation(
+                                                    parameter_index=1,
+                                                    return_value_test=ReturnValueTest(
+                                                        "==", 1000000
+                                                    ),
+                                                ),
+                                            ]
+                                        }
+                                    ),
+                                ),
+                                AbiParameterValidation(
+                                    parameter_index=0,
+                                    sub_indices=[1, 0],
+                                    return_value_test=ReturnValueTest("==", usdc),
+                                ),
+                                AbiParameterValidation(
+                                    parameter_index=0,
+                                    sub_indices=[1, 2],
+                                    nested_abi_validation=AbiCallValidation(
+                                        {
+                                            "transfer(address,uint256)": [
+                                                AbiParameterValidation(
+                                                    parameter_index=0,
+                                                    return_value_test=ReturnValueTest(
+                                                        "==", fee_recipient
+                                                    ),
+                                                ),
+                                                AbiParameterValidation(
+                                                    parameter_index=1,
+                                                    return_value_test=ReturnValueTest(
+                                                        "==", 10000
+                                                    ),
+                                                ),
+                                            ]
+                                        }
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ),
+                ]
+            }
+        ),
+    )
+
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is True
+
+
+def test_abi_decode_validation_serialization():
+    """Test that nestedAbiDecode serializes/deserializes correctly."""
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "execute(bytes32,bytes)": [
+                    AbiParameterValidation(
+                        parameter_index=1,
+                        nested_abi_decode=AbiDecodeValidation(
+                            type="(address,uint256,bytes)[]",
+                            validations=[
+                                AbiParameterValidation(
+                                    parameter_index=0,
+                                    sub_indices=[0, 0],
+                                    return_value_test=ReturnValueTest(
+                                        "==",
+                                        "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ),
+                ]
+            }
+        ),
+    )
+
+    # Serialize to dict
+    serialized = condition.to_dict()
+
+    # Check JSON structure
+    param = serialized["abiValidation"]["allowedAbiCalls"]["execute(bytes32,bytes)"][0]
+    assert "nestedAbiDecode" in param
+    assert param["nestedAbiDecode"]["type"] == "(address,uint256,bytes)[]"
+    assert len(param["nestedAbiDecode"]["validations"]) == 1
+
+    # Deserialize back
+    restored = SigningObjectAbiAttributeCondition.from_dict(serialized)
+    assert restored.to_dict() == serialized
+
+
+def test_abi_decode_validation_rejects_wrong_value(
+    condition_provider_manager, get_random_checksum_address
+):
+    """Test that nestedAbiDecode rejects when inner values don't match."""
+    recipient = get_random_checksum_address()
+    wrong_recipient = get_random_checksum_address()
+
+    transfer_call = encode_human_readable_call(
+        "transfer(address,uint256)", [wrong_recipient, 1000000]
+    )
+    usdc = get_random_checksum_address()
+    batch_data = eth_abi.encode(
+        ["(address,uint256,bytes)[]"],
+        [[(usdc, 0, transfer_call)]],
+    )
+    BATCH_MODE = bytes.fromhex("01" + "00" * 31)
+    call_data = encode_human_readable_call(
+        "execute(bytes32,bytes)", [BATCH_MODE, batch_data]
+    )
+
+    user_op = UserOperation(
+        sender=get_random_checksum_address(),
+        nonce=0,
+        call_data=call_data,
+        call_gas_limit=1,
+        verification_gas_limit=2,
+        pre_verification_gas=3,
+        max_fee_per_gas=4,
+        max_priority_fee_per_gas=5,
+    )
+    context = {SIGNING_CONDITION_OBJECT_CONTEXT_VAR: user_op}
+
+    condition = SigningObjectAbiAttributeCondition(
+        attribute_name="call_data",
+        abi_validation=AbiCallValidation(
+            {
+                "execute(bytes32,bytes)": [
+                    AbiParameterValidation(
+                        parameter_index=1,
+                        nested_abi_decode=AbiDecodeValidation(
+                            type="(address,uint256,bytes)[]",
+                            validations=[
+                                AbiParameterValidation(
+                                    parameter_index=0,
+                                    sub_indices=[0, 2],
+                                    nested_abi_validation=AbiCallValidation(
+                                        {
+                                            "transfer(address,uint256)": [
+                                                AbiParameterValidation(
+                                                    parameter_index=0,
+                                                    return_value_test=ReturnValueTest(
+                                                        "==",
+                                                        recipient,  # expects recipient, gets wrong_recipient
+                                                    ),
+                                                ),
+                                            ]
+                                        }
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ),
+                ]
+            }
+        ),
+    )
+
+    allowed, _ = condition.verify(providers=condition_provider_manager, **context)
+    assert allowed is False
+
+
+def test_abi_decode_validation_invalid_schema():
+    """Test that nestedAbiDecode rejects invalid configurations at schema time."""
+    from marshmallow import ValidationError as MarshmallowValidationError
+
+    # nestedAbiDecode on non-bytes type should fail
+    with pytest.raises((MarshmallowValidationError, InvalidCondition, ValueError)):
+        SigningObjectAbiAttributeCondition(
+            attribute_name="call_data",
+            abi_validation=AbiCallValidation(
+                {
+                    "execute(bytes32,bytes)": [
+                        AbiParameterValidation(
+                            parameter_index=0,  # bytes32, not bytes
+                            nested_abi_decode=AbiDecodeValidation(
+                                type="(address,uint256)[]",
+                                validations=[],
+                            ),
+                        ),
+                    ]
+                }
+            ),
+        )

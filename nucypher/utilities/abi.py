@@ -145,6 +145,22 @@ def resolve_abi_type_with_indices(abi_type: str, sub_indices: List[int]) -> str:
     return current_type
 
 
+def decode_abi_encoded(type_str: str, data: bytes) -> list:
+    """
+    Decode raw ABI-encoded data (no function selector) against a type string.
+
+    Unlike decode_human_readable_call, this does NOT expect a 4-byte function
+    selector prefix. Used for decoding ERC-7579 batch execution data and other
+    selectorless ABI-encoded payloads.
+    """
+    types = (
+        _split_comma_separated_types(type_str)
+        if "," in type_str and not type_str.startswith("(")
+        else [type_str]
+    )
+    return list(eth_abi.decode(types, data))
+
+
 def decode_human_readable_call(
     human_signature: str, call_data: bytes, return_method_name: bool = True
 ) -> Tuple[Union[str, bytes], List[Any]]:

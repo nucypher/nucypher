@@ -28,6 +28,7 @@ from nucypher.policy.conditions.utils import (
     is_camel_case,
 )
 from nucypher.utilities.abi import (
+    decode_abi_encoded,
     decode_human_readable_call,
     extract_arg_types,
     is_valid_human_readable_signature,
@@ -182,6 +183,11 @@ class AbiParameterValidation(_Serializable):
             lambda: AbiCallValidation.Schema(), allow_none=True, required=False
         )
 
+        # ...or a nested ABI decode (no selector) to decode and evaluate
+        nested_abi_decode = fields.Nested(
+            lambda: AbiDecodeValidation.Schema(), allow_none=True, required=False
+        )
+
         # maintain field declaration ordering
         class Meta:
             ordered = True
@@ -190,9 +196,15 @@ class AbiParameterValidation(_Serializable):
         def validate_rtv_or_nested_validation(self, data, **kwargs):
             return_value_test = data.get("return_value_test")
             nested_abi_validation = data.get("nested_abi_validation")
-            if not (bool(return_value_test) ^ bool(nested_abi_validation)):
+            nested_abi_decode = data.get("nested_abi_decode")
+            set_count = sum(
+                bool(x)
+                for x in [return_value_test, nested_abi_validation, nested_abi_decode]
+            )
+            if set_count != 1:
                 raise ValidationError(
-                    "Either return value test or nested abi validation but not both."
+                    "Exactly one of returnValueTest, nestedAbiValidation, "
+                    "or nestedAbiDecode must be defined."
                 )
 
         @post_load
@@ -205,11 +217,13 @@ class AbiParameterValidation(_Serializable):
         sub_indices: Optional[List[int]] = None,
         return_value_test: Optional[ReturnValueTest] = None,
         nested_abi_validation: Optional["AbiCallValidation"] = None,
+        nested_abi_decode: Optional["AbiDecodeValidation"] = None,
     ):
         self.parameter_index = parameter_index
         self.sub_indices = sub_indices
         self.return_value_test = return_value_test
         self.nested_abi_validation = nested_abi_validation
+        self.nested_abi_decode = nested_abi_decode
 
         self._validate()
 
@@ -256,11 +270,78 @@ class AbiParameterValidation(_Serializable):
 
             result = resolved_return_value_test.eval(modified_parameter_value_to_check)
             return result, parameter_value
-        else:
+        elif self.nested_abi_validation:
             result, value = self.nested_abi_validation.check(
                 parameter_value, providers, **context
             )
             return result, value
+        elif self.nested_abi_decode:
+            result, value = self.nested_abi_decode.check(
+                parameter_value, providers, **context
+            )
+            return result, value
+        else:
+            raise InvalidCondition("No validation method defined")
+
+
+class AbiDecodeValidation(_Serializable):
+    """Validates raw ABI-encoded data (no function selector).
+
+    Used for ERC-7579 batch execution payloads and other selectorless
+    ABI-encoded bytes.
+    """
+
+    class Schema(CamelCaseSchema):
+        type = fields.Str(required=True)
+        validations = fields.List(
+            fields.Nested(AbiParameterValidation.Schema()),
+            required=True,
+        )
+
+        class Meta:
+            ordered = True
+
+        @validates("type")
+        def validate_type(self, value: str):
+            if not value:
+                raise ValidationError("Type string must not be empty")
+            try:
+                import eth_abi as _eth_abi
+
+                if not _eth_abi.is_encodable_type(value):
+                    raise ValidationError(f"Invalid ABI type: {value}")
+            except ValidationError:
+                raise
+            except Exception as e:
+                raise ValidationError(f"Invalid ABI type: {value} - {e}")
+
+        @post_load
+        def make(self, data, **kwargs):
+            return AbiDecodeValidation(**data)
+
+    def __init__(self, type: str, validations: List[AbiParameterValidation]):
+        self.type = type
+        self.validations = validations
+        self._validate()
+
+    def check(
+        self, value: Any, providers: ConditionProviderManager, **context
+    ) -> Tuple[bool, Any]:
+        if not isinstance(value, bytes):
+            raise ValueError(f"Expected bytes for ABI decode, got {type(value)}")
+
+        args = decode_abi_encoded(self.type, value)
+
+        parameter_values = []
+        for validation in self.validations:
+            result, raw_value = validation.check(
+                args=args, providers=providers, **context
+            )
+            parameter_values.append(raw_value)
+            if not result:
+                return False, parameter_values
+
+        return True, parameter_values
 
 
 class AbiCallValidation(_Serializable):
@@ -318,6 +399,13 @@ class AbiCallValidation(_Serializable):
                         if final_type != "bytes":
                             raise ValidationError(
                                 f"Nested ABI validation is only supported for bytes type, "
+                                f"but sub indices resolve to '{final_type}'."
+                            )
+
+                    if parameter_value_check.nested_abi_decode:
+                        if final_type != "bytes":
+                            raise ValidationError(
+                                f"Nested ABI decode is only supported for bytes type, "
                                 f"but sub indices resolve to '{final_type}'."
                             )
 
