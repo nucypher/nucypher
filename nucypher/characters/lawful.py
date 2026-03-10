@@ -888,9 +888,10 @@ class Ursula(Teacher, Character, Operator):
                     transacting_power=transacting_power,
                 )
 
-            except Exception:
+            except Exception as e:
                 # It's not possible to finish constructing this node...
                 # This block is here to ensure that the reactor is stopped in tests.
+                self.log.critical(f"Failed to initialize Ursula: {e}")
                 self.stop(halt_reactor=False)
                 raise
 
