@@ -28,28 +28,28 @@ class NetworkRequestClient(ThresholdAccessControlClient):
         on the number of successes so far.
         """
 
-        """
-        :param ursulas_to_contact: The list of ursula addresses to contact.
-        :param threshold: The number of successful responses required to meet the threshold for this request.
-        :param threshold_batch_buffer_factor: A multiplier to add extra buffer to the batch size of nodes contacted in addition to the the threshold.
-        """
         def __init__(
             self,
             ursulas_to_contact: List[ChecksumAddress],
             threshold: int,
             threshold_batch_buffer_factor: float = 0.25,
         ):
-            super().__init__(
-                values=ursulas_to_contact,
-                required_successes=threshold,
-            )
-
+            """
+            :param ursulas_to_contact: The list of ursula addresses to contact.
+            :param threshold: The number of successful responses required to meet the threshold for this request.
+            :param threshold_batch_buffer_factor: A multiplier to add extra buffer to the batch size of nodes contacted in addition to the threshold.
+            """
             if threshold_batch_buffer_factor is None or not (
                 0 <= threshold_batch_buffer_factor <= 1.0
             ):
                 raise ValueError(
                     "Threshold batch buffer factor must be between 0 and 1"
                 )
+
+            super().__init__(
+                values=ursulas_to_contact,
+                required_successes=threshold,
+            )
 
             self._required_successes_plus_buffer = math.ceil(
                 threshold * (1 + threshold_batch_buffer_factor)
