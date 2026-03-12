@@ -274,19 +274,24 @@ def test_request_factory_invalid_extra_buffer(
         )
 
 
+@pytest.mark.parametrize(
+    ["threshold", "extra_buffer"], [(3, 0.25), (4, 0.5), (5, 1.0), (6, 0.0)]
+)
 def test_request_factory_required_successes_with_buffer_calc(
+    threshold,
+    extra_buffer,
     get_random_checksum_address,
 ):
     ursulas = [get_random_checksum_address() for _ in range(10)]
-    threshold = 4
-    extra_buffer = 0.5
     req = NetworkRequestClient.RequestFactory(
         ursulas_to_contact=ursulas,
         threshold=threshold,
         threshold_batch_buffer_factor=extra_buffer,
     )
 
-    assert req._required_successes_plus_buffer == int(threshold * (1 + extra_buffer))
+    assert req._required_successes_plus_buffer == math.ceil(
+        threshold + (threshold * extra_buffer)
+    )
 
 
 def test_request_factory_get_custom_batch_size_simple(get_random_checksum_address):
