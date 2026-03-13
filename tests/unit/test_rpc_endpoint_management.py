@@ -990,9 +990,10 @@ class TestRPCEndpoint:
         ), "all acquires have been already released"
 
         # jump forward to after quarantine period
+        after_first_quarantine = first_quarantine_now + max_unreachable_quarantine_s + 1
         mocker.patch(
             "time.monotonic",
-            return_value=first_quarantine_now + max_unreachable_quarantine_s + 1,
+            return_value=after_first_quarantine,
         )
 
         # still failing after 1st quarantine
@@ -1021,7 +1022,7 @@ class TestRPCEndpoint:
 
             # still in quarantine (with some minimum jitter)
             assert endpoint._cool_down_until >= (
-                first_quarantine_now + 0.8 * endpoint.max_unreachable_quarantine_s * 2
+                after_first_quarantine + 0.8 * endpoint.max_unreachable_quarantine_s
             ), "2nd straight quarantine"
         finally:
             endpoint.release()
@@ -1032,9 +1033,12 @@ class TestRPCEndpoint:
         ), "all acquires have been already released"
 
         # jump forward to after 2nd quarantine period
+        after_second_quarantine = (
+            after_first_quarantine + max_unreachable_quarantine_s + 1
+        )
         mocker.patch(
             "time.monotonic",
-            return_value=first_quarantine_now + 2 * max_unreachable_quarantine_s + 1,
+            return_value=after_second_quarantine,
         )
 
         # log first success after coming out of quarantine
