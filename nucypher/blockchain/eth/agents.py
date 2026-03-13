@@ -61,6 +61,7 @@ from nucypher.blockchain.eth.models import (
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
+from nucypher.blockchain.eth.utils import obfuscate_rpc_url
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
@@ -120,12 +121,8 @@ class EthereumContractAgent:
         self.transaction_gas = transaction_gas
 
         self.log.info(
-            "Initialized new {} for {} with {} and {}".format(
-                self.__class__.__name__,
-                self.contract.address,
-                self.blockchain.endpoint,
-                str(self.registry),
-            )
+            f"Initialized new {self.__class__.__name__} for {self.contract.address} "
+            f"with {obfuscate_rpc_url(self.blockchain.endpoint)} and {str(self.registry)}"
         )
 
     def __repr__(self) -> str:
