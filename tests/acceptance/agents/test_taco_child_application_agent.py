@@ -101,10 +101,7 @@ def test_get_staker_population(taco_child_application_agent, staking_providers):
 
 
 @pytest.mark.usefixtures("staking_providers", "ursulas")
-@pytest.mark.parametrize(
-    "duration", [0, 60 * 60 * 24, 60 * 60 * 24 * 182, 60 * 60 * 24 * 365]
-)
-def test_sample_staking_providers(taco_child_application_agent, duration):
+def test_sample_staking_providers(taco_child_application_agent):
     all_staking_providers = list(taco_child_application_agent.get_staking_providers())
     providers_population = (
         taco_child_application_agent.get_staking_providers_population()
@@ -113,22 +110,18 @@ def test_sample_staking_providers(taco_child_application_agent, duration):
     assert len(all_staking_providers) == providers_population
 
     with pytest.raises(taco_child_application_agent.NotEnoughStakingProviders):
-        taco_child_application_agent.get_staking_provider_reservoir(
-            duration=duration
-        ).draw(
+        taco_child_application_agent.get_staking_provider_reservoir().draw(
             providers_population + 1
         )  # One more than we have deployed
 
-    providers = taco_child_application_agent.get_staking_provider_reservoir(
-        duration=duration
-    ).draw(3)
+    providers = taco_child_application_agent.get_staking_provider_reservoir().draw(3)
     assert len(providers) == 3  # Three...
     assert len(set(providers)) == 3  # ...unique addresses
     assert len(set(providers).intersection(all_staking_providers)) == 3
 
     # Same but with pagination
     providers = taco_child_application_agent.get_staking_provider_reservoir(
-        pagination_size=1, duration=duration
+        pagination_size=1
     ).draw(3)
     assert len(providers) == 3
     assert len(set(providers)) == 3
@@ -137,9 +130,7 @@ def test_sample_staking_providers(taco_child_application_agent, duration):
     # repeat for opposite blockchain light setting
     light = taco_child_application_agent.blockchain.is_light
     taco_child_application_agent.blockchain.is_light = not light
-    providers = taco_child_application_agent.get_staking_provider_reservoir(
-        duration=duration
-    ).draw(3)
+    providers = taco_child_application_agent.get_staking_provider_reservoir().draw(3)
     assert len(providers) == 3
     assert len(set(providers)) == 3
     assert len(set(providers).intersection(all_staking_providers)) == 3

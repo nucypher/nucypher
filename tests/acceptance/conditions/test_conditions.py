@@ -786,7 +786,7 @@ def test_contract_condition_using_overloaded_function(
     (
         total_staked,
         providers,
-    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10, 0)
+    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10)
     expected_result = [
         total_staked,
         [
@@ -1004,7 +1004,7 @@ def test_big_int_string_handling(
     (
         total_staked,
         providers,
-    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10, 0)
+    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10)
     expected_result = [
         total_staked,
         [

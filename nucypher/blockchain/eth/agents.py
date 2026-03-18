@@ -247,7 +247,7 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
 
     @abstractmethod
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int, duration: int
+        self, start_index: int, max_results: int
     ) -> Tuple[int, List[bytes]]:
         raise NotImplementedError
 
@@ -256,21 +256,21 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         raise NotImplementedError
 
     def get_all_active_staking_providers(
-        self, pagination_size: Optional[int] = None, duration: int = 0
+        self, pagination_size: Optional[int] = None
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         n_tokens, staking_providers = self._get_active_stakers(
-            pagination_size=pagination_size, duration=duration
+            pagination_size=pagination_size
         )
         return n_tokens, staking_providers
 
     @contract_api(CONTRACT_CALL)
     def get_active_staking_providers(
-        self, start_index: int, max_results: int, duration: int = 0
+        self, start_index: int, max_results: int
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         (
             total_authorized_tokens,
             staking_providers_info,
-        ) = self._get_active_staking_providers_raw(start_index, max_results, duration)
+        ) = self._get_active_staking_providers_raw(start_index, max_results)
 
         staking_providers = self._process_active_staker_info(staking_providers_info)
         return types.TuNits(total_authorized_tokens), staking_providers
@@ -279,11 +279,10 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         self,
         without: Iterable[ChecksumAddress] = None,
         pagination_size: Optional[int] = None,
-        duration: int = 0,
     ) -> "StakingProvidersReservoir":
         # pagination_size = pagination_size or self.get_staking_providers_population()
         n_tokens, stake_provider_map = self.get_all_active_staking_providers(
-            pagination_size=pagination_size, duration=duration
+            pagination_size=pagination_size
         )
 
         if n_tokens == 0:
@@ -318,7 +317,8 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         return staking_providers
 
     def _get_active_stakers(
-        self, pagination_size: Optional[int] = None, duration: int = 0
+        self,
+        pagination_size: Optional[int] = None,
     ):
         if pagination_size is None:
             pagination_size = (
@@ -342,9 +342,7 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
                     (
                         batch_authorized_tokens,
                         batch_staking_providers,
-                    ) = self.get_active_staking_providers(
-                        start_index, pagination_size, duration
-                    )
+                    ) = self.get_active_staking_providers(start_index, pagination_size)
                 except Exception as e:
                     if "timeout" not in str(e):
                         # exception unrelated to pagination size and timeout
@@ -440,16 +438,13 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int, duration: int
+        self, start_index: int, max_results: int
     ) -> Tuple[int, List[bytes]]:
-        get_active_providers_overloaded_function = (
-            self.contract.get_function_by_signature(
-                "getActiveStakingProviders(uint256,uint256,uint32)"
-            )
+        active_staking_providers_info = (
+            self.contract.functions.getActiveStakingProviders(
+                start_index, max_results
+            ).call()
         )
-        active_staking_providers_info = get_active_providers_overloaded_function(
-            start_index, max_results, duration
-        ).call()
         return active_staking_providers_info
 
 
@@ -538,11 +533,11 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int, duration: int
+        self, start_index: int, max_results: int
     ) -> Tuple[int, List[bytes]]:
         active_staking_providers_info = (
             self.contract.functions.getActiveStakingProviders(
-                start_index, max_results, duration
+                start_index, max_results
             ).call()
         )
         return active_staking_providers_info
