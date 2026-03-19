@@ -1,5 +1,3 @@
-import random
-
 import pytest
 from web3 import Web3
 
@@ -17,7 +15,6 @@ from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceMan
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
 from tests.constants import (
-    BONUS_TOKENS_FOR_TESTS,
     MIN_OPERATOR_SECONDS,
     TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,
@@ -131,25 +128,15 @@ def t_token(nucypher_dependency, deployer_account):
 
 
 @pytest.fixture(scope="module")
-def threshold_staking(nucypher_dependency, deployer_account):
-    _threshold_staking = deployer_account.deploy(
-        nucypher_dependency.TestnetThresholdStaking
-    )
-    return _threshold_staking
-
-
-@pytest.fixture(scope="module")
 def taco_application(
     oz_dependency,
     nucypher_dependency,
     deployer_account,
     t_token,
-    threshold_staking,
 ):
     taco_application_implementation = deployer_account.deploy(
         nucypher_dependency.TACoApplication,
         t_token.address,
-        threshold_staking.address,
         MIN_AUTHORIZATION,
         MIN_OPERATOR_SECONDS,
     )
@@ -162,7 +149,6 @@ def taco_application(
     )
     proxy_contract = nucypher_dependency.TACoApplication.at(proxy.address)
 
-    threshold_staking.setApplication(proxy_contract.address, sender=deployer_account)
     proxy_contract.initialize(sender=deployer_account)
 
     return proxy_contract
@@ -416,7 +402,6 @@ def subscription_manager(nucypher_dependency, deployer_account):
 def deployed_contracts(
     ritual_token,
     t_token,
-    threshold_staking,
     taco_application,
     taco_child_application,
     coordinator,
@@ -430,7 +415,6 @@ def deployed_contracts(
     deployments = [
         ritual_token,
         t_token,
-        threshold_staking,
         taco_application,
         taco_child_application,
         coordinator,
@@ -473,23 +457,14 @@ def staking_providers(
     deployer_account,
     accounts,
     testerchain,
-    threshold_staking,
     taco_application,
 ):
-    minimum_stake = taco_application.minimumAuthorization()
-
     staking_providers = list()
     for provider_address, operator_address in zip(
         accounts.staking_providers_accounts, accounts.ursulas_accounts
     ):
-        # for a random amount
-        amount = minimum_stake + random.randrange(BONUS_TOKENS_FOR_TESTS)
-
-        # initialize threshold stake via threshold staking (permission-less mock)
-        threshold_staking.setRoles(provider_address, sender=deployer_account)
-
-        threshold_staking.authorizationIncreased(
-            provider_address, 0, amount, sender=deployer_account
+        taco_application.addStakelessProvider(
+            provider_address, provider_address, sender=deployer_account
         )
 
         taco_application.bondOperator(

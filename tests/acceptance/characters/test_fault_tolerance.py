@@ -84,7 +84,7 @@ def test_invalid_operators_tolerance(
     accounts,
     test_registry,
     ursulas,
-    threshold_staking,
+    taco_application,
     taco_application_agent,
     ursula_test_config,
     mocker,
@@ -100,14 +100,12 @@ def test_invalid_operators_tolerance(
         accounts.unassigned_accounts[1],
     )
     # We start with an ursula with no tokens staked
-    owner, _, _ = threshold_staking.rolesOf(_staking_provider, sender=deployer_account)
+    owner, _, _ = taco_application.rolesOf(_staking_provider, sender=deployer_account)
     assert owner == NULL_ADDRESS
 
-    # make an staking_providers and some stakes
-    min_authorization = taco_application_agent.get_min_authorization()
-    threshold_staking.setRoles(_staking_provider, sender=deployer_account)
-    threshold_staking.authorizationIncreased(
-        _staking_provider, 0, min_authorization, sender=deployer_account
+    # make a staking_providers and some stakes
+    taco_application.addStakelessProvider(
+        _staking_provider, _staking_provider, sender=deployer_account
     )
 
     # now lets bond this worker
