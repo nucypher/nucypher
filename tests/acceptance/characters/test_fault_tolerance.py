@@ -100,7 +100,7 @@ def test_invalid_operators_tolerance(
         accounts.unassigned_accounts[1],
     )
     # We start with an ursula with no tokens staked
-    owner, _, _ = taco_application.rolesOf(_staking_provider, sender=deployer_account)
+    owner, _ = taco_application.rolesOf(_staking_provider, sender=deployer_account)
     assert owner == NULL_ADDRESS
 
     # make a staking_providers and some stakes

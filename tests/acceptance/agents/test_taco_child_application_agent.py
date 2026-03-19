@@ -159,7 +159,7 @@ def test_get_staking_provider_info(
         staking_provider=staking_provider
     )
     assert info.operator == operator_address
-    assert info.authorized > taco_child_application_agent.get_min_authorization()
+    assert info.authorized == taco_child_application_agent.get_min_authorization()
     assert info.operator_confirmed is True
     assert info.index == 1
     assert info.deauthorizing == 0
