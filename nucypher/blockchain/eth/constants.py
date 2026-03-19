@@ -3,7 +3,6 @@
 #
 
 # Legacy
-NUCYPHER_TOKEN_CONTRACT_NAME = "NuCypherToken"
 STAKING_ESCROW_CONTRACT_NAME = "StakingEscrow"
 STAKING_ESCROW_STUB_CONTRACT_NAME = "StakingEscrowStub"
 

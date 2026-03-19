@@ -37,7 +37,6 @@ from web3.types import Timestamp, TxParams, TxReceipt, Wei
 from nucypher import types
 from nucypher.blockchain.eth import events
 from nucypher.blockchain.eth.constants import (
-    NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
     TACO_APPLICATION_CONTRACT_NAME,
@@ -141,31 +140,6 @@ class EthereumContractAgent:
     def contract_address(self) -> ChecksumAddress:
         return self.__contract.address
 
-
-class NucypherTokenAgent(EthereumContractAgent):
-    contract_name: str = NUCYPHER_TOKEN_CONTRACT_NAME
-
-    @contract_api(CONTRACT_CALL)
-    def get_balance(self, address: ChecksumAddress) -> types.NuNits:
-        """Get the NU balance (in NuNits) of a token holder address, or of this contract address"""
-        balance: int = self.contract.functions.balanceOf(address).call()
-        return types.NuNits(balance)
-
-    @contract_api(TRANSACTION)
-    def transfer(
-        self,
-        amount: types.NuNits,
-        target_address: ChecksumAddress,
-        transacting_power: TransactingPower,
-    ) -> TxReceipt:
-        """Transfer an amount of tokens from the sender address to the target address."""
-        contract_function: ContractFunction = self.contract.functions.transfer(
-            target_address, amount
-        )
-        receipt: TxReceipt = self.blockchain.send_transaction(
-            contract_function=contract_function, transacting_power=transacting_power
-        )
-        return receipt
 
 
 class SubscriptionManagerAgent(EthereumContractAgent):
@@ -1183,9 +1157,6 @@ class ContractAgency:
 
     @staticmethod
     def _contract_name_to_agent_name(name: str) -> str:
-        if name == NUCYPHER_TOKEN_CONTRACT_NAME:
-            # TODO: Perhaps rename NucypherTokenAgent
-            name = "NucypherToken"
         agent_name = f"{name}Agent"
         return agent_name
 
