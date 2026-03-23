@@ -73,7 +73,7 @@ treasure_map = EncryptedTreasureMap.from_bytes(
 data = msgpack.load(open("heart_data.msgpack", "rb"), raw=False)
 message_kits = (MessageKit.from_bytes(k) for k in data["kits"])
 
-# Now he can ask the TACo nodes on the Threshold Network
+# Now he can ask the TACo nodes on the TACo Network
 # to get a re-encrypted version of each MessageKit.
 for message_kit in message_kits:
     start = timer()

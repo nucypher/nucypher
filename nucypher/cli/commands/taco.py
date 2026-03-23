@@ -123,7 +123,7 @@ option_ritual_ids = click.option(
 
 @click.group()
 def taco():
-    """Provide snapshot information about the TACo Application on Threshold Network."""
+    """Provide snapshot information about the TACo Application on TACo Network."""
 
 
 @taco.command()

@@ -55,7 +55,7 @@ def mock_funded_account_password_keystore(
         )
     )
 
-    # initialize threshold stake
+    # initialize taco stake
     provider_address = accounts.unassigned_accounts[0]
     taco_application.addStakelessProvider(
         provider_address, provider_address, sender=deployer_account

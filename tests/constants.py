@@ -18,7 +18,6 @@ from nucypher.config.constants import (
 #
 
 
-MOCK_STAKING_CONTRACT_NAME = "ThresholdStakingForTACoApplicationMock"
 RITUAL_TOKEN = "RitualToken"
 T_TOKEN = "TToken"
 TACO_CHILD_APPLICATION = "TACoChildApplication"

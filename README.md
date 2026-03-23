@@ -1,6 +1,6 @@
 ![](nucypher.png)
 
-*Cryptographic primitives, hosted on the decentralized nodes of the Threshold network, offering accessible, intuitive, and extensible runtimes and interfaces for
+*Cryptographic primitives, hosted on the decentralized nodes of the [TACo network](https://taco.build/), offering accessible, intuitive, and extensible runtimes and interfaces for
 secrets management and dynamic access control.*
 
 [![pypi](https://img.shields.io/pypi/v/nucypher.svg?style=flat)](https://pypi.org/project/nucypher/)
@@ -24,7 +24,7 @@ See more in the [TACo docs](https://docs.taco.build/).
 
 NuCypher is a community-driven project and we're very open to outside contributions.
 
-All our development discussions happen in our [Discord server](https://discord.gg/threshold), where we're happy to answer
+All our development discussions happen in our [Discord server](https://discord.gg/buildwithtaco), where we're happy to answer
 technical questions, discuss feature requests,
 and accept bug reports.
 
@@ -48,7 +48,7 @@ We are happy to work together to use a more secure medium, such as Signal.
 Email security@nucypher.com and we will coordinate a communication channel that we're both comfortable with.
 
 A great place to begin your research is by working on our testnet.
-Please see our [documentation](https://docs.threshold.network) to get started.
+Please see our [documentation](https://docs.taco.build) to get started.
 We ask that you please respect testnet machines and their owners.
 If you find a vulnerability that you suspect has given you access to a machine against the owner's permission, stop what
 you're doing and immediately email security@nucypher.com.
