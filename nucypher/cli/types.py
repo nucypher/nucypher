@@ -106,9 +106,9 @@ class NuCypherDomainName(click.ParamType):
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
 GWEI = DecimalRange(min=0)
 
-__min_authorization = TToken(40_000, "T").to_tokens()  # TODO right spot for this?
+__min_authorization = TToken(150_000, "T").to_tokens()  # TODO right spot for this?
 MIN_AUTHORIZATION = Decimal(__min_authorization)
-STAKED_TOKENS_RANGE = DecimalRange(min=__min_authorization)
+STAKED_TOKENS_RANGE = DecimalRange(min=__min_authorization, max=__min_authorization)
 
 # Filesystem
 EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True, readable=True, path_type=Path)

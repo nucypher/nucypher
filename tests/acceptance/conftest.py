@@ -34,7 +34,7 @@ ONE_DAY = 24 * 60 * 60
 TOTAL_SUPPLY = Web3.to_wei(11_000_000_000, "ether")
 
 # TACo Application
-MIN_AUTHORIZATION = Web3.to_wei(40_000, "ether")
+MIN_AUTHORIZATION = Web3.to_wei(150_000, "ether")
 
 
 # Coordinator
