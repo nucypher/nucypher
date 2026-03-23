@@ -13,16 +13,20 @@ secrets management and dynamic access control.*
 
 # Threshold Access Control (TACo)
 
+![](TACo-logo-black.png)
+
 TACo is end-to-end encrypted data sharing and communication, without the requirement of
 trusting a centralized authority, who might unilaterally deny service or even decrypt private user data. It is the only
 access control layer available to Web3 developers that can offer a decentralized service, through a live,
 well-collateralized and battle-tested network.
+TACo is the latest iteration of the original NuCypher network, built by the [NuCypher team](https://github.com/nucypher).
+This repository is the canonical implementation of the client, still named `nucypher` for historical reasons, powering the decentralized array of nodes.
 
 See more in the [TACo docs](https://docs.taco.build/).
 
 # Getting Involved
 
-NuCypher is a community-driven project and we're very open to outside contributions.
+`nucypher`, as all TACo & NuCypher projects, is a community-driven project and we're very open to outside contributions.
 
 All our development discussions happen in our [Discord server](https://discord.gg/buildwithtaco), where we're happy to answer
 technical questions, discuss feature requests,
