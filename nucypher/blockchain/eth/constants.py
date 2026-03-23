@@ -2,9 +2,6 @@
 # Contract Names
 #
 
-# Legacy
-STAKING_ESCROW_CONTRACT_NAME = "StakingEscrow"
-STAKING_ESCROW_STUB_CONTRACT_NAME = "StakingEscrowStub"
 
 # TACo
 TACO_APPLICATION_CONTRACT_NAME = "TACoApplication"
