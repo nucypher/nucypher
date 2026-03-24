@@ -5,10 +5,8 @@ from pathlib import Path
 from random import SystemRandom
 
 from hexbytes import HexBytes
-from web3 import Web3
 
 from nucypher.blockchain.eth.domains import ChainInfo, TACoDomain
-from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
@@ -54,16 +52,6 @@ NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS = NUMBER_OF_ETH_TEST_ACCOUNTS
 
 
 ONE_YEAR_IN_SECONDS = ((60 * 60) * 24) * 365
-
-DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = NU(1_000_000, 'NU')
-
-MIN_STAKE_FOR_TESTS = NU(750_000, 'NU').to_units()
-
-BONUS_TOKENS_FOR_TESTS = NU(150_000, 'NU').to_units()
-
-DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().to_wei(100, 'ether'))
-
-NUMBER_OF_ALLOCATIONS_IN_TESTS = 50  # TODO: Move to constants
 
 TESTERCHAIN_CHAIN_ID = 131277322940537
 

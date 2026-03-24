@@ -32,9 +32,6 @@ ONE_DAY = 24 * 60 * 60
 
 # ERC-20
 TOTAL_SUPPLY = Web3.to_wei(11_000_000_000, "ether")
-NU_TOTAL_SUPPLY = Web3.to_wei(
-    1_000_000_000, "ether"
-)  # TODO NU(1_000_000_000, 'NU').to_units()
 
 # TACo Application
 MIN_AUTHORIZATION = Web3.to_wei(40_000, "ether")
