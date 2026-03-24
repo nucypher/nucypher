@@ -1,89 +1,97 @@
-
-
 from decimal import Decimal, InvalidOperation
 
 import pytest
 
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.token import TToken
 
 
-def test_NU():
+def test_t_token():
 
     # Alternate construction
-    assert NU(1, 'NU') == NU('1.0', 'NU') == NU(1.0, 'NU')
+    assert TToken(1, "T") == TToken("1.0", "T") == TToken(1.0, "T")
 
     # Arithmetic
 
-    # NUs
-    one_nu = NU(1, 'NU')
-    zero_nu = NU(0, 'NU')
-    one_hundred_nu = NU(100, 'NU')
-    two_hundred_nu = NU(200, 'NU')
-    three_hundred_nu = NU(300, 'NU')
+    # TTokens
+    one_t = TToken(1, "T")
+    zero_t = TToken(0, "T")
+    one_hundred_t = TToken(100, "T")
+    two_hundred_t = TToken(200, "T")
+    three_hundred_t = TToken(300, "T")
 
     # Nits
-    one_nu_wei = NU(1, 'NuNit')
-    three_nu_wei = NU(3, 'NuNit')
-    assert three_nu_wei.to_tokens() == Decimal('3E-18')
-    assert one_nu_wei.to_tokens() == Decimal('1E-18')
+    one_t_wei = TToken(1, "TuNit")
+    three_t_wei = TToken(3, "TuNit")
+    assert three_t_wei.to_tokens() == Decimal("3E-18")
+    assert one_t_wei.to_tokens() == Decimal("1E-18")
 
     # Base Operations
-    assert one_hundred_nu < two_hundred_nu < three_hundred_nu
-    assert one_hundred_nu <= two_hundred_nu <= three_hundred_nu
+    assert one_hundred_t < two_hundred_t < three_hundred_t
+    assert one_hundred_t <= two_hundred_t <= three_hundred_t
 
-    assert three_hundred_nu > two_hundred_nu > one_hundred_nu
-    assert three_hundred_nu >= two_hundred_nu >= one_hundred_nu
+    assert three_hundred_t > two_hundred_t > one_hundred_t
+    assert three_hundred_t >= two_hundred_t >= one_hundred_t
 
-    assert (one_hundred_nu + two_hundred_nu) == three_hundred_nu
-    assert (three_hundred_nu - two_hundred_nu) == one_hundred_nu
+    assert (one_hundred_t + two_hundred_t) == three_hundred_t
+    assert (three_hundred_t - two_hundred_t) == one_hundred_t
 
-    difference = one_nu - one_nu_wei
-    assert not difference == zero_nu
+    difference = one_t - one_t_wei
+    assert not difference == zero_t
 
     actual = float(difference.to_tokens())
     expected = 0.999999999999999999
     assert actual == expected
 
-    # 3.14 NU is 3_140_000_000_000_000_000 NuNit
-    pi_nuweis = NU(3.14, 'NU')
-    assert NU('3.14', 'NU') == pi_nuweis.to_units() == NU(3_140_000_000_000_000_000, 'NuNit')
+    # 3.14 T is 3_140_000_000_000_000_000 TuNit
+    pi_tweis = TToken(3.14, "T")
+    assert (
+        TToken("3.14", "T")
+        == pi_tweis.to_units()
+        == TToken(3_140_000_000_000_000_000, "TuNit")
+    )
 
     # Mixed type operations
-    difference = NU('3.14159265', 'NU') - NU(1.1, 'NU')
-    assert difference == NU('2.04159265', 'NU')
+    difference = TToken("3.14159265", "T") - TToken(1.1, "T")
+    assert difference == TToken("2.04159265", "T")
 
-    result = difference + one_nu_wei
-    assert result == NU(2041592650000000001, 'NuNit')
+    result = difference + one_t_wei
+    assert result == TToken(2041592650000000001, "TuNit")
 
     # Similar to stake read + metadata operations in Staker
-    collection = [one_hundred_nu, two_hundred_nu, three_hundred_nu]
-    assert sum(collection) == NU('600', 'NU') == NU(600, 'NU') == NU(600.0, 'NU') == NU(600e+18, 'NuNit')
+    collection = [one_hundred_t, two_hundred_t, three_hundred_t]
+    assert (
+        sum(collection)
+        == TToken("600", "T")
+        == TToken(600, "T")
+        == TToken(600.0, "T")
+        == TToken(600e18, "TuNit")
+    )
 
     #
     # Fractional Inputs
     #
 
-    # A decimal amount of NuNit (i.e., a fraction of a NuNit)
-    pi_nuweis = NU('3.14', 'NuNit')
-    assert pi_nuweis == three_nu_wei  # Floor
+    # A decimal amount of TuNit (i.e., a fraction of a TuNit)
+    pi_tweis = TToken("3.14", "TuNit")
+    assert pi_tweis == three_t_wei  # Floor
 
-    # A decimal amount of NU, which amounts to NuNit with decimals
-    pi_nus = NU('3.14159265358979323846', 'NU')
-    assert pi_nus == NU(3141592653589793238, 'NuNit')  # Floor
+    # A decimal amount of T, which amounts to TuNit with decimals
+    pi_ts = TToken("3.14159265358979323846", "T")
+    assert pi_ts == TToken(3141592653589793238, "TuNit")  # Floor
 
     # Positive Infinity
-    with pytest.raises(NU.InvalidAmount):
-        _inf = NU(float('infinity'), 'NU')
+    with pytest.raises(TToken.InvalidAmount):
+        _inf = TToken(float("infinity"), "T")
 
     # Negative Infinity
-    with pytest.raises(NU.InvalidAmount):
-        _neg_inf = NU(float('-infinity'), 'NU')
+    with pytest.raises(TToken.InvalidAmount):
+        _neg_inf = TToken(float("-infinity"), "T")
 
     # Not a Number
     with pytest.raises(InvalidOperation):
-        _nan = NU(float('NaN'), 'NU')
+        _nan = TToken(float("NaN"), "T")
 
-    # Rounding NUs
-    assert round(pi_nus, 2) == NU("3.14", "NU")
-    assert round(pi_nus, 1) == NU("3.1", "NU")
-    assert round(pi_nus, 0) == round(pi_nus) == NU("3", "NU")
+    # Rounding TTokens
+    assert round(pi_ts, 2) == TToken("3.14", "T")
+    assert round(pi_ts, 1) == TToken("3.1", "T")
+    assert round(pi_ts, 0) == round(pi_ts) == TToken("3", "T")
