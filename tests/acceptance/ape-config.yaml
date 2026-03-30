@@ -5,8 +5,8 @@ plugins:
 
 dependencies:
   - name: nucypher-contracts
-    github: vzotova/nucypher-contracts
-    ref: post-migration-v2
+    github: nucypher/nucypher-contracts
+    ref: main
     config_override:
       solidity:
         version: 0.8.23
