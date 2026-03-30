@@ -175,16 +175,6 @@ class BaseActor:
         return self.checksum_address
 
 
-class NucypherTokenActor(BaseActor):
-    """
-    Actor to interface with the NuCypherToken contract
-    """
-
-    def __init__(self, registry: ContractRegistry, **kwargs):
-        super().__init__(registry=registry, **kwargs)
-        self.__token_agent = None
-
-
 class Operator(BaseActor):
     READY_TIMEOUT = None  # (None or 0) == indefinite
     READY_POLL_RATE = 120  # seconds
@@ -1694,7 +1684,7 @@ class Operator(BaseActor):
             raise FerveoKeyMismatch(message)
 
 
-class PolicyAuthor(NucypherTokenActor):
+class PolicyAuthor(BaseActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
     def __init__(self, eth_endpoint: str, *args, **kwargs):

@@ -14,7 +14,7 @@ def log(message):
 def test_ursula_operator_confirmation(
     ursula_test_config,
     testerchain,
-    threshold_staking,
+    taco_application,
     taco_application_agent,
     taco_child_application_agent,
     deployer_account,
@@ -22,15 +22,8 @@ def test_ursula_operator_confirmation(
 ):
     staking_provider = accounts.staking_provider_account(0)
     operator_address = accounts.ursula_account(0)
-    min_authorization = taco_application_agent.get_min_authorization()
-
-    # make an staking_providers and some stakes
-    threshold_staking.setRoles(staking_provider, sender=deployer_account)
-    threshold_staking.authorizationIncreased(
-        staking_provider,
-        0,
-        min_authorization,
-        sender=deployer_account,
+    taco_application.addStakelessProvider(
+        staking_provider, staking_provider, sender=deployer_account
     )
 
     # not staking provider just yet

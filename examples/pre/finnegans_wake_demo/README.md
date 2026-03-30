@@ -1,6 +1,6 @@
 # PRE Finnegan's Wake Demo
 
-This illustrates Alice sharing data with Bob over the Threshold Network using TACo's proxy re-encryption (PRE),
+This illustrates Alice sharing data with Bob over the TACo Network using TACo's proxy re-encryption (PRE),
 without revealing private keys to intermediary entities.
 
 First, configure the demo by making exporting environment variables

@@ -8,7 +8,7 @@ from nucypher.utilities.logging import Logger
 
 class ThresholdAccessControlClient:
     """
-    Client for communicating with access control nodes on the Threshold Network.
+    Client for communicating with access control nodes on the TACo Network.
     """
 
     def __init__(self, learner: Learner):

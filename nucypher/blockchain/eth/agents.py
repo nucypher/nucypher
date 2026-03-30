@@ -37,7 +37,6 @@ from web3.types import Timestamp, TxParams, TxReceipt, Wei
 from nucypher import types
 from nucypher.blockchain.eth import events
 from nucypher.blockchain.eth.constants import (
-    NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
     TACO_APPLICATION_CONTRACT_NAME,
@@ -142,31 +141,6 @@ class EthereumContractAgent:
         return self.__contract.address
 
 
-class NucypherTokenAgent(EthereumContractAgent):
-    contract_name: str = NUCYPHER_TOKEN_CONTRACT_NAME
-
-    @contract_api(CONTRACT_CALL)
-    def get_balance(self, address: ChecksumAddress) -> types.NuNits:
-        """Get the NU balance (in NuNits) of a token holder address, or of this contract address"""
-        balance: int = self.contract.functions.balanceOf(address).call()
-        return types.NuNits(balance)
-
-    @contract_api(TRANSACTION)
-    def transfer(
-        self,
-        amount: types.NuNits,
-        target_address: ChecksumAddress,
-        transacting_power: TransactingPower,
-    ) -> TxReceipt:
-        """Transfer an amount of tokens from the sender address to the target address."""
-        contract_function: ContractFunction = self.contract.functions.transfer(
-            target_address, amount
-        )
-        receipt: TxReceipt = self.blockchain.send_transaction(
-            contract_function=contract_function, transacting_power=transacting_power
-        )
-        return receipt
-
 
 class SubscriptionManagerAgent(EthereumContractAgent):
     contract_name: str = SUBSCRIPTION_MANAGER_CONTRACT_NAME
@@ -247,7 +221,7 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
 
     @abstractmethod
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int, duration: int
+        self, start_index: int, max_results: int
     ) -> Tuple[int, List[bytes]]:
         raise NotImplementedError
 
@@ -256,21 +230,21 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         raise NotImplementedError
 
     def get_all_active_staking_providers(
-        self, pagination_size: Optional[int] = None, duration: int = 0
+        self, pagination_size: Optional[int] = None
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         n_tokens, staking_providers = self._get_active_stakers(
-            pagination_size=pagination_size, duration=duration
+            pagination_size=pagination_size
         )
         return n_tokens, staking_providers
 
     @contract_api(CONTRACT_CALL)
     def get_active_staking_providers(
-        self, start_index: int, max_results: int, duration: int = 0
+        self, start_index: int, max_results: int
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         (
             total_authorized_tokens,
             staking_providers_info,
-        ) = self._get_active_staking_providers_raw(start_index, max_results, duration)
+        ) = self._get_active_staking_providers_raw(start_index, max_results)
 
         staking_providers = self._process_active_staker_info(staking_providers_info)
         return types.TuNits(total_authorized_tokens), staking_providers
@@ -279,11 +253,10 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         self,
         without: Iterable[ChecksumAddress] = None,
         pagination_size: Optional[int] = None,
-        duration: int = 0,
     ) -> "StakingProvidersReservoir":
         # pagination_size = pagination_size or self.get_staking_providers_population()
         n_tokens, stake_provider_map = self.get_all_active_staking_providers(
-            pagination_size=pagination_size, duration=duration
+            pagination_size=pagination_size
         )
 
         if n_tokens == 0:
@@ -318,7 +291,8 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         return staking_providers
 
     def _get_active_stakers(
-        self, pagination_size: Optional[int] = None, duration: int = 0
+        self,
+        pagination_size: Optional[int] = None,
     ):
         if pagination_size is None:
             pagination_size = (
@@ -342,9 +316,7 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
                     (
                         batch_authorized_tokens,
                         batch_staking_providers,
-                    ) = self.get_active_staking_providers(
-                        start_index, pagination_size, duration
-                    )
+                    ) = self.get_active_staking_providers(start_index, pagination_size)
                 except Exception as e:
                     if "timeout" not in str(e):
                         # exception unrelated to pagination size and timeout
@@ -440,16 +412,13 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int, duration: int
+        self, start_index: int, max_results: int
     ) -> Tuple[int, List[bytes]]:
-        get_active_providers_overloaded_function = (
-            self.contract.get_function_by_signature(
-                "getActiveStakingProviders(uint256,uint256,uint32)"
-            )
+        active_staking_providers_info = (
+            self.contract.functions.getActiveStakingProviders(
+                start_index, max_results
+            ).call()
         )
-        active_staking_providers_info = get_active_providers_overloaded_function(
-            start_index, max_results, duration
-        ).call()
         return active_staking_providers_info
 
 
@@ -538,11 +507,11 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int, duration: int
+        self, start_index: int, max_results: int
     ) -> Tuple[int, List[bytes]]:
         active_staking_providers_info = (
             self.contract.functions.getActiveStakingProviders(
-                start_index, max_results, duration
+                start_index, max_results
             ).call()
         )
         return active_staking_providers_info
@@ -1188,9 +1157,6 @@ class ContractAgency:
 
     @staticmethod
     def _contract_name_to_agent_name(name: str) -> str:
-        if name == NUCYPHER_TOKEN_CONTRACT_NAME:
-            # TODO: Perhaps rename NucypherTokenAgent
-            name = "NucypherToken"
         agent_name = f"{name}Agent"
         return agent_name
 

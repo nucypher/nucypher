@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 from http import HTTPStatus
@@ -59,27 +60,37 @@ from tests.utils.policy import make_message_kits
 
 GET_CONTEXT_VALUE_IMPORT_PATH = "nucypher.policy.conditions.context.get_context_value"
 
-getActiveStakingProviders_abi_2_params = {
+# ABIs for overloaded "add" function with different number of parameters
+add_abi_0_params = {
     "type": "function",
-    "name": "getActiveStakingProviders",
-    "stateMutability": "view",
-    "inputs": [
-        {"name": "_startIndex", "type": "uint256", "internalType": "uint256"},
-        {
-            "name": "_maxStakingProviders",
-            "type": "uint256",
-            "internalType": "uint256",
-        },
-    ],
+    "name": "add",
+    "stateMutability": "pure",
+    "inputs": [],
     "outputs": [
-        {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
-        {
-            "name": "activeStakingProviders",
-            "type": "bytes32[]",
-            "internalType": "bytes32[]",
-        },
+        {"type": "uint256", "internalType": "uint256"},
     ],
 }
+
+add_abi_1_params = copy.deepcopy(add_abi_0_params)
+add_abi_1_params["inputs"].append(
+    {"name": "a", "type": "uint256", "internalType": "uint256"}
+)
+
+add_abi_2_params = copy.deepcopy(add_abi_1_params)
+add_abi_2_params["inputs"].append(
+    {"name": "b", "type": "uint256", "internalType": "uint256"}
+)
+
+add_abi_3_params = copy.deepcopy(add_abi_2_params)
+add_abi_3_params["inputs"].append(
+    {"name": "c", "type": "uint256", "internalType": "uint256"}
+)
+
+
+@pytest.fixture(scope="module")
+def contract_overloaded_methods(project, deployer_account):
+    _contract = deployer_account.deploy(project.ConditionOverloadedMethods)
+    return _contract
 
 
 def _dont_validate_user_address(context_variable: str, **context):
@@ -779,131 +790,69 @@ def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
     assert cleartexts == messages
 
 
-@pytest.mark.usefixtures("staking_providers")
+@pytest.mark.parametrize(
+    "abi,parameters,expected_result",
+    [
+        (add_abi_0_params, [], 0),  # valid overloaded function - 0 params
+        (add_abi_1_params, [42], 42),  # valid overloaded function - 1 param
+        (add_abi_2_params, [1, 2], 3),  # valid overloaded function - 2 params
+        (add_abi_3_params, [11, 22, 33], 66),  # valid overloaded function - 3 params
+    ],
+)
 def test_contract_condition_using_overloaded_function(
-    taco_child_application_agent, condition_providers
+    contract_overloaded_methods, condition_providers, abi, parameters, expected_result
 ):
-    (
-        total_staked,
-        providers,
-    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10, 0)
-    expected_result = [
-        total_staked,
-        [
-            HexBytes(provider_bytes).hex() for provider_bytes in providers
-        ],  # must be json serializable
-    ]
-
-    context = {
-        ":expectedStakingProviders": expected_result,
-    }  # user-defined context vars
-
-    #
-    # valid overloaded function - 2 params
-    #
+    context = {":expectedSum": expected_result}  # user-defined context vars
     condition = ContractCondition(
-        contract_address=taco_child_application_agent.contract.address,
-        function_abi=ABIFunction(getActiveStakingProviders_abi_2_params),
-        method="getActiveStakingProviders",
+        contract_address=contract_overloaded_methods.address,
+        function_abi=ABIFunction(abi),
+        method="add",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
-        parameters=[0, 10],
+        return_value_test=ReturnValueTest("==", ":expectedSum"),
+        parameters=parameters,
     )
     condition_result, call_result = condition.verify(
         providers=condition_providers, **context
     )
-    assert condition_result, "results match and condition passes"
-    json_serializable_result = [
-        call_result[0],
-        [HexBytes(provider_bytes).hex() for provider_bytes in call_result[1]],
-    ]
-    assert expected_result == json_serializable_result
+    assert condition_result is True
+    assert expected_result == call_result
 
-    #
-    # valid overloaded function - 3 params
-    #
-    valid_abi_3_params = {
-        "type": "function",
-        "name": "getActiveStakingProviders",
-        "stateMutability": "view",
-        "inputs": [
-            {"name": "_startIndex", "type": "uint256", "internalType": "uint256"},
-            {
-                "name": "_maxStakingProviders",
-                "type": "uint256",
-                "internalType": "uint256",
-            },
-            {"name": "_cohortDuration", "type": "uint32", "internalType": "uint32"},
-        ],
-        "outputs": [
-            {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
-            {
-                "name": "activeStakingProviders",
-                "type": "bytes32[]",
-                "internalType": "bytes32[]",
-            },
-        ],
-    }
-    condition = ContractCondition(
-        contract_address=taco_child_application_agent.contract.address,
-        function_abi=ABIFunction(valid_abi_3_params),
-        method="getActiveStakingProviders",
-        chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
-        parameters=[0, 10, 0],
-    )
-    condition_result, call_result = condition.verify(
-        providers=condition_providers, **context
-    )
-    assert condition_result, "results match and condition passes"
-    json_serializable_result = [
-        call_result[0],
-        [HexBytes(provider_bytes).hex() for provider_bytes in call_result[1]],
-    ]
-    assert expected_result == json_serializable_result
 
-    #
-    # valid overloaded contract abi but wrong parameters
-    #
+def test_contract_condition_using_overloaded_function_but_wrong_parameters(
+    contract_overloaded_methods, condition_providers
+):
+    context = {":expectedSum": 3}  # user-defined context vars
     condition = ContractCondition(
-        contract_address=taco_child_application_agent.contract.address,
-        function_abi=ABIFunction(valid_abi_3_params),
-        method="getActiveStakingProviders",
+        contract_address=contract_overloaded_methods.address,
+        function_abi=ABIFunction(
+            add_abi_1_params
+        ),  # abi with 1 param, but we will provide 2 params
+        method="add",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
-        parameters=[0, 10],  # 2 params instead of 3 (old overloaded function)
+        return_value_test=ReturnValueTest("==", ":expectedSum"),
+        parameters=[
+            1,
+            2,
+        ],  # parameters that match add_abi_2_params, but not add_abi_1_params
     )
     with pytest.raises(RPCExecutionFailed):
         _ = condition.verify(providers=condition_providers, **context)
 
-    #
-    # invalid abi
-    #
-    invalid_abi_all_bool_inputs = {
-        "type": "function",
-        "name": "getActiveStakingProviders",
-        "stateMutability": "view",
-        "inputs": [
-            {"name": "_startIndex", "type": "bool", "internalType": "bool"},
-            {"name": "_maxStakingProviders", "type": "bool", "internalType": "bool"},
-            {"name": "_cohortDuration", "type": "bool", "internalType": "bool"},
-        ],
-        "outputs": [
-            {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
-            {
-                "name": "activeStakingProviders",
-                "type": "bytes32[]",
-                "internalType": "bytes32[]",
-            },
-        ],
-    }
+
+def test_contract_condition_using_overloaded_function_but_wrong_abi(
+    contract_overloaded_methods, condition_providers
+):
+    context = {":expectedSum": 42}  # user-defined context vars
     condition = ContractCondition(
-        contract_address=taco_child_application_agent.contract.address,
-        function_abi=ABIFunction(invalid_abi_all_bool_inputs),
-        method="getActiveStakingProviders",
+        contract_address=contract_overloaded_methods.address,
+        function_abi=ABIFunction(add_abi_2_params),  # abi with 2 uint params...
+        method="add",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
-        parameters=[False, False, False],  # parameters match fake abi
+        return_value_test=ReturnValueTest("==", ":expectedSum"),
+        parameters=[
+            "foo",
+            True,
+        ],  # but parameters that don't match the abi types at all
     )
     with pytest.raises(RPCExecutionFailed):
         _ = condition.verify(providers=condition_providers, **context)
@@ -997,35 +946,24 @@ def test_rpc_condition_using_eip1271(
     assert call_result == (eth_amount - withdraw_amount)
 
 
-@pytest.mark.usefixtures("staking_providers")
 def test_big_int_string_handling(
-    accounts, taco_child_application_agent, bob, condition_providers
+    accounts, bob, condition_providers, contract_overloaded_methods
 ):
-    (
-        total_staked,
-        providers,
-    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10, 0)
-    expected_result = [
-        total_staked,
-        [
-            HexBytes(provider_bytes).hex() for provider_bytes in providers
-        ],  # must be json serializable
-    ]
 
     context = {
-        ":expectedStakingProviders": expected_result,
+        ":expectedResult": 30,
     }  # user-defined context vars
 
     contract_condition = {
         "conditionType": ConditionType.CONTRACT.value,
-        "contractAddress": taco_child_application_agent.contract.address,
-        "functionAbi": getActiveStakingProviders_abi_2_params,
+        "contractAddress": contract_overloaded_methods.address,
+        "functionAbi": ABIFunction(add_abi_2_params),
         "chain": TESTERCHAIN_CHAIN_ID,
-        "method": "getActiveStakingProviders",
-        "parameters": ["0n", "10n"],  # use bigint notation
+        "method": "add",
+        "parameters": ["20n", "10n"],  # use bigint notation
         "returnValueTest": {
             "comparator": "==",
-            "value": ":expectedStakingProviders",
+            "value": ":expectedResult",
         },
     }
     rpc_condition = {

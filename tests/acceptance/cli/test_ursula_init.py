@@ -29,7 +29,7 @@ from tests.utils.ursula import select_test_port
 def mock_funded_account_password_keystore(
     tmp_path_factory,
     testerchain,
-    threshold_staking,
+    taco_application,
     taco_application_agent,
     test_registry,
     deployer_account,
@@ -55,14 +55,10 @@ def mock_funded_account_password_keystore(
         )
     )
 
-    # initialize threshold stake
+    # initialize taco stake
     provider_address = accounts.unassigned_accounts[0]
-    threshold_staking.setRoles(provider_address, sender=deployer_account)
-    threshold_staking.setStakes(
-        provider_address,
-        0,
-        taco_application_agent.get_min_authorization(),
-        sender=deployer_account,
+    taco_application.addStakelessProvider(
+        provider_address, provider_address, sender=deployer_account
     )
 
     provider_power = TransactingPower(

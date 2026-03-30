@@ -3,7 +3,7 @@ from typing import Union
 
 from eth_utils import currency
 
-from nucypher.types import ERC20Units, NuNits, TuNits
+from nucypher.types import ERC20Units, TuNits
 
 
 class ERC20:
@@ -127,13 +127,6 @@ class ERC20:
 
     def __str__(self) -> str:
         return f'{str(self.to_tokens())} {self._symbol}'
-
-
-class NU(ERC20):
-    _symbol = 'NU'
-    _denominations = {'NuNit': 'wei', 'NU': 'ether'}
-    _unit_name = 'NuNit'
-    _unit = NuNits
 
 
 class TToken(ERC20):
