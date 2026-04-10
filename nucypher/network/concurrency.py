@@ -90,6 +90,9 @@ class NetworkRequestClient(ThresholdAccessControlClient):
                 self.DEFAULT_MAX_WORKER_THREADS_PER_REQUEST, math.ceil(threshold * 1.5)
             )
 
+        if max_worker_threads < 1:
+            raise ValueError("max worker threads must be at least 1")
+
         # Discussion about WorkerPool parameters:
         # "https://github.com/nucypher/nucypher/pull/3393#discussion_r1456307991"
         worker_pool = WorkerPool(
