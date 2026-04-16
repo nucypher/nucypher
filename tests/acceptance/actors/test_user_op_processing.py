@@ -104,6 +104,12 @@ def test_aa_version_v07_hashing(chain, aa_entry_point, transactor, packed_user_o
     )
     assert expected_hash == message_hash
 
+    # signature is correct for calculated hash
+    recovered_address = Account._recover_hash(
+        message_hash=message_hash, signature=signature
+    )
+    assert recovered_address == transactor.transacting_power.account
+
 
 def test_aa_version_mdt_hashing(chain, aa_entry_point, transactor, packed_user_op_args):
     packed_user_op = PackedUserOperation(**packed_user_op_args)
