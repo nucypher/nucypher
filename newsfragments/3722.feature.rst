@@ -1,0 +1,1 @@
+Adds safety valves to ``NetworkRequestClient`` for threshold requests: configurable max worker threads and dynamic batch sizing that adjusts based on successes achieved so far.

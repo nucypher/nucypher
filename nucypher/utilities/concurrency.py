@@ -1,5 +1,4 @@
-
-
+import abc
 import io
 import sys
 import traceback
@@ -343,7 +342,7 @@ class BatchValueFactory:
                 f"Invalid number of successes required ({required_successes})"
             )
 
-        self.values = values
+        self.values = list(values)
         self.required_successes = required_successes
         if len(self.values) < self.required_successes:
             raise ValueError(
@@ -365,7 +364,7 @@ class BatchValueFactory:
             # no more values to process
             return None
 
-        batch_end_index = self._batch_start_index + self.batch_size
+        batch_end_index = self._batch_start_index + self._get_batch_size(successes)
         if batch_end_index <= len(self.values):
             batch = self.values[self._batch_start_index : batch_end_index]
             self._batch_start_index = batch_end_index
@@ -375,3 +374,25 @@ class BatchValueFactory:
             batch = self.values[self._batch_start_index :]
             self._batch_start_index = len(self.values)
             return batch
+
+    def _get_batch_size(self, successes) -> int:
+        return self.batch_size
+
+
+class VariableBatchSizeValueFactory(BatchValueFactory, abc.ABC):
+    """
+    A batch value factory that allows the batch size to be determined dynamically by a provided function.
+    """
+
+    def __init__(self, values: List[Any], required_successes: int):
+        super().__init__(values=values, required_successes=required_successes)
+
+    def _get_batch_size(self, successes) -> int:
+        batch_size = self.get_custom_batch_size(successes)
+        if batch_size <= 0:
+            raise ValueError(f"Invalid batch size returned by function ({batch_size})")
+        return batch_size
+
+    @abc.abstractmethod
+    def get_custom_batch_size(self, successes) -> int:
+        raise NotImplementedError

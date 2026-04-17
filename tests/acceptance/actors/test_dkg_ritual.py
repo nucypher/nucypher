@@ -344,7 +344,6 @@ def test_authorized_decryption(
     value_factory_spy.assert_called_once_with(
         ANY,
         ursulas_to_contact=expected_ursula_request_ordering,
-        batch_size=ANY,
         threshold=ANY,
     )
 

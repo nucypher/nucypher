@@ -1,6 +1,6 @@
 import math
 from http import HTTPStatus
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from eth_typing import ChecksumAddress
 from nucypher_core import (
@@ -11,28 +11,61 @@ from nucypher_core import (
 )
 
 from nucypher.network.client import ThresholdAccessControlClient
-from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
+from nucypher.utilities.concurrency import VariableBatchSizeValueFactory, WorkerPool
 
 
 class NetworkRequestClient(ThresholdAccessControlClient):
     DEFAULT_TIMEOUT = 30
     DEFAULT_STAGGER_TIMEOUT = 3
+    DEFAULT_MAX_WORKER_THREADS_PER_REQUEST = 10
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    class RequestFactory(BatchValueFactory):
+    class RequestFactory(VariableBatchSizeValueFactory):
+        """
+        A ValueFactory for WorkerPool that allows us to specify a dynamic batch size based
+        on the number of successes so far.
+        """
+
         def __init__(
             self,
             ursulas_to_contact: List[ChecksumAddress],
             threshold: int,
-            batch_size: int,
+            threshold_batch_buffer_factor: float = 0.25,
         ):
+            """
+            :param ursulas_to_contact: The list of ursula addresses to contact.
+            :param threshold: The number of successful responses required to meet the threshold for this request.
+            :param threshold_batch_buffer_factor: A multiplier to add extra buffer to the batch size of nodes contacted in addition to the threshold.
+            """
+            if threshold_batch_buffer_factor is None or not (
+                0 <= threshold_batch_buffer_factor <= 1.0
+            ):
+                raise ValueError(
+                    "Threshold batch buffer factor must be between 0 and 1"
+                )
+
             super().__init__(
                 values=ursulas_to_contact,
                 required_successes=threshold,
-                batch_size=batch_size,
             )
+
+            self._required_successes_plus_buffer = math.ceil(
+                threshold * (1 + threshold_batch_buffer_factor)
+            )
+
+        def get_custom_batch_size(self, successes) -> int:
+            if self.required_successes <= successes:
+                # should never get here since the WorkerPool should stop once we have enough successes
+                raise ValueError(
+                    "Current successes cannot be greater than or equal to the threshold"
+                )
+
+            additional_successes_needed = (
+                self._required_successes_plus_buffer - successes
+            )
+            return additional_successes_needed
 
     def execute(
         self,
@@ -41,6 +74,7 @@ class NetworkRequestClient(ThresholdAccessControlClient):
         threshold: int,
         timeout: int,
         stagger_timeout: int = DEFAULT_STAGGER_TIMEOUT,
+        max_worker_threads: Optional[int] = None,
     ) -> Tuple[Dict, Dict]:
 
         ursulas_to_contact = (
@@ -51,19 +85,24 @@ class NetworkRequestClient(ThresholdAccessControlClient):
             else list(requests)
         )
 
+        if max_worker_threads is None:
+            max_worker_threads = min(
+                self.DEFAULT_MAX_WORKER_THREADS_PER_REQUEST, math.ceil(threshold * 1.5)
+            )
+
+        if max_worker_threads < 1:
+            raise ValueError("max worker threads must be at least 1")
+
         # Discussion about WorkerPool parameters:
         # "https://github.com/nucypher/nucypher/pull/3393#discussion_r1456307991"
         worker_pool = WorkerPool(
             worker=worker,
             value_factory=self.RequestFactory(
                 ursulas_to_contact=ursulas_to_contact,
-                batch_size=math.ceil(threshold * 1.25),
                 threshold=threshold,
             ),
             target_successes=threshold,
-            threadpool_size=math.ceil(
-                threshold * 1.5
-            ),  # TODO should we cap this (say 40?)
+            threadpool_size=max_worker_threads,
             timeout=timeout,
             stagger_timeout=stagger_timeout,
         )
@@ -102,6 +141,7 @@ class ThresholdDecryptionClient(NetworkRequestClient):
         threshold: int,
         timeout: int = NetworkRequestClient.DEFAULT_TIMEOUT,
         stagger_timeout: int = NetworkRequestClient.DEFAULT_STAGGER_TIMEOUT,
+        max_worker_threads: Optional[int] = None,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],
@@ -147,6 +187,7 @@ class ThresholdDecryptionClient(NetworkRequestClient):
             threshold=threshold,
             timeout=timeout,
             stagger_timeout=stagger_timeout,
+            max_worker_threads=max_worker_threads,
         )
 
         return successes, failures
@@ -169,6 +210,7 @@ class SigningRequestClient(NetworkRequestClient):
         threshold: int,
         timeout: int = NetworkRequestClient.DEFAULT_TIMEOUT,
         stagger_timeout: int = NetworkRequestClient.DEFAULT_STAGGER_TIMEOUT,
+        max_worker_threads: Optional[int] = None,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdSignatureResponse],
         Dict[ChecksumAddress, str],
@@ -214,6 +256,7 @@ class SigningRequestClient(NetworkRequestClient):
             threshold=threshold,
             timeout=timeout,
             stagger_timeout=stagger_timeout,
+            max_worker_threads=max_worker_threads,
         )
 
         return successes, failures
