@@ -360,7 +360,7 @@ def test_signing_request_failure_node_timeout(
 
 
 @pytest_twisted.inlineCallbacks
-@pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
+@pytest.mark.parametrize("aa_version", [AAVersion.V07, AAVersion.V08, AAVersion.MDT])
 def test_user_op_signing_request_eth_transfer(
     aa_version,
     chain,
@@ -441,7 +441,7 @@ def test_user_op_signing_request_eth_transfer(
 
 
 @pytest_twisted.inlineCallbacks
-@pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
+@pytest.mark.parametrize("aa_version", [AAVersion.V07, AAVersion.V08, AAVersion.MDT])
 def test_user_op_signing_request_erc20_transfer(
     aa_version,
     chain,
@@ -524,7 +524,7 @@ def test_user_op_signing_request_erc20_transfer(
 
 
 @pytest_twisted.inlineCallbacks
-@pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
+@pytest.mark.parametrize("aa_version", [AAVersion.V07, AAVersion.V08, AAVersion.MDT])
 def test_packed_user_op_signing_request(
     aa_version,
     chain,
@@ -607,7 +607,7 @@ def test_packed_user_op_signing_request(
 # test unless you intend to modify the cohort conditions.
 #
 @pytest_twisted.inlineCallbacks
-@pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
+@pytest.mark.parametrize("aa_version", [AAVersion.V07, AAVersion.V08, AAVersion.MDT])
 def test_signing_request_with_signing_object_attribute_condition(
     aa_version,
     chain,

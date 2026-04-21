@@ -1,8 +1,9 @@
 from unittest.mock import Mock
 
 import pytest
+from eth_abi import encode
 from eth_account import Account
-from eth_account.messages import _hash_eip191_message, encode_typed_data
+from eth_account.messages import _hash_eip191_message, encode_defunct, encode_typed_data
 from eth_utils import keccak, to_bytes
 from hexbytes import HexBytes
 from nucypher_core import (
@@ -26,6 +27,7 @@ from tests.utils.erc4337 import (
 )
 
 ENTRYPOINT_V08 = "0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108"
+ENTRYPOINT_V07 = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"
 LARGEST_NONCE_VALUE = 2**256 - 1
 
 
@@ -278,12 +280,22 @@ class TestPackedUserOperation:
             sample_user_op.factory, sample_user_op.factory_data
         )
 
-    @pytest.mark.parametrize("aa_version", [AAVersion.V08, AAVersion.MDT])
+    @pytest.mark.parametrize(
+        "aa_version", [AAVersion.V07, AAVersion.V08, AAVersion.MDT]
+    )
     def test_to_eip712_struct(self, aa_version, sample_user_op):
         """Test EIP-712 struct generation"""
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
-
         chain_id = 1
+
+        if aa_version == AAVersion.V07:
+            # try with aa version v07 which is invalid
+            with pytest.raises(ValueError, match="Not supported for AA v0.7.0"):
+                packed_user_op.to_eip712_struct(aa_version, chain_id)
+
+            # nothing else to test
+            return
+
         eip712_struct = packed_user_op.to_eip712_struct(aa_version, chain_id)
 
         # Verify structure
@@ -328,7 +340,51 @@ class TestPackedUserOperation:
 
         assert set(message.keys()) == expected_fields
 
-    def test_sign_method(self, sample_user_op):
+    def test_to_v07_hash(self, sample_user_op):
+        """Test V0.7 encoding generation"""
+        packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
+
+        chain_id = 1
+        nucypher_core_v07_hash = packed_user_op.to_v07_hash(chain_id)
+
+        # Should be bytes
+        assert isinstance(nucypher_core_v07_hash, bytes)
+
+        # try recreating encoding and see if it matches
+        encoded_packed_user_op = encode(
+            [
+                "address",
+                "uint256",
+                "bytes32",
+                "bytes32",
+                "bytes32",
+                "uint256",
+                "bytes32",
+                "bytes32",
+            ],
+            [
+                packed_user_op.sender,
+                packed_user_op.nonce,
+                keccak(packed_user_op.init_code),
+                keccak(packed_user_op.call_data),
+                packed_user_op.account_gas_limits,
+                packed_user_op.pre_verification_gas,
+                packed_user_op.gas_fees,
+                keccak(packed_user_op.paymaster_and_data),
+            ],
+        )
+        expected_v07_hash = keccak(
+            encode(
+                ["bytes32", "address", "uint256"],
+                [keccak(encoded_packed_user_op), ENTRYPOINT_V07, chain_id],
+            )
+        )
+        assert expected_v07_hash == nucypher_core_v07_hash
+
+    @pytest.mark.parametrize(
+        "aa_version", [AAVersion.V07, AAVersion.V08, AAVersion.MDT]
+    )
+    def test_sign_method(self, aa_version, mocker, sample_user_op):
         """Test signing functionality with transacting power"""
         # Create a test private key and account
         private_key = "0x" + "1" * 64
@@ -346,7 +402,19 @@ class TestPackedUserOperation:
             signed_message = account.sign_message(signable_message)
             return signed_message.messageHash, signed_message.signature
 
-        mock_transacting_power.sign_message_eip712 = mock_sign_message_eip712
+        def mock_sign_message_eip191(message, standardize):
+            # Sign the message using the test private key
+            signable_message = encode_defunct(primitive=message)
+            signed_message = account.sign_message(
+                signable_message=signable_message,
+            )
+            return signed_message.messageHash, signed_message.signature
+
+        sign_eip712_spy = mocker.spy(mock_transacting_power, "sign_message_eip712")
+        sign_eip191_spy = mocker.spy(mock_transacting_power, "sign_message_eip191")
+
+        sign_eip712_spy.side_effect = mock_sign_message_eip712
+        sign_eip191_spy.side_effect = mock_sign_message_eip191
 
         # Sign the packed user operation
         packed_user_op = PackedUserOperation.from_user_operation(sample_user_op)
@@ -355,12 +423,19 @@ class TestPackedUserOperation:
         )
 
         # Verify the signature is valid by reconstructing the message
-        eip712_struct = packed_user_op.to_eip712_struct(aa_version, chain_id)
+        if aa_version != AAVersion.V07:
+            eip712_struct = packed_user_op.to_eip712_struct(aa_version, chain_id)
+            msg = encode_typed_data(full_message=eip712_struct)
+            assert sign_eip712_spy.call_count == 1, "eip712 signing performed"
+            assert sign_eip191_spy.call_count == 0, "eip191 signing not performed"
+        else:
+            v07_hash = packed_user_op.to_v07_hash(chain_id)
+            msg = encode_defunct(primitive=v07_hash)
+            assert sign_eip191_spy.call_count == 1, "eip191 signing performed"
+            assert sign_eip712_spy.call_count == 0, "eip712 signing not performed"
 
-        msg = encode_typed_data(full_message=eip712_struct)
         recovered_address = Account.recover_message(msg, signature=signature)
         expected_address = account.address
-
         assert recovered_address == expected_address
 
         # Verify the returned message hash matches

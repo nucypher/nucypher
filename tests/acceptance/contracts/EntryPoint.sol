@@ -54,6 +54,37 @@ contract EntryPoint is EIP712 {
         return keccak256(abi.encode(TYPE_HASH, _hashedName, _hashedVersion, block.chainid, V_08));
     }
 
+    function hashV7(
+        PackedUserOperation calldata userOp
+    ) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                userOp.sender,
+                userOp.nonce,
+                keccak256(userOp.initCode),
+                keccak256(userOp.callData),
+                userOp.accountGasLimits,
+                userOp.preVerificationGas,
+                userOp.gasFees,
+                keccak256(userOp.paymasterAndData)
+            )
+        );
+    }
+
+    /// @dev Mimics hashing functionality of EntryPoint v0.7.0
+    function getUserOpHashV7(
+        PackedUserOperation calldata userOp
+    ) public view returns (bytes32) {
+        bytes32 data = keccak256(
+            abi.encode(
+                hashV7(userOp),
+                V_07,
+                block.chainid
+            )
+        );
+        return MessageHashUtils.toEthSignedMessageHash(data);
+    }
+
     /// @dev Mimics hashing functionality of EntryPoint v0.8.0
     function getUserOpHashV8(
         PackedUserOperation calldata userOp

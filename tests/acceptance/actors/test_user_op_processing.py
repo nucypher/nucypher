@@ -81,6 +81,36 @@ def test_aa_version_v08_hashing(chain, aa_entry_point, transactor, packed_user_o
     assert recovered_address == transactor.transacting_power.account
 
 
+def test_aa_version_v07_hashing(chain, aa_entry_point, transactor, packed_user_op_args):
+    packed_user_op = PackedUserOperation(**packed_user_op_args)
+    message_hash, signature = sign_packed_user_operation(
+        packed_user_op, transactor.transacting_power, AAVersion.V07, chain.chain_id
+    )
+
+    # verify hash matches expected entry point hash
+    expected_hash = aa_entry_point.getUserOpHashV7(
+        # send as struct tuple
+        (
+            packed_user_op.sender,
+            packed_user_op.nonce,
+            packed_user_op.init_code,
+            packed_user_op.call_data,
+            packed_user_op.account_gas_limits,
+            packed_user_op.pre_verification_gas,
+            packed_user_op.gas_fees,
+            packed_user_op.paymaster_and_data,
+            b"",  # signature
+        )
+    )
+    assert expected_hash == message_hash
+
+    # signature is correct for calculated hash
+    recovered_address = Account._recover_hash(
+        message_hash=message_hash, signature=signature
+    )
+    assert recovered_address == transactor.transacting_power.account
+
+
 def test_aa_version_mdt_hashing(chain, aa_entry_point, transactor, packed_user_op_args):
     packed_user_op = PackedUserOperation(**packed_user_op_args)
     message_hash, signature = sign_packed_user_operation(
