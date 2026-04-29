@@ -9,7 +9,7 @@ python = ">=3.10,<4"
 
 ckzg = ">=2.1.1"  # required for python 3.13 support
 
-nucypher-core = { git = "https://github.com/nucypher/nucypher-core.git", branch = "main", subdirectory = "nucypher-core-python" }
+nucypher-core = "==0.16.0"
 cryptography = ">=44.0.1"   # Latest version with no known vulns (as per 2025-09-23)
 pynacl = ">=1.4.0"
 mnemonic = "*"
