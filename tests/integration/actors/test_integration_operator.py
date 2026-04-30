@@ -106,11 +106,12 @@ def test_operator_block_until_ready_success(
 
     # funding
     final_balance_pol = Web3.to_wei(1, "ether")
-    final_balance_eth = Web3.to_wei(2, "ether")
+    # eth funding no longer enforced
+    # final_balance_eth = Web3.to_wei(2, "ether")
     mocker.patch.object(
         EthereumClient,
         "get_balance",
-        side_effect=[0, 0, final_balance_pol, final_balance_eth],
+        side_effect=[0, 0, final_balance_pol],
     )
 
     # bonding
@@ -143,13 +144,14 @@ def test_operator_block_until_ready_success(
         # iteration 1
         (
             "not funded with POL",
-            "not funded with ETH",
+            "not funded with ETH (optional)",
             "not bonded to a staking provider",
         ),
         # iteration 2
         (
             f"is funded with {Web3.from_wei(final_balance_pol, 'ether')} POL",
-            f"is funded with {Web3.from_wei(final_balance_eth, 'ether')} ETH",
+            # eth funding only checked once since not enforced
+            # f"is funded with {Web3.from_wei(final_balance_eth, 'ether')} ETH",
             "not bonded to a staking provider",
         ),
         # iteration 3

@@ -1561,7 +1561,11 @@ class Operator(BaseActor):
         return self.child_application_agent.is_operator_confirmed(self.operator_address)
 
     def _is_funded(
-        self, client: EthereumClient, funding_unit: str, emitter: StdoutEmitter
+        self,
+        client: EthereumClient,
+        funding_unit: str,
+        emitter: StdoutEmitter,
+        required: bool = True,
     ) -> bool:
         # check for funds
         wei_balance = client.get_balance(self.operator_address)
@@ -1575,7 +1579,7 @@ class Operator(BaseActor):
             return True
         else:
             emitter.message(
-                f"! Operator {self.operator_address} is not funded with {funding_unit}",
+                f"! Operator {self.operator_address} is not funded with {funding_unit}{' (optional)' if not required else ''}",
                 color="yellow",
             )
             return False
@@ -1607,7 +1611,10 @@ class Operator(BaseActor):
                 funded_pol = self._is_funded(taco_child_client, "POL", emitter)
 
             if not funded_eth:
-                funded_eth = self._is_funded(taco_app_client, "ETH", emitter)
+                # don't enforce eth_funding; only specific nodes will support signing
+                # ignore result but still print to console
+                _ = self._is_funded(taco_app_client, "ETH", emitter, required=False)
+                funded_eth = True
 
             if not bonded:
                 # check root
