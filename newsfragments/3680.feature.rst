@@ -1,0 +1,1 @@
+Add detailed debug error messages for condition failures on Lynx (devnet) to aid debugging.

@@ -1,5 +1,7 @@
+import copy
 import json
 import os
+from http import HTTPStatus
 from unittest import mock
 
 import pytest
@@ -14,6 +16,7 @@ from nucypher.blockchain.eth.agents import (
     SubscriptionManagerAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
@@ -28,14 +31,26 @@ from nucypher.policy.conditions.exceptions import (
     RequiredContextVariable,
     RPCExecutionFailed,
 )
+from nucypher.policy.conditions.json.api import JsonApiCondition
+from nucypher.policy.conditions.json.auth import AuthorizationType
 from nucypher.policy.conditions.json.rpc import JsonRpcCondition
 from nucypher.policy.conditions.lingo import (
+    AndCompoundCondition,
+    CompoundCondition,
     ConditionLingo,
     ConditionType,
+    ConditionVariable,
+    IfThenElseCondition,
     NotCompoundCondition,
     ReturnValueTest,
+    SequentialCondition,
 )
-from nucypher.policy.conditions.utils import ConditionProviderManager
+from nucypher.policy.conditions.time import TimeCondition
+from nucypher.policy.conditions.utils import (
+    ConditionProviderManager,
+    extract_condition_failure_details,
+)
+from nucypher.utilities.endpoint import RPCEndpoint
 from tests.constants import (
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
@@ -45,27 +60,37 @@ from tests.utils.policy import make_message_kits
 
 GET_CONTEXT_VALUE_IMPORT_PATH = "nucypher.policy.conditions.context.get_context_value"
 
-getActiveStakingProviders_abi_2_params = {
+# ABIs for overloaded "add" function with different number of parameters
+add_abi_0_params = {
     "type": "function",
-    "name": "getActiveStakingProviders",
-    "stateMutability": "view",
-    "inputs": [
-        {"name": "_startIndex", "type": "uint256", "internalType": "uint256"},
-        {
-            "name": "_maxStakingProviders",
-            "type": "uint256",
-            "internalType": "uint256",
-        },
-    ],
+    "name": "add",
+    "stateMutability": "pure",
+    "inputs": [],
     "outputs": [
-        {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
-        {
-            "name": "activeStakingProviders",
-            "type": "bytes32[]",
-            "internalType": "bytes32[]",
-        },
+        {"type": "uint256", "internalType": "uint256"},
     ],
 }
+
+add_abi_1_params = copy.deepcopy(add_abi_0_params)
+add_abi_1_params["inputs"].append(
+    {"name": "a", "type": "uint256", "internalType": "uint256"}
+)
+
+add_abi_2_params = copy.deepcopy(add_abi_1_params)
+add_abi_2_params["inputs"].append(
+    {"name": "b", "type": "uint256", "internalType": "uint256"}
+)
+
+add_abi_3_params = copy.deepcopy(add_abi_2_params)
+add_abi_3_params["inputs"].append(
+    {"name": "c", "type": "uint256", "internalType": "uint256"}
+)
+
+
+@pytest.fixture(scope="module")
+def contract_overloaded_methods(project, deployer_account):
+    _contract = deployer_account.deploy(project.ConditionOverloadedMethods)
+    return _contract
 
 
 def _dont_validate_user_address(context_variable: str, **context):
@@ -93,30 +118,6 @@ def test_rpc_condition_evaluation_no_providers(
     context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
     with pytest.raises(NoConnectionToChain):
         _ = rpc_condition.verify(providers=ConditionProviderManager({}), **context)
-
-    with pytest.raises(NoConnectionToChain):
-        _ = rpc_condition.verify(
-            providers=ConditionProviderManager({testerchain.client.chain_id: list()}),
-            **context,
-        )
-
-
-@mock.patch(
-    GET_CONTEXT_VALUE_IMPORT_PATH,
-    side_effect=_dont_validate_user_address,
-)
-def test_rpc_condition_evaluation_invalid_provider_for_chain(
-    get_context_value_mock, testerchain, accounts, rpc_condition
-):
-    context = {USER_ADDRESS_CONTEXT: {"address": accounts.unassigned_accounts[0]}}
-    new_chain = 23
-    rpc_condition.execution_call.chain = new_chain
-    condition_providers = ConditionProviderManager({new_chain: [testerchain.provider]})
-    with pytest.raises(
-        NoConnectionToChain,
-        match=f"Problematic provider endpoints for chain ID {new_chain}",
-    ):
-        _ = rpc_condition.verify(providers=condition_providers, **context)
 
 
 @mock.patch(
@@ -151,7 +152,7 @@ def test_rpc_condition_evaluation_multiple_chain_providers(
             "2": ["fake2"],
             "3": ["fake3"],
             "4": ["fake4"],
-            TESTERCHAIN_CHAIN_ID: [testerchain.provider],
+            TESTERCHAIN_CHAIN_ID: [TEST_ETH_PROVIDER_URI],
         }
     )
 
@@ -176,16 +177,22 @@ def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
     condition_providers = ConditionProviderManager(
         {
             TESTERCHAIN_CHAIN_ID: [
-                mocker.Mock(spec=BaseProvider),
-                mocker.Mock(spec=BaseProvider),
-                mocker.Mock(spec=BaseProvider),
+                "https://provider.1.test",
+                "https://provider.2.test",
+                "https://provider.3.test",
             ]
         }
     )
+    mocked_make_provider = mocker.patch.object(
+        RPCEndpoint,
+        "_make_provider",
+        side_effect=lambda *args, **kwargs: mocker.Mock(spec=BaseProvider),
+    )
 
-    mocker.patch.object(condition_providers, "_check_chain_id", return_value=None)
     with pytest.raises(RPCExecutionFailed):
         _ = rpc_condition.verify(providers=condition_providers, **context)
+
+    assert mocked_make_provider.call_count == 3
 
 
 @mock.patch(
@@ -200,15 +207,23 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
     condition_providers = ConditionProviderManager(
         {
             TESTERCHAIN_CHAIN_ID: [
-                mocker.Mock(spec=BaseProvider),
-                mocker.Mock(spec=BaseProvider),
-                mocker.Mock(spec=BaseProvider),
-                testerchain.provider,
+                "https://provider.1.test",
+                "https://provider.2.test",
+                "https://provider.3.test",
+                TEST_ETH_PROVIDER_URI,
             ]
         }
     )
-
-    mocker.patch.object(condition_providers, "_check_chain_id", return_value=None)
+    mocked_make_provider = mocker.patch.object(
+        RPCEndpoint,
+        "_make_provider",
+        side_effect=[
+            mocker.Mock(spec=BaseProvider),
+            mocker.Mock(spec=BaseProvider),
+            mocker.Mock(spec=BaseProvider),
+            testerchain.provider,
+        ],
+    )
 
     condition_result, call_result = rpc_condition.verify(
         providers=condition_providers, **context
@@ -219,6 +234,8 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
     assert call_result == Web3.to_wei(
         1_000_000, "ether"
     )  # same value used in rpc_condition fixture
+
+    assert mocked_make_provider.call_count == 4
 
 
 @mock.patch(
@@ -233,12 +250,12 @@ def test_rpc_condition_evaluation_no_connection_to_chain(
     # condition providers for other unrelated chains
     providers = ConditionProviderManager(
         {
-            1: [mock.Mock()],  # mainnet
-            11155111: [mock.Mock()],  # Sepolia
+            1: ["https://mainnet.provider"],  # mainnet
+            11155111: ["https://sepolia.provider"],  # Sepolia
         }
     )
 
-    with pytest.raises(NoConnectionToChain):
+    with pytest.raises(NoConnectionToChain, match="No connection to chain ID"):
         rpc_condition.verify(providers=providers, **context)
 
 
@@ -276,7 +293,7 @@ def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
     context[":balanceContextVar"] = invalid_balance
     condition_result, call_result = rpc_condition.verify(
         providers=ConditionProviderManager(
-            {testerchain.client.chain_id: [testerchain.provider]}
+            {testerchain.client.chain_id: [TEST_ETH_PROVIDER_URI]}
         ),
         **context,
     )
@@ -773,138 +790,76 @@ def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
     assert cleartexts == messages
 
 
-@pytest.mark.usefixtures("staking_providers")
+@pytest.mark.parametrize(
+    "abi,parameters,expected_result",
+    [
+        (add_abi_0_params, [], 0),  # valid overloaded function - 0 params
+        (add_abi_1_params, [42], 42),  # valid overloaded function - 1 param
+        (add_abi_2_params, [1, 2], 3),  # valid overloaded function - 2 params
+        (add_abi_3_params, [11, 22, 33], 66),  # valid overloaded function - 3 params
+    ],
+)
 def test_contract_condition_using_overloaded_function(
-    taco_child_application_agent, condition_providers
+    contract_overloaded_methods, condition_providers, abi, parameters, expected_result
 ):
-    (
-        total_staked,
-        providers,
-    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10, 0)
-    expected_result = [
-        total_staked,
-        [
-            HexBytes(provider_bytes).hex() for provider_bytes in providers
-        ],  # must be json serializable
-    ]
-
-    context = {
-        ":expectedStakingProviders": expected_result,
-    }  # user-defined context vars
-
-    #
-    # valid overloaded function - 2 params
-    #
+    context = {":expectedSum": expected_result}  # user-defined context vars
     condition = ContractCondition(
-        contract_address=taco_child_application_agent.contract.address,
-        function_abi=ABIFunction(getActiveStakingProviders_abi_2_params),
-        method="getActiveStakingProviders",
+        contract_address=contract_overloaded_methods.address,
+        function_abi=ABIFunction(abi),
+        method="add",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
-        parameters=[0, 10],
+        return_value_test=ReturnValueTest("==", ":expectedSum"),
+        parameters=parameters,
     )
     condition_result, call_result = condition.verify(
         providers=condition_providers, **context
     )
-    assert condition_result, "results match and condition passes"
-    json_serializable_result = [
-        call_result[0],
-        [HexBytes(provider_bytes).hex() for provider_bytes in call_result[1]],
-    ]
-    assert expected_result == json_serializable_result
+    assert condition_result is True
+    assert expected_result == call_result
 
-    #
-    # valid overloaded function - 3 params
-    #
-    valid_abi_3_params = {
-        "type": "function",
-        "name": "getActiveStakingProviders",
-        "stateMutability": "view",
-        "inputs": [
-            {"name": "_startIndex", "type": "uint256", "internalType": "uint256"},
-            {
-                "name": "_maxStakingProviders",
-                "type": "uint256",
-                "internalType": "uint256",
-            },
-            {"name": "_cohortDuration", "type": "uint32", "internalType": "uint32"},
-        ],
-        "outputs": [
-            {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
-            {
-                "name": "activeStakingProviders",
-                "type": "bytes32[]",
-                "internalType": "bytes32[]",
-            },
-        ],
-    }
-    condition = ContractCondition(
-        contract_address=taco_child_application_agent.contract.address,
-        function_abi=ABIFunction(valid_abi_3_params),
-        method="getActiveStakingProviders",
-        chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
-        parameters=[0, 10, 0],
-    )
-    condition_result, call_result = condition.verify(
-        providers=condition_providers, **context
-    )
-    assert condition_result, "results match and condition passes"
-    json_serializable_result = [
-        call_result[0],
-        [HexBytes(provider_bytes).hex() for provider_bytes in call_result[1]],
-    ]
-    assert expected_result == json_serializable_result
 
-    #
-    # valid overloaded contract abi but wrong parameters
-    #
+def test_contract_condition_using_overloaded_function_but_wrong_parameters(
+    contract_overloaded_methods, condition_providers
+):
+    context = {":expectedSum": 3}  # user-defined context vars
     condition = ContractCondition(
-        contract_address=taco_child_application_agent.contract.address,
-        function_abi=ABIFunction(valid_abi_3_params),
-        method="getActiveStakingProviders",
+        contract_address=contract_overloaded_methods.address,
+        function_abi=ABIFunction(
+            add_abi_1_params
+        ),  # abi with 1 param, but we will provide 2 params
+        method="add",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
-        parameters=[0, 10],  # 2 params instead of 3 (old overloaded function)
+        return_value_test=ReturnValueTest("==", ":expectedSum"),
+        parameters=[
+            1,
+            2,
+        ],  # parameters that match add_abi_2_params, but not add_abi_1_params
     )
     with pytest.raises(RPCExecutionFailed):
         _ = condition.verify(providers=condition_providers, **context)
 
-    #
-    # invalid abi
-    #
-    invalid_abi_all_bool_inputs = {
-        "type": "function",
-        "name": "getActiveStakingProviders",
-        "stateMutability": "view",
-        "inputs": [
-            {"name": "_startIndex", "type": "bool", "internalType": "bool"},
-            {"name": "_maxStakingProviders", "type": "bool", "internalType": "bool"},
-            {"name": "_cohortDuration", "type": "bool", "internalType": "bool"},
-        ],
-        "outputs": [
-            {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
-            {
-                "name": "activeStakingProviders",
-                "type": "bytes32[]",
-                "internalType": "bytes32[]",
-            },
-        ],
-    }
+
+def test_contract_condition_using_overloaded_function_but_wrong_abi(
+    contract_overloaded_methods, condition_providers
+):
+    context = {":expectedSum": 42}  # user-defined context vars
     condition = ContractCondition(
-        contract_address=taco_child_application_agent.contract.address,
-        function_abi=ABIFunction(invalid_abi_all_bool_inputs),
-        method="getActiveStakingProviders",
+        contract_address=contract_overloaded_methods.address,
+        function_abi=ABIFunction(add_abi_2_params),  # abi with 2 uint params...
+        method="add",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
-        parameters=[False, False, False],  # parameters match fake abi
+        return_value_test=ReturnValueTest("==", ":expectedSum"),
+        parameters=[
+            "foo",
+            True,
+        ],  # but parameters that don't match the abi types at all
     )
     with pytest.raises(RPCExecutionFailed):
         _ = condition.verify(providers=condition_providers, **context)
 
 
 @pytest.mark.xfail(reason="This test uses a public rpc endpoint")
-def test_json_rpc_condition_non_evm_prototyping_example():
+def test_json_rpc_condition_non_evm_prototyping_example_solana():
     condition = JsonRpcCondition(
         endpoint="https://api.mainnet-beta.solana.com",
         method="getBlockTime",
@@ -924,6 +879,9 @@ def test_json_rpc_condition_non_evm_prototyping_example():
     success, _ = condition.verify()
     assert success
 
+
+@pytest.mark.xfail(reason="This test uses a public rpc endpoint")
+def test_json_rpc_condition_non_evm_prototyping_example_bitcoin():
     condition = JsonRpcCondition(
         endpoint="https://bitcoin.drpc.org",
         method="getblock",
@@ -988,35 +946,24 @@ def test_rpc_condition_using_eip1271(
     assert call_result == (eth_amount - withdraw_amount)
 
 
-@pytest.mark.usefixtures("staking_providers")
 def test_big_int_string_handling(
-    accounts, taco_child_application_agent, bob, condition_providers
+    accounts, bob, condition_providers, contract_overloaded_methods
 ):
-    (
-        total_staked,
-        providers,
-    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10, 0)
-    expected_result = [
-        total_staked,
-        [
-            HexBytes(provider_bytes).hex() for provider_bytes in providers
-        ],  # must be json serializable
-    ]
 
     context = {
-        ":expectedStakingProviders": expected_result,
+        ":expectedResult": 30,
     }  # user-defined context vars
 
     contract_condition = {
         "conditionType": ConditionType.CONTRACT.value,
-        "contractAddress": taco_child_application_agent.contract.address,
-        "functionAbi": getActiveStakingProviders_abi_2_params,
+        "contractAddress": contract_overloaded_methods.address,
+        "functionAbi": ABIFunction(add_abi_2_params),
         "chain": TESTERCHAIN_CHAIN_ID,
-        "method": "getActiveStakingProviders",
-        "parameters": ["0n", "10n"],  # use bigint notation
+        "method": "add",
+        "parameters": ["20n", "10n"],  # use bigint notation
         "returnValueTest": {
             "comparator": "==",
-            "value": ":expectedStakingProviders",
+            "value": ":expectedResult",
         },
     }
     rpc_condition = {
@@ -1043,3 +990,278 @@ def test_big_int_string_handling(
         providers=condition_providers, **context
     )
     assert condition_result, "condition executed and passes"
+
+
+def test_validate_condition_lingo_endpoint(ursulas, time_condition):
+    ursula = ursulas[0]
+
+    condition_lingo = ConditionLingo(time_condition)
+    lingo_json = condition_lingo.to_json()
+
+    response = ursula.network_middleware.client.post(
+        node_or_sprout=ursula,
+        path="validate_condition_lingo",
+        json=lingo_json,
+    )
+    assert response.status_code == HTTPStatus.OK, "Condition Lingo validation failed"
+    assert response.get_json()["status"] == "valid", "Unexpected response"
+
+    # failure case with invalid condition
+    with pytest.raises(RestMiddleware.BadRequest):
+        _ = ursula.network_middleware.client.post(
+            node_or_sprout=ursula,
+            path="validate_condition_lingo",
+            json=json.dumps({"invalidCondition": "confirmed"}),
+        )
+
+
+@pytest.mark.xfail(reason="This test requires a valid POAP API Key")
+@mock.patch(
+    GET_CONTEXT_VALUE_IMPORT_PATH,
+    side_effect=_dont_validate_user_address,
+)
+def test_poap_api_condition(get_context_value_mock, condition_providers):
+    eth_denver_2025_event_id = 185704
+    user_address = "0x19570deAFd7Cbe25B30A5A72c95A8E7658672436"
+
+    #
+    # POAP API
+    #
+    # get an API key from https://documentation.poap.tech/docs/authentication
+    authorization_token = os.environ.get(
+        "POAP_API_KEY", "abcd1234"
+    )  # default to fake if N/A
+
+    context = {
+        USER_ADDRESS_CONTEXT: {"address": user_address},
+        ":authToken": authorization_token,
+    }
+
+    # check whether user has attended eth denver 2025
+    json_api_condition = JsonApiCondition(
+        endpoint=f"https://api.poap.tech/actions/scan/:userAddress/{eth_denver_2025_event_id}",
+        authorization_token=":authToken",
+        authorization_type=AuthorizationType.X_API_KEY,
+        query="$.tokenId",
+        return_value_test=ReturnValueTest("!=", '""'),
+    )
+    success, _ = json_api_condition.verify(providers=condition_providers, **context)
+    assert success
+
+
+@pytest.mark.xfail(reason="This test uses public RPC endpoint for Gnosis")
+@mock.patch(
+    GET_CONTEXT_VALUE_IMPORT_PATH,
+    side_effect=_dont_validate_user_address,
+)
+def test_poap_contract_condition(get_context_value_mock):
+    eth_denver_2025_event_id = 185704
+    user_address = "0x19570deAFd7Cbe25B30A5A72c95A8E7658672436"
+
+    #
+    # POAP Contract
+    #
+    context = {
+        USER_ADDRESS_CONTEXT: {"address": user_address},
+        ":tokenId": 7323049,
+    }
+    ownership_condition = ContractCondition(
+        contract_address="0x22c1f6050e56d2876009903609a2cc3fef83b415",
+        function_abi={
+            "type": "function",
+            "name": "ownerOf",
+            "inputs": [{"name": "tokenId", "type": "uint256"}],
+            "outputs": [{"name": "", "type": "address"}],
+            "stateMutability": "view",
+        },
+        method="ownerOf",
+        parameters=[":tokenId"],
+        chain=100,
+        return_value_test=ReturnValueTest("==", ":userAddress"),
+    )
+    event_id_condition = ContractCondition(
+        contract_address="0x22c1f6050e56d2876009903609a2cc3fef83b415",
+        function_abi={
+            "type": "function",
+            "name": "tokenEvent",
+            "inputs": [{"name": "tokenId", "type": "uint256"}],
+            "outputs": [{"name": "", "type": "uint256"}],
+            "stateMutability": "view",
+        },
+        method="tokenEvent",
+        parameters=[":tokenId"],
+        chain=100,
+        return_value_test=ReturnValueTest("==", eth_denver_2025_event_id),
+    )
+    and_condition = CompoundCondition(
+        operator="and",
+        operands=[
+            ownership_condition,
+            event_id_condition,
+        ],
+    )
+    gnosis_providers = ConditionProviderManager(
+        {
+            100: [
+                "https://gnosis.drpc.org",
+                "https://gnosis-public.nodies.app",
+            ]
+        }
+    )
+    success, _ = and_condition.verify(providers=gnosis_providers, **context)
+    assert success
+
+
+# ===== eval_with_details() Tests =====
+# These tests verify real condition evaluation behavior without mocking verify()
+
+
+def test_eval_with_details_real_time_condition_failure(mocker, condition_providers):
+    """Test eval() using debug mode with failing conditions."""
+    # Create a time condition that will fail (current time is never > far future)
+    failing_condition = TimeCondition(
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(">", 9999999999999),
+    )
+
+    _, actual_value = failing_condition.verify(providers=condition_providers)
+    failure_details = extract_condition_failure_details(failing_condition, actual_value)
+
+    lingo = ConditionLingo(condition=failing_condition)
+    lingo.log = mocker.Mock()
+
+    success = lingo.eval(debug_mode=True, providers=condition_providers)
+
+    assert success is False
+    assert json.dumps(failure_details, indent=2) in lingo.log.debug.call_args.args[0]
+
+
+def test_eval_with_details_real_time_condition_failure_no_debug_mode(
+    mocker, condition_providers
+):
+    """Test eval() using debug mode with failing conditions."""
+    # Create a time condition that will fail (current time is never > far future)
+    failing_condition = TimeCondition(
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(">", 9999999999999),
+    )
+
+    lingo = ConditionLingo(condition=failing_condition)
+    lingo.log = mocker.Mock()
+
+    success = lingo.eval(debug_mode=False, providers=condition_providers)
+
+    assert success is False
+    lingo.log.debug.assert_not_called()  # details not logged to debug
+
+
+def test_eval_with_details_real_compound_condition_failure(mocker, condition_providers):
+    """Test eval_with_details() with real compound condition failure."""
+    passing_condition = TimeCondition(
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(">", 0),  # always passes
+    )
+    failing_condition = TimeCondition(
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(">", 9999999999999),  # always fails
+    )
+
+    compound = AndCompoundCondition(operands=[passing_condition, failing_condition])
+
+    _, actual_value = compound.verify(providers=condition_providers)
+    failure_details = extract_condition_failure_details(compound, actual_value)
+
+    lingo = ConditionLingo(condition=compound)
+    lingo.log = mocker.Mock()
+
+    success = lingo.eval(debug_mode=True, providers=condition_providers)
+
+    assert success is False
+    assert (
+        json.dumps(failure_details, indent=2) in lingo.log.debug.call_args.args[0]
+    ), "details not logged to debug"
+
+
+def test_eval_with_details_real_sequential_condition_failure(
+    mocker, condition_providers
+):
+    """Test eval_with_details() with real sequential condition failure."""
+    # First condition passes, second fails
+    cv1 = ConditionVariable(
+        var_name="blocktime",
+        condition=TimeCondition(
+            chain=TESTERCHAIN_CHAIN_ID,
+            return_value_test=ReturnValueTest(">", 0),
+        ),
+    )
+    cv2 = ConditionVariable(
+        var_name="check",
+        condition=TimeCondition(
+            chain=TESTERCHAIN_CHAIN_ID,
+            return_value_test=ReturnValueTest(">", 9999999999999),
+        ),
+    )
+
+    sequential = SequentialCondition(condition_variables=[cv1, cv2])
+
+    _, actual_value = sequential.verify(providers=condition_providers)
+    failure_details = extract_condition_failure_details(sequential, actual_value)
+
+    lingo = ConditionLingo(condition=sequential)
+    lingo.log = mocker.Mock()
+
+    success = lingo.eval(debug_mode=True, providers=condition_providers)
+
+    assert success is False
+    assert (
+        json.dumps(failure_details, indent=2) in lingo.log.debug.call_args.args[0]
+    ), "details not logged to debug"
+
+
+def test_eval_with_details_real_if_then_else_failure(mocker, condition_providers):
+    """Test eval_with_details() with real if-then-else condition failure."""
+    # if (time > 0) then (time > 9999999999999) else True
+    # The if passes, then the then branch is evaluated and fails
+
+    if_condition = TimeCondition(
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(">", 0),
+    )
+    then_condition = TimeCondition(
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(">", 9999999999999),
+    )
+
+    if_then_else = IfThenElseCondition(
+        if_condition=if_condition,
+        then_condition=then_condition,
+        else_condition=True,
+    )
+
+    _, actual_value = if_then_else.verify(providers=condition_providers)
+    failure_details = extract_condition_failure_details(if_then_else, actual_value)
+
+    lingo = ConditionLingo(condition=if_then_else)
+    lingo.log = mocker.Mock()
+
+    success = lingo.eval(debug_mode=True, providers=condition_providers)
+
+    assert success is False
+    assert (
+        json.dumps(failure_details, indent=2) in lingo.log.debug.call_args.args[0]
+    ), "details not logged to debug"
+
+
+def test_eval_with_details_real_success(mocker, condition_providers):
+    """Test eval_with_details() returns None for failure_details on success."""
+    passing_condition = TimeCondition(
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(">", 0),  # always passes
+    )
+    lingo = ConditionLingo(condition=passing_condition)
+    lingo.log = mocker.Mock()
+
+    success = lingo.eval(debug_mode=True, providers=condition_providers)
+
+    assert success is True
+    lingo.log.debug.assert_not_called()  # details not logged to debug

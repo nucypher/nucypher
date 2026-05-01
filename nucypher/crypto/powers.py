@@ -1,16 +1,22 @@
 import inspect
-from typing import List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
+from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
+    EncryptedThresholdSignatureRequest,
+    EncryptedThresholdSignatureResponse,
+    PackedUserOperationSignatureRequest,
     SessionSecretFactory,
     SessionStaticKey,
     SessionStaticSecret,
+    SignatureResponse,
     ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
+    UserOperationSignatureRequest,
     ferveo,
 )
 from nucypher_core.ferveo import (
@@ -28,6 +34,7 @@ from nucypher_core.umbral import PublicKey, SecretKey, SecretKeyFactory, generat
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
+from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.crypto import keypairs
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keypairs import (
@@ -52,14 +59,22 @@ class NoDecryptingPower(PowerUpError):
 class NoTransactingPower(PowerUpError):
     pass
 
+
+class NoThresholdSigningPower(PowerUpError):
+    pass
+
 class NoRitualisticPower(PowerUpError):
     pass
 
 
-class NotImplmplemented(PowerUpError):
+class NotImplemented(PowerUpError):
     pass
 
 class NoThresholdRequestDecryptingPower(PowerUpError):
+    pass
+
+
+class NoThresholdSigningDecryptingPower(PowerUpError):
     pass
 
 
@@ -193,17 +208,61 @@ class TransactingPower(CryptoPowerUp):
                                              duration=duration)
         return result
 
-    def sign_message(self, message: bytes) -> bytes:
-        """Signs the message with the private key of the TransactingPower."""
-        signature = self._signer.sign_message(account=self.__account, message=message)
+    # TODO: this is only a workaround - what are we going to do with this? standardize vs not standardize?
+    def sign_message_eip191(
+        self, message: bytes, standardize: bool = True
+    ) -> Tuple[HexBytes, HexBytes]:
+        """
+        Signs the message with the private key of the TransactingPower.
+        Returns the message hash and the signature as bytes.
+        """
+        message_hash, signature = self._signer.sign_message_eip191(
+            account=self.__account, message=message
+        )
 
         # This signature will need to be passed to Rust, so we are cleaning the chain identifier
         # from the recovery byte, bringing it to the standard choice of {0, 1}.
-        return to_standard_signature_bytes(signature)
+        if not standardize:
+            return message_hash, signature
+
+        return message_hash, HexBytes(to_standard_signature_bytes(bytes(signature)))
+
+    def sign_message_eip712(
+        self, message: Dict[str, Any], standardize: bool = True
+    ) -> Tuple[HexBytes, HexBytes]:
+        """
+        Signs the message with the private key of the TransactingPower.
+        Returns the message hash and the signature as bytes.
+        """
+        message_hash, signature = self._signer.sign_message_eip712(
+            account=self.__account, message=message
+        )
+
+        # This signature will need to be passed to Rust, so we are cleaning the chain identifier
+        # from the recovery byte, bringing it to the standard choice of {0, 1}.
+        if not standardize:
+            return message_hash, signature
+
+        return message_hash, HexBytes(to_standard_signature_bytes(bytes(signature)))
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:
         """Signs the transaction with the private key of the TransactingPower."""
         return self._signer.sign_transaction(transaction_dict=transaction_dict)
+
+
+class ThresholdSigningPower(TransactingPower):
+    """A power that is dedicated to sign TACo Action Control signing requests."""
+
+    KEY_SIZE = 32  # must be 32 bytes long (ECDSA-specific)
+    not_found_error = NoThresholdSigningPower
+
+    def __init__(
+        self,
+        signer: Optional[InMemorySigner] = None,
+    ):
+        if not signer:
+            signer = InMemorySigner()
+        super().__init__(account=signer.accounts[0], signer=signer)
 
 
 class KeyPairBasedPower(CryptoPowerUp):
@@ -392,7 +451,11 @@ class DerivedKeyBasedPower(CryptoPowerUp):
     """
 
 
-class ThresholdRequestDecryptingPower(DerivedKeyBasedPower):
+class ThresholdRequestPower(DerivedKeyBasedPower):
+    """
+    A power that is dedicated to decrypting/encrypting threshold cryptography requests/responses.
+    """
+
     class ThresholdRequestDecryptionFailed(Exception):
         """Raised when decryption of the request fails."""
 
@@ -404,19 +467,22 @@ class ThresholdRequestDecryptingPower(DerivedKeyBasedPower):
             session_secret_factory = SessionSecretFactory.random()
         self.__request_key_factory = session_secret_factory
 
-    def _get_static_secret_from_ritual_id(self, ritual_id: int) -> SessionStaticSecret:
-        return self.__request_key_factory.make_key(bytes(ritual_id.to_bytes(4, "big")))
+    def _get_static_secret_from_id(self, id: int) -> SessionStaticSecret:
+        return self.__request_key_factory.make_key(bytes(id.to_bytes(4, "big")))
 
-    def get_pubkey_from_ritual_id(self, ritual_id: int) -> SessionStaticKey:
-        return self._get_static_secret_from_ritual_id(ritual_id).public_key()
+    def get_pubkey_from_id(self, id: int) -> SessionStaticKey:
+        return self._get_static_secret_from_id(id).public_key()
 
+
+class DecryptingRequestPower(ThresholdRequestPower):
+    """
+    A power that is dedicated to decrypting/encrypting threshold decryption requests/responses.
+    """
     def decrypt_encrypted_request(
         self, encrypted_request: EncryptedThresholdDecryptionRequest
     ) -> ThresholdDecryptionRequest:
         try:
-            static_secret = self._get_static_secret_from_ritual_id(
-                encrypted_request.ritual_id
-            )
+            static_secret = self._get_static_secret_from_id(encrypted_request.ritual_id)
             requester_public_key = encrypted_request.requester_public_key
             shared_secret = static_secret.derive_shared_secret(requester_public_key)
             decrypted_request = encrypted_request.decrypt(shared_secret)
@@ -430,12 +496,44 @@ class ThresholdRequestDecryptingPower(DerivedKeyBasedPower):
         requester_public_key: SessionStaticKey,
     ) -> EncryptedThresholdDecryptionResponse:
         try:
-            static_secret = self._get_static_secret_from_ritual_id(
+            static_secret = self._get_static_secret_from_id(
                 decryption_response.ritual_id
             )
             shared_secret = static_secret.derive_shared_secret(requester_public_key)
             encrypted_decryption_response = decryption_response.encrypt(shared_secret)
             return encrypted_decryption_response
+        except Exception as e:
+            raise self.ThresholdResponseEncryptionFailed from e
+
+
+class SigningRequestPower(ThresholdRequestPower):
+    """
+    A power that is dedicated to decrypting/encrypting threshold signature requests/responses.
+    """
+
+    def decrypt_encrypted_request(
+        self, encrypted_request: EncryptedThresholdSignatureRequest
+    ) -> Union[UserOperationSignatureRequest, PackedUserOperationSignatureRequest]:
+        try:
+            static_secret = self._get_static_secret_from_id(encrypted_request.cohort_id)
+            requester_public_key = encrypted_request.requester_public_key
+            shared_secret = static_secret.derive_shared_secret(requester_public_key)
+            decrypted_request = encrypted_request.decrypt(shared_secret)
+            return decrypted_request
+        except Exception as e:
+            raise self.ThresholdRequestDecryptionFailed from e
+
+    def encrypt_signature_response(
+        self,
+        signature_response: SignatureResponse,
+        requester_public_key: SessionStaticKey,
+        cohort_id: int,
+    ) -> EncryptedThresholdSignatureResponse:
+        try:
+            static_secret = self._get_static_secret_from_id(cohort_id)
+            shared_secret = static_secret.derive_shared_secret(requester_public_key)
+            encrypted_signing_response = signature_response.encrypt(shared_secret)
+            return encrypted_signing_response
         except Exception as e:
             raise self.ThresholdResponseEncryptionFailed from e
 

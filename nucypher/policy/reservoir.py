@@ -13,7 +13,6 @@ def make_staking_provider_reservoir(
     exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
     include_addresses: Optional[Iterable[ChecksumAddress]] = None,
     pagination_size: Optional[int] = None,
-    duration: Optional[int] = 0,
 ):
     """Get a sampler object containing the currently registered staking providers."""
 
@@ -23,7 +22,7 @@ def make_staking_provider_reservoir(
     without_set = set(include_addresses) | set(exclude_addresses or ())
     try:
         reservoir = application_agent.get_staking_provider_reservoir(
-            without=without_set, pagination_size=pagination_size, duration=duration
+            without=without_set, pagination_size=pagination_size
         )
     except StakerSamplingApplicationAgent.NotEnoughStakingProviders:
         # TODO: do that in `get_staking_provider_reservoir()`?

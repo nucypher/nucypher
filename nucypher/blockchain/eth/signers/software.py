@@ -1,12 +1,13 @@
 import json
 from json.decoder import JSONDecodeError
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from cytoolz.dicttoolz import dissoc
 from eth_account.account import Account
-from eth_account.messages import encode_defunct
+from eth_account.messages import encode_defunct, encode_typed_data
 from eth_account.signers.local import LocalAccount
 from eth_utils.address import is_address, to_checksum_address
 from hexbytes.main import BytesLike, HexBytes
@@ -70,7 +71,13 @@ class Web3Signer(Signer):
         )
 
     @validate_checksum_address
-    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+    def sign_message_eip191(self, account: str, message: bytes, **kwargs) -> HexBytes:
+        raise NotImplementedError(
+            "Can't sign via external blockchain clients; provide an explicit Signer"
+        )
+
+    @validate_checksum_address
+    def sign_message_eip712(self, account: str, message: bytes, **kwargs) -> HexBytes:
         raise NotImplementedError(
             "Can't sign via external blockchain clients; provide an explicit Signer"
         )
@@ -193,7 +200,7 @@ class KeystoreSigner(Signer):
         decoded_uri = urlparse(uri)
         if decoded_uri.scheme != cls.uri_scheme() or decoded_uri.netloc:
             raise cls.InvalidSignerURI(uri)
-        path = decoded_uri.path
+        path = url2pathname(decoded_uri.path)
         if not path:
             raise cls.InvalidSignerURI("Blank signer URI - No keystore path provided")
         return cls(path=Path(path), testnet=testnet)
@@ -270,12 +277,26 @@ class KeystoreSigner(Signer):
         return raw_transaction
 
     @validate_checksum_address
-    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+    def sign_message_eip191(
+        self, account: str, message: bytes, **kwargs
+    ) -> Tuple[HexBytes, HexBytes]:
         signer = self._get_signer(account=account)
-        signature = signer.sign_message(
-            signable_message=encode_defunct(primitive=message)
-        ).signature
-        return HexBytes(signature)
+        signable_message = encode_defunct(primitive=message)
+        signed_message = signer.sign_message(
+            signable_message=signable_message,
+        )
+        return signed_message.messageHash, signed_message.signature
+
+    @validate_checksum_address
+    def sign_message_eip712(
+        self, account: str, message: Dict[str, Any], **kwargs
+    ) -> Tuple[HexBytes, HexBytes]:
+        signer = self._get_signer(account=account)
+        signable_message = encode_typed_data(full_message=message)
+        signed_message = signer.sign_message(
+            signable_message=signable_message,
+        )
+        return signed_message.messageHash, signed_message.signature
 
 
 class InMemorySigner(Signer):
@@ -341,9 +362,19 @@ class InMemorySigner(Signer):
         return raw_transaction
 
     @validate_checksum_address
-    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+    def sign_message_eip191(
+        self, account: str, message: bytes, **kwargs
+    ) -> Tuple[HexBytes, HexBytes]:
         signer = self._get_signer(account=account)
-        signature = signer.sign_message(
-            signable_message=encode_defunct(primitive=message)
-        ).signature
-        return HexBytes(signature)
+        signable_message = encode_defunct(primitive=message)
+        signed_message = signer.sign_message(signable_message=signable_message)
+        return signed_message.messageHash, signed_message.signature
+
+    @validate_checksum_address
+    def sign_message_eip712(
+        self, account: str, message: Dict[str, Any], **kwargs
+    ) -> Tuple[HexBytes, HexBytes]:
+        signer = self._get_signer(account=account)
+        signable_message = encode_typed_data(full_message=message)
+        signed_message = signer.sign_message(signable_message=signable_message)
+        return signed_message.messageHash, signed_message.signature

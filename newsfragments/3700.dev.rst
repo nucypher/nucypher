@@ -1,0 +1,1 @@
+Remove unused end_block_timestamp from scan_chunk to reduce RPC calls.

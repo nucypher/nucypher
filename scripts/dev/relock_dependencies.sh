@@ -41,9 +41,9 @@ set -e
 
 echo "Building Development Requirements"
 poetry lock
-poetry export -o dev-requirements.txt --without-hashes --with dev
+poetry export --without-hashes --with dev --output dev-requirements.txt
 
 echo "Building Standard Requirements"
-poetry export -o requirements.txt --without-hashes --without dev
+poetry export --without-hashes --without dev --output requirements.txt
 
 echo "OK!"

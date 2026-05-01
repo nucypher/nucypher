@@ -16,18 +16,33 @@ def client(ursula):
 def test_ursula_html_renders(ursula, client):
     response = client.get('/')
     assert response.status_code == 404
-    response = client.get('/status/')
+
+    response = client.get("/status/")
     assert response.status_code == 200
     assert b"<!DOCTYPE html>" in response.data
     assert ursula.checksum_address.encode() in response.data
     assert str(ursula.nickname).encode() in response.data
 
+    # no trailing slash
+    response = client.get("/status")
+    assert response.status_code == 308
+    redirect_url = response.headers["Location"]
+    assert redirect_url.endswith("/status/")
+
 
 @pytest.mark.parametrize('omit_known_nodes', [False, True])
 def test_json_status_endpoint(ursula, client, omit_known_nodes):
-    omit_known_nodes_str = 'true' if omit_known_nodes else 'false'
-    response = client.get(f'/status/?json=true&omit_known_nodes={omit_known_nodes_str}')
+    omit_known_nodes_str = "true" if omit_known_nodes else "false"
+
+    url_parameters = f"?json=true&omit_known_nodes={omit_known_nodes_str}"
+    response = client.get(f"/status/{url_parameters}")
     assert response.status_code == 200
     json_status = response.get_json()
     status = ursula.status_info(omit_known_nodes=omit_known_nodes)
     assert json_status == status.to_json()
+
+    # no trailing slash
+    response = client.get(f"/status{url_parameters}")
+    assert response.status_code == 308
+    redirect_url = response.headers["Location"]
+    assert redirect_url.endswith(f"/status/{url_parameters}")

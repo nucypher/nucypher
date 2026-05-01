@@ -1,0 +1,1 @@
+Whenever a user-configured endpoint fails an RPC health check, the node should not start up.

@@ -290,3 +290,56 @@ def test_cache_simple_concurrency():
     assert (
         len(ttl_cache) > 0
     ), "this can fail with a very low probability - most likely rerun test"
+
+
+def test_cache_items_custom_ttl():
+    ttl = 60  # 60s default
+    ttl_cache = TTLCache(ttl=ttl)
+
+    now = maya.now()
+
+    # add items with default ttl
+    ttl_cache[1] = "a"
+    ttl_cache[2] = "b"
+
+    # add items with custom ttl
+    ttl_cache.add_with_ttl(3, "c", ttl=ttl * 2)  # 120s
+    ttl_cache.add_with_ttl(4, "d", ttl=ttl // 3)  # 20s
+
+    # invalid key-value pair raises error
+    with pytest.raises(ValueError):
+        ttl_cache.add_with_ttl(None, "e", ttl=5)
+
+    with pytest.raises(ValueError):
+        ttl_cache.add_with_ttl(5, None, ttl=5)
+
+    # invalid ttl raises error
+    invalid_ttls = [0, -10]
+    for invalid_ttl in invalid_ttls:
+        with pytest.raises(ValueError):
+            ttl_cache.add_with_ttl(5, "e", ttl=invalid_ttl)
+
+    assert len(ttl_cache) == 4
+
+    def maya_now_1():
+        # pretend time has passed
+        return now.add(seconds=ttl / 2)
+
+    with patch("maya.now", maya_now_1):
+        assert len(ttl_cache) == 3  # the item with 20s ttl expired was removed
+        assert ttl_cache[1] == "a"
+        assert ttl_cache[2] == "b"
+        assert ttl_cache[3] == "c"
+        assert ttl_cache[4] is None
+
+    def maya_now_2():
+        # pretend time has passed
+        return now.add(seconds=ttl + 1)  # one second after default ttl
+
+    with patch("maya.now", maya_now_2):
+        assert len(ttl_cache) == 1
+        # only item with 120s ttl remains
+        assert ttl_cache[3] == "c"
+        assert ttl_cache[1] is None
+        assert ttl_cache[2] is None
+        assert ttl_cache[4] is None

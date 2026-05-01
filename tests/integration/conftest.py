@@ -32,7 +32,6 @@ from tests.constants import (
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
     TEMPORARY_DOMAIN,
-    TESTERCHAIN_CHAIN_ID,
 )
 from tests.mock.agents import MockContractAgency
 from tests.mock.interfaces import MockBlockchain
@@ -283,20 +282,6 @@ def multichain_ids(module_mocker):
 def multichain_ursulas(ursulas, multichain_ids):
     setup_multichain_ursulas(ursulas=ursulas, chain_ids=multichain_ids)
     return ursulas
-
-
-@pytest.fixture(scope="module", autouse=True)
-def mock_rpc_endpoints(module_mocker):
-    """Mock RPC endpoints for integration tests"""
-
-    def mock_get_default_endpoints(domain):
-        # Return test endpoints for the testerchain
-        return {TESTERCHAIN_CHAIN_ID: ["http://localhost:8545"]}
-
-    module_mocker.patch(
-        "nucypher.blockchain.eth.utils.get_default_rpc_endpoints",
-        side_effect=mock_get_default_endpoints,
-    )
 
 
 @pytest.fixture(scope="module")

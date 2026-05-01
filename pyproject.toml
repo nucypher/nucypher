@@ -1,13 +1,15 @@
 [tool.poetry]
 name = "nucypher"
-version = "7.6.1"
+version = "7.7.0"
 authors = ["NuCypher"]
 description = "A threshold access control application to empower privacy in decentralized systems."
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4"
 
-nucypher-core = "==0.15.0"
+ckzg = ">=2.1.1"  # required for python 3.13 support
+
+nucypher-core = "==0.16.0"
 cryptography = ">=44.0.1"   # Latest version with no known vulns (as per 2025-09-23)
 pynacl = ">=1.4.0"
 mnemonic = "*"
@@ -36,6 +38,7 @@ nucypher-snaptime = "^0.2.5"
 # TODO: this is to match requirements.txt; update and relock for 7.6.x
 python-statemachine = "==2.3.4"
 pydantic = "~2.11.0"  # TODO 2.12; there some issue - 'pydantic_core._pydantic_core.ValidationInfo' object has no attribute 'manifest'
+ecdsa = "^0.19.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = '*'
@@ -48,7 +51,9 @@ ape-solidity = '*'
 coverage = '^7.3.2'
 pre-commit = '^2.12.1'
 numpy = '^1.26.0'
-
+ecdsa = "*"
+jwcrypto = "*"
+py-solc-x = "^2.0.5"
 
 [tool.towncrier]
     package = "nucypher"

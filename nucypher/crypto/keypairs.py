@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Optional, Union
 
@@ -22,8 +23,12 @@ from nucypher_core.umbral import (
 )
 from OpenSSL.crypto import X509
 from OpenSSL.SSL import TLSv1_2_METHOD
+from twisted.python.threadpool import ThreadPool
 
-from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.config.constants import (
+    MAX_UPLOAD_CONTENT_LENGTH,
+    NUCYPHER_ENVVAR_TLS_DEPLOYER_MAX_THREADPOOL_SIZE,
+)
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 from nucypher.crypto.tls import (
     _TLS_CURVE,
@@ -152,6 +157,10 @@ class HostingKeypair(Keypair):
     _private_key_source = ec.generate_private_key
     _public_key_method = "public_key"
 
+    _DEPLOYER_MAX_THREADPOOL_SIZE = int(
+        os.getenv(NUCYPHER_ENVVAR_TLS_DEPLOYER_MAX_THREADPOOL_SIZE, 25)
+    )
+
     def __init__(self,
                  host: str,
                  checksum_address: str = None,
@@ -191,14 +200,23 @@ class HostingKeypair(Keypair):
         self.certificate_filepath = certificate_filepath
 
     def get_deployer(self, rest_app, port):
-        return HendrixDeployTLS("start",
-                                key=self._privkey,
-                                cert=X509.from_cryptography(self.certificate),
-                                context_factory=ExistingKeyTLSContextFactory,
-                                context_factory_kwargs={"curve_name": _TLS_CURVE.name, "sslmethod": TLSv1_2_METHOD},
-                                options={
-                                    "wsgi": rest_app,
-                                    "https_port": port,
-                                    "max_upload_bytes": MAX_UPLOAD_CONTENT_LENGTH,
-                                    'resources': get_static_resources(),
-                                })
+        return HendrixDeployTLS(
+            "start",
+            key=self._privkey,
+            cert=X509.from_cryptography(self.certificate),
+            threadpool=ThreadPool(
+                name="Hendrix Web Service",
+                maxthreads=self._DEPLOYER_MAX_THREADPOOL_SIZE,
+            ),
+            context_factory=ExistingKeyTLSContextFactory,
+            context_factory_kwargs={
+                "curve_name": _TLS_CURVE.name,
+                "sslmethod": TLSv1_2_METHOD,
+            },
+            options={
+                "wsgi": rest_app,
+                "https_port": port,
+                "max_upload_bytes": MAX_UPLOAD_CONTENT_LENGTH,
+                "resources": get_static_resources(),
+            },
+        )

@@ -31,6 +31,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.utils import (
     get_transaction_name,
     get_tx_cost_data,
+    obfuscate_rpc_url,
     prettify_eth_amount,
 )
 from nucypher.crypto.powers import TransactingPower
@@ -125,7 +126,7 @@ class BlockchainInterface:
             else:
                 cost = transaction_fee + self.payload.get("value", 0)
                 message = (
-                    f'{self.name} from {self.payload["from"][:8]} - {self.base_message}. '
+                    f"{self.name} from {self.payload['from'][:8]} - {self.base_message}. "
                     f"Calculated cost is {prettify_eth_amount(cost)}, "
                     f"but sender only has {prettify_eth_amount(self.get_balance())}."
                 )
@@ -256,7 +257,9 @@ class BlockchainInterface:
         self.__is_initialized = False
 
     def __repr__(self):
-        r = "{name}({uri})".format(name=self.__class__.__name__, uri=self.endpoint)
+        r = "{name}({uri})".format(
+            name=self.__class__.__name__, uri=obfuscate_rpc_url(self.endpoint)
+        )
         return r
 
     def get_blocktime(self):
@@ -279,7 +282,6 @@ class BlockchainInterface:
             else:
                 gas_strategy = cls.GAS_STRATEGIES[cls.DEFAULT_GAS_STRATEGY]
         return gas_strategy
-
 
     def configure_gas_strategy(self, gas_strategy: Optional[Callable] = None) -> None:
         if gas_strategy:
@@ -312,14 +314,16 @@ class BlockchainInterface:
             return
 
         endpoint = self.endpoint
-        self.log.info(f"Using external Web3 Provider '{self.endpoint}'")
+        self.log.info(
+            f"Using external Web3 Provider '{obfuscate_rpc_url(self.endpoint)}'"
+        )
 
         # Attach Provider
         self._attach_blockchain_provider(
             provider=self._provider,
             endpoint=endpoint,
         )
-        self.log.info("Connecting to {}".format(self.endpoint))
+        self.log.info("Connecting to {}".format(obfuscate_rpc_url(self.endpoint)))
         if self._provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
 
@@ -342,11 +346,11 @@ class BlockchainInterface:
             )
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(
-                f"Connection Failed - {str(self.endpoint)} - is RPC enabled?"
+                f"Connection Failed - {obfuscate_rpc_url(self.endpoint)} - is RPC enabled?"
             )
         except FileNotFoundError:  # IPC File Protocol
             raise self.ConnectionFailed(
-                f"Connection Failed - {str(self.endpoint)} - is IPC enabled?"
+                f"Connection Failed - {obfuscate_rpc_url(self.endpoint)} - is IPC enabled?"
             )
 
         # Only set member variables once early set up is successful

@@ -1,0 +1,1 @@
+Added an ETH balance check at node startup to ensure nodes can participate in signing rituals on Ethereum.

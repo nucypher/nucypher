@@ -33,18 +33,19 @@ from nucypher_core import (
     Conditions,
     Context,
     EncryptedKeyFrag,
-    EncryptedThresholdDecryptionRequest,
-    EncryptedThresholdDecryptionResponse,
     EncryptedTreasureMap,
     MessageKit,
     NodeMetadata,
     NodeMetadataPayload,
+    PackedUserOperationSignatureRequest,
     ReencryptionResponse,
     SessionStaticKey,
     SessionStaticSecret,
+    SignatureResponse,
     ThresholdDecryptionRequest,
     ThresholdMessageKit,
     TreasureMap,
+    UserOperationSignatureRequest,
     encrypt_for_dkg,
 )
 from nucypher_core.ferveo import (
@@ -72,6 +73,7 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
+    SigningCoordinatorAgent,
     TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -91,16 +93,21 @@ from nucypher.characters.base import Character, Learner
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
+    DecryptingRequestPower,
     DelegatingPower,
     PowerUpError,
     RitualisticPower,
     SigningPower,
-    ThresholdRequestDecryptingPower,
+    SigningRequestPower,
+    ThresholdSigningPower,
     TLSHostingPower,
     TransactingPower,
 )
 from nucypher.crypto.utils import keccak_digest
-from nucypher.network.decryption import ThresholdDecryptionClient
+from nucypher.network.concurrency import (
+    SigningRequestClient,
+    ThresholdDecryptionClient,
+)
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, Teacher
@@ -423,6 +430,7 @@ class Bob(Character):
         )
 
         coordinator_agent = None
+        signing_coordinator_agent = None
         if polygon_endpoint:
             coordinator_agent = ContractAgency.get_agent(
                 CoordinatorAgent,
@@ -431,7 +439,17 @@ class Bob(Character):
                     domain=self.domain,
                 ),
             )
+
+            signing_coordinator_agent = ContractAgency.get_agent(
+                SigningCoordinatorAgent,
+                blockchain_endpoint=eth_endpoint,
+                registry=ContractRegistry.from_latest_publication(
+                    domain=self.domain,
+                ),
+            )
+
         self.coordinator_agent = coordinator_agent
+        self.signing_coordinator_agent = signing_coordinator_agent
 
         # Cache of decrypted treasure maps
         self._treasure_maps: Dict[int, TreasureMap] = {}
@@ -636,6 +654,18 @@ class Bob(Character):
 
         return self.coordinator_agent
 
+    def _get_signing_coordinator_agent(self) -> SigningCoordinatorAgent:
+        if not self.signing_coordinator_agent:
+            raise ValueError("No polygon endpoint URI provided in Bob's constructor.")
+
+        return self.signing_coordinator_agent
+
+    def get_signing_cohort(self, cohort_id):
+        signing_cohort = self._get_signing_coordinator_agent().get_signing_cohort(
+            cohort_id=cohort_id
+        )
+        return signing_cohort
+
     def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
         ritual_id = self._get_coordinator_agent().get_ritual_id_from_public_key(
             public_key
@@ -647,12 +677,79 @@ class Bob(Character):
         ritual = agent.get_ritual(ritual_id, transcripts=False)
         return ritual
 
+    def request_threshold_signatures(
+        self,
+        signing_request: Union[
+            PackedUserOperationSignatureRequest, UserOperationSignatureRequest
+        ],
+        ursulas: List["Ursula"] = None,
+        timeout: int = SigningRequestClient.DEFAULT_TIMEOUT,
+    ) -> List[SignatureResponse]:
+        """
+        Request a threshold signature from a cohort of Ursulas.
+        """
+        signing_cohort = self.get_signing_cohort(signing_request.cohort_id)
+        threshold = signing_cohort.threshold
+
+        providers = [s.provider for s in signing_cohort.signers]
+        if ursulas:
+            for ursula in ursulas:
+                if ursula.staking_provider_address not in providers:
+                    raise ValueError(
+                        f"{ursula} ({ursula.staking_provider_address}) is not part of the cohort"
+                    )
+                self.remember_node(ursula)
+
+        # Create the signing request
+        requester_sk = SessionStaticSecret.random()
+        requester_public_key = requester_sk.public_key()
+
+        shared_secrets = {}
+        encrypted_signing_requests = {}
+        for signer in signing_cohort.signers:
+            signer_request_key = SessionStaticKey.from_bytes(signer.signing_request_key)
+            shared_secret = requester_sk.derive_shared_secret(signer_request_key)
+            encrypted_signing_request = signing_request.encrypt(
+                shared_secret=shared_secret,
+                requester_public_key=requester_public_key,
+            )
+            shared_secrets[signer.provider] = shared_secret
+            encrypted_signing_requests[signer.provider] = encrypted_signing_request
+
+        signing_client = SigningRequestClient(learner=self)
+        successes, failures = signing_client.gather_signatures(
+            encrypted_requests=encrypted_signing_requests,
+            threshold=threshold,
+            timeout=timeout,
+        )
+
+        if len(successes) < threshold:
+            raise Ursula.NotEnoughUrsulas(
+                f"Threshold of Ursulas unable to sign: {failures}"
+            )
+
+        # decrypt responses
+        decrypted_responses = []
+        for provider_address, encrypted_signature_response in successes.items():
+            shared_secret = shared_secrets[provider_address]
+            signature_response = encrypted_signature_response.decrypt(
+                shared_secret=shared_secret
+            )
+            decrypted_responses.append(signature_response)
+
+        # sort by signer address
+        responses = sorted(
+            decrypted_responses,
+            key=lambda response: int(response.signer, 16),
+        )
+        return responses
+
     def threshold_decrypt(
         self,
         threshold_message_kit: ThresholdMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
-        decryption_timeout: int = ThresholdDecryptionClient.DEFAULT_DECRYPTION_TIMEOUT,
+        decryption_timeout: int = ThresholdDecryptionClient.DEFAULT_TIMEOUT,
     ) -> bytes:
         ritual_id = self.get_ritual_id_from_public_key(
             public_key=threshold_message_kit.acp.public_key
@@ -714,7 +811,9 @@ class Ursula(Teacher, Character, Operator):
         SigningPower,
         DecryptingPower,
         RitualisticPower,
-        ThresholdRequestDecryptingPower,
+        DecryptingRequestPower,
+        ThresholdSigningPower,
+        SigningRequestPower,
         # TLSHostingPower  # Still considered a default for Ursula, but needs the host context
     ]
 
@@ -789,9 +888,10 @@ class Ursula(Teacher, Character, Operator):
                     transacting_power=transacting_power,
                 )
 
-            except Exception:
+            except Exception as e:
                 # It's not possible to finish constructing this node...
                 # This block is here to ensure that the reactor is stopped in tests.
+                self.log.critical(f"Failed to initialize Ursula: {e}")
                 self.stop(halt_reactor=False)
                 raise
 
@@ -820,7 +920,9 @@ class Ursula(Teacher, Character, Operator):
 
     def _substantiate_stamp(self):
         transacting_power = self.transacting_power
-        signature = transacting_power.sign_message(message=bytes(self.stamp))
+        _message_hash, signature = transacting_power.sign_message_eip191(
+            message=bytes(self.stamp)
+        )
         self.__operator_signature = signature
         self.__operator_address = transacting_power.account
         message = f"Created decentralized identity evidence: {self.__operator_signature[:10].hex()}"
@@ -922,6 +1024,10 @@ class Ursula(Teacher, Character, Operator):
             if emitter:
                 emitter.message("✓ DKG Ritual Tracking", color="green")
 
+            self.signing_ritual_tracker.start()
+            if emitter:
+                emitter.message("✓ Signing Ritual Tracking", color="green")
+
         if block_until_ready:
             # Sets (staker's) checksum address; Prevent worker startup before bonding
             self.block_until_ready()
@@ -993,6 +1099,7 @@ class Ursula(Teacher, Character, Operator):
             self.stop_learning_loop()
             self._operator_bonded_tracker.stop()
             self.ritual_tracker.stop()
+            self.signing_ritual_tracker.stop()
             if self._prometheus_metrics_tracker:
                 self._prometheus_metrics_tracker.stop()
         if halt_reactor:
@@ -1257,7 +1364,10 @@ class Ursula(Teacher, Character, Operator):
             previous_fleet_states=previous_fleet_states,
             known_nodes=known_nodes_info,
             balance_eth=balance_eth,
-            block_height=self.ritual_tracker.scanner.get_last_scanned_block(),
+            block_height=max(
+                self.ritual_tracker.scanner.get_last_scanned_block(),
+                self.signing_ritual_tracker.scanner.get_last_scanned_block(),
+            ),
             ferveo_public_key=bytes(self.public_keys(RitualisticPower)).hex(),
         )
 
@@ -1267,22 +1377,6 @@ class Ursula(Teacher, Character, Operator):
             address=self.checksum_address, public_key=self.public_keys(RitualisticPower)
         )
         return validator
-
-    def handle_threshold_decryption_request(
-        self, encrypted_decryption_request: EncryptedThresholdDecryptionRequest
-    ) -> EncryptedThresholdDecryptionResponse:
-        decryption_request = self.decrypt_threshold_decryption_request(
-            encrypted_decryption_request
-        )
-        decryption_share = self._produce_decryption_share_for_request(
-            decryption_request
-        )
-        encrypted_response = self._encrypt_decryption_share(
-            decryption_share=decryption_share,
-            ritual_id=decryption_request.ritual_id,
-            public_key=encrypted_decryption_request.requester_public_key,
-        )
-        return encrypted_response
 
 
 class LocalUrsulaStatus(NamedTuple):
@@ -1370,15 +1464,15 @@ class Enrico:
 
         # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
-        authorization = bytes(
-            self.signer.sign_message(
+        _message_hash, signature = self.signer.sign_message_eip191(
                 message=header_hash, account=self.signer.accounts[0]
             )
-        )
 
         return ThresholdMessageKit(
             ciphertext=ciphertext,
-            acp=AccessControlPolicy(auth_data=auth_data, authorization=authorization),
+            acp=AccessControlPolicy(
+                auth_data=auth_data, authorization=bytes(signature)
+            ),
         )
 
     @classmethod

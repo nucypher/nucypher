@@ -16,6 +16,7 @@ from nucypher_core import SessionSecretFactory
 from nucypher_core.ferveo import Keypair as FerveoKeypair
 from nucypher_core.umbral import SecretKeyFactory
 
+from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.keypairs import HostingKeypair, RitualisticKeypair
 from nucypher.crypto.passwords import (
@@ -27,12 +28,15 @@ from nucypher.crypto.passwords import (
 from nucypher.crypto.powers import (
     CryptoPowerUp,
     DecryptingPower,
+    DecryptingRequestPower,
     DelegatingPower,
     DerivedKeyBasedPower,
     KeyPairBasedPower,
     RitualisticPower,
     SigningPower,
-    ThresholdRequestDecryptingPower,
+    SigningRequestPower,
+    ThresholdRequestPower,
+    ThresholdSigningPower,
     TLSHostingPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
@@ -46,6 +50,8 @@ _DELEGATING_INFO = __INFO_BASE + b"delegating"
 _RITUALISTIC_INFO = __INFO_BASE + b"ritualistic"
 _THRESHOLD_REQUEST_DECRYPTING_INFO = __INFO_BASE + b"threshold_request_decrypting"
 _TLS_INFO = __INFO_BASE + b"tls"
+_THRESHOLD_SIGNING_INFO = __INFO_BASE + b"threshold_signing_ecdsa"
+_SIGNING_REQUEST_DECRYPTING_INFO = __INFO_BASE + b"signing_request_decrypting"
 
 # Wrapping key
 _SALT_SIZE = 32
@@ -235,7 +241,9 @@ class Keystore:
         DelegatingPower: _DELEGATING_INFO,
         TLSHostingPower: _TLS_INFO,
         RitualisticPower: _RITUALISTIC_INFO,
-        ThresholdRequestDecryptingPower: _THRESHOLD_REQUEST_DECRYPTING_INFO,
+        DecryptingRequestPower: _THRESHOLD_REQUEST_DECRYPTING_INFO,
+        ThresholdSigningPower: _THRESHOLD_SIGNING_INFO,
+        SigningRequestPower: _SIGNING_REQUEST_DECRYPTING_INFO,
     }
 
     class Exists(FileExistsError):
@@ -511,9 +519,7 @@ class Keystore:
             keypair = power_class._keypair_class(__skf.make_key(info))
             power = power_class(keypair=keypair, *power_args, **power_kwargs)
 
-        elif issubclass(power_class, ThresholdRequestDecryptingPower):
-            # TODO is this really how we want
-            #  to derive the session factory (similar to RitualisticPower)
+        elif issubclass(power_class, ThresholdRequestPower):
             size = SessionSecretFactory.seed_size()
             secret = __skf.make_secret(info)[:size]
             session_secret_factory = SessionSecretFactory.from_secure_randomness(secret)
@@ -526,7 +532,14 @@ class Keystore:
         elif issubclass(power_class, DerivedKeyBasedPower):
             parent_skf = SecretKeyFactory.from_secure_randomness(self.__secret)
             child_skf = parent_skf.make_factory(_DELEGATING_INFO)
-            power = power_class(secret_key_factory=child_skf, *power_args, **power_kwargs)
+            power = power_class(
+                secret_key_factory=child_skf, *power_args, **power_kwargs
+            )
+
+        elif issubclass(power_class, ThresholdSigningPower):
+            blob = __skf.make_secret(info)[: ThresholdSigningPower.KEY_SIZE]
+            signer = InMemorySigner(private_key=blob)
+            power = power_class(signer=signer, *power_args, **power_kwargs)
 
         else:
             failure_message = f"{power_class.__name__} is an invalid type for deriving a CryptoPower."

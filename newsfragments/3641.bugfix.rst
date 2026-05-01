@@ -1,0 +1,1 @@
+Condition fields that are optional and have no value assigned (i.e., set to None) should be excluded from the serialized JSON.

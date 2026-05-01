@@ -4,7 +4,11 @@ from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
 )
-from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
+from nucypher.policy.conditions.lingo import (
+    ConditionType,
+    ReturnValueTest,
+    VariableOperation,
+)
 from nucypher.policy.conditions.time import TimeCondition, TimeRPCCall
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
@@ -75,3 +79,13 @@ def test_time_condition_invalid_comparator_value_type(invalid_value, time_condit
                 value=invalid_value,
             ),
         )
+
+    # value type not checked if operations are present
+    _ = TimeCondition(
+        chain=time_condition.chain,
+        return_value_test=ReturnValueTest(
+            comparator=time_condition.return_value_test.comparator,
+            value=invalid_value,
+            operations=[VariableOperation("toJson")],
+        ),
+    )

@@ -1,0 +1,1 @@
+Unresponsive nodes in cohorts that don't respond to protocol requests within the timeout period are now included in reported failures.

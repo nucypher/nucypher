@@ -10,18 +10,23 @@ from mako import exceptions as mako_exceptions
 from mako.template import Template
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
+    EncryptedThresholdSignatureRequest,
     MetadataRequest,
     MetadataResponse,
     MetadataResponsePayload,
     ReencryptionRequest,
 )
-from prometheus_client import REGISTRY, Counter, Summary
+from prometheus_client import REGISTRY, Counter, Histogram, Summary
 
-from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.blockchain.eth import domains
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH, TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.keypairs import DecryptingKeypair
+from nucypher.crypto.powers import ThresholdRequestPower
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.policy.conditions.exceptions import InvalidConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import (
     ConditionEvalError,
     evaluate_condition_lingo,
@@ -44,6 +49,25 @@ DECRYPTION_REQUESTS_FAILURES = Counter(
 DECRYPTION_REQUEST_SUMMARY = Summary(
     "decryption_request_processing",
     "Summary of decryption request processing",
+    registry=REGISTRY,
+)
+
+SIGNING_REQUESTS_SUCCESSES = Counter(
+    "threshold_signing_num_successes",
+    "Number of threshold signing successes",
+    registry=REGISTRY,
+)
+SIGNING_REQUESTS_FAILURES = Counter(
+    "threshold_signing_num_failures",
+    "Number of threshold signing failures",
+    registry=REGISTRY,
+)
+
+# Histogram for signing request duration with buckets suited for request latencies
+SIGNING_REQUEST_HISTOGRAM = Histogram(
+    "signing_request_duration_seconds",
+    "Histogram of signing request processing duration in seconds",
+    buckets=(0.1, 0.5, 1.0, 2.0, 3.0, 5.0, 7.5, 10.0, 12.5, 15.0),
     registry=REGISTRY,
 )
 
@@ -154,8 +178,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         """
         # TODO: When non-evm chains are supported, bump the version.
         #  this can return a list of chain names or other verifiable identifiers.
-        providers = this_node.condition_provider_manager.providers
-        sorted_chain_ids = sorted(list(providers))
+        supported_chains = this_node.condition_provider_manager.supported_chains()
+        sorted_chain_ids = sorted(supported_chains)
         payload = {"version": 1.0, "evm": sorted_chain_ids}
         return Response(json.dumps(payload), mimetype="application/json")
 
@@ -186,6 +210,12 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(e.message, status=e.status_code)
         except this_node.DecryptionFailure as e:
             return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+        except ThresholdRequestPower.ThresholdRequestDecryptionFailed as e:
+            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
+        except ValueError as e:
+            # this line is hit when the EncryptedThresholdDecryptionRequest is an old version
+            # ValueError: Failed to deserialize: differing major version: expected 3, got 1
+            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
         except Exception as e:
             return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -254,7 +284,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
             return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
 
-        # Enforce Conditions
         capsules_to_process = list()
         for capsule, condition_lingo in packets:
             if condition_lingo:
@@ -294,7 +323,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             )
         return Response(response=ipv4, status=HTTPStatus.OK)
 
-    @rest_app.route('/status/', methods=['GET'])
+    @rest_app.route("/status/", methods=["GET"])
     def status():
         return_json = request.args.get('json') == 'true'
         omit_known_nodes = request.args.get('omit_known_nodes') == 'true'
@@ -310,5 +339,57 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             log.debug("Template Rendering Exception:\n" + text_error)
             return Response(response=html_error, headers=headers, status=HTTPStatus.INTERNAL_SERVER_ERROR)
         return Response(response=content, headers=headers)
+
+    @rest_app.route("/sign", methods=["POST"])
+    @SIGNING_REQUEST_HISTOGRAM.time()
+    def sign_message():
+        """An endpoint that handles message signing requests."""
+        try:
+            with SIGNING_REQUESTS_FAILURES.count_exceptions():
+                encrypted_request = EncryptedThresholdSignatureRequest.from_bytes(
+                    request.data
+                )
+                encrypted_signing_response = this_node.handle_threshold_signing_request(
+                    encrypted_signing_request=encrypted_request
+                )
+
+            SIGNING_REQUESTS_SUCCESSES.inc()
+            return Response(
+                response=bytes(encrypted_signing_response),
+                status=HTTPStatus.OK,
+                mimetype="application/octet-stream",
+            )
+        except ConditionEvalError as e:
+            return Response(e.message, status=e.status_code)
+        except this_node.UnauthorizedRequest as e:
+            return Response(str(e), status=HTTPStatus.UNAUTHORIZED)
+        except this_node.NoConditionConfigured as e:
+            return Response(str(e), status=HTTPStatus.FORBIDDEN)
+        except ThresholdRequestPower.ThresholdRequestDecryptionFailed as e:
+            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
+        except ValueError as e:
+            # this line is hit when the EncryptedThresholdSignatureRequest is an old version
+            # ValueError: Failed to deserialize: differing major version: expected 3, got 1
+            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
+        except Exception as e:
+            return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    @rest_app.route("/health", methods=["GET"])
+    def health_check():
+        """Health check endpoint"""
+        return jsonify({"status": "healthy"}), 200
+
+    if this_node.domain.name in [domains.LYNX.name, TEMPORARY_DOMAIN_NAME]:
+        # only available on Lynx or for testing
+        @rest_app.route("/validate_condition_lingo", methods=["POST"])
+        def validate_condition_lingo():
+            """
+            An endpoint that validates a condition lingo
+            """
+            try:
+                _ = ConditionLingo.from_json(request.get_json())
+                return jsonify({"status": "valid"}), HTTPStatus.OK
+            except InvalidConditionLingo as e:
+                return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
     return rest_app

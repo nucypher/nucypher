@@ -1,0 +1,1 @@
+Added ``toTokenBaseUnits`` operator for variable operations, which converts token amounts to base units (e.g., ``1.5`` with ``decimals=6`` becomes ``1500000``), useful for ERC-20 token comparisons. Also increased condition limits (``SequentialCondition.MAX_NUM_CONDITIONS`` to 20 and ``MAX_MULTI_CONDITION_NESTED_LEVEL`` to 4).

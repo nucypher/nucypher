@@ -15,10 +15,12 @@ from nucypher_core.ferveo import (
 
 from nucypher.types import PhaseNumber
 
-PHASE1 = PhaseNumber(1)
-PHASE2 = PhaseNumber(2)
+DKG_PHASE_1 = PhaseNumber(1)
+DKG_PHASE_2 = PhaseNumber(2)
 HANDOVER_AWAITING_TRANSCRIPT = PhaseNumber(11)
 HANDOVER_AWAITING_BLINDED_SHARE = PhaseNumber(12)
+SIGNING_AWAITING_SIGNATURES = PhaseNumber(21)
+
 
 @dataclass
 class Ferveo:
@@ -181,3 +183,51 @@ class Coordinator:
         blinded_share: bytes
         transcript: bytes
         decryption_request_pubkey: bytes
+
+
+@dataclass
+class SigningCoordinator:
+    @dataclass
+    class RitualStatus:
+        NON_INITIATED = 0
+        AWAITING_SIGNATURES = 1
+        TIMEOUT = 2
+        ACTIVE = 3
+        EXPIRED = 4
+
+    @dataclass
+    class SigningCohort:
+        id: int
+        init_timestamp: int
+        end_timestamp: int
+        initiator: ChecksumAddress
+        authority: ChecksumAddress
+        total_signatures: int
+        num_signers: int
+        threshold: int
+        signers: List = field(default_factory=list)
+
+        @staticmethod
+        def make_signers(
+            data: list,
+        ) -> Iterable["SigningCoordinator.SigningCohortParticipant"]:
+            """Converts a list of participant data into an iterable of Participant objects."""
+            for signer_data in data:
+                participant = SigningCoordinator.SigningCohortParticipant.from_data(
+                    data=signer_data
+                )
+                yield participant
+
+    @dataclass
+    class SigningCohortParticipant:
+        provider: ChecksumAddress
+        signer_address: ChecksumAddress
+        signing_request_key: bytes = bytes()
+
+        @classmethod
+        def from_data(cls, data: list):
+            return cls(
+                provider=ChecksumAddress(data[0]),
+                signer_address=ChecksumAddress(data[1]),
+                signing_request_key=bytes(data[2]),
+            )

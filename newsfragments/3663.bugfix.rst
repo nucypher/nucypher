@@ -1,0 +1,1 @@
+``Operator`` should use provided registry and not construct a new one.

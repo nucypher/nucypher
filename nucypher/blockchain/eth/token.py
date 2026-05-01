@@ -3,7 +3,7 @@ from typing import Union
 
 from eth_utils import currency
 
-from nucypher.types import ERC20UNits, NuNits, TuNits
+from nucypher.types import ERC20Units, TuNits
 
 
 class ERC20:
@@ -71,7 +71,7 @@ class ERC20:
         """Returns a decimal value of NU"""
         return currency.from_wei(self.__value, unit='ether')
 
-    def to_units(self) -> ERC20UNits:
+    def to_units(self) -> ERC20Units:
         """Returns an int value in the Unit class for this token"""
         return self.__class__._unit(self.__value)
 
@@ -127,13 +127,6 @@ class ERC20:
 
     def __str__(self) -> str:
         return f'{str(self.to_tokens())} {self._symbol}'
-
-
-class NU(ERC20):
-    _symbol = 'NU'
-    _denominations = {'NuNit': 'wei', 'NU': 'ether'}
-    _unit_name = 'NuNit'
-    _unit = NuNits
 
 
 class TToken(ERC20):

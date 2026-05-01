@@ -2,6 +2,7 @@ from pathlib import Path
 
 import click
 
+import nucypher
 from nucypher.cli.actions.auth import (
     collect_mnemonic,
     get_client_password,
@@ -333,7 +334,7 @@ def init(
     general_config, config_options, force, config_root, key_material, with_mnemonic
 ):
     """Create a new Ursula node configuration."""
-    emitter = setup_emitter(general_config, config_options.operator_address)
+    emitter = setup_emitter(general_config)
     _pre_launch_warnings(emitter, dev=None, force=force)
 
     if not config_root:
@@ -532,7 +533,7 @@ def recover(config_file, keystore_filepath):
 @group_general_config
 def destroy(general_config, config_options, config_file, force):
     """Delete Ursula node configuration."""
-    emitter = setup_emitter(general_config, config_options.operator_address)
+    emitter = setup_emitter(general_config)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
     ursula_config = config_options.create_config(emitter, config_file)
     destroy_configuration(emitter, character_config=ursula_config, force=force)
@@ -636,6 +637,10 @@ def run(
 
     _pre_launch_warnings(emitter, dev=dev_mode, force=None)
 
+    emitter.message(
+        f"Starting Ursula node (v{nucypher.__version__}) ...", color="green", bold=True
+    )
+
     prometheus_config = None
     if prometheus:
         prometheus_config = PrometheusMetricsConfig(
@@ -678,7 +683,7 @@ def config(general_config, config_options, config_file, force, action):
     ip-address - automatically detect and configure the external IP address.
     migrate    - migrate existing configuration file to the latest version.
     """
-    emitter = setup_emitter(general_config, config_options.operator_address)
+    emitter = setup_emitter(general_config)
 
     if not config_file:
         if action == "migrate":

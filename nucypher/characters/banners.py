@@ -73,7 +73,5 @@ Yb, `88        88                                   IP'`Yb
      Y8b,____,d88,,dP     Y8,,8'_   8) ,d8b,  ,d8b,,d8b,_ ,d8,   ,d8b,
       "Y888888P"Y88P      `Y8P' "YY8P8P8P'"Y88P"`Y88P'"Y88P"Y8888P"`Y8
 
-
-the Untrusted Re-Encryption Proxy.
 {}
 '''

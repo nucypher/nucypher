@@ -1,8 +1,40 @@
-venv
-.env/*
-env/*
-docs/*
-newsfragments/*
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Configuration files
+.bumpversion.cfg
 .coverage/*
+.dockerignore
+.flake8
 .git/*
 .history
+.pre-commit-config.yaml
+codecov.yml
+pytest.ini
+
+# Environment secrets
+.env
+.venv
+
+# Virtual environment
+venv/
+env/
+
+# Extra Directories
+docs/
+deploy/
+examples/
+scripts/dev/
+newsfragments/
+tests/
+
+# Unit test / coverage reports
+htmlcov/
+.pytest_cache/
+.tox/
+
+# IDEs and OS files
+.idea/
+.vscode/
+.DS_Store

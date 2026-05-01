@@ -112,6 +112,7 @@ def test_wait_for_successes(join_worker_pool):
 
     # We have more threads in the pool than the workers,
     # so all the successful ones should be able to finish right away.
+    # worst-case time is the longest successful worker, which is 1.5s.
     assert t_end - t_start < 2
 
     # Should be able to do it several times
@@ -145,8 +146,12 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
         pool.block_until_target_successes()
     t_end = time.monotonic()
 
-    # We have roughly 2 workers per thread, so it shouldn't take longer than 1.5s (max timeout) * 2
-    assert t_end - t_start < 4
+    # There are 29 (20 + 9) tasks total that are all enqueued at once at the start.
+    # In the worst case we must wait for all to complete.
+    # With 15 worker threads, tasks run in (at most) two full rounds.
+    # Each task takes up to 1.5s (timeout_max), so worst-case time is:
+    #   2 rounds * 1.5s per task ~= 3s.
+    assert t_end - t_start < 3.5
 
     message = str(exc_info.value)
 
@@ -193,7 +198,9 @@ def test_wait_for_successes_timed_out(join_worker_pool):
         pool.block_until_target_successes()
     t_end = time.monotonic()
 
-    # Even though timeout is 1, there are long-running workers which we can't interupt.
+    # We have the same number of threads in the pool as workers.
+    # Even though the overall pool timeout is 1, there are long-running workers which we can't interrupt.
+    # Therefore, worst-case time is the longest-running worker, which is 2.5s.
     assert t_end - t_start < 3
 
     message = str(exc_info.value)
@@ -228,8 +235,10 @@ def test_join(join_worker_pool):
 
     pool.join()  # should work the second time too
 
-    # Even though timeout is 1, there are long-running workers which we can't interupt.
-    assert t_end - t_start < 3
+    # We have more threads in the pool than workers.
+    # Even though the overall pool timeout is 1, there are long-running workers which we can't interrupt.
+    # Therefore, worst-case time is the longest-running worker, which is 1.5s.
+    assert t_end - t_start < 2
 
 
 class BatchTrackingBatchValueFactory(BatchValueFactory):
@@ -287,8 +296,19 @@ def test_batched_value_generation(join_worker_pool):
         for i in range(len(factory.batch_sizes) - 1)
     )
 
-    # Since we canceled the pool, no more workers will be started and we will finish faster
-    assert t_end - t_start < 4
+    # There are 80+80=160 tasks total which are enqueued in batches of size 10 at a time but the batch size
+    # can decrease as successes are collected.
+    # There are 10 worker threads
+    # So worst-case would be 8 rounds of 10 failures (80 failures), and then 1 round of 10 successes = 9 rounds
+    # 9 rounds * 1.5s/round = 13.5s > 10s timeout
+    # However, due to the seed used for shuffling of outcomes, we know that the worst case does not
+    # happen here and enough successes are achieved after 4 rounds.
+    rounds_taken = len(factory.batch_sizes)
+    assert rounds_taken == 4  # based on the seed used in generate_workers()
+
+    assert (
+        t_end - t_start < rounds_taken * 1.5 + 0.5
+    )  # 1.5s per round in worst-case + a little extra buffer
 
     successes_copy = pool.get_successes()
     pool.get_failures()
@@ -323,10 +343,12 @@ def test_cancel_waiting_workers(join_worker_pool):
     pool.join()
     t_end = time.monotonic()
 
-    # We have 10 threads in the pool and 100 workers that are all enqueued at once at the start.
-    # If we didn't check for the cancel condition, we would have to wait for 10 seconds.
-    # We get 10 successes after 1s and cancel the workers,
-    # but the next workers in each thread have already started, so we have to wait for another 1s.
+    # We have 10 threads in the pool and 100 tasks that are all enqueued at once at the start.
+    # If we didn't check for the cancel condition, we would have to wait for all tasks to complete instead of just successes.
+    # We get ~10 executions after 1s and cancel the workers,
+    # but due to slight differences in time, the next workers in each thread may have already started,
+    # so we have to wait for another execution round timeout of 1s.
+    #   Therefore, we expect the worst-case time to be ~2s.
     assert t_end - t_start < 2.5
 
 

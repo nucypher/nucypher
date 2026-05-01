@@ -1,11 +1,15 @@
+import random
+
 import maya
 import pytest
 from twisted.logger import globalLogPublisher
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import BaseActor, Operator
+from nucypher.blockchain.eth.agents import SigningCoordinatorAgent
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.models import SigningCoordinator
 from nucypher.crypto.powers import RitualisticPower
 
 
@@ -101,8 +105,14 @@ def test_operator_block_until_ready_success(
     # 5. bonding successful
 
     # funding
-    final_balance = 1
-    mocker.patch.object(EthereumClient, "get_balance", side_effect=[0, final_balance])
+    final_balance_pol = Web3.to_wei(1, "ether")
+    # eth funding no longer enforced
+    # final_balance_eth = Web3.to_wei(2, "ether")
+    mocker.patch.object(
+        EthereumClient,
+        "get_balance",
+        side_effect=[0, 0, final_balance_pol],
+    )
 
     # bonding
     mock_taco_application_agent.get_staking_provider_from_operator.side_effect = [
@@ -132,10 +142,16 @@ def test_operator_block_until_ready_success(
 
     expected_messages = [
         # iteration 1
-        ("not funded with MATIC", "not bonded to a staking provider"),
+        (
+            "not funded with POL",
+            "not funded with ETH (optional)",
+            "not bonded to a staking provider",
+        ),
         # iteration 2
         (
-            f"is funded with {Web3.from_wei(final_balance, 'ether')} MATIC",
+            f"is funded with {Web3.from_wei(final_balance_pol, 'ether')} POL",
+            # eth funding only checked once since not enforced
+            # f"is funded with {Web3.from_wei(final_balance_eth, 'ether')} ETH",
             "not bonded to a staking provider",
         ),
         # iteration 3
@@ -162,3 +178,133 @@ def test_operator_block_until_ready_success(
         ursula.block_until_ready(poll_rate=1, timeout=10)
     finally:
         globalLogPublisher.removeObserver(log_trapper)
+
+
+def test_operator_caching_of_signing_cohort(mocker, ursulas):
+    cohort_size = 8
+    cohort = list(
+        sorted(ursulas[:cohort_size], key=lambda x: int(x.checksum_address, 16))
+    )
+    now = maya.now()
+
+    agent = mocker.Mock(spec=SigningCoordinatorAgent)
+    agent.is_cohort_active.return_value = True
+
+    # use any ursula to determine default cache expiry
+    default_cache_expiry = cohort[0]._signing_cohort_cache.ttl
+
+    mocked_signing_cohort = mocker.Mock(spec=SigningCoordinator.SigningCohort)
+    # 5 minute expiry > 60s
+    mocked_signing_cohort.end_timestamp = now.add(
+        minutes=default_cache_expiry * 5
+    ).epoch
+    agent.get_signing_cohort.return_value = mocked_signing_cohort
+
+    for u in cohort:
+        u.signing_coordinator_agent = agent
+
+    cohort_id = 1234
+
+    #
+    # Simple caching behaviour
+    #
+    # call get_signing_cohort via _get_signing_cohort on each ursula in cohort
+    for u in cohort:
+        assert u._signing_cohort_cache[cohort_id] is None
+        signing_cohort = u._get_signing_cohort(cohort_id)
+        assert signing_cohort == mocked_signing_cohort
+        # cache is populated
+        assert u._signing_cohort_cache[cohort_id] == mocked_signing_cohort
+
+    #
+    # Cache repopulated after expiry
+    #
+    # pick a portion of them to clear cache (simulate cache expiry)
+    ursulas_to_clear = random.sample(cohort, k=len(cohort) // 2)
+    for u in ursulas_to_clear:
+        u._signing_cohort_cache.remove(cohort_id)
+        assert u._signing_cohort_cache[cohort_id] is None
+
+    agent.reset_mock()
+    for u in cohort:
+        signing_cohort = u._get_signing_cohort(cohort_id)
+        assert signing_cohort == mocked_signing_cohort
+        # cache is populated
+        assert u._signing_cohort_cache[cohort_id] == mocked_signing_cohort
+
+    # ensure that get_signing_cohort was only called for ursulas that cleared cache
+    assert agent.get_signing_cohort.call_count == len(ursulas_to_clear)
+
+    # all caches populated again
+    for u in cohort:
+        assert u._signing_cohort_cache[cohort_id] == mocked_signing_cohort
+
+    #
+    # Test caching behaviour for soon to be expired cohort
+    #
+    # clear all caches
+    for u in cohort:
+        u._signing_cohort_cache.remove(cohort_id)
+        assert u._signing_cohort_cache[cohort_id] is None
+
+    # simulate that cohort is about to expire (before default ttl expiry)
+    expiry_before_ttl_seconds = default_cache_expiry // 2
+    mocked_signing_cohort.end_timestamp = now.add(
+        seconds=expiry_before_ttl_seconds
+    ).epoch
+
+    agent.reset_mock()
+    for u in cohort:
+        signing_cohort = u._get_signing_cohort(cohort_id)
+        assert signing_cohort == mocked_signing_cohort
+        # cache is repopulated
+        assert u._signing_cohort_cache[cohort_id] == mocked_signing_cohort
+
+    # ensure that get_signing_cohort was called for all ursulas since cache was cleared
+    assert agent.get_signing_cohort.call_count == len(cohort)
+
+    # cache is used before expiry
+    agent.reset_mock()
+    for u in cohort:
+        signing_cohort = u._get_signing_cohort(cohort_id)
+        assert signing_cohort == mocked_signing_cohort
+    # agent not called since cache is still valid
+    assert agent.get_signing_cohort.call_count == 0
+
+    agent.reset_mock()
+    with mocker.patch(
+        "maya.now", return_value=now.add(seconds=expiry_before_ttl_seconds + 1)
+    ):
+        # cohort is no longer active
+        agent.is_cohort_active.return_value = False
+
+        # cache should have expired now, so contract agent should have been called
+        for u in cohort:
+            with pytest.raises(Operator.UnauthorizedRequest, match="is not active"):
+                _ = u._get_signing_cohort(cohort_id)
+
+        # cache attempted to be repopulated by all nodes but cohort is realized to be inactive
+        #  after checking on-chain
+        assert agent.is_cohort_active.call_count == len(cohort)
+        assert agent.get_signing_cohort.call_count == 0
+
+    # very unlikely case where cohort was active but expired after we check on-chain
+    #  but before we cache it
+    agent.reset_mock()
+    with mocker.patch(
+        "maya.now", return_value=now.add(seconds=expiry_before_ttl_seconds + 1)
+    ):
+        # cohort is active
+        agent.is_cohort_active.return_value = True
+
+        # cache should have expired now, so contract agent should have been called
+        for u in cohort:
+            with pytest.raises(Operator.UnauthorizedRequest, match="is not active"):
+                _ = u._get_signing_cohort(cohort_id)
+
+        # cache attempted to be repopulated by all nodes but cohort is realized to be inactive
+        #  after checking on-chain
+        assert agent.is_cohort_active.call_count == len(cohort)
+        assert agent.get_signing_cohort.call_count == len(
+            cohort
+        )  # actually called this time

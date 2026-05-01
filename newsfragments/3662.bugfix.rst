@@ -1,0 +1,1 @@
+Ensure operations can be performed properly on string values returned from JSON queries before condition evaluation.

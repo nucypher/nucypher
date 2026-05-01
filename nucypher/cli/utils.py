@@ -1,5 +1,4 @@
 import os
-from distutils.util import strtobool
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
@@ -24,6 +23,24 @@ from nucypher.cli.literature import (
 )
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.events import write_events_to_csv_file
+
+
+def strtobool(val: str) -> bool:
+    """
+    Convert a string to a bool, like distutils.strtobool.
+
+    distutils was deprecated in Python 3.10 and removed in Python 3.12.
+
+    Custom implementation based on migration advice https://peps.python.org/pep-0632/#migration-advice
+    and function documentation, https://docs.python.org/3.10/distutils/apiref.html#distutils.util.strtobool.
+    """
+    val = val.lower()
+    if val in ("y", "yes", "t", "true", "on", "1"):
+        return True
+    elif val in ("n", "no", "f", "false", "off", "0"):
+        return False
+
+    raise ValueError(f"invalid truth value '{val}'")
 
 
 def setup_emitter(general_config, banner: str = None) -> StdoutEmitter:

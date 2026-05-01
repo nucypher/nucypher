@@ -1,10 +1,12 @@
 import json
+import os
 import random
 import time
 import traceback
 from collections import defaultdict
 from decimal import Decimal
-from typing import Dict, List, Optional, Union
+from enum import Enum
+from typing import Callable, Dict, List, Optional, Union
 
 import maya
 from atxm.exceptions import InsufficientFunds
@@ -13,32 +15,36 @@ from eth_typing import ChecksumAddress
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
-    SessionStaticKey,
+    EncryptedThresholdSignatureRequest,
+    EncryptedThresholdSignatureResponse,
+    SignatureResponse,
     ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
 )
 from nucypher_core.ferveo import (
     AggregatedTranscript,
-    CiphertextHeader,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
-    FerveoVariant,
     HandoverTranscript,
     Transcript,
     Validator,
     ValidatorMessage,
 )
-from web3 import HTTPProvider, Web3
+from web3 import Web3
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
+    EthereumContractAgent,
+    SigningCoordinatorAgent,
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.constants import (
     NULL_ADDRESS,
     PUBLIC_CHAINS,
@@ -50,35 +56,54 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterfaceFactory,
 )
 from nucypher.blockchain.eth.models import (
+    DKG_PHASE_1,
+    DKG_PHASE_2,
     HANDOVER_AWAITING_BLINDED_SHARE,
     HANDOVER_AWAITING_TRANSCRIPT,
-    PHASE1,
-    PHASE2,
+    SIGNING_AWAITING_SIGNATURES,
     Coordinator,
+    SigningCoordinator,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.trackers import dkg
+from nucypher.blockchain.eth.trackers import dkg, signing
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import (
     get_healthy_default_rpc_endpoints,
+    obfuscate_rpc_url,
     rpc_endpoint_health_check,
     truncate_checksum_address,
 )
+from nucypher.config.constants import NUCYPHER_ENVVAR_COHORT_CACHE_TTL
 from nucypher.crypto.ferveo.exceptions import FerveoKeyMismatch
 from nucypher.crypto.powers import (
     CryptoPower,
+    DecryptingRequestPower,
     RitualisticPower,
-    ThresholdRequestDecryptingPower,
+    SigningRequestPower,
+    ThresholdSigningPower,
     TransactingPower,
 )
-from nucypher.datastore.dkg import DKGStorage
+from nucypher.datastore.ritual import (
+    DKGRitualStorage,
+    RitualStorage,
+    SigningRitualStorage,
+)
+from nucypher.network.signing import (
+    get_signature_request_object,
+    sign_signature_request_data,
+)
+from nucypher.policy.conditions.signing.base import SIGNING_CONDITION_OBJECT_CONTEXT_VAR
 from nucypher.policy.conditions.utils import (
     ConditionProviderManager,
     evaluate_condition_lingo,
 )
 from nucypher.policy.payment import ContractPayment
-from nucypher.types import PhaseId
+from nucypher.types import (
+    PhaseId,
+    PhaseNumber,
+)
+from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.warnings import render_ferveo_key_mismatch_warning
@@ -150,21 +175,15 @@ class BaseActor:
         return self.checksum_address
 
 
-class NucypherTokenActor(BaseActor):
-    """
-    Actor to interface with the NuCypherToken contract
-    """
-
-    def __init__(self, registry: ContractRegistry, **kwargs):
-        super().__init__(registry=registry, **kwargs)
-        self.__token_agent = None
-
-
 class Operator(BaseActor):
     READY_TIMEOUT = None  # (None or 0) == indefinite
     READY_POLL_RATE = 120  # seconds
     AGGREGATION_SUBMISSION_MAX_DELAY = 60
+    POST_SIGNATURE_MAX_DELAY = 60
     LOG = Logger("operator")
+
+    # Cohort cache TTL from env var or default 60 seconds
+    _COHORT_CACHE_TTL = int(os.environ.get(NUCYPHER_ENVVAR_COHORT_CACHE_TTL, 60))
 
     class OperatorError(BaseActor.ActorError):
         """Operator-specific errors."""
@@ -175,13 +194,24 @@ class Operator(BaseActor):
     class UnauthorizedRequest(Exception):
         """Request is not authorized."""
 
+    class NoConditionConfigured(Exception):
+        """Associated condition is not configured."""
+
     class DecryptionFailure(Exception):
         """Decryption failed."""
+
+    class RitualType(Enum):
+        DKG = "dkg ritual"
+        SIGNING = "signing ritual"
+
+        def __str__(self) -> str:
+            return self.value
 
     def __init__(
         self,
         eth_endpoint: str,
         polygon_endpoint: str,
+        registry: ContractRegistry,
         pre_payment_method: ContractPayment,
         transacting_power: TransactingPower,
         signer: Signer = None,
@@ -218,7 +248,9 @@ class Operator(BaseActor):
         self.pre_payment_method = pre_payment_method
         self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
 
-        super().__init__(transacting_power=transacting_power, *args, **kwargs)
+        super().__init__(
+            transacting_power=transacting_power, registry=registry, *args, **kwargs
+        )
         self.log = Logger("operator")
 
         self.__staking_provider_address = None  # set by block_until_ready
@@ -229,7 +261,6 @@ class Operator(BaseActor):
             registry=self.registry,
         )
 
-        registry = ContractRegistry.from_latest_publication(domain=self.domain)
         self.child_application_agent = ContractAgency.get_agent(
             TACoChildApplicationAgent,
             registry=registry,
@@ -242,27 +273,45 @@ class Operator(BaseActor):
             blockchain_endpoint=polygon_endpoint,
         )
 
-        # track active onchain rituals
-        self.ritual_tracker = dkg.ActiveRitualTracker(
-            operator=self,
+        self.signing_coordinator_agent = ContractAgency.get_agent(
+            SigningCoordinatorAgent,
+            registry=registry,
+            blockchain_endpoint=eth_endpoint,
         )
 
         self.publish_finalization = (
             publish_finalization  # publish the DKG final key if True
         )
 
+        self.threshold_signing_power = crypto_power.power_ups(
+            ThresholdSigningPower
+        )  # used to sign threshold signing requests
         self.ritual_power = crypto_power.power_ups(
             RitualisticPower
         )  # ferveo material contained within
-        self.threshold_request_power = crypto_power.power_ups(
-            ThresholdRequestDecryptingPower
+        self.decrypting_request_power = crypto_power.power_ups(
+            DecryptingRequestPower
         )  # used for secure decryption request channel
+        self.signing_request_power = crypto_power.power_ups(
+            SigningRequestPower
+        )  # used for secure signing request channel
 
         self.condition_provider_manager = self.get_condition_provider_manager(
             condition_blockchain_endpoints
         )
 
-        self.dkg_storage = DKGStorage()
+        self.dkg_storage = DKGRitualStorage()
+        self.signing_storage = SigningRitualStorage()
+
+        # track active onchain rituals
+        self.ritual_tracker = dkg.DkgRitualTracker(
+            operator=self,
+        )
+        self.signing_ritual_tracker = signing.SigningRitualTracker(
+            operator=self,
+        )
+
+        self._signing_cohort_cache = TTLCache(ttl=self._COHORT_CACHE_TTL)
 
     def set_provider_public_key(self) -> Union[TxReceipt, None]:
         # TODO: Here we're assuming there is one global key per node. See nucypher/#3167
@@ -275,32 +324,27 @@ class Operator(BaseActor):
             )
             return receipt
 
-    @staticmethod
-    def _make_condition_provider(uri: str) -> HTTPProvider:
-        provider = HTTPProvider(endpoint_uri=uri)
-        return provider
-
     def get_condition_provider_manager(
         self, operator_configured_endpoints: Dict[int, List[str]]
     ) -> ConditionProviderManager:
-
         # check that we have mandatory user configured endpoints
         mandatory_configured_chains = {
             self.domain.eth_chain.id,
             self.domain.polygon_chain.id,
         }
-        if mandatory_configured_chains != set(operator_configured_endpoints):
+        configured_chains = set(operator_configured_endpoints)
+        missing_mandatory = mandatory_configured_chains - configured_chains
+        if missing_mandatory:
             raise self.ActorError(
-                f"Operator-configured condition endpoints for chains don't match mandatory chains: "
-                f"{set(operator_configured_endpoints)} vs expected {mandatory_configured_chains}"
+                f"Operator-configured condition endpoints missing mandatory chains: "
+                f"{missing_mandatory}; configured: {configured_chains}, required: {mandatory_configured_chains}"
             )
-
-        providers = defaultdict(list)  # use list to maintain order
 
         # ensure that no endpoint uri for a specific chain is repeated
         duplicated_endpoint_check = defaultdict(set)
 
         # Operator-configured endpoints for chains
+        configured_endpoints = defaultdict(list)
         for chain_id, chain_rpc_endpoints in operator_configured_endpoints.items():
             if not chain_rpc_endpoints:
                 raise self.ActorError(
@@ -310,44 +354,43 @@ class Operator(BaseActor):
             for uri in chain_rpc_endpoints:
                 if uri in duplicated_endpoint_check[chain_id]:
                     self.log.warn(
-                        f"Operator-configured condition endpoint {uri} is duplicated for condition evaluation on chain {chain_id}; skipping."
+                        f"Operator-configured condition endpoint {obfuscate_rpc_url(uri)} is duplicated for condition evaluation on chain {chain_id}; skipping."
                     )
                     continue
 
-                provider = self._make_condition_provider(uri)
-                if int(Web3(provider).eth.chain_id) != int(chain_id):
-                    raise self.ActorError(
-                        f"Operator-configured RPC condition endpoint {uri} does not belong to chain {chain_id}"
-                    )
-                healthy = rpc_endpoint_health_check(endpoint=uri)
+                healthy = rpc_endpoint_health_check(chain_id=chain_id, endpoint=uri)
                 if not healthy:
                     self.log.warn(
-                        f"Operator-configured RPC condition endpoint {uri} is unhealthy"
+                        f"Operator-configured RPC condition endpoint {obfuscate_rpc_url(uri)} (chainID={chain_id}) is unhealthy"
                     )
-                providers[int(chain_id)].append(provider)
+                    # bad user configured endpoint should cause operator to not start.
+                    raise self.ActorError(
+                        f"Operator-configured RPC condition endpoint {obfuscate_rpc_url(uri)} (chainID={chain_id}) is unhealthy"
+                    )
+                configured_endpoints[int(chain_id)].append(uri)
                 duplicated_endpoint_check[chain_id].add(uri)
 
         # Ingest default/fallback RPC providers for each chain
         default_endpoints = get_healthy_default_rpc_endpoints(self.domain)
+        public_endpoints = defaultdict(list)
         for chain_id, chain_rpc_endpoints in default_endpoints.items():
-            # randomize list so that the same fallback RPC endpoints aren't always used by all nodes
-            random.shuffle(chain_rpc_endpoints)
             for uri in chain_rpc_endpoints:
                 if uri in duplicated_endpoint_check[chain_id]:
                     self.log.warn(
-                        f"Fallback blockchain endpoint, {uri}, is duplicated for condition evaluation on chain {chain_id}; skipping"
+                        f"Fallback blockchain endpoint, {obfuscate_rpc_url(uri)}, is duplicated for condition evaluation on chain {chain_id}; skipping"
                     )
                     continue
-                provider = self._make_condition_provider(uri)
-                providers[chain_id].append(provider)
+                public_endpoints[chain_id].append(uri)
                 duplicated_endpoint_check[chain_id].add(uri)
 
         self.log.info(
-            f"Connected to {sum(len(v) for v in providers.values())} RPC endpoints for condition "
-            f"checking on chain IDs {providers.keys()}"
+            f"Connected to {sum(len(v) for v in duplicated_endpoint_check.values())} RPC endpoints for condition "
+            f"checking on chain IDs {list(duplicated_endpoint_check.keys())}"
         )
 
-        return ConditionProviderManager(providers=providers)
+        return ConditionProviderManager(
+            providers=public_endpoints, preferential_providers=configured_endpoints
+        )
 
     def _resolve_ritual(self, ritual_id: int) -> Coordinator.Ritual:
         if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
@@ -360,6 +403,57 @@ class Operator(BaseActor):
             self.dkg_storage.store_active_ritual(active_ritual=ritual)
 
         return ritual
+
+    def _make_async_tx_hooks(
+        self,
+        ritual_type: RitualType,
+        phase_id: PhaseId,
+        tx_types: Dict[PhaseNumber, str],
+        resubmit_fn: Callable,
+        storage: RitualStorage,
+        agent: EthereumContractAgent,
+    ) -> BlockchainInterface.AsyncTxHooks:
+        tx_type = tx_types[phase_id.phase]
+
+        def on_broadcast_failure(tx: FutureTx, e: Exception):
+            self.log.warn(
+                f"{tx_type} async tx {tx.id} for {ritual_type} #{phase_id.ritual_id} "
+                f"failed to broadcast {e}; the same tx will be retried"
+            )
+            agent.blockchain.tx_machine.remove_queued_transaction(tx)
+            resubmit_fn()
+
+        def on_fault(tx: FaultedTx):
+            error = f"({tx.error})" if tx.error else ""
+            self.log.warn(
+                f"{tx_type} async tx {tx.id} for {ritual_type} #{phase_id.ritual_id} "
+                f"failed with fault {tx.fault.name}{error}; resubmitting a new one"
+            )
+            resubmit_fn()
+
+        def on_finalized(tx: FinalizedTx):
+            if not tx.successful:
+                self.log.warn(
+                    f"{tx_type} async tx {tx.id} for {ritual_type} #{phase_id.ritual_id} "
+                    f"was reverted; resubmitting a new one"
+                )
+                resubmit_fn()
+            else:
+                storage.clear_ritual_phase_async_tx(phase_id=phase_id, async_tx=tx)
+
+        def on_insufficient_funds(tx: Union[FutureTx, PendingTx], e: InsufficientFunds):
+            self.log.error(
+                f"{tx_type} async tx {tx.id} for {ritual_type} #{phase_id.ritual_id} "
+                f"cannot be executed because {self.transacting_power.account[:8]} "
+                f"has insufficient funds {e}"
+            )
+
+        return BlockchainInterface.AsyncTxHooks(
+            on_broadcast_failure=on_broadcast_failure,
+            on_fault=on_fault,
+            on_finalized=on_finalized,
+            on_insufficient_funds=on_insufficient_funds,
+        )
 
     def _resolve_validators(
         self,
@@ -395,21 +489,20 @@ class Operator(BaseActor):
 
         return result
 
-    def _setup_async_hooks(
+    def _setup_dkg_async_tx_hooks(
         self, phase_id: PhaseId, *args
     ) -> BlockchainInterface.AsyncTxHooks:
-
-        TX_TYPES = {
-            PHASE1: "POST_TRANSCRIPT",
-            PHASE2: "POST_AGGREGATE",
+        tx_types = {
+            DKG_PHASE_1: "POST_TRANSCRIPT",
+            DKG_PHASE_2: "POST_AGGREGATE",
             HANDOVER_AWAITING_TRANSCRIPT: "HANDOVER_AWAITING_TRANSCRIPT",
             HANDOVER_AWAITING_BLINDED_SHARE: "HANDOVER_POST_BLINDED_SHARE",
         }
 
-        tx_type = TX_TYPES[phase_id.phase]
+        tx_type = tx_types[phase_id.phase]
 
         def resubmit_tx():
-            if phase_id.phase == PHASE1:
+            if phase_id.phase == DKG_PHASE_1:
                 # check status of ritual before resubmitting; prevent infinite loops
                 if not self._is_phase_1_action_required(ritual_id=phase_id.ritual_id):
                     self.log.info(
@@ -418,7 +511,7 @@ class Operator(BaseActor):
                     )
                     return
                 async_tx = self.publish_transcript(*args)
-            elif phase_id.phase == PHASE2:
+            elif phase_id.phase == DKG_PHASE_2:
                 # check status of ritual before resubmitting; prevent infinite loops
                 if not self._is_phase_2_action_required(ritual_id=phase_id.ritual_id):
                     self.log.info(
@@ -459,67 +552,20 @@ class Operator(BaseActor):
                 f"of type {tx_type} for DKG ritual #{phase_id.ritual_id}."
             )
 
-        def on_broadcast_failure(tx: FutureTx, e: Exception):
-            # although error, tx was not removed from atxm
-            self.log.warn(
-                f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
-                f"failed to broadcast {e}; the same tx will be retried"
-            )
-            # either multiple retries already completed for recoverable error,
-            # or simply a non-recoverable error - remove and resubmit
-            # (analogous action to a node restart of old)
-            self.coordinator_agent.blockchain.tx_machine.remove_queued_transaction(tx)
-
-            # submit a new one
-            resubmit_tx()
-
-        def on_fault(tx: FaultedTx):
-            # fault means that tx was removed from atxm
-            error = f"({tx.error})" if tx.error else ""
-            self.log.warn(
-                f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
-                f"failed with fault {tx.fault.name}{error}; resubmitting a new one"
-            )
-
-            # submit a new one.
-            resubmit_tx()
-
-        def on_finalized(tx: FinalizedTx):
-            # finalized means that tx was removed from atxm
-            if not tx.successful:
-                self.log.warn(
-                    f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
-                    f"was reverted; resubmitting a new one"
-                )
-
-                # submit a new one.
-                resubmit_tx()
-            else:
-                # success and blockchain updated - no need to store tx anymore
-                self.dkg_storage.clear_ritual_phase_async_tx(
-                    phase_id=phase_id, async_tx=tx
-                )
-
-        def on_insufficient_funds(tx: Union[FutureTx, PendingTx], e: InsufficientFunds):
-            # although error, tx was not removed from atxm
-            self.log.error(
-                f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
-                f"cannot be executed because {self.transacting_power.account[:8]} "
-                f"has insufficient funds {e}"
-            )
-
-        async_tx_hooks = BlockchainInterface.AsyncTxHooks(
-            on_broadcast_failure=on_broadcast_failure,
-            on_fault=on_fault,
-            on_finalized=on_finalized,
-            on_insufficient_funds=on_insufficient_funds,
+        return self._make_async_tx_hooks(
+            ritual_type=self.RitualType.DKG,
+            phase_id=phase_id,
+            tx_types=tx_types,
+            resubmit_fn=resubmit_tx,
+            storage=self.dkg_storage,
+            agent=self.coordinator_agent,
         )
 
-        return async_tx_hooks
-
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> AsyncTx:
-        identifier = PhaseId(ritual_id, PHASE1)
-        async_tx_hooks = self._setup_async_hooks(identifier, ritual_id, transcript)
+        identifier = PhaseId(ritual_id, DKG_PHASE_1)
+        async_tx_hooks = self._setup_dkg_async_tx_hooks(
+            identifier, ritual_id, transcript
+        )
         async_tx = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
@@ -539,11 +585,11 @@ class Operator(BaseActor):
     ) -> AsyncTx:
         """Publish an aggregated transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
-        participant_public_key = self.threshold_request_power.get_pubkey_from_ritual_id(
+        participant_public_key = self.decrypting_request_power.get_pubkey_from_id(
             ritual_id
         )
-        identifier = PhaseId(ritual_id=ritual_id, phase=PHASE2)
-        async_tx_hooks = self._setup_async_hooks(
+        identifier = PhaseId(ritual_id=ritual_id, phase=DKG_PHASE_2)
+        async_tx_hooks = self._setup_dkg_async_tx_hooks(
             identifier, ritual_id, aggregated_transcript, public_key
         )
         async_tx = self.coordinator_agent.post_aggregation(
@@ -641,12 +687,12 @@ class Operator(BaseActor):
 
         # check if there is already pending tx for this ritual + round combination
         async_tx = self.dkg_storage.get_ritual_phase_async_tx(
-            phase_id=PhaseId(ritual_id, PHASE1)
+            phase_id=PhaseId(ritual_id, DKG_PHASE_1)
         )
         if async_tx:
             self.log.info(
                 f"Active ritual in progress: {self.transacting_power.account} has submitted tx "
-                f"for ritual #{ritual_id}, phase #{PHASE1} (final: {async_tx.final})"
+                f"for ritual #{ritual_id}, phase #{DKG_PHASE_1} (final: {async_tx.final})"
             )
             return async_tx
 
@@ -732,12 +778,12 @@ class Operator(BaseActor):
 
         # check if there is a pending tx for this ritual + round combination
         async_tx = self.dkg_storage.get_ritual_phase_async_tx(
-            phase_id=PhaseId(ritual_id, PHASE2)
+            phase_id=PhaseId(ritual_id, DKG_PHASE_2)
         )
         if async_tx:
             self.log.info(
                 f"Active ritual in progress: {self.transacting_power.account} has submitted tx "
-                f"for ritual #{ritual_id}, phase #{PHASE2} (final: {async_tx.final})."
+                f"for ritual #{ritual_id}, phase #{DKG_PHASE_2} (final: {async_tx.final})."
             )
             return async_tx
 
@@ -919,12 +965,12 @@ class Operator(BaseActor):
         handover_transcript: HandoverTranscript,
     ) -> AsyncTx:
         """Publish a handover transcript to the Coordinator."""
-        participant_public_key = self.threshold_request_power.get_pubkey_from_ritual_id(
+        participant_public_key = self.decrypting_request_power.get_pubkey_from_id(
             ritual_id
         )
         handover_transcript = bytes(handover_transcript)
         identifier = PhaseId(ritual_id=ritual_id, phase=HANDOVER_AWAITING_TRANSCRIPT)
-        async_tx_hooks = self._setup_async_hooks(
+        async_tx_hooks = self._setup_dkg_async_tx_hooks(
             identifier, ritual_id, departing_validator, handover_transcript
         )
 
@@ -1070,7 +1116,7 @@ class Operator(BaseActor):
         """Publish a handover blinded share to the Coordinator."""
         blinded_share = bytes(blinded_share)
         identifier = PhaseId(ritual_id=ritual_id, phase=HANDOVER_AWAITING_BLINDED_SHARE)
-        async_tx_hooks = self._setup_async_hooks(
+        async_tx_hooks = self._setup_dkg_async_tx_hooks(
             identifier,
             ritual_id,
             blinded_share,
@@ -1143,54 +1189,152 @@ class Operator(BaseActor):
         self.dkg_storage.clear_active_ritual_object(ritual_id)
         self.dkg_storage.clear_validators(ritual_id)
 
-    def produce_decryption_share(
-        self,
-        ritual_id: int,
-        ciphertext_header: CiphertextHeader,
-        aad: bytes,
-        variant: FerveoVariant,
-    ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
-        ritual = self._resolve_ritual(ritual_id)
-        validators = self._resolve_validators(ritual)
-        # FIXME: Workaround: add serialized public key to aggregated transcript.
-        # Since we use serde/bincode in rust, we need a metadata field for the public key, which is the field size,
-        # as 8 bytes in little-endian. See ferveo#209
-        public_key_metadata = b"0\x00\x00\x00\x00\x00\x00\x00"
-        transcript = (
-            bytes(ritual.aggregated_transcript)
-            + public_key_metadata
-            + bytes(ritual.public_key)
-        )
-        aggregated_transcript = AggregatedTranscript.from_bytes(transcript)
-        decryption_share = self.ritual_power.produce_decryption_share(
-            nodes=validators,
-            threshold=ritual.threshold,
-            shares=ritual.shares,
-            checksum_address=self.checksum_address,
-            ritual_id=ritual.id,
-            aggregated_transcript=aggregated_transcript,
-            ciphertext_header=ciphertext_header,
-            aad=aad,
-            variant=variant,
-        )
-        return decryption_share
+    def _setup_signing_async_tx_hooks(
+        self, phase_id: PhaseId, *args
+    ) -> BlockchainInterface.AsyncTxHooks:
+        tx_types = {
+            SIGNING_AWAITING_SIGNATURES: "SIGNING_AWAITING_SIGNATURES",
+        }
 
-    def decrypt_threshold_decryption_request(
-        self, encrypted_request: EncryptedThresholdDecryptionRequest
-    ) -> ThresholdDecryptionRequest:
-        return self.threshold_request_power.decrypt_encrypted_request(
-            encrypted_request=encrypted_request
+        tx_type = tx_types[phase_id.phase]
+
+        def resubmit_tx():
+            if phase_id.phase == SIGNING_AWAITING_SIGNATURES:
+                # check status of cohort before resubmitting; prevent infinite loops
+                if not self._is_post_signature_action_required(
+                    cohort_id=phase_id.ritual_id
+                ):
+                    self.log.info(
+                        f"No need to resubmit tx: additional action not required to post signature for signing ritual #{phase_id.ritual_id}"
+                    )
+                    return
+                async_tx = self._post_signature(*args)
+            else:
+                raise ValueError(
+                    f"Unsupported phase {phase_id.phase} for async tx resubmission"
+                )
+
+            self.log.info(
+                f"{self.transacting_power.account[:8]} resubmitted a new async tx {async_tx.id} "
+                f"of type {tx_type} for signing ritual #{phase_id.ritual_id}."
+            )
+
+        return self._make_async_tx_hooks(
+            ritual_type=self.RitualType.SIGNING,
+            phase_id=phase_id,
+            tx_types=tx_types,
+            resubmit_fn=resubmit_tx,
+            storage=self.signing_storage,
+            agent=self.signing_coordinator_agent,
         )
 
-    def encrypt_threshold_decryption_response(
+    def _is_post_signature_action_required(self, cohort_id: int) -> bool:
+        status = self.signing_coordinator_agent.get_signing_cohort_status(cohort_id)
+        if status != SigningCoordinator.RitualStatus.AWAITING_SIGNATURES:
+            # This is a normal state when replaying/syncing historical
+            # blocks that contain StartRitual events of pending or completed rituals.
+            self.log.debug(
+                f"cohort #{cohort_id} is not waiting for signatures; status={status}."
+            )
+            return False
+
+        participant = self.signing_coordinator_agent.get_signer(
+            cohort_id=cohort_id, provider=self.staking_provider_address
+        )
+        if participant.signer_address != NULL_ADDRESS:
+            # This is a normal state, as the node may have already submitted a signature
+            # for this cohort, and it's not necessary to submit another one. Carry on.
+            self.log.debug(
+                f"Node {self.threshold_signing_power.account} has already posted a signature for cohort {cohort_id}."
+            )
+            return False
+
+        return True
+
+    def perform_post_signature(
         self,
-        decryption_response: ThresholdDecryptionResponse,
-        requester_public_key: SessionStaticKey,
+        cohort_id: int,
+        chain_id: int,
+        authority: ChecksumAddress,
+        participants: List[ChecksumAddress],
+        timestamp: int,
+    ) -> Optional[AsyncTx]:
+        if self.checksum_address not in participants:
+            # should never happen
+            message = (
+                f"{self.checksum_address}|{self.wallet_address} "
+                f"is not a member of cohort {cohort_id}"
+            )
+            stack_trace = traceback.format_stack()
+            self.log.critical(f"{message}\n{stack_trace}")
+            return
+
+        if not self._is_post_signature_action_required(cohort_id=cohort_id):
+            self.log.debug(f"No action required for cohort {cohort_id}.")
+            return
+
+        # check if there is a pending tx for this phase
+        async_tx = self.signing_storage.get_ritual_phase_async_tx(
+            phase_id=PhaseId(cohort_id, SIGNING_AWAITING_SIGNATURES)
+        )
+        if async_tx:
+            self.log.info(
+                f"Active signing ritual in progress: {self.transacting_power.account} has submitted tx "
+                f"for cohort #{cohort_id}, post signature phase, (final: {async_tx.final})."
+            )
+            return async_tx
+
+        # post the signature after network-wide jitter to avoid tx
+        # congestion and gas mis-estimation issues
+        time.sleep(random.randint(0, self.POST_SIGNATURE_MAX_DELAY))
+        return self._post_signature(cohort_id)
+
+    def _post_signature(self, cohort_id: int) -> AsyncTx:
+        participant_public_key = self.signing_request_power.get_pubkey_from_id(
+            cohort_id
+        )
+        data_hash = self.signing_coordinator_agent.get_signing_cohort_data_hash(
+            cohort_id=cohort_id, operator_address=self.transacting_power.account
+        )
+        _hash, signature = self.threshold_signing_power.sign_message_eip191(
+            data_hash, standardize=False
+        )
+
+        # TODO add async tx hooks
+        identifier = PhaseId(ritual_id=cohort_id, phase=SIGNING_AWAITING_SIGNATURES)
+        async_tx_hooks = self._setup_signing_async_tx_hooks(identifier, cohort_id)
+        async_tx = self.signing_coordinator_agent.post_signature(
+            cohort_id=cohort_id,
+            signature=signature,
+            participant_public_key=participant_public_key,
+            transacting_power=self.transacting_power,
+            async_tx_hooks=async_tx_hooks,
+        )
+        self.signing_storage.store_ritual_phase_async_tx(
+            phase_id=identifier, async_tx=async_tx
+        )
+        return async_tx
+
+    def handle_threshold_decryption_request(
+        self, encrypted_decryption_request: EncryptedThresholdDecryptionRequest
     ) -> EncryptedThresholdDecryptionResponse:
-        return self.threshold_request_power.encrypt_decryption_response(
-            decryption_response=decryption_response,
-            requester_public_key=requester_public_key,
+        decryption_request = self.decrypting_request_power.decrypt_encrypted_request(
+            encrypted_request=encrypted_decryption_request
         )
+        decryption_share = self._produce_decryption_share_for_request(
+            decryption_request
+        )
+
+        # TODO: #3098 nucypher-core#49 Use DecryptionShare type
+        decryption_response = ThresholdDecryptionResponse(
+            ritual_id=decryption_request.ritual_id,
+            decryption_share=bytes(decryption_share),
+        )
+        encrypted_response = self.decrypting_request_power.encrypt_decryption_response(
+            decryption_response=decryption_response,
+            requester_public_key=encrypted_decryption_request.requester_public_key,
+        )
+        return encrypted_response
 
     def _verify_active_ritual(self, decryption_request: ThresholdDecryptionRequest):
         # check that ritual is active
@@ -1245,10 +1389,13 @@ class Operator(BaseActor):
             )
 
         # evaluate the conditions for this ciphertext; raises if it fails
+        # Enable debug mode for Lynx only
+        is_lynx_debug = self.domain == domains.LYNX
         evaluate_condition_lingo(
             condition_lingo=condition_lingo,
             context=context,
             providers=self.condition_provider_manager,
+            debug_mode=is_lynx_debug,
         )
 
     def _verify_decryption_request_authorization(
@@ -1268,8 +1415,25 @@ class Operator(BaseActor):
             decryption_request=decryption_request
         )
         try:
-            decryption_share = self.produce_decryption_share(
-                ritual_id=decryption_request.ritual_id,
+            ritual = self._resolve_ritual(decryption_request.ritual_id)
+            validators = self._resolve_validators(ritual)
+            # FIXME: Workaround: add serialized public key to aggregated transcript.
+            # Since we use serde/bincode in rust, we need a metadata field for the public key, which is the field size,
+            # as 8 bytes in little-endian. See ferveo#209
+            public_key_metadata = b"0\x00\x00\x00\x00\x00\x00\x00"
+            transcript = (
+                bytes(ritual.aggregated_transcript)
+                + public_key_metadata
+                + bytes(ritual.public_key)
+            )
+            aggregated_transcript = AggregatedTranscript.from_bytes(transcript)
+            decryption_share = self.ritual_power.produce_decryption_share(
+                nodes=validators,
+                threshold=ritual.threshold,
+                shares=ritual.shares,
+                checksum_address=self.checksum_address,
+                ritual_id=ritual.id,
+                aggregated_transcript=aggregated_transcript,
                 ciphertext_header=decryption_request.ciphertext_header,
                 aad=decryption_request.acp.aad(),
                 variant=decryption_request.variant,
@@ -1277,22 +1441,95 @@ class Operator(BaseActor):
         except Exception as e:
             self.log.warn(f"Failed to derive decryption share: {e}")
             raise self.DecryptionFailure(f"Failed to derive decryption share: {e}")
+
         return decryption_share
 
-    def _encrypt_decryption_share(
+    def _get_signing_cohort(self, cohort_id: int) -> SigningCoordinator.SigningCohort:
+        self._signing_cohort_cache.purge_expired()
+
+        cached_cohort = self._signing_cohort_cache[cohort_id]
+        if cached_cohort is not None:
+            return cached_cohort
+
+        if not self.signing_coordinator_agent.is_cohort_active(cohort_id):
+            raise self.UnauthorizedRequest(
+                f"Cohort #{cohort_id} is not active",
+            )
+
+        signing_cohort = self.signing_coordinator_agent.get_signing_cohort(cohort_id)
+        # very unlikely: safety measure that cohort doesn't reach end timestamp between
+        #  checking whether active via agent and caching
+        time_remaining = signing_cohort.end_timestamp - maya.now().epoch
+        if time_remaining <= 0:
+            raise self.UnauthorizedRequest(
+                f"Cohort #{cohort_id} is not active",
+            )
+
+        custom_ttl = min(time_remaining, self._signing_cohort_cache.ttl)
+        self._signing_cohort_cache.add_with_ttl(cohort_id, signing_cohort, custom_ttl)
+        return signing_cohort
+
+    def handle_threshold_signing_request(
         self,
-        ritual_id: int,
-        decryption_share: Union[DecryptionShareSimple, DecryptionSharePrecomputed],
-        public_key: SessionStaticKey,
-    ) -> EncryptedThresholdDecryptionResponse:
-        # TODO: #3098 nucypher-core#49 Use DecryptionShare type
-        decryption_response = ThresholdDecryptionResponse(
-            ritual_id=ritual_id,
-            decryption_share=bytes(decryption_share),
+        encrypted_signing_request: EncryptedThresholdSignatureRequest,
+    ) -> EncryptedThresholdSignatureResponse:
+        signing_request = self.signing_request_power.decrypt_encrypted_request(
+            encrypted_signing_request
         )
-        encrypted_response = self.encrypt_threshold_decryption_response(
-            decryption_response=decryption_response,
-            requester_public_key=public_key,
+        signing_cohort = self._get_signing_cohort(signing_request.cohort_id)
+
+        if not any(
+            s.provider == self.staking_provider_address for s in signing_cohort.signers
+        ):
+            raise self.UnauthorizedRequest(
+                f"Not a member of signing cohort {signing_request.cohort_id}"
+            )
+
+        # get condition directly from canonical source to ensure latest
+        # and prevent signing on stale conditions
+        condition_bytes = self.signing_coordinator_agent.get_signing_cohort_conditions(
+            cohort_id=signing_request.cohort_id, chain_id=signing_request.chain_id
+        )
+        if not condition_bytes:
+            raise self.NoConditionConfigured(
+                f"Condition not configured on chain {signing_request.chain_id} for signing cohort {signing_request.cohort_id} "
+            )
+        condition_lingo = json.loads(condition_bytes.decode("utf-8"))
+
+        # add signing object to context
+        context = dict()
+        if signing_request.context:
+            # nucypher_core.Context -> str -> dict
+            context = json.loads(str(signing_request.context)) or dict()
+
+        context[SIGNING_CONDITION_OBJECT_CONTEXT_VAR] = get_signature_request_object(
+            signing_request
+        )
+
+        # Enable debug mode for Lynx only
+        is_lynx_debug = self.domain == domains.LYNX
+        evaluate_condition_lingo(
+            condition_lingo,
+            self.condition_provider_manager,
+            context,
+            debug_mode=is_lynx_debug,
+        )
+
+        # sign if the request is authorized (conditions are satisfied)
+        message_hash, signature = sign_signature_request_data(
+            request=signing_request,
+            threshold_signing_power=self.threshold_signing_power,
+        )
+        signature_response = SignatureResponse(
+            signer=self.threshold_signing_power.account,
+            hash=message_hash,
+            signature=signature,
+            signature_type=signing_request.signature_type,
+        )
+        encrypted_response = self.signing_request_power.encrypt_signature_response(
+            signature_response=signature_response,
+            requester_public_key=encrypted_signing_request.requester_public_key,
+            cohort_id=signing_request.cohort_id,
         )
         return encrypted_response
 
@@ -1323,42 +1560,61 @@ class Operator(BaseActor):
     def is_confirmed(self) -> bool:
         return self.child_application_agent.is_operator_confirmed(self.operator_address)
 
+    def _is_funded(
+        self,
+        client: EthereumClient,
+        funding_unit: str,
+        emitter: StdoutEmitter,
+        required: bool = True,
+    ) -> bool:
+        # check for funds
+        wei_balance = client.get_balance(self.operator_address)
+        if wei_balance:
+            # funds found
+            ether_balance = Web3.from_wei(wei_balance, "ether")
+            emitter.message(
+                f"✓ Operator {self.operator_address} is funded with {ether_balance} {funding_unit}",
+                color="green",
+            )
+            return True
+        else:
+            emitter.message(
+                f"! Operator {self.operator_address} is not funded with {funding_unit}{' (optional)' if not required else ''}",
+                color="yellow",
+            )
+            return False
+
     def block_until_ready(self, poll_rate: int = None, timeout: int = None):
         emitter = StdoutEmitter()
         poll_rate = poll_rate or self.READY_POLL_RATE
         timeout = timeout or self.READY_TIMEOUT
-        start, funded, bonded = maya.now(), False, False
+        start, funded_pol, funded_eth, bonded = maya.now(), False, False, False
 
         taco_child_client = self.child_application_agent.blockchain.client
         taco_child_pretty_chain_name = PUBLIC_CHAINS.get(
             taco_child_client.chain_id, f"chain ID #{taco_child_client.chain_id}"
         )
 
+        taco_app_client = self.application_agent.blockchain.client
+
         taco_root_chain_id = self.application_agent.blockchain.client.chain_id
         taco_root_pretty_chain_name = PUBLIC_CHAINS.get(
             taco_root_chain_id, f"chain ID #{taco_root_chain_id}"
         )
-        while not (funded and bonded):
+        while not (funded_pol and funded_eth and bonded):
             if timeout and ((maya.now() - start).total_seconds() > timeout):
                 message = f"x Operator was not qualified after {timeout} seconds"
                 emitter.message(message, color="red")
                 raise self.ActorError(message)
 
-            if not funded:
-                # check for funds
-                matic_balance = taco_child_client.get_balance(self.operator_address)
-                if matic_balance:
-                    # funds found
-                    funded, balance = True, Web3.from_wei(matic_balance, "ether")
-                    emitter.message(
-                        f"✓ Operator {self.operator_address} is funded with {balance} MATIC",
-                        color="green",
-                    )
-                else:
-                    emitter.message(
-                        f"! Operator {self.operator_address} is not funded with MATIC",
-                        color="yellow",
-                    )
+            if not funded_pol:
+                funded_pol = self._is_funded(taco_child_client, "POL", emitter)
+
+            if not funded_eth:
+                # don't enforce eth_funding; only specific nodes will support signing
+                # ignore result but still print to console
+                _ = self._is_funded(taco_app_client, "ETH", emitter, required=False)
+                funded_eth = True
 
             if not bonded:
                 # check root
@@ -1392,7 +1648,7 @@ class Operator(BaseActor):
                             color="yellow",
                         )
 
-            if not (funded and bonded):
+            if not (funded_pol and funded_eth and bonded):
                 time.sleep(poll_rate)
 
         coordinator_address = self.coordinator_agent.contract_address
@@ -1435,7 +1691,7 @@ class Operator(BaseActor):
             raise FerveoKeyMismatch(message)
 
 
-class PolicyAuthor(NucypherTokenActor):
+class PolicyAuthor(BaseActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
     def __init__(self, eth_endpoint: str, *args, **kwargs):

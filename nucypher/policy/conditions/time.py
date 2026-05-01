@@ -65,6 +65,10 @@ class TimeCondition(RPCCondition):
         @validates_schema
         def validate_expected_return_type(self, data, **kwargs):
             return_value_test = data.get("return_value_test")
+            if return_value_test.operations:
+                # skip validation since operations modify the value to check
+                return
+
             comparator_value = return_value_test.value
             if not isinstance(comparator_value, int):
                 raise ValidationError(

@@ -47,5 +47,5 @@ def test_scan_chunk_actual_alchemy_free_tier_detection():
     start_block = end_block - (
         ALCHEMY_FREE_TIER_MAX_CHUNK_NUM_BLOCKS * 5
     )  # must be > Alchemy Free tier limit of 10
-    completed_block, _, _ = scanner.scan_chunk(start_block, end_block)
+    completed_block, _ = scanner.scan_chunk(start_block, end_block)
     assert completed_block == start_block + ALCHEMY_FREE_TIER_MAX_CHUNK_NUM_BLOCKS

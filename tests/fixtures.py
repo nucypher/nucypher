@@ -17,7 +17,7 @@ from eth_utils import to_checksum_address
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
 from siwe import SiweMessage
 from twisted.internet.task import Clock
-from web3 import Web3
+from web3 import HTTPProvider, Web3
 
 import tests
 from nucypher.blockchain.eth.actors import Operator
@@ -51,6 +51,7 @@ from nucypher.policy.conditions.lingo import (
 from nucypher.policy.conditions.time import TimeCondition
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.emitters import StdoutEmitter
+from nucypher.utilities.endpoint import RPCEndpoint
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from nucypher.utilities.task import SimpleTask
@@ -341,7 +342,7 @@ def mock_testerchain() -> MockBlockchain:
 
 
 @pytest.fixture()
-def light_ursula(temp_dir_path, random_account, mocker):
+def light_ursula(temp_dir_path, random_account, mocker, test_registry):
     mocker.patch.object(KeystoreSigner, "_get_signer", return_value=random_account)
     pre_payment_method = SubscriptionManagerPayment(
         blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME
@@ -362,6 +363,7 @@ def light_ursula(temp_dir_path, random_account, mocker):
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         signer=KeystoreSigner(path=temp_dir_path),
         condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: [MOCK_ETH_PROVIDER_URI]},
+        registry=test_registry,
     )
     return ursula
 
@@ -701,31 +703,39 @@ def valid_eip712_auth_message():
     return auth_message
 
 
-@pytest.fixture(scope="function")
-def valid_eip4361_auth_message():
-    signer = InMemorySigner()
-    siwe_message_data = {
-        "domain": "login.xyz",
-        "address": f"{signer.accounts[0]}",
-        "statement": "Sign-In With Ethereum Example Statement",
-        "uri": "https://login.xyz",
-        "version": "1",
-        "nonce": "bTyXgcQxn2htgkjJn",
-        "chain_id": 1,
-        "issued_at": f"{maya.now().iso8601()}",
-    }
-    siwe_message = SiweMessage(**siwe_message_data).prepare_message()
-    signature = signer.sign_message(
-        account=signer.accounts[0], message=siwe_message.encode()
-    )
-    auth_message = {
-        "signature": f"{signature.hex()}",
-        "address": f"{signer.accounts[0]}",
-        "scheme": f"{EvmAuth.AuthScheme.EIP4361.value}",
-        "typedData": f"{siwe_message}",
-    }
+@pytest.fixture
+def valid_eip4361_auth_message_factory():
+    def _valid_eip4361_auth_message():
+        signer = InMemorySigner()
+        siwe_message_data = {
+            "domain": "login.xyz",
+            "address": f"{signer.accounts[0]}",
+            "statement": "Sign-In With Ethereum Example Statement",
+            "uri": "https://login.xyz",
+            "version": "1",
+            "nonce": "bTyXgcQxn2htgkjJn",
+            "chain_id": 1,
+            "issued_at": f"{maya.now().iso8601()}",
+        }
+        siwe_message = SiweMessage(**siwe_message_data).prepare_message()
+        _message_hash, signature = signer.sign_message_eip191(
+            account=signer.accounts[0], message=siwe_message.encode()
+        )
+        auth_message = {
+            "signature": f"{signature.hex()}",
+            "address": f"{signer.accounts[0]}",
+            "scheme": f"{EvmAuth.AuthScheme.EIP4361.value}",
+            "typedData": f"{siwe_message}",
+        }
 
-    return auth_message
+        return auth_message
+
+    return _valid_eip4361_auth_message
+
+
+@pytest.fixture
+def valid_eip4361_auth_message(valid_eip4361_auth_message_factory):
+    return valid_eip4361_auth_message_factory()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -821,6 +831,14 @@ def mock_operator_aggregation_delay(module_mocker):
     )
 
 
+@pytest.fixture(scope="module", autouse=True)
+def mock_post_signature_delay(module_mocker):
+    module_mocker.patch(
+        "nucypher.blockchain.eth.actors.Operator.POST_SIGNATURE_MAX_DELAY",
+        PropertyMock(return_value=1),
+    )
+
+
 @pytest.fixture
 def mock_async_hooks(mocker):
     hooks = BlockchainInterface.AsyncTxHooks(
@@ -878,4 +896,35 @@ def mock_default_rpc_endpoint_fetch(session_mocker):
     session_mocker.patch(
         "nucypher.blockchain.eth.utils.get_default_rpc_endpoints",
         return_value={TESTERCHAIN_CHAIN_ID: [TEST_ETH_PROVIDER_URI]},
+    )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_rpc_endpoint_health_check(session_mocker):
+    # utils used for default endpoint health check
+    session_mocker.patch(
+        "nucypher.blockchain.eth.utils.rpc_endpoint_health_check",
+        return_value=True,
+    )
+    # actors used for user-configured endpoint health check
+    session_mocker.patch(
+        "nucypher.blockchain.eth.actors.rpc_endpoint_health_check",
+        return_value=True,
+    )
+
+
+@pytest.fixture(scope="module", autouse=True)
+def mock_web3_http_provider(module_mocker, testerchain):
+    def _mock_make_provider(endpoint, session, request_timeout):
+        if endpoint == TEST_ETH_PROVIDER_URI:
+            return testerchain.provider
+        else:
+            return HTTPProvider(
+                endpoint_uri=endpoint,
+                session=session,
+                request_kwargs={"timeout": request_timeout},
+            )
+
+    module_mocker.patch.object(
+        RPCEndpoint, "_make_provider", side_effect=_mock_make_provider
     )

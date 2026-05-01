@@ -1,0 +1,1 @@
+New ``AtLeastCompoundCondition`` to allow threshold-based compound conditions.

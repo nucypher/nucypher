@@ -17,8 +17,8 @@ from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import (
     DecryptingPower,
+    DecryptingRequestPower,
     DelegatingPower,
-    ThresholdRequestDecryptingPower,
     TLSHostingPower,
 )
 from nucypher.network.server import ProxyRESTServer
@@ -210,8 +210,8 @@ def test_ritualist(temp_dir_path, testerchain, accounts, dkg_public_key):
     #
     # test requester sends encrypted decryption request
     #
-    ursula_request_public_key = (
-        ursula.threshold_request_power.get_pubkey_from_ritual_id(ritual_id=ritual_id)
+    ursula_request_public_key = ursula.decrypting_request_power.get_pubkey_from_id(
+        id=ritual_id
     )
 
     requester_sk = SessionStaticSecret.random()
@@ -223,7 +223,7 @@ def test_ritualist(temp_dir_path, testerchain, accounts, dkg_public_key):
     )
     # successful decryption
     decrypted_decryption_request = (
-        ursula.threshold_request_power.decrypt_encrypted_request(
+        ursula.decrypting_request_power.decrypt_encrypted_request(
             encrypted_decryption_request
         )
     )
@@ -236,10 +236,8 @@ def test_ritualist(temp_dir_path, testerchain, accounts, dkg_public_key):
         ),
         requester_public_key=requester_public_key,
     )
-    with pytest.raises(
-        ThresholdRequestDecryptingPower.ThresholdRequestDecryptionFailed
-    ):
-        ursula.threshold_request_power.decrypt_encrypted_request(
+    with pytest.raises(DecryptingRequestPower.ThresholdRequestDecryptionFailed):
+        ursula.decrypting_request_power.decrypt_encrypted_request(
             invalid_encrypted_decryption_request
         )
     #
@@ -249,7 +247,7 @@ def test_ritualist(temp_dir_path, testerchain, accounts, dkg_public_key):
         ritual_id=ritual_id, decryption_share=b"decryption_share"
     )
     encrypted_decryption_response = (
-        ursula.threshold_request_power.encrypt_decryption_response(
+        ursula.decrypting_request_power.encrypt_decryption_response(
             decryption_response=decryption_response,
             requester_public_key=requester_public_key,
         )
@@ -259,10 +257,8 @@ def test_ritualist(temp_dir_path, testerchain, accounts, dkg_public_key):
     assert bytes(decrypted_decryption_response) == bytes(decryption_response)
 
     # failed encryption - incorrect decrypting key used
-    with pytest.raises(
-        ThresholdRequestDecryptingPower.ThresholdResponseEncryptionFailed
-    ):
-        ursula.threshold_request_power.encrypt_decryption_response(
+    with pytest.raises(DecryptingRequestPower.ThresholdResponseEncryptionFailed):
+        ursula.decrypting_request_power.encrypt_decryption_response(
             decryption_response=decryption_response,
             # incorrect use of Umbral key here
             requester_public_key=SecretKey.random().public_key(),

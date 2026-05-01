@@ -6,7 +6,6 @@ from typing import Iterable, List, Optional
 
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
-from web3 import HTTPProvider
 
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Ursula
@@ -179,7 +178,7 @@ def setup_multichain_ursulas(chain_ids: List[int], ursulas: List[Ursula]) -> Non
     ]
     mocked_condition_providers = ConditionProviderManager(
         {
-            cid: [HTTPProvider(uri), HTTPProvider(furi)]
+            cid: [uri, furi]
             for cid, uri, furi in zip(
                 chain_ids, blockchain_endpoints, fallback_blockchain_endpoints
             )

@@ -1,5 +1,6 @@
 import os
 import random
+import time
 from unittest.mock import ANY, patch
 
 import pytest
@@ -12,7 +13,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.network.decryption import ThresholdDecryptionClient
+from nucypher.network.concurrency import ThresholdDecryptionClient
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
@@ -20,7 +21,7 @@ from nucypher.policy.conditions.lingo import (
     NotCompoundCondition,
     OrCompoundCondition,
     ReturnValueTest,
-    SequentialAccessControlCondition,
+    SequentialCondition,
 )
 from nucypher.policy.conditions.time import TimeCondition
 from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
@@ -99,7 +100,7 @@ def condition(test_registry):
         operand=NotCompoundCondition(operand=rpc_condition)
     )
 
-    sequential_condition = SequentialAccessControlCondition(
+    sequential_condition = SequentialCondition(
         condition_variables=[
             ConditionVariable("rpc", rpc_condition),
             ConditionVariable("contract", contract_condition),
@@ -242,7 +243,6 @@ def test_transcript_publication(coordinator_agent, cohort, ritual_id, dkg_size):
             )
             > 0
         ), "no transcript found for ursula"
-        print(f"Ursula {ursula.checksum_address} has submitted a transcript")
 
 
 def test_get_participants(coordinator_agent, cohort, ritual_id, dkg_size):
@@ -331,9 +331,7 @@ def test_authorized_decryption(
         list(latency_stats.keys()),
         key=lambda ursula_checksum: latency_stats[ursula_checksum],
     )
-    value_factory_spy = mocker.spy(
-        ThresholdDecryptionClient.ThresholdDecryptionRequestFactory, "__init__"
-    )
+    value_factory_spy = mocker.spy(ThresholdDecryptionClient.RequestFactory, "__init__")
 
     # ritual_id, ciphertext, conditions are obtained from the side channel
     bob.start_learning_loop(now=True)
@@ -346,7 +344,6 @@ def test_authorized_decryption(
     value_factory_spy.assert_called_once_with(
         ANY,
         ursulas_to_contact=expected_ursula_request_ordering,
-        batch_size=ANY,
         threshold=ANY,
     )
 
@@ -360,6 +357,49 @@ def test_authorized_decryption(
     # at least a threshold of ursulas were successful (concurrency)
     assert int(num_successes) >= ritual.threshold
     print("===================== DECRYPTION SUCCESSFUL =====================")
+    yield
+
+
+@pytest_twisted.inlineCallbacks
+def test_decryption_failure_node_timeout(
+    mocker, threshold_message_kit, ritual_id, cohort, bob, coordinator_agent, plaintext
+):
+    print(
+        "==================== DKG DECRYPTION FAILURE NODE TIMEOUT (EXPECTED) ===================="
+    )
+
+    # mock timeout for all ursulas in cohort
+    timeout = 1
+
+    def timed_out_request_signature(*args, **kwargs):
+        time.sleep(timeout + 2)  # ensures node never responds in time
+        raise ValueError("Fake exception should be after worker pool timeout")
+
+    mocker.patch(
+        "nucypher.network.middleware.RestMiddleware.get_encrypted_decryption_share",
+        side_effect=timed_out_request_signature,
+    )
+
+    # perform threshold decryption
+    bob.start_learning_loop(now=True)
+    with pytest.raises(
+        Ursula.NotEnoughUrsulas, match="Threshold of Ursulas unable to decrypt"
+    ) as exc_info:
+        _ = yield bob.threshold_decrypt(
+            threshold_message_kit=threshold_message_kit,
+            decryption_timeout=timeout,
+        )
+
+    message = str(exc_info.value)
+    for ursula in cohort:
+        assert (
+            f"Node {ursula.checksum_address} did not respond before timeout ({timeout}s)"
+            in message
+        )
+
+    print(
+        "===================== DECRYPTION FAILURE NODE TIMEOUT (EXPECTED) SUCCESSFUL  ====================="
+    )
     yield
 
 

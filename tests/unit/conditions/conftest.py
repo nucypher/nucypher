@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from nucypher.policy.conditions.base import AccessControlCondition
+from nucypher.policy.conditions.base import _Serializable
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import (
@@ -11,6 +11,7 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     ReturnValueTest,
 )
+from nucypher.policy.conditions.utils import ConditionProviderManager
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
@@ -99,4 +100,10 @@ def erc721_evm_condition(test_registry):
 
 @pytest.fixture(scope="function")
 def mock_skip_schema_validation(mocker):
-    mocker.patch.object(AccessControlCondition.Schema, "validate", return_value=None)
+    mocker.patch.object(_Serializable, "_validate", return_value=None)
+
+
+@pytest.fixture
+def condition_provider_manager():
+    """Fixture to provide a mock ConditionProviderManager."""
+    return ConditionProviderManager({})

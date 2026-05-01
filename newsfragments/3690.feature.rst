@@ -1,0 +1,1 @@
+Reduce event scanning frequency to remain within common free tier RPC limits now that both DKG and Signing ritual events are being scanned.

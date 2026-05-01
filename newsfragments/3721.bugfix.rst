@@ -1,0 +1,1 @@
+Obfuscate RPC endpoint URLs that have API keys provided as query parameters to prevent key exposure.

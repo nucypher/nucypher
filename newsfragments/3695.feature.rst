@@ -1,0 +1,1 @@
+Add caching layer to reduce RPC traffic during signing requests. Caches cohort data for the lesser of time before expiry and 60s TTL.

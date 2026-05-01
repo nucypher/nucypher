@@ -5,8 +5,7 @@ from typing import Any, Optional, Tuple
 
 import requests
 from jsonpath_ng.exceptions import JsonPathLexerError, JsonPathParserError
-from jsonpath_ng.ext import parse
-from marshmallow.fields import Field
+from marshmallow.fields import String
 
 from nucypher.policy.conditions.base import ExecutionCall
 from nucypher.policy.conditions.context import (
@@ -14,11 +13,11 @@ from nucypher.policy.conditions.context import (
     string_contains_context_variable,
 )
 from nucypher.policy.conditions.exceptions import (
-    ConditionEvaluationFailed,
     JsonRequestException,
 )
-from nucypher.policy.conditions.json.utils import process_result_for_condition_eval
-from nucypher.policy.conditions.lingo import ExecutionCallAccessControlCondition
+from nucypher.policy.conditions.json.auth import AuthorizationType
+from nucypher.policy.conditions.json.utils import parse_jsonpath, query_json_data
+from nucypher.policy.conditions.lingo import ExecutionCallCondition
 from nucypher.utilities.logging import Logger
 
 
@@ -36,12 +35,14 @@ class JsonRequestCall(ExecutionCall, ABC):
         parameters: Optional[dict] = None,
         query: Optional[str] = None,
         authorization_token: Optional[str] = None,
+        authorization_type: Optional[AuthorizationType] = None,
     ):
 
         self.http_method = http_method
         self.parameters = parameters or {}
         self.query = query
         self.authorization_token = authorization_token
+        self.authorization_type = authorization_type
 
         self.timeout = self.TIMEOUT
         self.logger = Logger(__name__)
@@ -62,7 +63,11 @@ class JsonRequestCall(ExecutionCall, ABC):
             resolved_authorization_token = resolve_any_context_variables(
                 self.authorization_token, **context
             )
-            headers["Authorization"] = f"Bearer {resolved_authorization_token}"
+            # use Bearer token if none is provided
+            authorization_type = self.authorization_type or AuthorizationType.BEARER
+            headers[authorization_type.header_name()] = authorization_type.header_value(
+                resolved_authorization_token
+            )
 
         try:
             if self.http_method == HTTPMethod.GET:
@@ -101,33 +106,10 @@ class JsonRequestCall(ExecutionCall, ABC):
             )
 
     def _query_response(self, response_json: Any, **context) -> Any:
-        if not self.query:
-            return response_json  # primitive value
-
-        resolved_query = resolve_any_context_variables(self.query, **context)
-        try:
-            expression = parse(resolved_query)
-            matches = expression.find(response_json)
-            if not matches:
-                message = f"No matches found for the JSONPath query: {resolved_query}"
-                self.logger.info(message)
-                raise ConditionEvaluationFailed(message)
-        except (JsonPathLexerError, JsonPathParserError) as jsonpath_err:
-            self.logger.error(f"JSONPath error occurred: {jsonpath_err}")
-            raise ConditionEvaluationFailed(
-                f"JSONPath error: {jsonpath_err}"
-            ) from jsonpath_err
-
-        if len(matches) > 1:
-            message = f"Ambiguous JSONPath query - multiple matches found for: {resolved_query}"
-            self.logger.info(message)
-            raise JsonRequestException(message)
-
-        result = matches[0].value
-        return result
+        return query_json_data(response_json, self.query, **context)
 
 
-class JSONPathField(Field):
+class JSONPathField(String):
     default_error_messages = {
         "invalidType": "Expression of type {value} is not valid for JSONPath",
         "invalid": "'{value}' is not a valid JSONPath expression",
@@ -138,22 +120,20 @@ class JSONPathField(Field):
             raise self.make_error("invalidType", value=type(value))
         try:
             if not string_contains_context_variable(value):
-                parse(value)
+                parse_jsonpath(value)
         except (JsonPathLexerError, JsonPathParserError) as e:
             raise self.make_error("invalid", value=value) from e
         return value
 
 
-class BaseJsonRequestCondition(ExecutionCallAccessControlCondition, ABC):
+class BaseJsonRequestCondition(ExecutionCallCondition, ABC):
     def verify(self, **context) -> Tuple[bool, Any]:
         """
         Verifies the JSON condition.
         """
         result = self.execution_call.execute(**context)
-        result_for_eval = process_result_for_condition_eval(result)
-
         resolved_return_value_test = self.return_value_test.with_resolved_context(
             **context
         )
-        eval_result = resolved_return_value_test.eval(result_for_eval)  # test
+        eval_result = resolved_return_value_test.eval(result)  # test
         return eval_result, result

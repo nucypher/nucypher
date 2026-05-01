@@ -5,7 +5,11 @@ from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
 )
-from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
+from nucypher.policy.conditions.lingo import (
+    ConditionType,
+    ReturnValueTest,
+    VariableOperation,
+)
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
@@ -120,3 +124,15 @@ def test_rpc_condition_invalid_comparator_value_type(invalid_value, rpc_conditio
                 value=invalid_value,
             ),
         )
+
+    # value type not checked if operations are present
+    _ = RPCCondition(
+        chain=rpc_condition.chain,
+        method=rpc_condition.method,
+        parameters=rpc_condition.parameters,
+        return_value_test=ReturnValueTest(
+            comparator=rpc_condition.return_value_test.comparator,
+            value=invalid_value,
+            operations=[VariableOperation("keccak")],
+        ),
+    )

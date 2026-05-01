@@ -1,0 +1,1 @@
+Enable advanced data manipulation within conditions by allowing operations on variables and values for transformation prior to evaluation.

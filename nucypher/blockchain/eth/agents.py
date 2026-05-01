@@ -37,7 +37,6 @@ from web3.types import Timestamp, TxParams, TxReceipt, Wei
 from nucypher import types
 from nucypher.blockchain.eth import events
 from nucypher.blockchain.eth.constants import (
-    NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
     TACO_APPLICATION_CONTRACT_NAME,
@@ -49,21 +48,25 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterfaceFactory,
 )
 from nucypher.blockchain.eth.models import (
+    DKG_PHASE_1,
+    DKG_PHASE_2,
     HANDOVER_AWAITING_BLINDED_SHARE,
     HANDOVER_AWAITING_TRANSCRIPT,
-    PHASE1,
-    PHASE2,
+    SIGNING_AWAITING_SIGNATURES,
     Coordinator,
     Ferveo,
+    SigningCoordinator,
 )
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
+from nucypher.blockchain.eth.utils import obfuscate_rpc_url
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
 )
 from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import Logger
 
 
@@ -117,12 +120,8 @@ class EthereumContractAgent:
         self.transaction_gas = transaction_gas
 
         self.log.info(
-            "Initialized new {} for {} with {} and {}".format(
-                self.__class__.__name__,
-                self.contract.address,
-                self.blockchain.endpoint,
-                str(self.registry),
-            )
+            f"Initialized new {self.__class__.__name__} for {self.contract.address} "
+            f"with {obfuscate_rpc_url(self.blockchain.endpoint)} and {str(self.registry)}"
         )
 
     def __repr__(self) -> str:
@@ -141,31 +140,6 @@ class EthereumContractAgent:
     def contract_address(self) -> ChecksumAddress:
         return self.__contract.address
 
-
-class NucypherTokenAgent(EthereumContractAgent):
-    contract_name: str = NUCYPHER_TOKEN_CONTRACT_NAME
-
-    @contract_api(CONTRACT_CALL)
-    def get_balance(self, address: ChecksumAddress) -> types.NuNits:
-        """Get the NU balance (in NuNits) of a token holder address, or of this contract address"""
-        balance: int = self.contract.functions.balanceOf(address).call()
-        return types.NuNits(balance)
-
-    @contract_api(TRANSACTION)
-    def transfer(
-        self,
-        amount: types.NuNits,
-        target_address: ChecksumAddress,
-        transacting_power: TransactingPower,
-    ) -> TxReceipt:
-        """Transfer an amount of tokens from the sender address to the target address."""
-        contract_function: ContractFunction = self.contract.functions.transfer(
-            target_address, amount
-        )
-        receipt: TxReceipt = self.blockchain.send_transaction(
-            contract_function=contract_function, transacting_power=transacting_power
-        )
-        return receipt
 
 
 class SubscriptionManagerAgent(EthereumContractAgent):
@@ -247,7 +221,7 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
 
     @abstractmethod
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int, duration: int
+        self, start_index: int, max_results: int
     ) -> Tuple[int, List[bytes]]:
         raise NotImplementedError
 
@@ -256,21 +230,21 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         raise NotImplementedError
 
     def get_all_active_staking_providers(
-        self, pagination_size: Optional[int] = None, duration: int = 0
+        self, pagination_size: Optional[int] = None
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         n_tokens, staking_providers = self._get_active_stakers(
-            pagination_size=pagination_size, duration=duration
+            pagination_size=pagination_size
         )
         return n_tokens, staking_providers
 
     @contract_api(CONTRACT_CALL)
     def get_active_staking_providers(
-        self, start_index: int, max_results: int, duration: int = 0
+        self, start_index: int, max_results: int
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         (
             total_authorized_tokens,
             staking_providers_info,
-        ) = self._get_active_staking_providers_raw(start_index, max_results, duration)
+        ) = self._get_active_staking_providers_raw(start_index, max_results)
 
         staking_providers = self._process_active_staker_info(staking_providers_info)
         return types.TuNits(total_authorized_tokens), staking_providers
@@ -279,11 +253,10 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         self,
         without: Iterable[ChecksumAddress] = None,
         pagination_size: Optional[int] = None,
-        duration: int = 0,
     ) -> "StakingProvidersReservoir":
         # pagination_size = pagination_size or self.get_staking_providers_population()
         n_tokens, stake_provider_map = self.get_all_active_staking_providers(
-            pagination_size=pagination_size, duration=duration
+            pagination_size=pagination_size
         )
 
         if n_tokens == 0:
@@ -318,7 +291,8 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         return staking_providers
 
     def _get_active_stakers(
-        self, pagination_size: Optional[int] = None, duration: int = 0
+        self,
+        pagination_size: Optional[int] = None,
     ):
         if pagination_size is None:
             pagination_size = (
@@ -342,9 +316,7 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
                     (
                         batch_authorized_tokens,
                         batch_staking_providers,
-                    ) = self.get_active_staking_providers(
-                        start_index, pagination_size, duration
-                    )
+                    ) = self.get_active_staking_providers(start_index, pagination_size)
                 except Exception as e:
                     if "timeout" not in str(e):
                         # exception unrelated to pagination size and timeout
@@ -440,16 +412,13 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int, duration: int
+        self, start_index: int, max_results: int
     ) -> Tuple[int, List[bytes]]:
-        get_active_providers_overloaded_function = (
-            self.contract.get_function_by_signature(
-                "getActiveStakingProviders(uint256,uint256,uint32)"
-            )
+        active_staking_providers_info = (
+            self.contract.functions.getActiveStakingProviders(
+                start_index, max_results
+            ).call()
         )
-        active_staking_providers_info = get_active_providers_overloaded_function(
-            start_index, max_results, duration
-        ).call()
         return active_staking_providers_info
 
 
@@ -538,11 +507,11 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int, duration: int
+        self, start_index: int, max_results: int
     ) -> Tuple[int, List[bytes]]:
         active_staking_providers_info = (
             self.contract.functions.getActiveStakingProviders(
-                start_index, max_results, duration
+                start_index, max_results
             ).call()
         )
         return active_staking_providers_info
@@ -844,7 +813,7 @@ class CoordinatorAgent(EthereumContractAgent):
             contract_function=contract_function,
             transacting_power=transacting_power,
             async_tx_hooks=async_tx_hooks,
-            info={"ritual_id": ritual_id, "phase": PHASE1},
+            info={"ritual_id": ritual_id, "phase": DKG_PHASE_1},
         )
         return async_tx
 
@@ -869,7 +838,7 @@ class CoordinatorAgent(EthereumContractAgent):
             gas_estimation_multiplier=1.4,
             transacting_power=transacting_power,
             async_tx_hooks=async_tx_hooks,
-            info={"ritual_id": ritual_id, "phase": PHASE2},
+            info={"ritual_id": ritual_id, "phase": DKG_PHASE_2},
         )
         return async_tx
 
@@ -991,6 +960,157 @@ class CoordinatorAgent(EthereumContractAgent):
         return ritual.public_key.to_dkg_public_key()
 
 
+class SigningCoordinatorAgent(EthereumContractAgent):
+    contract_name: str = "SigningCoordinator"
+
+    @contract_api(CONTRACT_CALL)
+    def get_timeout(self) -> int:
+        return self.contract.functions.timeout().call()
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_cohort_status(self, cohort_id: int) -> int:
+        result = self.contract.functions.getSigningCohortState(cohort_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_cohort_active(self, cohort_id: int) -> bool:
+        result = self.contract.functions.isCohortActive(cohort_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_signer(self, cohort_id: int, provider_address: ChecksumAddress) -> bool:
+        result = self.contract.functions.isSigner(cohort_id, provider_address).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_signer(
+        self, cohort_id: int, provider: ChecksumAddress
+    ) -> SigningCoordinator.SigningCohortParticipant:
+        data = self.contract.functions.getSigner(cohort_id, provider).call()
+        participant = next(iter(SigningCoordinator.SigningCohort.make_signers([data])))
+        return participant
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_cohort(
+        self,
+        cohort_id: int,
+    ) -> SigningCoordinator.SigningCohort:
+        result = self.contract.functions.signingCohorts(int(cohort_id)).call()
+        signing_cohort = SigningCoordinator.SigningCohort(
+            id=cohort_id,
+            initiator=ChecksumAddress(result[0]),
+            init_timestamp=result[1],
+            end_timestamp=result[2],
+            authority=ChecksumAddress(result[3]),
+            total_signatures=result[4],
+            num_signers=result[5],
+            threshold=result[6],
+            signers=[],  # solidity does not return sub-structs
+        )
+        signing_cohort.signers = list(self._get_signers(cohort_id=cohort_id))
+        return signing_cohort
+
+    def _get_signers(self, cohort_id: int):
+        data = self.contract.functions.getSigners(cohort_id).call()
+        signers = SigningCoordinator.SigningCohort.make_signers(data=data)
+        return signers
+
+    @contract_api(CONTRACT_CALL)
+    def get_chains(self, cohort_id: int) -> List[int]:
+        result = self.contract.functions.getChains(cohort_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_cohort_conditions(self, cohort_id: int, chain_id: int) -> bytes:
+        result = self.contract.functions.getSigningCohortConditions(
+            cohort_id, chain_id
+        ).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def number_of_cohorts(self) -> int:
+        result = self.contract.functions.numberOfSigningCohorts().call()
+        return result
+
+    @contract_api(TRANSACTION)
+    def initiate_signing_cohort(
+        self,
+        chain_id: int,
+        authority: ChecksumAddress,
+        providers: List[ChecksumAddress],
+        threshold: int,
+        duration: int,
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
+        contract_function: ContractFunction = (
+            self.contract.functions.initiateSigningCohort(
+                chain_id, authority, providers, threshold, duration
+            )
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
+        return receipt
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_cohort_data_hash(
+        self, cohort_id: int, operator_address: ChecksumAddress
+    ) -> bytes:
+        result = self.contract.functions.getSigningCohortDataHash(
+            cohort_id, operator_address
+        ).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_signing_coordinator_child(self, chain_id: int) -> ChecksumAddress:
+        result = self.contract.functions.getSigningCoordinatorChild(chain_id).call()
+        return result
+
+    @contract_api(TRANSACTION)
+    def post_signature(
+        self,
+        cohort_id: int,
+        signature: bytes,
+        participant_public_key: SessionStaticKey,
+        transacting_power: TransactingPower,
+        async_tx_hooks: BlockchainInterface.AsyncTxHooks,
+    ) -> AsyncTx:
+        # See sprints/#145
+        contract_function: ContractFunction = (
+            self.contract.functions.postSigningCohortData(
+                cohortId=cohort_id,
+                signature=signature,
+                signingRequestStaticKey=bytes(participant_public_key),
+            )
+        )
+        async_tx = self.blockchain.send_async_transaction(
+            contract_function=contract_function,
+            gas_estimation_multiplier=1.4,
+            transacting_power=transacting_power,
+            async_tx_hooks=async_tx_hooks,
+            info={"ritual_id": cohort_id, "phase": SIGNING_AWAITING_SIGNATURES},
+        )
+        return async_tx
+
+    @contract_api(TRANSACTION)
+    def set_signing_cohort_conditions(
+        self,
+        cohort_id: int,
+        chain_id: int,
+        conditions: ConditionLingo,
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
+        contract_function: ContractFunction = (
+            self.contract.functions.setSigningCohortConditions(
+                cohort_id, chain_id, bytes(conditions)
+            )
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
+        return receipt
+
+
 class ContractAgency:
     """Where agents live and die."""
 
@@ -1037,9 +1157,6 @@ class ContractAgency:
 
     @staticmethod
     def _contract_name_to_agent_name(name: str) -> str:
-        if name == NUCYPHER_TOKEN_CONTRACT_NAME:
-            # TODO: Perhaps rename NucypherTokenAgent
-            name = "NucypherToken"
         agent_name = f"{name}Agent"
         return agent_name
 

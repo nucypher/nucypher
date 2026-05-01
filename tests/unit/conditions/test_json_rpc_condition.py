@@ -8,11 +8,13 @@ from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     JsonRequestException,
 )
+from nucypher.policy.conditions.json.auth import AuthorizationType
 from nucypher.policy.conditions.json.rpc import JsonRpcCondition
 from nucypher.policy.conditions.lingo import (
     ConditionLingo,
     ConditionType,
     ReturnValueTest,
+    VariableOperation,
 )
 
 UUID4_STR = "b192fdd2-1529-4fe9-a671-e5386453aa9c"
@@ -72,6 +74,18 @@ def test_invalid_authorization_token():
             params=[42, 23],
             return_value_test=ReturnValueTest("==", 19),
             authorization_token="github_pat_123456789",
+        )
+
+
+def test_json_rpc_authorization_type_provided_with_no_auth_token():
+    with pytest.raises(InvalidCondition, match="Authorization token must be provided"):
+        _ = JsonRpcCondition(
+            endpoint="https://math.example.com/",
+            method="subtract",
+            params=[42, 23],
+            return_value_test=ReturnValueTest("==", 19),
+            # no auth token even though authorization type is set
+            authorization_type=AuthorizationType.BASIC,
         )
 
 
@@ -217,6 +231,53 @@ def test_json_rpc_condition_evaluation_with_auth_token(mocker):
     )
 
 
+@pytest.mark.parametrize(
+    "auth_type",
+    [auth_type for auth_type in AuthorizationType],
+)
+def test_json_rpc_condition_evaluation_with_auth_token_and_auth_type(auth_type, mocker):
+    mock_response = mocker.Mock(status_code=200)
+    mock_response.json.return_value = {"jsonrpc": "2.0", "result": 19, "id": 1}
+    mocked_method = mocker.patch("requests.post", return_value=mock_response)
+
+    condition = JsonRpcCondition(
+        endpoint="https://math.example.com/",
+        method="subtract",
+        params=[42, 23],
+        return_value_test=ReturnValueTest("==", 19),
+        authorization_token=":authToken",
+        authorization_type=auth_type,
+    )
+
+    assert condition.authorization_token == ":authToken"
+    auth_token = "1234567890"
+    context = {":authToken": f"{auth_token}"}
+
+    success, result = condition.verify(**context)
+    assert success is True
+    assert result == 19
+
+    assert mocked_method.call_count == 1
+    assert mocked_method.call_args.kwargs["json"] == {
+        "jsonrpc": "2.0",
+        "id": UUID4_STR,
+        "method": condition.method,
+        "params": condition.params,
+    }
+
+    assert mocked_method.call_count == 1
+    if auth_type == AuthorizationType.X_API_KEY:
+        assert mocked_method.call_args.kwargs["headers"]["X-API-Key"] == f"{auth_token}"
+        assert "Authorization" not in mocked_method.call_args.kwargs["headers"]
+    else:
+        assert mocked_method.call_args.kwargs["headers"]["Authorization"] == (
+            f"Bearer {auth_token}"
+            if auth_type == AuthorizationType.BEARER
+            else f"Basic {auth_token}"
+        )
+        assert "X-API-Key" not in mocked_method.call_args.kwargs["headers"]
+
+
 def test_json_rpc_condition_evaluation_with_various_context_variables(mocker):
     mocked_post = mocker.patch(
         "requests.post",
@@ -307,7 +368,7 @@ def test_json_rpc_condition_from_lingo_expression_with_authorization():
     assert condition.to_dict() == lingo_dict
 
 
-def test_ambiguous_json_path_multiple_results(mocker):
+def test_json_path_multiple_results(mocker):
     mock_response = mocker.Mock(status_code=200)
     mock_response.json.return_value = {
         "result": {"mathresult": [{"answer": 19}, {"answer": -19}]}
@@ -322,5 +383,35 @@ def test_ambiguous_json_path_multiple_results(mocker):
         return_value_test=ReturnValueTest("==", 19),
     )
 
-    with pytest.raises(JsonRequestException, match="Ambiguous JSONPath query"):
-        condition.verify()
+    result, value = condition.verify()
+    assert result is False
+    assert value == [19, -19]
+
+    # verify multiple values
+    condition = JsonRpcCondition(
+        endpoint="https://math.example.com/",
+        method="subtract",
+        params=[42, 23],
+        query="$.mathresult[*].answer",
+        return_value_test=ReturnValueTest("==", [19, -19]),
+    )
+
+    result, value = condition.verify()
+    assert result is True
+    assert value == [19, -19]
+
+    # use variable operation for multiple values
+    condition = JsonRpcCondition(
+        endpoint="https://math.example.com/",
+        method="subtract",
+        params=[42, 23],
+        query="$.mathresult[*].answer",
+        return_value_test=ReturnValueTest(
+            operations=[VariableOperation(operation="sum")],
+            comparator="==",
+            value=0,
+        ),
+    )
+    result, value = condition.verify()
+    assert result is True
+    assert value == [19, -19]

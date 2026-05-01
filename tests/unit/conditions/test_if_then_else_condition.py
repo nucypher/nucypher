@@ -2,30 +2,31 @@ import pytest
 from web3.exceptions import Web3Exception
 
 from nucypher.policy.conditions.base import (
-    AccessControlCondition,
+    Condition,
 )
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import (
+    AndCompoundCondition,
     ConditionType,
     ConditionVariable,
     IfThenElseCondition,
     OrCompoundCondition,
-    SequentialAccessControlCondition,
+    SequentialCondition,
 )
 from nucypher.policy.conditions.utils import ConditionProviderManager
 
 
 @pytest.fixture(scope="function")
 def mock_conditions(mocker):
-    cond_1 = mocker.Mock(spec=AccessControlCondition)
+    cond_1 = mocker.Mock(spec=Condition)
     cond_1.verify.return_value = (True, 1)
     cond_1.to_dict.return_value = {"value": 1}
 
-    cond_2 = mocker.Mock(spec=AccessControlCondition)
+    cond_2 = mocker.Mock(spec=Condition)
     cond_2.verify.return_value = (True, 2)
     cond_2.to_dict.return_value = {"value": 2}
 
-    cond_3 = mocker.Mock(spec=AccessControlCondition)
+    cond_3 = mocker.Mock(spec=Condition)
     cond_3.verify.return_value = (True, 3)
     cond_3.to_dict.return_value = {"value": 3}
 
@@ -47,13 +48,24 @@ def test_nested_sequential_condition_too_many_nested_levels(
     rpc_condition, time_condition
 ):
     # causes too many nested multi-conditions when used within a if-then-else condition
-    problematic_nested_condition = SequentialAccessControlCondition(
+    # Need 5 levels to exceed MAX_MULTI_CONDITION_NESTED_LEVEL of 4
+    problematic_nested_condition = SequentialCondition(
         condition_variables=[
             ConditionVariable("var1", time_condition),
             ConditionVariable(
                 "seq_1",
                 IfThenElseCondition(
-                    if_condition=rpc_condition,
+                    if_condition=OrCompoundCondition(
+                        operands=[
+                            rpc_condition,
+                            AndCompoundCondition(
+                                operands=[
+                                    time_condition,
+                                    rpc_condition,
+                                ]
+                            ),
+                        ]
+                    ),
                     then_condition=time_condition,
                     else_condition=rpc_condition,
                 ),
@@ -96,13 +108,24 @@ def test_nested_compound_condition_too_many_nested_levels(
     rpc_condition, time_condition
 ):
     # causes too many nested multi-conditions when used within a if-then-else condition
+    # Need 5 levels to exceed MAX_MULTI_CONDITION_NESTED_LEVEL of 4
     problematic_nested_condition = OrCompoundCondition(
         operands=[
             rpc_condition,
-            IfThenElseCondition(
-                if_condition=time_condition,
-                then_condition=rpc_condition,
-                else_condition=time_condition,
+            AndCompoundCondition(
+                operands=[
+                    time_condition,
+                    IfThenElseCondition(
+                        if_condition=OrCompoundCondition(
+                            operands=[
+                                rpc_condition,
+                                time_condition,
+                            ]
+                        ),
+                        then_condition=rpc_condition,
+                        else_condition=time_condition,
+                    ),
+                ]
             ),
         ]
     )
@@ -152,7 +175,7 @@ def test_nested_multi_condition_allowed_levels(rpc_condition, time_condition):
             then_condition=time_condition,
             else_condition=rpc_condition,
         ),
-        else_condition=SequentialAccessControlCondition(
+        else_condition=SequentialCondition(
             condition_variables=[
                 ConditionVariable("var1", time_condition),
                 ConditionVariable("var2", rpc_condition),
@@ -184,13 +207,13 @@ def test_if_then_else_condition(mock_conditions):
     cond_1.verify.return_value = (False, 1)
     result, value = if_then_else_condition.verify()
     assert result is False
-    assert value == [1, 3]
+    assert value == [1, None, 3]
 
     # flip else condition to be sure
     cond_3.verify.return_value = (True, 3)
     result, value = if_then_else_condition.verify()
     assert result is True
-    assert value == [1, 3]
+    assert value == [1, None, 3]
 
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
@@ -210,7 +233,7 @@ def test_if_then_else_condition_else_condition_is_boolean(mock_conditions):
     cond_1.verify.return_value = (False, 1)
     result, value = if_then_else_condition.verify()
     assert result is False
-    assert value == [1, False]
+    assert value == [1, None, False]
 
     if_then_else_condition = IfThenElseCondition(
         if_condition=cond_1,
@@ -221,7 +244,7 @@ def test_if_then_else_condition_else_condition_is_boolean(mock_conditions):
     # else execution happens - True
     result, value = if_then_else_condition.verify()
     assert result is True
-    assert value == [1, True]
+    assert value == [1, None, True]
 
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")
@@ -240,7 +263,7 @@ def test_nested_multi_conditions(mock_conditions):
                 cond_2,
             ]
         ),
-        then_condition=SequentialAccessControlCondition(
+        then_condition=SequentialCondition(
             condition_variables=[
                 ConditionVariable("var1", cond_2),
                 ConditionVariable("var2", cond_3),
@@ -267,7 +290,7 @@ def test_nested_multi_conditions(mock_conditions):
                 cond_2,
             ]
         ),
-        then_condition=SequentialAccessControlCondition(
+        then_condition=SequentialCondition(
             condition_variables=[
                 ConditionVariable("var1", cond_2),
                 ConditionVariable("var2", cond_3),
@@ -284,7 +307,7 @@ def test_nested_multi_conditions(mock_conditions):
         providers=ConditionProviderManager({})
     )
     assert result is False
-    assert value == [[1, 2], [3, 2]]  # [[or result], [else if condition result]]
+    assert value == [[1, 2], None, [3, 2]]  # [[or result], [else if condition result]]
 
 
 @pytest.mark.usefixtures("mock_skip_schema_validation")

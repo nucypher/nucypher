@@ -1,4 +1,5 @@
 import pytest
+from web3 import Web3
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -16,11 +17,12 @@ from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 
 @pytest.fixture()
-def condition_providers(testerchain):
-    providers = ConditionProviderManager(
-        {testerchain.client.chain_id: {testerchain.provider}}
+def condition_providers(mocker, testerchain):
+    providers = mocker.Mock(spec=ConditionProviderManager)
+    providers.exec_web3_call.side_effect = lambda fn, *args, **kwargs: fn(
+        Web3(testerchain.provider)
     )
-    return providers
+    yield providers
 
 @pytest.fixture()
 def compound_lingo(

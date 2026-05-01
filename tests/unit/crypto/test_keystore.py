@@ -1,5 +1,6 @@
 import os
 import random
+import re
 import string
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from cryptography.hazmat.primitives._serialization import Encoding
 from mnemonic.mnemonic import Mnemonic
 from nucypher_core.umbral import SecretKeyFactory
 
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.crypto.keystore import (
     _DELEGATING_INFO,
     _MNEMONIC_LANGUAGE,
@@ -23,9 +25,11 @@ from nucypher.crypto.keystore import (
 )
 from nucypher.crypto.powers import (
     DecryptingPower,
+    DecryptingRequestPower,
     DelegatingPower,
     SigningPower,
-    ThresholdRequestDecryptingPower,
+    SigningRequestPower,
+    ThresholdSigningPower,
     TLSHostingPower,
 )
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
@@ -61,8 +65,11 @@ def test_invalid_keystore_file_type(tmp_path, tmp_path_factory):
         _keystore = Keystore(invalid_path)
 
     # Not an existing file
-    invalid_path = Path('does-not-exist')
-    with pytest.raises(Keystore.NotFound, match=f"Keystore '{invalid_path.absolute()}' does not exist."):
+    invalid_path = Path("does-not-exist")
+    with pytest.raises(
+        Keystore.NotFound,
+        match=re.escape(f"Keystore '{invalid_path.absolute()}' does not exist."),
+    ):
         _keystore = Keystore(invalid_path)
 
 
@@ -318,20 +325,70 @@ def test_derive_hosting_power(tmpdir):
 def test_derive_threshold_request_decrypting_power(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-    threshold_request_decrypting_power = keystore.derive_crypto_power(
-        power_class=ThresholdRequestDecryptingPower
+    decrypting_request_power = keystore.derive_crypto_power(
+        power_class=DecryptingRequestPower
     )
 
     ritual_id = 23
-    public_key = threshold_request_decrypting_power.get_pubkey_from_ritual_id(
-        ritual_id=ritual_id
-    )
-    other_public_key = threshold_request_decrypting_power.get_pubkey_from_ritual_id(
-        ritual_id=ritual_id
-    )
+    public_key = decrypting_request_power.get_pubkey_from_id(id=ritual_id)
+    other_public_key = decrypting_request_power.get_pubkey_from_id(id=ritual_id)
     assert bytes(public_key) == bytes(other_public_key)
 
-    different_ritual_public_key = (
-        threshold_request_decrypting_power.get_pubkey_from_ritual_id(ritual_id=0)
-    )
+    # different keys for different ritual IDs
+    different_ritual_public_key = decrypting_request_power.get_pubkey_from_id(id=0)
     assert bytes(public_key) != bytes(different_ritual_public_key)
+
+    # same keystore re-instantiated (should produce same keys for same ritual IDs)
+    new_keystore_instance = Keystore(keystore.keystore_path)
+    new_keystore_instance.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    decrypting_request_power_2 = new_keystore_instance.derive_crypto_power(
+        power_class=DecryptingRequestPower
+    )
+    new_keystore_public_key = decrypting_request_power_2.get_pubkey_from_id(
+        id=ritual_id
+    )
+    assert bytes(public_key) == bytes(new_keystore_public_key)
+
+
+def test_derive_threshold_signing_power(tmpdir):
+    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    threshold_signing_power = keystore.derive_crypto_power(
+        power_class=ThresholdSigningPower
+    )
+    assert threshold_signing_power.account != NULL_ADDRESS
+
+    # same keystore re-instantiated (should produce same account)
+    new_keystore_instance = Keystore(keystore.keystore_path)
+    new_keystore_instance.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    threshold_signing_power_2 = new_keystore_instance.derive_crypto_power(
+        power_class=ThresholdSigningPower
+    )
+    assert threshold_signing_power.account == threshold_signing_power_2.account
+
+
+def test_derive_signing_request_decrypting_power(tmpdir):
+    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    signing_request_power = keystore.derive_crypto_power(
+        power_class=SigningRequestPower
+    )
+
+    assert isinstance(signing_request_power, SigningRequestPower)
+    ritual_id = 23
+    public_key = signing_request_power.get_pubkey_from_id(id=ritual_id)
+    other_public_key = signing_request_power.get_pubkey_from_id(id=ritual_id)
+    assert bytes(public_key) == bytes(other_public_key)
+
+    # different keys for different cohort IDs
+    different_ritual_public_key = signing_request_power.get_pubkey_from_id(id=0)
+    assert bytes(public_key) != bytes(different_ritual_public_key)
+
+    # same keystore re-instantiated (should produce same keys for same ritual IDs)
+    new_keystore_instance = Keystore(keystore.keystore_path)
+    new_keystore_instance.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    signing_request_power_2 = new_keystore_instance.derive_crypto_power(
+        power_class=SigningRequestPower
+    )
+    new_keystore_public_key = signing_request_power_2.get_pubkey_from_id(id=ritual_id)
+    assert bytes(public_key) == bytes(new_keystore_public_key)

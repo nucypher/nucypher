@@ -1,7 +1,8 @@
 import time
 from decimal import Decimal
 from functools import cache
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlparse, urlunparse
 
 import requests
 from eth_typing import ChecksumAddress
@@ -16,8 +17,65 @@ from nucypher.utilities.logging import Logger
 
 LOGGER = Logger("utility")
 
+# Maximum length for response text in log messages
+_MAX_RESPONSE_TEXT_LENGTH = 200
 
-def prettify_eth_amount(amount, original_denomination: str = 'wei') -> str:
+
+def _truncate_response_text(text: str) -> str:
+    """Truncates response text for logging to avoid huge error messages."""
+    if len(text) <= _MAX_RESPONSE_TEXT_LENGTH:
+        return text
+    return text[:_MAX_RESPONSE_TEXT_LENGTH] + "..."
+
+
+def obfuscate_rpc_url(url: str) -> str:
+    """
+    Obfuscates sensitive parts of an RPC URL for safe logging.
+    Replaces API keys after the host with asterisks.
+    Example: https://mainnet.infura.io/v3/abc123 -> https://mainnet.infura.io/v3/abc***
+    Example: https://eth-mainnet.rpcfast.com?api_key=abc123 -> https://eth-mainnet.rpcfast.com?api_key=abc***
+    """
+    try:
+        parsed = urlparse(url)
+
+        if parsed.query:
+            # Obfuscate query parameters that look like API keys
+            query_params = parsed.query.split("&")
+            obfuscated_params = []
+            for param in query_params:
+                key_value = param.split("=", 1)
+                if len(key_value) == 2:
+                    key, value = key_value
+                    # Obfuscate query values that are 16+ chars (likely API keys/secrets)
+                    if len(value) >= 16:
+                        obfuscated_value = value[:3] + "***"
+                        obfuscated_params.append(f"{key}={obfuscated_value}")
+                    else:
+                        obfuscated_params.append(param)
+                else:
+                    obfuscated_params.append(param)
+            obfuscated_query = "&".join(obfuscated_params)
+            parsed = parsed._replace(query=obfuscated_query)
+
+        if parsed.path:
+            # Split path into segments and obfuscate segments that look like API keys
+            segments = parsed.path.split("/")
+            obfuscated_segments = []
+            for segment in segments:
+                # Obfuscate segments that are 16+ chars (likely API keys/secrets)
+                if len(segment) >= 16:
+                    obfuscated_segments.append(segment[:3] + "***")
+                else:
+                    obfuscated_segments.append(segment)
+            obfuscated_path = "/".join(obfuscated_segments)
+            parsed = parsed._replace(path=obfuscated_path)
+        return urlunparse(parsed)
+    except Exception:
+        # If parsing fails, return a safe placeholder
+        return "<RPC endpoint>"
+
+
+def prettify_eth_amount(amount, original_denomination: str = "wei") -> str:
     """
     Converts any ether `amount` in `original_denomination` and finds a suitable representation based on its length.
     The options in consideration are representing the amount in wei, gwei or ETH.
@@ -29,29 +87,33 @@ def prettify_eth_amount(amount, original_denomination: str = 'wei') -> str:
         # First obtain canonical representation in wei. Works for int, float, Decimal and str amounts
         amount_in_wei = Web3.to_wei(Decimal(amount), original_denomination)
 
-        common_denominations = ('wei', 'gwei', 'ether')
+        common_denominations = ("wei", "gwei", "ether")
 
         options = [str(Web3.from_wei(amount_in_wei, d)) for d in common_denominations]
 
         best_option = min(zip(map(len, options), options, common_denominations))
         _length, pretty_amount, denomination = best_option
 
-        if denomination == 'ether':
-            denomination = 'ETH'
+        if denomination == "ether":
+            denomination = "ETH"
         pretty_amount += " " + denomination
 
-    except Exception:  # Worst case scenario, we just print the str representation of amount
+    except (
+        Exception
+    ):  # Worst case scenario, we just print the str representation of amount
         pretty_amount = str(amount)
 
     return pretty_amount
 
 
-def get_transaction_name(contract_function: Union[ContractFunction, ContractConstructor]) -> str:
+def get_transaction_name(
+    contract_function: Union[ContractFunction, ContractConstructor],
+) -> str:
     deployment = isinstance(contract_function, ContractConstructor)
     try:
         transaction_name = contract_function.fn_name.upper()
     except AttributeError:
-        transaction_name = 'DEPLOY' if deployment else 'UNKNOWN'
+        transaction_name = "DEPLOY" if deployment else "UNKNOWN"
     return transaction_name
 
 
@@ -74,18 +136,107 @@ def get_tx_cost_data(transaction_dict: TxParams):
     return max_cost, max_price_gwei, tx_type
 
 
-def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> bool:
+def get_block_just_before(w3: Web3, how_far_back: int, sample_window_size=100):
     """
-    Checks the health of an Ethereum RPC endpoint by comparing the timestamp of the latest block
-    with the system time. The maximum drift allowed is `max_drift_seconds`.
+    Returns the block number just before a given time from now.
     """
+    latest_block = w3.eth.get_block("latest")
+    if latest_block.number == 0:
+        return 0
+
+    # get average block time
+    sample_block_number = latest_block.number - sample_window_size
+    if sample_block_number <= 0:
+        return 0
+    base_block = w3.eth.get_block(sample_block_number)
+    average_block_time = (
+        latest_block.timestamp - base_block.timestamp
+    ) / sample_window_size
+
+    number_of_blocks_in_the_past = int(how_far_back / average_block_time)
+
+    expected_start_block = w3.eth.get_block(
+        max(0, latest_block.number - number_of_blocks_in_the_past)
+    )
+    target_timestamp = latest_block.timestamp - how_far_back
+
+    # Keep looking back until we find the last block before the target timestamp
+    while (
+        expected_start_block.number > 0
+        and expected_start_block.timestamp > target_timestamp
+    ):
+        expected_start_block = w3.eth.get_block(expected_start_block.number - 1)
+
+    # if non-zero block found - return the block before
+    return expected_start_block.number - 1 if expected_start_block.number > 0 else 0
+
+
+def rpc_endpoint_health_check(
+    chain_id: int, endpoint: str, max_drift_seconds: int = 60
+) -> bool:
+    """
+    Checks the health of an RPC endpoint by validating expected chain id and comparing the
+    timestamp of the latest block with the system time. The maximum drift
+    allowed is `max_drift_seconds`.
+    """
+
+    # check chain ID
+    query = {
+        "jsonrpc": "2.0",
+        "method": "eth_chainId",
+        "params": [],
+        "id": 1,
+    }
+    LOGGER.debug(f"Checking chain ID of RPC endpoint {obfuscate_rpc_url(endpoint)}")
+    result = _get_json_rpc_call_result(endpoint, query)
+    if result is None:
+        return False
+
+    try:
+        provider_chain = int(result, 16)
+        if provider_chain != chain_id:
+            LOGGER.warn(
+                f"RPC endpoint is invalid for chain; expected chain ID {chain_id}, but detected {provider_chain}"
+            )
+            return False
+    except (TypeError, ValueError):
+        LOGGER.warn(
+            f"RPC endpoint {obfuscate_rpc_url(endpoint)} is unhealthy: invalid chain ID response {result}"
+        )
+        return False
+
+    # check latest block number timestamp
     query = {
         "jsonrpc": "2.0",
         "method": "eth_getBlockByNumber",
         "params": ["latest", False],
-        "id": 1,
+        "id": 2,
     }
-    LOGGER.debug(f"Checking health of RPC endpoint {endpoint}")
+    LOGGER.debug(f"Checking health of RPC endpoint {obfuscate_rpc_url(endpoint)}")
+    block_data = _get_json_rpc_call_result(endpoint, query)
+    if block_data is None:
+        return False
+    try:
+        timestamp = int(block_data.get("timestamp"), 16)
+    except (TypeError, ValueError):
+        LOGGER.warn(
+            f"RPC endpoint {obfuscate_rpc_url(endpoint)} is unhealthy: invalid block data"
+        )
+        return False
+
+    system_time = time.time()
+    drift = abs(system_time - timestamp)
+    if drift > max_drift_seconds:
+        LOGGER.warn(
+            f"RPC endpoint {obfuscate_rpc_url(endpoint)} is unhealthy: drift too large ({drift} seconds)"
+        )
+        return False
+
+    LOGGER.debug(f"RPC endpoint {obfuscate_rpc_url(endpoint)} is healthy")
+    return True  # finally!
+
+
+def _get_json_rpc_call_result(endpoint: str, query: dict) -> Optional[Any]:
     try:
         response = requests.post(
             endpoint,
@@ -94,45 +245,38 @@ def rpc_endpoint_health_check(endpoint: str, max_drift_seconds: int = 60) -> boo
             timeout=5,
         )
     except requests.exceptions.RequestException:
-        LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: network error")
-        return False
+        LOGGER.debug(
+            f"RPC endpoint {obfuscate_rpc_url(endpoint)} is unhealthy: network error"
+        )
+        return None
 
     if response.status_code != 200:
         LOGGER.debug(
-            f"RPC endpoint {endpoint} is unhealthy: {response.status_code} | {response.text}"
+            f"RPC endpoint {obfuscate_rpc_url(endpoint)} is unhealthy: {response.status_code} | {_truncate_response_text(response.text)}"
         )
-        return False
+        return None
 
     try:
         data = response.json()
         if "result" not in data:
-            LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: no response data")
-            return False
-    except requests.exceptions.RequestException:
-        LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: {response.text}")
-        return False
-
-    if data["result"] is None:
-        LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: no block data")
-        return False
-
-    block_data = data["result"]
-    try:
-        timestamp = int(block_data.get("timestamp"), 16)
-    except TypeError:
-        LOGGER.debug(f"RPC endpoint {endpoint} is unhealthy: invalid block data")
-        return False
-
-    system_time = time.time()
-    drift = abs(system_time - timestamp)
-    if drift > max_drift_seconds:
+            LOGGER.debug(
+                f"RPC endpoint {obfuscate_rpc_url(endpoint)} is unhealthy: no response data"
+            )
+            return None
+    except requests.exceptions.JSONDecodeError:
         LOGGER.debug(
-            f"RPC endpoint {endpoint} is unhealthy: drift too large ({drift} seconds)"
+            f"RPC endpoint {obfuscate_rpc_url(endpoint)} is unhealthy: {_truncate_response_text(response.text)}"
         )
-        return False
+        return None
 
-    LOGGER.debug(f"RPC endpoint {endpoint} is healthy")
-    return True  # finally!
+    result = data.get("result")
+    if result is None:
+        LOGGER.debug(
+            f"RPC endpoint {obfuscate_rpc_url(endpoint)} is unhealthy: no result data"
+        )
+        return None
+
+    return result
 
 
 @cache
@@ -156,7 +300,7 @@ def get_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]]:
         }
     else:
         LOGGER.error(
-            f"Failed to fetch default RPC endpoints: {response.status_code} | {response.text}"
+            f"Failed to fetch default RPC endpoints: {response.status_code} | {_truncate_response_text(response.text)}"
         )
         return {}
 
@@ -165,17 +309,14 @@ def get_healthy_default_rpc_endpoints(domain: TACoDomain) -> Dict[int, List[str]
     """Returns a mapping of chain id to healthy RPC endpoints for a given domain."""
     endpoints = get_default_rpc_endpoints(domain)
 
-    if not domain.is_testnet:
-        # iterate over all chains and filter out unhealthy endpoints
-        healthy = {
-            chain_id: [
-                endpoint
-                for endpoint in endpoints[chain_id]
-                if rpc_endpoint_health_check(endpoint)
-            ]
-            for chain_id in endpoints
-        }
-    else:
-        healthy = endpoints
+    # iterate over all chains and filter out unhealthy endpoints
+    healthy = {
+        chain_id: [
+            endpoint
+            for endpoint in endpoints[chain_id]
+            if rpc_endpoint_health_check(chain_id=chain_id, endpoint=endpoint)
+        ]
+        for chain_id in endpoints
+    }
 
     return healthy

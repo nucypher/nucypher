@@ -1,10 +1,21 @@
 from typing import Any, Optional
 
-from marshmallow import ValidationError, fields, post_load, validate, validates
+from marshmallow import (
+    ValidationError,
+    fields,
+    post_load,
+    validate,
+    validates,
+    validates_schema,
+)
 from marshmallow.fields import Url
 from typing_extensions import override
 
 from nucypher.policy.conditions.context import is_context_variable
+from nucypher.policy.conditions.json.auth import (
+    AuthorizationType,
+    AuthorizationTypeField,
+)
 from nucypher.policy.conditions.json.base import (
     BaseJsonRequestCondition,
     HTTPMethod,
@@ -13,7 +24,7 @@ from nucypher.policy.conditions.json.base import (
 )
 from nucypher.policy.conditions.lingo import (
     ConditionType,
-    ExecutionCallAccessControlCondition,
+    ExecutionCallCondition,
     ReturnValueTest,
 )
 from nucypher.utilities.logging import Logger
@@ -27,6 +38,7 @@ class JsonApiCall(JsonRequestCall):
         parameters = fields.Dict(required=False, allow_none=True)
         query = JSONPathField(required=False, allow_none=True)
         authorization_token = fields.Str(required=False, allow_none=True)
+        authorization_type = AuthorizationTypeField(required=False, allow_none=True)
 
         @post_load
         def make(self, data, **kwargs):
@@ -39,12 +51,20 @@ class JsonApiCall(JsonRequestCall):
                     f"Invalid value for authorization token; expected a context variable, but got '{value}'"
                 )
 
+        @validates_schema
+        def validate_auth_type_and_token(self, data, **kwargs):
+            if data.get("authorization_type") and not data.get("authorization_token"):
+                raise ValidationError(
+                    "Authorization token must be provided if authorization type is set."
+                )
+
     def __init__(
         self,
         endpoint: str,
         parameters: Optional[dict] = None,
         query: Optional[str] = None,
         authorization_token: Optional[str] = None,
+        authorization_type: Optional[AuthorizationType] = None,
     ):
         self.endpoint = endpoint
         super().__init__(
@@ -52,6 +72,7 @@ class JsonApiCall(JsonRequestCall):
             parameters=parameters,
             query=query,
             authorization_token=authorization_token,
+            authorization_type=authorization_type,
         )
 
         self.logger = Logger(__name__)
@@ -71,7 +92,7 @@ class JsonApiCondition(BaseJsonRequestCondition):
     EXECUTION_CALL_TYPE = JsonApiCall
     CONDITION_TYPE = ConditionType.JSONAPI.value
 
-    class Schema(ExecutionCallAccessControlCondition.Schema, JsonApiCall.Schema):
+    class Schema(ExecutionCallCondition.Schema, JsonApiCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.JSONAPI.value), required=True
         )
@@ -87,6 +108,7 @@ class JsonApiCondition(BaseJsonRequestCondition):
         query: Optional[str] = None,
         parameters: Optional[dict] = None,
         authorization_token: Optional[str] = None,
+        authorization_type: Optional[AuthorizationType] = None,
         condition_type: Optional[str] = ConditionType.JSONAPI.value,
         name: Optional[str] = None,
     ):
@@ -96,6 +118,7 @@ class JsonApiCondition(BaseJsonRequestCondition):
             query=query,
             parameters=parameters,
             authorization_token=authorization_token,
+            authorization_type=authorization_type,
             condition_type=condition_type,
             name=name,
         )
@@ -119,3 +142,7 @@ class JsonApiCondition(BaseJsonRequestCondition):
     @property
     def authorization_token(self):
         return self.execution_call.authorization_token
+
+    @property
+    def authorization_type(self):
+        return self.execution_call.authorization_type

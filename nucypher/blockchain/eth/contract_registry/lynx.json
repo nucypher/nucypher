@@ -552,6 +552,1985 @@
             "block_number": 4886826,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
+        "OpL1Sender": {
+            "address": "0xF429C1f2d42765FE2b04CC62ab037564C2C66e5E",
+            "abi": [
+                {
+                    "type": "constructor",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_dispatcher",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "_messenger",
+                            "type": "address",
+                            "internalType": "contract ICrossDomainMessenger"
+                        },
+                        {
+                            "name": "_gasLimit",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "InvalidInitialization",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "NotInitializing",
+                    "inputs": []
+                },
+                {
+                    "type": "event",
+                    "name": "Initialized",
+                    "inputs": [
+                        {
+                            "name": "version",
+                            "type": "uint64",
+                            "internalType": "uint64",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "function",
+                    "name": "dispatcher",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "gasLimit",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "initialize",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_l2Receiver",
+                            "type": "address",
+                            "internalType": "contract IL2Receiver"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "l2Receiver",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "contract IL2Receiver"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "messenger",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "contract ICrossDomainMessenger"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "sendData",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "target",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "data",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ],
+                    "outputs": []
+                }
+            ],
+            "tx_hash": "0x9903c3be4d7e7e0b7638bb52850292adb780039b9ea1ab2d299e8a9b1136dcec",
+            "block_number": 9595247,
+            "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
+        },
+        "SigningCoordinator": {
+            "address": "0x4A0cdd9f96D980A898C34efdD7F17431572a8EEe",
+            "abi": [
+                {
+                    "type": "constructor",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_application",
+                            "type": "address",
+                            "internalType": "contract TACoApplication"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "AccessControlBadConfirmation",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "AccessControlEnforcedDefaultAdminDelay",
+                    "inputs": [
+                        {
+                            "name": "schedule",
+                            "type": "uint48",
+                            "internalType": "uint48"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "AccessControlEnforcedDefaultAdminRules",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "AccessControlInvalidDefaultAdmin",
+                    "inputs": [
+                        {
+                            "name": "defaultAdmin",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "AccessControlUnauthorizedAccount",
+                    "inputs": [
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "neededRole",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "ECDSAInvalidSignature",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "ECDSAInvalidSignatureLength",
+                    "inputs": [
+                        {
+                            "name": "length",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "ECDSAInvalidSignatureS",
+                    "inputs": [
+                        {
+                            "name": "s",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "InvalidInitialization",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "NotInitializing",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "SafeCastOverflowedUintDowncast",
+                    "inputs": [
+                        {
+                            "name": "bits",
+                            "type": "uint8",
+                            "internalType": "uint8"
+                        },
+                        {
+                            "name": "value",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "type": "event",
+                    "name": "DefaultAdminDelayChangeCanceled",
+                    "inputs": [],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "DefaultAdminDelayChangeScheduled",
+                    "inputs": [
+                        {
+                            "name": "newDelay",
+                            "type": "uint48",
+                            "internalType": "uint48",
+                            "indexed": false
+                        },
+                        {
+                            "name": "effectSchedule",
+                            "type": "uint48",
+                            "internalType": "uint48",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "DefaultAdminTransferCanceled",
+                    "inputs": [],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "DefaultAdminTransferScheduled",
+                    "inputs": [
+                        {
+                            "name": "newAdmin",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "acceptSchedule",
+                            "type": "uint48",
+                            "internalType": "uint48",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "DispatcherChanged",
+                    "inputs": [
+                        {
+                            "name": "oldDispatcher",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        },
+                        {
+                            "name": "newDispatcher",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "Initialized",
+                    "inputs": [
+                        {
+                            "name": "version",
+                            "type": "uint64",
+                            "internalType": "uint64",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "InitiateSigningCohort",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": false
+                        },
+                        {
+                            "name": "authority",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "participants",
+                            "type": "address[]",
+                            "internalType": "address[]",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "MaxCohortSizeChanged",
+                    "inputs": [
+                        {
+                            "name": "oldSize",
+                            "type": "uint16",
+                            "internalType": "uint16",
+                            "indexed": false
+                        },
+                        {
+                            "name": "newSize",
+                            "type": "uint16",
+                            "internalType": "uint16",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "RoleAdminChanged",
+                    "inputs": [
+                        {
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "previousAdminRole",
+                            "type": "bytes32",
+                            "internalType": "bytes32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "newAdminRole",
+                            "type": "bytes32",
+                            "internalType": "bytes32",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "RoleGranted",
+                    "inputs": [
+                        {
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "sender",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "RoleRevoked",
+                    "inputs": [
+                        {
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "sender",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "SigningCohortConditionsSet",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": false
+                        },
+                        {
+                            "name": "conditions",
+                            "type": "bytes",
+                            "internalType": "bytes",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "SigningCohortDeployed",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "SigningCohortSignaturePosted",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "provider",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "signer",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "signature",
+                            "type": "bytes",
+                            "internalType": "bytes",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "TimeoutChanged",
+                    "inputs": [
+                        {
+                            "name": "oldTimeout",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": false
+                        },
+                        {
+                            "name": "newTimeout",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "function",
+                    "name": "DEFAULT_ADMIN_ROLE",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "INITIATOR_ROLE",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "SIGNING_REQUEST_KEY_LENGTH",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "acceptDefaultAdminTransfer",
+                    "stateMutability": "nonpayable",
+                    "inputs": [],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "application",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "contract TACoApplication"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "beginDefaultAdminTransfer",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "newAdmin",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "cancelDefaultAdminTransfer",
+                    "stateMutability": "nonpayable",
+                    "inputs": [],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "changeDefaultAdminDelay",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "newDelay",
+                            "type": "uint48",
+                            "internalType": "uint48"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "defaultAdmin",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "defaultAdminDelay",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint48",
+                            "internalType": "uint48"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "defaultAdminDelayIncreaseWait",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint48",
+                            "internalType": "uint48"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "deployAdditionalChainForSigningMultisig",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "extendSigningCohortDuration",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "additionalDuration",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "getChains",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256[]",
+                            "internalType": "uint256[]"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getRoleAdmin",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getSigner",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "provider",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "tuple",
+                            "components": [
+                                {
+                                    "name": "provider",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "signerAddress",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "signingRequestStaticKey",
+                                    "type": "bytes",
+                                    "internalType": "bytes"
+                                },
+                                {
+                                    "name": "gap",
+                                    "type": "uint256[20]",
+                                    "internalType": "uint256[20]"
+                                }
+                            ],
+                            "internalType": "struct SigningCoordinator.SigningCohortParticipant"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getSigners",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "tuple[]",
+                            "components": [
+                                {
+                                    "name": "provider",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "signerAddress",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "signingRequestStaticKey",
+                                    "type": "bytes",
+                                    "internalType": "bytes"
+                                },
+                                {
+                                    "name": "gap",
+                                    "type": "uint256[20]",
+                                    "internalType": "uint256[20]"
+                                }
+                            ],
+                            "internalType": "struct SigningCoordinator.SigningCohortParticipant[]"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getSigningCohortConditions",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getSigningCohortDataHash",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "operator",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getSigningCohortState",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint8",
+                            "internalType": "enum SigningCoordinator.SigningCohortState"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getSigningCoordinatorChild",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getThreshold",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "grantRole",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        },
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "hasRole",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        },
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "initialize",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_timeout",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "_maxDkgSize",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        },
+                        {
+                            "name": "_signingCoordinatorDispatcher",
+                            "type": "address",
+                            "internalType": "contract SigningCoordinatorDispatcher"
+                        },
+                        {
+                            "name": "_admin",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "initiateSigningCohort",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "authority",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "providers",
+                            "type": "address[]",
+                            "internalType": "address[]"
+                        },
+                        {
+                            "name": "threshold",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        },
+                        {
+                            "name": "duration",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "isCohortActive",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "isSigner",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "provider",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "maxCohortSize",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "numberOfSigningCohorts",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "owner",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "pendingDefaultAdmin",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "newAdmin",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "schedule",
+                            "type": "uint48",
+                            "internalType": "uint48"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "pendingDefaultAdminDelay",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "newDelay",
+                            "type": "uint48",
+                            "internalType": "uint48"
+                        },
+                        {
+                            "name": "schedule",
+                            "type": "uint48",
+                            "internalType": "uint48"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "postSigningCohortData",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "signature",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        },
+                        {
+                            "name": "signingRequestStaticKey",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "renounceRole",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        },
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "revokeRole",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        },
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "rollbackDefaultAdminDelay",
+                    "stateMutability": "nonpayable",
+                    "inputs": [],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "setDispatcher",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "dispatcher",
+                            "type": "address",
+                            "internalType": "contract SigningCoordinatorDispatcher"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "setMaxDkgSize",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "newSize",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "setSigningCohortConditions",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "conditions",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "setTimeout",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "newTimeout",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "signingCohorts",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "initiator",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "initTimestamp",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "endTimestamp",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "authority",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "totalSignatures",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        },
+                        {
+                            "name": "numSigners",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        },
+                        {
+                            "name": "threshold",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "signingCoordinatorDispatcher",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "contract SigningCoordinatorDispatcher"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "supportsInterface",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "interfaceId",
+                            "type": "bytes4",
+                            "internalType": "bytes4"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "timeout",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ]
+                }
+            ],
+            "tx_hash": "0x2c5f2a3f124b46338b9e97178ae821fe3f75256e7538b8bfac101e06a6d84d45",
+            "block_number": 9595153,
+            "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
+        },
+        "SigningCoordinatorChild": {
+            "address": "0xC3085b0feB8C348D0BD7fabF4299c93dc2aE11d7",
+            "abi": [
+                {
+                    "type": "constructor",
+                    "stateMutability": "nonpayable",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "InvalidInitialization",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "NotInitializing",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "OwnableInvalidOwner",
+                    "inputs": [
+                        {
+                            "name": "owner",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "OwnableUnauthorizedAccount",
+                    "inputs": [
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "event",
+                    "name": "AllowedCallerUpdated",
+                    "inputs": [
+                        {
+                            "name": "oldCaller",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        },
+                        {
+                            "name": "newCaller",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "CohortMultisigDeployed",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "multisig",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "CohortMultisigUpdated",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "multisig",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        },
+                        {
+                            "name": "signers",
+                            "type": "address[]",
+                            "internalType": "address[]",
+                            "indexed": false
+                        },
+                        {
+                            "name": "threshold",
+                            "type": "uint16",
+                            "internalType": "uint16",
+                            "indexed": false
+                        },
+                        {
+                            "name": "clearSigners",
+                            "type": "bool",
+                            "internalType": "bool",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "Initialized",
+                    "inputs": [
+                        {
+                            "name": "version",
+                            "type": "uint64",
+                            "internalType": "uint64",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "MultisigFactoryUpdated",
+                    "inputs": [
+                        {
+                            "name": "oldFactory",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        },
+                        {
+                            "name": "newFactory",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "OwnershipTransferred",
+                    "inputs": [
+                        {
+                            "name": "previousOwner",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "newOwner",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "function",
+                    "name": "allowedCaller",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "cohortMultisigs",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "deployCohortMultiSig",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "signers",
+                            "type": "address[]",
+                            "internalType": "address[]"
+                        },
+                        {
+                            "name": "threshold",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "initialize",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_signingMultisigFactory",
+                            "type": "address",
+                            "internalType": "contract ThresholdSigningMultisigCloneFactory"
+                        },
+                        {
+                            "name": "_allowedCaller",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "owner",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "renounceOwnership",
+                    "stateMutability": "nonpayable",
+                    "inputs": [],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "setAllowedCaller",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_allowedCaller",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "setMultisigFactory",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "multisigFactory",
+                            "type": "address",
+                            "internalType": "contract ThresholdSigningMultisigCloneFactory"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "signingMultisigFactory",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "contract ThresholdSigningMultisigCloneFactory"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "transferOwnership",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "newOwner",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "updateMultiSigParameters",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "signers",
+                            "type": "address[]",
+                            "internalType": "address[]"
+                        },
+                        {
+                            "name": "threshold",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        },
+                        {
+                            "name": "clearSigners",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ],
+                    "outputs": []
+                }
+            ],
+            "tx_hash": "0xe32268eb5f109a5ef883604bae1d2e190cc68ad0c4daafa5665b4b7411980243",
+            "block_number": 9595176,
+            "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
+        },
+        "SigningCoordinatorDispatcher": {
+            "address": "0xa99FF0056A98AA8800c769C4eCB4fA103e38E95E",
+            "abi": [
+                {
+                    "type": "constructor",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_signingCoordinator",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "InvalidInitialization",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "NotInitializing",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "OwnableInvalidOwner",
+                    "inputs": [
+                        {
+                            "name": "owner",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "OwnableUnauthorizedAccount",
+                    "inputs": [
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "event",
+                    "name": "Initialized",
+                    "inputs": [
+                        {
+                            "name": "version",
+                            "type": "uint64",
+                            "internalType": "uint64",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "OwnershipTransferred",
+                    "inputs": [
+                        {
+                            "name": "previousOwner",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "newOwner",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "function",
+                    "name": "dispatch",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "callData",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "dispatchMap",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "l1Sender",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "signingCoordinatorChild",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getSigningCoordinatorChild",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "initialize",
+                    "stateMutability": "nonpayable",
+                    "inputs": [],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "owner",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "register",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "l1Sender",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "signingCoordinatorChild",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "renounceOwnership",
+                    "stateMutability": "nonpayable",
+                    "inputs": [],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "signingCoordinator",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "transferOwnership",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "newOwner",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "unregister",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "chainId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": []
+                }
+            ],
+            "tx_hash": "0xf559688736cd4247268b894636b9918d0fb40fc2b25e2287220710809ffc5e99",
+            "block_number": 9595161,
+            "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
+        },
         "TACoApplication": {
             "address": "0x329bc9Df0e45f360583374726ccaFF003264a136",
             "abi": [
@@ -565,11 +2544,6 @@
                             "internalType": "contract IERC20"
                         },
                         {
-                            "name": "_tStaking",
-                            "type": "address",
-                            "internalType": "contract IStaking"
-                        },
-                        {
                             "name": "_minimumAuthorization",
                             "type": "uint96",
                             "internalType": "uint96"
@@ -578,41 +2552,6 @@
                             "name": "_minOperatorSeconds",
                             "type": "uint256",
                             "internalType": "uint256"
-                        },
-                        {
-                            "name": "_rewardDuration",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        },
-                        {
-                            "name": "_deauthorizationDuration",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        },
-                        {
-                            "name": "_commitmentDurationOptions",
-                            "type": "uint64[]",
-                            "internalType": "uint64[]"
-                        },
-                        {
-                            "name": "_commitmentDeadline",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        },
-                        {
-                            "name": "_penaltyDefault",
-                            "type": "uint192",
-                            "internalType": "uint192"
-                        },
-                        {
-                            "name": "_penaltyDuration",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        },
-                        {
-                            "name": "_penaltyIncrement",
-                            "type": "uint192",
-                            "internalType": "uint192"
                         }
                     ]
                 },
@@ -677,22 +2616,6 @@
                 },
                 {
                     "type": "error",
-                    "name": "SafeCastOverflowedUintDowncast",
-                    "inputs": [
-                        {
-                            "name": "bits",
-                            "type": "uint8",
-                            "internalType": "uint8"
-                        },
-                        {
-                            "name": "value",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        }
-                    ]
-                },
-                {
-                    "type": "error",
                     "name": "SafeERC20FailedOperation",
                     "inputs": [
                         {
@@ -701,150 +2624,6 @@
                             "internalType": "address"
                         }
                     ]
-                },
-                {
-                    "type": "event",
-                    "name": "AuthorizationDecreaseApproved",
-                    "inputs": [
-                        {
-                            "name": "stakingProvider",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        },
-                        {
-                            "name": "fromAmount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
-                        },
-                        {
-                            "name": "toAmount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "AuthorizationDecreaseRequested",
-                    "inputs": [
-                        {
-                            "name": "stakingProvider",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        },
-                        {
-                            "name": "fromAmount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
-                        },
-                        {
-                            "name": "toAmount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "AuthorizationIncreased",
-                    "inputs": [
-                        {
-                            "name": "stakingProvider",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        },
-                        {
-                            "name": "fromAmount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
-                        },
-                        {
-                            "name": "toAmount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "AuthorizationInvoluntaryDecreased",
-                    "inputs": [
-                        {
-                            "name": "stakingProvider",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        },
-                        {
-                            "name": "fromAmount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
-                        },
-                        {
-                            "name": "toAmount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "AuthorizationReSynchronized",
-                    "inputs": [
-                        {
-                            "name": "stakingProvider",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        },
-                        {
-                            "name": "fromAmount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
-                        },
-                        {
-                            "name": "toAmount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "CommitmentMade",
-                    "inputs": [
-                        {
-                            "name": "stakingProvider",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        },
-                        {
-                            "name": "endCommitment",
-                            "type": "uint256",
-                            "internalType": "uint256",
-                            "indexed": false
-                        }
-                    ],
-                    "anonymous": false
                 },
                 {
                     "type": "event",
@@ -967,127 +2746,13 @@
                 },
                 {
                     "type": "event",
-                    "name": "Penalized",
+                    "name": "Released",
                     "inputs": [
                         {
                             "name": "stakingProvider",
                             "type": "address",
                             "internalType": "address",
                             "indexed": true
-                        },
-                        {
-                            "name": "penaltyPercent",
-                            "type": "uint256",
-                            "internalType": "uint256",
-                            "indexed": false
-                        },
-                        {
-                            "name": "endPenalty",
-                            "type": "uint64",
-                            "internalType": "uint64",
-                            "indexed": false
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "RewardAdded",
-                    "inputs": [
-                        {
-                            "name": "reward",
-                            "type": "uint256",
-                            "internalType": "uint256",
-                            "indexed": false
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "RewardContractSet",
-                    "inputs": [
-                        {
-                            "name": "rewardContract",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "RewardDistributorSet",
-                    "inputs": [
-                        {
-                            "name": "distributor",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "RewardPaid",
-                    "inputs": [
-                        {
-                            "name": "sender",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        },
-                        {
-                            "name": "stakingProvider",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        },
-                        {
-                            "name": "beneficiary",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        },
-                        {
-                            "name": "reward",
-                            "type": "uint256",
-                            "internalType": "uint256",
-                            "indexed": false
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "RewardReset",
-                    "inputs": [
-                        {
-                            "name": "stakingProvider",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        }
-                    ],
-                    "anonymous": false
-                },
-                {
-                    "type": "event",
-                    "name": "RewardsWithdrawn",
-                    "inputs": [
-                        {
-                            "name": "stakingProvider",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
-                        },
-                        {
-                            "name": "amount",
-                            "type": "uint96",
-                            "internalType": "uint96",
-                            "indexed": false
                         }
                     ],
                     "anonymous": false
@@ -1124,47 +2789,119 @@
                     "anonymous": false
                 },
                 {
-                    "type": "function",
-                    "name": "PENALTY_BASE",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
+                    "type": "event",
+                    "name": "Staked",
+                    "inputs": [
                         {
-                            "name": "",
-                            "type": "uint192",
-                            "internalType": "uint192"
+                            "name": "stakingProvider",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "owner",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "beneficiary",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "amount",
+                            "type": "uint96",
+                            "internalType": "uint96",
+                            "indexed": false
                         }
-                    ]
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "StakelessProviderAdded",
+                    "inputs": [
+                        {
+                            "name": "stakingProvider",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "UnstakeApproved",
+                    "inputs": [
+                        {
+                            "name": "stakingProvider",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "UnstakeRequested",
+                    "inputs": [
+                        {
+                            "name": "stakingProvider",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
                 },
                 {
                     "type": "function",
-                    "name": "REWARD_PER_TOKEN_MULTIPLIER",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
+                    "name": "addStakelessProvider",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
                         {
-                            "name": "",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "adjudicator",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
+                            "name": "_stakingProvider",
+                            "type": "address",
+                            "internalType": "address"
+                        },
                         {
-                            "name": "",
+                            "name": "_owner",
                             "type": "address",
                             "internalType": "address"
                         }
-                    ]
+                    ],
+                    "outputs": []
                 },
                 {
                     "type": "function",
-                    "name": "approveAuthorizationDecrease",
+                    "name": "adminSetExistingStake",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_stakingProvider",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "_owner",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "_beneficiary",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "adminSetToStakeless",
                     "stateMutability": "nonpayable",
                     "inputs": [
                         {
@@ -1174,111 +2911,10 @@
                         }
                     ],
                     "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "authorizationDecreaseRequested",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "_fromAmount",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "_toAmount",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "authorizationIncreased",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "_fromAmount",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "_toAmount",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "authorizationParameters",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "_minimumAuthorization",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "authorizationDecreaseDelay",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        },
-                        {
-                            "name": "authorizationDecreaseChangePeriod",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "authorizedOverall",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        }
-                    ]
                 },
                 {
                     "type": "function",
                     "name": "authorizedStake",
-                    "stateMutability": "view",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "availableRewards",
                     "stateMutability": "view",
                     "inputs": [
                         {
@@ -1328,71 +2964,6 @@
                 },
                 {
                     "type": "function",
-                    "name": "commitmentDeadline",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "commitmentDurationOption1",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "commitmentDurationOption2",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "commitmentDurationOption3",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "commitmentDurationOption4",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
                     "name": "confirmOperatorAddress",
                     "stateMutability": "nonpayable",
                     "inputs": [
@@ -1406,19 +2977,6 @@
                 },
                 {
                     "type": "function",
-                    "name": "deauthorizationDuration",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
                     "name": "eligibleStake",
                     "stateMutability": "view",
                     "inputs": [
@@ -1426,11 +2984,6 @@
                             "name": "_stakingProvider",
                             "type": "address",
                             "internalType": "address"
-                        },
-                        {
-                            "name": "_endDate",
-                            "type": "uint256",
-                            "internalType": "uint256"
                         }
                     ],
                     "outputs": [
@@ -1455,11 +3008,6 @@
                             "name": "_maxStakingProviders",
                             "type": "uint256",
                             "internalType": "uint256"
-                        },
-                        {
-                            "name": "_cohortDuration",
-                            "type": "uint32",
-                            "internalType": "uint32"
                         }
                     ],
                     "outputs": [
@@ -1490,31 +3038,7 @@
                         {
                             "name": "beneficiary",
                             "type": "address",
-                            "internalType": "address payable"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "getPenalty",
-                    "stateMutability": "view",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
                             "internalType": "address"
-                        }
-                    ],
-                    "outputs": [
-                        {
-                            "name": "penalty",
-                            "type": "uint192",
-                            "internalType": "uint192"
-                        },
-                        {
-                            "name": "endPenalty",
-                            "type": "uint64",
-                            "internalType": "uint64"
                         }
                     ]
                 },
@@ -1540,7 +3064,7 @@
                 },
                 {
                     "type": "function",
-                    "name": "involuntaryAuthorizationDecrease",
+                    "name": "initializeStake",
                     "stateMutability": "nonpayable",
                     "inputs": [
                         {
@@ -1549,14 +3073,14 @@
                             "internalType": "address"
                         },
                         {
-                            "name": "_fromAmount",
-                            "type": "uint96",
-                            "internalType": "uint96"
+                            "name": "_owner",
+                            "type": "address",
+                            "internalType": "address"
                         },
                         {
-                            "name": "_toAmount",
-                            "type": "uint96",
-                            "internalType": "uint96"
+                            "name": "_beneficiary",
+                            "type": "address",
+                            "internalType": "address"
                         }
                     ],
                     "outputs": []
@@ -1598,50 +3122,6 @@
                             "internalType": "bool"
                         }
                     ]
-                },
-                {
-                    "type": "function",
-                    "name": "lastTimeRewardApplicable",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "lastUpdateTime",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "makeCommitment",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "_commitmentDuration",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        }
-                    ],
-                    "outputs": []
                 },
                 {
                     "type": "function",
@@ -1720,93 +3200,9 @@
                     "stateMutability": "nonpayable",
                     "inputs": [
                         {
-                            "name": "_stakingProvider",
+                            "name": "",
                             "type": "address",
                             "internalType": "address"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "penaltyDefault",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint192",
-                            "internalType": "uint192"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "penaltyDuration",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "penaltyIncrement",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint192",
-                            "internalType": "uint192"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "pendingAuthorizationDecrease",
-                    "stateMutability": "view",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "periodFinish",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "pushReward",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_reward",
-                            "type": "uint96",
-                            "internalType": "uint96"
                         }
                     ],
                     "outputs": []
@@ -1826,8 +3222,8 @@
                 },
                 {
                     "type": "function",
-                    "name": "remainingAuthorizationDecreaseDelay",
-                    "stateMutability": "view",
+                    "name": "release",
+                    "stateMutability": "nonpayable",
                     "inputs": [
                         {
                             "name": "_stakingProvider",
@@ -1835,13 +3231,7 @@
                             "internalType": "address"
                         }
                     ],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        }
-                    ]
+                    "outputs": []
                 },
                 {
                     "type": "function",
@@ -1852,7 +3242,7 @@
                 },
                 {
                     "type": "function",
-                    "name": "resetReward",
+                    "name": "requestUnstake",
                     "stateMutability": "nonpayable",
                     "inputs": [
                         {
@@ -1865,8 +3255,8 @@
                 },
                 {
                     "type": "function",
-                    "name": "resynchronizeAuthorization",
-                    "stateMutability": "nonpayable",
+                    "name": "rolesOf",
+                    "stateMutability": "view",
                     "inputs": [
                         {
                             "name": "_stakingProvider",
@@ -1874,98 +3264,18 @@
                             "internalType": "address"
                         }
                     ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "rewardContract",
-                    "stateMutability": "view",
-                    "inputs": [],
                     "outputs": [
                         {
-                            "name": "",
+                            "name": "owner",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "beneficiary",
                             "type": "address",
                             "internalType": "address"
                         }
                     ]
-                },
-                {
-                    "type": "function",
-                    "name": "rewardDistributor",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "rewardDuration",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "rewardPerToken",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint160",
-                            "internalType": "uint160"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "rewardPerTokenStored",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint160",
-                            "internalType": "uint160"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "rewardRateDecimals",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "setAdjudicator",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_adjudicator",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": []
                 },
                 {
                     "type": "function",
@@ -1976,55 +3286,6 @@
                             "name": "_childApplication",
                             "type": "address",
                             "internalType": "contract ITACoRootToChild"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "setRewardContract",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_rewardContract",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "setRewardDistributor",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_rewardDistributor",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "slash",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "_penalty",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "_investigator",
-                            "type": "address",
-                            "internalType": "address"
                         }
                     ],
                     "outputs": []
@@ -2067,39 +3328,19 @@
                             "internalType": "uint96"
                         },
                         {
-                            "name": "endDeauthorization",
-                            "type": "uint64",
-                            "internalType": "uint64"
+                            "name": "owner",
+                            "type": "address",
+                            "internalType": "address"
                         },
                         {
-                            "name": "tReward",
-                            "type": "uint96",
-                            "internalType": "uint96"
+                            "name": "beneficiary",
+                            "type": "address",
+                            "internalType": "address"
                         },
                         {
-                            "name": "rewardPerTokenPaid",
-                            "type": "uint160",
-                            "internalType": "uint160"
-                        },
-                        {
-                            "name": "endCommitment",
-                            "type": "uint64",
-                            "internalType": "uint64"
-                        },
-                        {
-                            "name": "stub",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        },
-                        {
-                            "name": "penaltyPercent",
-                            "type": "uint192",
-                            "internalType": "uint192"
-                        },
-                        {
-                            "name": "endPenalty",
-                            "type": "uint64",
-                            "internalType": "uint64"
+                            "name": "stakeless",
+                            "type": "bool",
+                            "internalType": "bool"
                         }
                     ]
                 },
@@ -2143,19 +3384,6 @@
                 },
                 {
                     "type": "function",
-                    "name": "tStaking",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "address",
-                            "internalType": "contract IStaking"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
                     "name": "token",
                     "stateMutability": "view",
                     "inputs": [],
@@ -2179,373 +3407,137 @@
                         }
                     ],
                     "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "withdrawRewards",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": []
                 }
             ],
             "tx_hash": "0xd5d4f1abe3e9eb2d92b02cd7f22ee7f6b514d9c15d578c94ecb1543afd6207c1",
             "block_number": 4886820,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
-        "TestnetThresholdStaking": {
-            "address": "0x18006f9A84C0bAD4CD96Aa69C7cE17aD760cDaD2",
+        "ThresholdSigningMultisigCloneFactory": {
+            "address": "0x18B04d0eB283086C2DaF41F715acDf3f974290Ad",
             "abi": [
                 {
                     "type": "constructor",
                     "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_implementation",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "_signingCoordinatorChild",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "ERC1167FailedCreateClone",
                     "inputs": []
                 },
                 {
-                    "type": "error",
-                    "name": "OwnableInvalidOwner",
-                    "inputs": [
-                        {
-                            "name": "owner",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ]
-                },
-                {
-                    "type": "error",
-                    "name": "OwnableUnauthorizedAccount",
-                    "inputs": [
-                        {
-                            "name": "account",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ]
-                },
-                {
                     "type": "event",
-                    "name": "OwnershipTransferred",
+                    "name": "ThresholdMultisigCloneDeployed",
                     "inputs": [
                         {
-                            "name": "previousOwner",
+                            "name": "cloneAddress",
                             "type": "address",
                             "internalType": "address",
-                            "indexed": true
+                            "indexed": false
                         },
                         {
-                            "name": "newOwner",
-                            "type": "address",
-                            "internalType": "address",
-                            "indexed": true
+                            "name": "cohortId",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": false
                         }
                     ],
                     "anonymous": false
                 },
                 {
                     "type": "function",
-                    "name": "application",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "address",
-                            "internalType": "contract IApplication"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "authorizationIncreased",
+                    "name": "deploySigningMultisig",
                     "stateMutability": "nonpayable",
                     "inputs": [
                         {
-                            "name": "_stakingProvider",
+                            "name": "signers",
+                            "type": "address[]",
+                            "internalType": "address[]"
+                        },
+                        {
+                            "name": "threshold",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        },
+                        {
+                            "name": "initialOwner",
                             "type": "address",
                             "internalType": "address"
                         },
                         {
-                            "name": "_fromAmount",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "_toAmount",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "authorizedStake",
-                    "stateMutability": "view",
-                    "inputs": [
-                        {
-                            "name": "",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "owner",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "renounceOwnership",
-                    "stateMutability": "nonpayable",
-                    "inputs": [],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "rolesOf",
-                    "stateMutability": "view",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": [
-                        {
-                            "name": "owner",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "beneficiary",
-                            "type": "address",
-                            "internalType": "address payable"
-                        },
-                        {
-                            "name": "authorizer",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "setApplication",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_application",
-                            "type": "address",
-                            "internalType": "contract IApplication"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "setRoles",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "setRoles",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "_owner",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "_beneficiary",
-                            "type": "address",
-                            "internalType": "address payable"
-                        },
-                        {
-                            "name": "_authorizer",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "setStakes",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "_tStake",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "_keepInTStake",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "_nuInTStake",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
-                    "name": "stakedNu",
-                    "stateMutability": "view",
-                    "inputs": [
-                        {
-                            "name": "",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": [
-                        {
-                            "name": "",
+                            "name": "cohortId",
                             "type": "uint256",
                             "internalType": "uint256"
                         }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "stakes",
-                    "stateMutability": "view",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        }
                     ],
                     "outputs": [
-                        {
-                            "name": "tStake",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "keepInTStake",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "nuInTStake",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "stakingProviderInfo",
-                    "stateMutability": "view",
-                    "inputs": [
                         {
                             "name": "",
                             "type": "address",
                             "internalType": "address"
                         }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getCloneAddress",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
                     ],
                     "outputs": [
                         {
-                            "name": "owner",
+                            "name": "",
                             "type": "address",
                             "internalType": "address"
-                        },
-                        {
-                            "name": "beneficiary",
-                            "type": "address",
-                            "internalType": "address payable"
-                        },
-                        {
-                            "name": "authorizer",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "tStake",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "keepInTStake",
-                            "type": "uint96",
-                            "internalType": "uint96"
-                        },
-                        {
-                            "name": "nuInTStake",
-                            "type": "uint96",
-                            "internalType": "uint96"
                         }
                     ]
                 },
                 {
                     "type": "function",
-                    "name": "transferOwnership",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
+                    "name": "implementation",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
                         {
-                            "name": "newOwner",
+                            "name": "",
                             "type": "address",
                             "internalType": "address"
                         }
-                    ],
-                    "outputs": []
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "signingCoordinatorChild",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
                 }
             ],
-            "tx_hash": "0xeb083a1906cd8825653e4077cccc9caae00007624f4ac0dba29f49d82ec41ea2",
-            "block_number": 4886812,
+            "tx_hash": "0x1057e9da3709920e6bb8a0277f673f841acaaa1777636b4cffce247009a1c2fe",
+            "block_number": 9595185,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         }
     },
@@ -7921,6 +8913,592 @@
             ],
             "tx_hash": "0x4a1de1566b64df4f11a782939b4b694cb193df9bb06b307835a87e2420f37e81",
             "block_number": 5198646,
+            "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
+        }
+    },
+    "84532": {
+        "OpL2Receiver": {
+            "address": "0x9BA321B30173b433c68767961D6e53e420AEa382",
+            "abi": [
+                {
+                    "type": "constructor",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_messenger",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "InvalidInitialization",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "NotInitializing",
+                    "inputs": []
+                },
+                {
+                    "type": "event",
+                    "name": "Executed",
+                    "inputs": [
+                        {
+                            "name": "target",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        },
+                        {
+                            "name": "result",
+                            "type": "bytes",
+                            "internalType": "bytes",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "Initialized",
+                    "inputs": [
+                        {
+                            "name": "version",
+                            "type": "uint64",
+                            "internalType": "uint64",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "function",
+                    "name": "initialize",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_l1Sender",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "l1Sender",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "messenger",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "recvData",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "data",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ],
+                    "outputs": []
+                }
+            ],
+            "tx_hash": "0xe473bd42d00b2516d91a49f6863fe30f66c0f2b1739c5c771b35d8cf9de87978",
+            "block_number": 33477157,
+            "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
+        },
+        "SigningCoordinatorChild": {
+            "address": "0xcc537b292d142dABe2424277596d8FFCC3e6A12D",
+            "abi": [
+                {
+                    "type": "constructor",
+                    "stateMutability": "nonpayable",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "InvalidInitialization",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "NotInitializing",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "OwnableInvalidOwner",
+                    "inputs": [
+                        {
+                            "name": "owner",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "OwnableUnauthorizedAccount",
+                    "inputs": [
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "event",
+                    "name": "AllowedCallerUpdated",
+                    "inputs": [
+                        {
+                            "name": "oldCaller",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        },
+                        {
+                            "name": "newCaller",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "CohortMultisigDeployed",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "multisig",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "CohortMultisigUpdated",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "multisig",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        },
+                        {
+                            "name": "signers",
+                            "type": "address[]",
+                            "internalType": "address[]",
+                            "indexed": false
+                        },
+                        {
+                            "name": "threshold",
+                            "type": "uint16",
+                            "internalType": "uint16",
+                            "indexed": false
+                        },
+                        {
+                            "name": "clearSigners",
+                            "type": "bool",
+                            "internalType": "bool",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "Initialized",
+                    "inputs": [
+                        {
+                            "name": "version",
+                            "type": "uint64",
+                            "internalType": "uint64",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "MultisigFactoryUpdated",
+                    "inputs": [
+                        {
+                            "name": "oldFactory",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        },
+                        {
+                            "name": "newFactory",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "OwnershipTransferred",
+                    "inputs": [
+                        {
+                            "name": "previousOwner",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "newOwner",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "function",
+                    "name": "allowedCaller",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "cohortMultisigs",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "deployCohortMultiSig",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "signers",
+                            "type": "address[]",
+                            "internalType": "address[]"
+                        },
+                        {
+                            "name": "threshold",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "initialize",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_signingMultisigFactory",
+                            "type": "address",
+                            "internalType": "contract ThresholdSigningMultisigCloneFactory"
+                        },
+                        {
+                            "name": "_allowedCaller",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "owner",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "renounceOwnership",
+                    "stateMutability": "nonpayable",
+                    "inputs": [],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "setAllowedCaller",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_allowedCaller",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "setMultisigFactory",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "multisigFactory",
+                            "type": "address",
+                            "internalType": "contract ThresholdSigningMultisigCloneFactory"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "signingMultisigFactory",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "contract ThresholdSigningMultisigCloneFactory"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "transferOwnership",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "newOwner",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "updateMultiSigParameters",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "signers",
+                            "type": "address[]",
+                            "internalType": "address[]"
+                        },
+                        {
+                            "name": "threshold",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        },
+                        {
+                            "name": "clearSigners",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ],
+                    "outputs": []
+                }
+            ],
+            "tx_hash": "0x69df870d8072902eb3850e34db9c9354c02b08b6915d0d4c360372124339ca52",
+            "block_number": 33477198,
+            "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
+        },
+        "ThresholdSigningMultisigCloneFactory": {
+            "address": "0x418e991fD07cfA950855F820023AF6191E18B6df",
+            "abi": [
+                {
+                    "type": "constructor",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_implementation",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "_signingCoordinatorChild",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "ERC1167FailedCreateClone",
+                    "inputs": []
+                },
+                {
+                    "type": "event",
+                    "name": "ThresholdMultisigCloneDeployed",
+                    "inputs": [
+                        {
+                            "name": "cloneAddress",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        },
+                        {
+                            "name": "cohortId",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "function",
+                    "name": "deploySigningMultisig",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "signers",
+                            "type": "address[]",
+                            "internalType": "address[]"
+                        },
+                        {
+                            "name": "threshold",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        },
+                        {
+                            "name": "initialOwner",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "cohortId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getCloneAddress",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "cohortId",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "implementation",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "signingCoordinatorChild",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                }
+            ],
+            "tx_hash": "0xe11920d17f1b6aa3032ad1f2dcba7c5178a7d900a9732a7679b68b225d9615ed",
+            "block_number": 33477209,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         }
     }

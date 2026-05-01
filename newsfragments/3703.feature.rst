@@ -1,0 +1,1 @@
+Add ``create2`` operation for local computation of CREATE2 addresses, eliminating RPC calls for counterfactual address resolution.

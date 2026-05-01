@@ -14,7 +14,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: "3.12"
+        python-version: "3.13"
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -32,9 +32,10 @@ jobs:
       if: ${{ github.ref_type == 'branch' }}
       run: |
         pip install bumpversion
-        export VERSION=$(bumpversion major --dry-run --list --allow-dirty | grep current_version= | sed 's/current_version=//g')
-        echo "Set development version: $VERSION-dev.${{github.sha}}"
-        bumpversion devnum --new-version $VERSION-dev.${{github.sha}} --no-tag --no-commit
+        export VERSION=$(bumpversion devnum --dry-run --serialize {major}.{minor}.{patch}.dev{devnum} --list | grep new_version= | sed 's/new_version=//g')
+        export SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7 | tr '[:upper:]' '[:lower:]')
+        echo "Set development version: $VERSION+$SHORT_SHA"
+        bumpversion devnum --serialize {major}.{minor}.{patch}.dev{devnum}+$SHORT_SHA --no-tag --no-commit
 
     - name: Build and push Docker image (development)
       if: ${{ github.ref_type == 'branch' }}

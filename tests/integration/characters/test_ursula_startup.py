@@ -2,7 +2,7 @@ import pytest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
-from tests.constants import TESTERCHAIN_CHAIN_ID
+from tests.constants import MOCK_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 
 def test_new_ursula_announces_herself(lonely_ursula_maker):
@@ -34,15 +34,32 @@ def test_node_deployer(ursulas):
         assert deployer.application == ursula.rest_app
 
 
-def test_no_corresponding_condition_blockchain_provider(lonely_ursula_maker):
-    INVALID_CHAIN_ID = 66775827584859395569954838  # If we eventually support a chain with this ID, heaven help us.
+def test_no_corresponding_valid_condition_blockchain_provider(
+    lonely_ursula_maker, mocker
+):
+    OTHER_CHAIN_ID = 66775827584859395569954838
+    other_chain_uri = "this is an invalid provider URI, but doesn't matter because the health check will fail it"
 
-    with pytest.raises(Ursula.ActorError):
+    def mock_rpc_endpoint_health_check(endpoint: str, *args, **kwargs):
+        if endpoint == other_chain_uri:
+            return False
+
+        return True
+
+    mocker.patch(
+        "nucypher.blockchain.eth.actors.rpc_endpoint_health_check",
+        side_effect=mock_rpc_endpoint_health_check,
+    )
+
+    with pytest.raises(
+        Ursula.ActorError,
+        match=f"Operator-configured RPC condition endpoint.*{OTHER_CHAIN_ID}.* is unhealthy",
+    ):
         _ursula_who_tries_to_connect_to_an_invalid_chain = lonely_ursula_maker(
             quantity=1,
             domain=TEMPORARY_DOMAIN_NAME,
             condition_blockchain_endpoints={
-                TESTERCHAIN_CHAIN_ID: "this is a provider URI.",
-                INVALID_CHAIN_ID: "this is a provider URI, but it doesn't matter what we pass here because the chain_id is invalid."
+                TESTERCHAIN_CHAIN_ID: [MOCK_ETH_PROVIDER_URI],
+                OTHER_CHAIN_ID: [other_chain_uri],
             },
         )

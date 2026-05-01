@@ -28,7 +28,7 @@ from eth_utils.abi import event_abi_to_log_topic
 from requests import HTTPError
 from web3 import Web3
 from web3._utils.events import get_event_data
-from web3.contract.contract import Contract
+from web3.contract.contract import Contract, ContractEvent
 from web3.datastructures import AttributeDict
 from web3.exceptions import BlockNotFound
 from web3.types import BlockIdentifier
@@ -189,7 +189,7 @@ class EventScanner:
         web3: Web3,
         contract: Contract,
         state: EventScannerState,
-        events: List,
+        events: List[ContractEvent],
         min_chunk_scan_size: int = MIN_CHUNK_NUM_BLOCKS,
         max_chunk_scan_size: int = MAX_CHUNK_NUM_BLOCKS,
         max_request_retries: int = DEFAULT_MAX_RETRIES,
@@ -291,9 +291,9 @@ class EventScanner:
         """Purge old data in the case of blockchain reorganisation."""
         self.state.delete_data(after_block)
 
-    def scan_chunk(self, start_block, end_block) -> Tuple[int, datetime.datetime, list]:
+    def scan_chunk(self, start_block, end_block) -> Tuple[int, list]:
         """Read and process events between to block numbers.
-        :return: tuple(actual end block number, when this block was mined, processed events)
+        :return: tuple(actual end block number, processed events)
         """
 
         block_timestamps = {}
@@ -323,8 +323,7 @@ class EventScanner:
             processed = self.process_event(event=evt, get_block_when=get_block_when)
             all_processed.append(processed)
 
-        end_block_timestamp = get_block_when(actual_end_block)
-        return actual_end_block, end_block_timestamp, all_processed
+        return actual_end_block, all_processed
 
     def process_event(
         self, event: AttributeDict, get_block_when: Callable[[int], datetime.datetime]
@@ -420,7 +419,7 @@ class EventScanner:
             )
 
             start = time.time()
-            actual_end_block, end_block_timestamp, new_entries = self.scan_chunk(
+            actual_end_block, new_entries = self.scan_chunk(
                 current_block, estimated_end_block
             )
 
@@ -598,11 +597,9 @@ class JSONifiedState(EventScannerState):
     Simple load/store massive JSON on start up.
     """
 
-    STATE_FILENAME = "eventscanner.json"
-
-    def __init__(self, persistent=True):
+    def __init__(self, persistent=True, fname="eventscanner.json"):
         self.state = None
-        self.fname = self.STATE_FILENAME
+        self.fname = fname
         # How many second ago we saved the JSON file
         self.last_save = 0
         self.persistent = persistent
@@ -616,6 +613,10 @@ class JSONifiedState(EventScannerState):
 
     def restore(self):
         """Restore the last scan state from a file."""
+        if not self.persistent:
+            self.reset()
+            return
+
         try:
             self.state = json.load(open(self.fname, "rt"))
             print(
@@ -627,8 +628,9 @@ class JSONifiedState(EventScannerState):
 
     def save(self):
         """Save everything we have scanned so far in a file."""
-        with open(self.fname, "wt") as f:
-            json.dump(self.state, f)
+        if self.persistent:
+            with open(self.fname, "wt") as f:
+                json.dump(self.state, f)
         self.last_save = time.time()
 
     #

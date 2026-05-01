@@ -1,11 +1,16 @@
 import ast
 import base64
 import json
+import math
 import operator as pyoperator
+import statistics
+from decimal import Decimal, InvalidOperation, localcontext
 from enum import Enum
 from hashlib import md5
+from inspect import signature
 from typing import Any, List, Optional, Tuple, Type, Union
 
+from eth_utils import is_hexstr, keccak, to_checksum_address
 from hexbytes import HexBytes
 from marshmallow import (
     Schema,
@@ -21,9 +26,9 @@ from marshmallow.validate import OneOf, Range
 from packaging.version import parse as parse_version
 
 from nucypher.policy.conditions.base import (
-    AccessControlCondition,
+    Condition,
     ExecutionCall,
-    MultiConditionAccessControl,
+    MultiCondition,
     _Serializable,
 )
 from nucypher.policy.conditions.context import (
@@ -31,6 +36,7 @@ from nucypher.policy.conditions.context import (
     resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
+    ConditionEvaluationFailed,
     InvalidCondition,
     InvalidConditionLingo,
     ReturnValueEvaluationError,
@@ -39,8 +45,16 @@ from nucypher.policy.conditions.types import ConditionDict, Lingo
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     ConditionProviderManager,
+    _convert_any_decimals_to_floats,
+    _convert_any_floats_to_decimal,
+    _eth_to_wei,
+    _to_token_base_units,
+    _wei_to_eth,
+    check_and_convert_any_big_ints,
     check_and_convert_big_int_string_to_int,
+    extract_condition_failure_details,
 )
+from nucypher.utilities.logging import Logger
 
 
 class AnyField(fields.Field):
@@ -50,23 +64,11 @@ class AnyField(fields.Field):
     numbers as integers, so those need converting to integers.
     """
 
-    def _convert_any_big_ints_from_string(self, value):
-        if isinstance(value, list):
-            return [self._convert_any_big_ints_from_string(item) for item in value]
-        elif isinstance(value, dict):
-            return {
-                k: self._convert_any_big_ints_from_string(v) for k, v in value.items()
-            }
-        elif isinstance(value, str):
-            return check_and_convert_big_int_string_to_int(value)
-
-        return value
-
     def _serialize(self, value, attr, obj, **kwargs):
         return value
 
     def _deserialize(self, value, attr, data, **kwargs):
-        return self._convert_any_big_ints_from_string(value)
+        return check_and_convert_any_big_ints(value)
 
 
 class AnyLargeIntegerField(fields.Int):
@@ -104,7 +106,7 @@ class _ConditionField(fields.Dict):
         return instance
 
 
-# CONDITION = TIME | CONTRACT | RPC | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION
+# CONDITION = TIME | CONTRACT | RPC | JSON | JSON_API | JSON_RPC | JWT | COMPOUND | SEQUENTIAL | IF_THEN_ELSE_CONDITION | ECDSA  | SIGNING_ATTRIBUTE | SIGNING_ABI_ATTRIBUTE
 class ConditionType(Enum):
     """
     Defines the types of conditions that can be evaluated.
@@ -113,24 +115,44 @@ class ConditionType(Enum):
     TIME = "time"
     CONTRACT = "contract"
     RPC = "rpc"
+    JSON = "json"
     JSONAPI = "json-api"
     JSONRPC = "json-rpc"
     JWT = "jwt"
     COMPOUND = "compound"
     SEQUENTIAL = "sequential"
     IF_THEN_ELSE = "if-then-else"
+    ECDSA = "ecdsa"
+    SIGNING_ATTRIBUTE = "signing-attribute"
+    SIGNING_ABI_ATTRIBUTE = "signing-abi-attribute"
+    CONTEXT_VARIABLE = "context-variable"
 
     @classmethod
     def values(cls) -> List[str]:
         return [condition.value for condition in cls]
 
 
-class CompoundAccessControlCondition(MultiConditionAccessControl):
+class Operator(Enum):
+    """
+    Defines the logical operators that can be used in compound conditions.
+    """
+
+    AND = "and"
+    OR = "or"
+    NOT = "not"
+    AT_LEAST = "at-least"
+
+    @classmethod
+    def values(cls) -> List[str]:
+        return [op.value for op in cls]
+
+
+class CompoundCondition(MultiCondition):
     """
     A combination of two or more conditions connected by logical operators such as AND, OR, NOT.
 
     CompoundCondition grammar:
-        OPERATOR = AND | OR | NOT
+        OPERATOR = AND | OR | NOT | AT_LEAST
 
         COMPOUND_CONDITION = {
             "name": ...  (Optional)
@@ -139,18 +161,20 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
             "operands": [CONDITION*]
         }
     """
-    AND_OPERATOR = "and"
-    OR_OPERATOR = "or"
-    NOT_OPERATOR = "not"
 
-    OPERATORS = (AND_OPERATOR, OR_OPERATOR, NOT_OPERATOR)
+    AND_OPERATOR = Operator.AND.value
+    OR_OPERATOR = Operator.OR.value
+    NOT_OPERATOR = Operator.NOT.value
+    AT_LEAST_OPERATOR = Operator.AT_LEAST.value
+
+    OPERATORS = tuple(Operator.values())
     CONDITION_TYPE = ConditionType.COMPOUND.value
 
     @classmethod
     def _validate_operator_and_operands(
         cls,
         operator: str,
-        operands: List[AccessControlCondition],
+        operands: List[Condition],
     ):
         if operator not in cls.OPERATORS:
             raise ValidationError(
@@ -172,15 +196,16 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         elif num_operands > cls.MAX_NUM_CONDITIONS:
             raise ValidationError(
                 field_name="operands",
-                message="Maximum of {cls.MAX_NUM_CONDITIONS} operands allowed for '{operator}' compound condition",
+                message=f"Maximum of {cls.MAX_NUM_CONDITIONS} operands allowed for '{operator}' compound condition",
             )
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.COMPOUND.value), required=True
         )
         operator = fields.Str(required=True)
         operands = fields.List(_ConditionField, required=True)
+        threshold = fields.Int(required=False)
 
         # maintain field declaration ordering
         class Meta:
@@ -190,23 +215,41 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         def validate_operator_and_operands(self, data, **kwargs):
             operator = data["operator"]
             operands = data["operands"]
-            CompoundAccessControlCondition._validate_operator_and_operands(
-                operator, operands
-            )
-            CompoundAccessControlCondition._validate_multi_condition_nesting(
+            CompoundCondition._validate_operator_and_operands(operator, operands)
+            CompoundCondition._validate_multi_condition_nesting(
                 conditions=operands, field_name="operands"
             )
 
+            threshold = data.get("threshold", None)
+            if operator == CompoundCondition.AT_LEAST_OPERATOR:
+                number_of_operands = len(operands)
+                if threshold is None:
+                    raise ValidationError(
+                        field_name="threshold",
+                        message=f"Threshold must be specified for {operator} operator",
+                    )
+                elif threshold < 1 or threshold > number_of_operands:
+                    raise ValidationError(
+                        field_name="threshold",
+                        message=f"Threshold must be between 1 and number of operands ({number_of_operands})",
+                    )
+            elif threshold is not None:
+                raise ValidationError(
+                    field_name="threshold",
+                    message=f"Threshold is only valid for {CompoundCondition.AT_LEAST_OPERATOR} operator",
+                )
+
         @post_load
         def make(self, data, **kwargs):
-            return CompoundAccessControlCondition(**data)
+            return CompoundCondition(**data)
 
     def __init__(
         self,
         operator: str,
-        operands: List[AccessControlCondition],
+        operands: List[Condition],
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
+        threshold: Optional[int] = None,
     ):
         """
         COMPOUND_CONDITION = {
@@ -216,6 +259,7 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         """
         self.operator = operator
         self.operands = operands
+        self.threshold = threshold
 
         super().__init__(
             condition_type=condition_type,
@@ -228,11 +272,19 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         return f"Operator={self.operator} (NumOperands={len(self.operands)}), id={self.id})"
 
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
+        if self.operator == self.NOT_OPERATOR:
+            current_result, current_value = self.operands[0].verify(*args, **kwargs)
+            return not current_result, current_value
+
         values = []
+        num_passed_conditions = 0
         overall_result = True if self.operator == self.AND_OPERATOR else False
         for condition in self.operands:
             current_result, current_value = condition.verify(*args, **kwargs)
             values.append(current_value)
+            if current_result:
+                num_passed_conditions += 1
+
             if self.operator == self.AND_OPERATOR:
                 overall_result = overall_result and current_result
                 # short-circuit check
@@ -243,9 +295,11 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
                 # short-circuit check
                 if overall_result is True:
                     break
-            else:
-                # NOT_OPERATOR
-                return not current_result, current_value
+            elif self.operator == self.AT_LEAST_OPERATOR:
+                overall_result = num_passed_conditions >= self.threshold
+                # short-circuit check
+                if overall_result is True:
+                    break
 
         return overall_result, values
 
@@ -254,19 +308,26 @@ class CompoundAccessControlCondition(MultiConditionAccessControl):
         return self.operands
 
 
-class OrCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operands: List[AccessControlCondition]):
+class OrCompoundCondition(CompoundCondition):
+    def __init__(self, operands: List[Condition]):
         super().__init__(operator=self.OR_OPERATOR, operands=operands)
 
 
-class AndCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operands: List[AccessControlCondition]):
+class AndCompoundCondition(CompoundCondition):
+    def __init__(self, operands: List[Condition]):
         super().__init__(operator=self.AND_OPERATOR, operands=operands)
 
 
-class NotCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operand: AccessControlCondition):
+class NotCompoundCondition(CompoundCondition):
+    def __init__(self, operand: Condition):
         super().__init__(operator=self.NOT_OPERATOR, operands=[operand])
+
+
+class AtLeastCompoundCondition(CompoundCondition):
+    def __init__(self, operands: List[Condition], threshold: int):
+        super().__init__(
+            operator=self.AT_LEAST_OPERATOR, operands=operands, threshold=threshold
+        )
 
 
 _COMPARATOR_FUNCTIONS = {
@@ -276,24 +337,280 @@ _COMPARATOR_FUNCTIONS = {
     "<": pyoperator.lt,
     "<=": pyoperator.le,
     ">=": pyoperator.ge,
+    # currently only supports checking value in list and not sub-string/bytes comparisons
+    "in": lambda item, container: pyoperator.contains(container, item),
+    "!in": lambda item, container: pyoperator.not_(
+        pyoperator.contains(container, item)
+    ),
 }
+
+
+def _to_hex(value):
+    """
+    Convert value to hex string.
+
+    Supports bytes, bytearray, int, and str types.
+    Strings are encoded to UTF-8 before conversion.
+
+    :param value: Value to convert to hex
+    :return: Hex string with 0x prefix
+    :raises TypeError: If value type cannot be converted to hex
+    """
+    try:
+        if isinstance(value, str):
+            # Encode regular strings to UTF-8
+            value = value.encode("utf-8")
+        # HexBytes handles bytes, bytearray, and int
+        h = HexBytes(value)
+        return h.hex()
+    except (TypeError, ValueError) as e:
+        raise TypeError(f"Invalid value for hex conversion: {e}")
+
+
+def _compute_create2_address(salt: bytes, value: dict) -> str:
+    """
+    Compute CREATE2 address locally.
+
+    Formula: keccak256(0xff ++ deployer ++ salt ++ bytecode_hash)[12:]
+
+    :param salt: The salt value (must be 32 bytes)
+    :param value: Dict containing 'deployerAddress' and 'bytecodeHash'
+    :return: Checksummed Ethereum address
+    :raises TypeError: If inputs are invalid
+    """
+    try:
+        deployer_address = value["deployerAddress"]
+        bytecode_hash = value["bytecodeHash"]
+    except (KeyError, TypeError) as e:
+        raise TypeError(
+            f"create2 operation requires dictionary with 'deployerAddress' and 'bytecodeHash' values: {e}"
+        )
+
+    # Validate and convert deployer address
+    try:
+        deployer_bytes = HexBytes(deployer_address)
+    except Exception as e:
+        raise TypeError(f"Invalid deployerAddress: {e}")
+    if len(deployer_bytes) != 20:
+        raise TypeError(f"deployerAddress must be 20 bytes, got {len(deployer_bytes)}")
+
+    # Validate and convert salt
+    try:
+        salt_bytes = HexBytes(salt)
+    except Exception as e:
+        raise TypeError(f"Invalid salt: {e}")
+    if len(salt_bytes) != 32:
+        raise TypeError(f"salt must be 32 bytes, got {len(salt_bytes)}")
+
+    # Validate and convert bytecode hash
+    try:
+        bytecode_hash_bytes = HexBytes(bytecode_hash)
+    except Exception as e:
+        raise TypeError(f"Invalid bytecodeHash: {e}")
+    if len(bytecode_hash_bytes) != 32:
+        raise TypeError(
+            f"bytecodeHash must be 32 bytes, got {len(bytecode_hash_bytes)}"
+        )
+
+    # CREATE2: keccak256(0xff ++ deployer ++ salt ++ bytecode_hash)[12:]
+    pre_image = b"\xff" + deployer_bytes + salt_bytes + bytecode_hash_bytes
+    address_bytes = keccak(pre_image)[12:]
+
+    return to_checksum_address(address_bytes)
+
+
+# should raise TypeError for invalid inputs
+_OPERATOR_FUNCTIONS = {
+    # We can add all kinds of operators over time, this is just a base start - given that
+    # we need ethToWei and weiToEth.
+    # Whether this set is too aggressive or not remains to be seen. We can always pare
+    # back on the operators we want to start with.
+    "+=": pyoperator.add,
+    "-=": pyoperator.sub,
+    "*=": pyoperator.mul,
+    "/=": pyoperator.truediv,
+    "%=": pyoperator.mod,
+    "index": lambda a, b: a[b],
+    "round": lambda a, b: round(a, b),
+    "toTokenBaseUnits": _to_token_base_units,
+    # unary operations i.e. don't require 2nd 'b' value to be passed;
+    "abs": lambda a: abs(a),
+    "avg": lambda a: statistics.mean(a),
+    "ceil": lambda a: math.ceil(a),
+    "ethToWei": _eth_to_wei,
+    "floor": lambda a: math.floor(a),
+    "len": lambda a: len(a),
+    "max": lambda a: max(a),
+    "min": lambda a: min(a),
+    "sum": lambda a: sum(a),
+    "weiToEth": _wei_to_eth,
+    # casting
+    "bool": lambda a: bool(a),
+    "float": lambda a: float(a),
+    "int": lambda a: int(a),
+    "str": lambda a: str(a),
+    # JSON conversion
+    "fromJson": lambda a: json.loads(a),
+    "toJson": lambda a: json.dumps(a),
+    # hex conversion
+    "fromHex": lambda a: bytes(HexBytes(a)),
+    "toHex": _to_hex,
+    # hashing
+    "keccak": lambda a: keccak(a.encode() if isinstance(a, str) else a),
+    # address computation
+    "create2": _compute_create2_address,
+}
+
+MAX_VARIABLE_OPERATIONS = 5
+
+
+class VariableOperation(_Serializable):
+    """
+    An operation to be performed on a variable value.
+
+    Evaluation of VariableOperation should always be done via `evaluate_operations()` to ensure
+    floating precision if utilized is always maintained, even for evaluation of single operation.
+    `_evaluate()` should never be called directly.
+
+    There is a limit to floating point precision for operations.
+    """
+
+    class Schema(CamelCaseSchema):
+        operation = fields.Str(
+            required=True,
+            validate=OneOf(_OPERATOR_FUNCTIONS, error="Not a permitted operation"),
+        )
+        value = AnyField(required=False, allow_none=True)
+
+        @validates_schema
+        def validate_operation_and_value(self, data, **kwargs):
+            operation = data["operation"]
+            value = data.get("value")
+            if VariableOperation._is_unary_operation(operation):
+                if value is not None:
+                    raise ValidationError(
+                        field_name="value",
+                        message=f'No value should be provided for operation "{operation}"',
+                    )
+            elif value is None:
+                raise ValidationError(
+                    field_name="value",
+                    message=f'A value must be provided for operation "{operation}"',
+                )
+
+        @post_load
+        def make(self, data, **kwargs):
+            return VariableOperation(**data)
+
+    def __init__(self, operation: str, value: Any = None):
+        self.operation = operation
+        # don't convert value in constructor since serialization used for validation
+        self.value = value
+
+        super().__init__()
+        self._validate()
+
+    @classmethod
+    def _is_unary_operation(cls, operation: str) -> bool:
+        operation_fn = _OPERATOR_FUNCTIONS[operation]
+        return len(signature(operation_fn).parameters) == 1
+
+    def _evaluate(self, variable_value: Any):
+        """
+        Calculates the result of the operation on the variable value.
+
+        This should never be called directly; use `evaluate_operations()` instead.
+        """
+        operation_function = _OPERATOR_FUNCTIONS[self.operation]
+        if self._is_unary_operation(self.operation):
+            return operation_function(variable_value)
+        else:
+            # convert value
+            op_parameter = _convert_any_floats_to_decimal(self.value)
+            return operation_function(variable_value, op_parameter)
+
+    @classmethod
+    def evaluate_operations(
+        cls, operations: List["VariableOperation"], variable_value: Any
+    ):
+        """
+        Calculates the result of a list of operations on the variable value.
+        """
+        if len(operations) < 1:
+            raise ValueError(
+                "At least one operation is required to perform calculations"
+            )
+
+        with localcontext() as ctx:
+            # large precision to avoid any float precision issues during calcs
+            # (same used for wei conversion)
+            ctx.prec = 999
+
+            # convert initial variable value to decimal if float
+            result = _convert_any_floats_to_decimal(variable_value)
+            for operation in operations:
+                result = operation._evaluate(result)
+
+        return _convert_any_decimals_to_floats(result)
+
+    @classmethod
+    def with_resolved_context(
+        cls,
+        operations: List["VariableOperation"],
+        providers: ConditionProviderManager = None,
+        **context,
+    ):
+        resolved_operations = []
+        for operation in operations:
+            resolved_value = (
+                resolve_any_context_variables(
+                    operation.value, providers=providers, **context
+                )
+                if operation.value is not None
+                else None
+            )
+            resolved_operations.append(
+                VariableOperation(operation=operation.operation, value=resolved_value)
+            )
+        return resolved_operations
 
 
 class ConditionVariable(_Serializable):
     class Schema(CamelCaseSchema):
-        var_name = fields.Str(required=True)  # TODO: should this be required?
+        var_name = fields.Str(required=True)
         condition = _ConditionField(required=True)
+        operations = fields.List(
+            fields.Nested(VariableOperation.Schema()),
+            validate=[
+                validate.Length(min=1, error="At least one operation required"),
+                validate.Length(
+                    max=MAX_VARIABLE_OPERATIONS,
+                    error=f"Maximum of {MAX_VARIABLE_OPERATIONS} operations allowed",
+                ),
+            ],
+            required=False,
+        )
 
         @post_load
         def make(self, data, **kwargs):
             return ConditionVariable(**data)
 
-    def __init__(self, var_name: str, condition: AccessControlCondition):
+    def __init__(
+        self,
+        var_name: str,
+        condition: Condition,
+        operations: Optional[List[VariableOperation]] = None,
+    ):
         self.var_name = var_name
         self.condition = condition
+        self.operations = operations
+
+        self._validate()
 
 
-class SequentialAccessControlCondition(MultiConditionAccessControl):
+class SequentialCondition(MultiCondition):
+    MAX_NUM_CONDITIONS = 20
+
     """
     A series of conditions that are evaluated in a specific order, where the result of one
     condition can be used in subsequent conditions.
@@ -304,6 +621,7 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
             "condition": {
                 CONDITION
             }
+            "operations": [VARIABLE_OPERATION*] (Optional)
         }
 
         SEQUENTIAL_CONDITION = {
@@ -314,6 +632,26 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
     """
 
     CONDITION_TYPE = ConditionType.SEQUENTIAL.value
+
+    @classmethod
+    def _gather_all_nested_condition_variables(
+        cls, conditions: List[Condition]
+    ) -> List[ConditionVariable]:
+        """
+        Gathers all nested sequential conditions from the condition variables.
+        """
+        condition_variables = []
+        for condition in conditions:
+            if isinstance(condition, SequentialCondition):
+                condition_variables.extend(condition.condition_variables)
+            elif isinstance(condition, MultiCondition):
+                # recursively gather from nested multi-conditions
+                nested_condition_variables = cls._gather_all_nested_condition_variables(
+                    condition.conditions
+                )
+                condition_variables.extend(nested_condition_variables)
+
+        return condition_variables
 
     @classmethod
     def _validate_condition_variables(
@@ -332,9 +670,20 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
                 message=f"Maximum of {cls.MAX_NUM_CONDITIONS} conditions are allowed",
             )
 
-        # check for duplicate var names
+        all_condition_variables = list(condition_variables)
+        # gather all nested condition variables
+        all_condition_variables.extend(
+            cls._gather_all_nested_condition_variables(
+                [
+                    condition_variable.condition
+                    for condition_variable in condition_variables
+                ]
+            )
+        )
+
+        # check for duplicate var names across all sequential conditions
         var_names = set()
-        for condition_variable in condition_variables:
+        for condition_variable in all_condition_variables:
             if condition_variable.var_name in var_names:
                 raise ValidationError(
                     field_name="condition_variables",
@@ -342,7 +691,7 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
                 )
             var_names.add(condition_variable.var_name)
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.SEQUENTIAL.value), required=True
         )
@@ -356,15 +705,15 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
 
         @validates("condition_variables")
         def validate_condition_variables(self, value):
-            SequentialAccessControlCondition._validate_condition_variables(value)
+            SequentialCondition._validate_condition_variables(value)
             conditions = [cv.condition for cv in value]
-            SequentialAccessControlCondition._validate_multi_condition_nesting(
+            SequentialCondition._validate_multi_condition_nesting(
                 conditions=conditions, field_name="condition_variables"
             )
 
         @post_load
         def make(self, data, **kwargs):
-            return SequentialAccessControlCondition(**data)
+            return SequentialCondition(**data)
 
     def __init__(
         self,
@@ -399,6 +748,20 @@ class SequentialAccessControlCondition(MultiConditionAccessControl):
             if not latest_success:
                 # short circuit due to failed condition
                 break
+
+            if condition_variable.operations:
+                resolved_operations = VariableOperation.with_resolved_context(
+                    condition_variable.operations, providers=providers, **inner_context
+                )
+                try:
+                    result = VariableOperation.evaluate_operations(
+                        resolved_operations, result
+                    )
+                except Exception as e:
+                    raise ConditionEvaluationFailed(
+                        f"Error performing operations on result of condition variable "
+                        f"'{condition_variable.var_name}': {e}"
+                    )
 
             inner_context[f":{condition_variable.var_name}"] = result
 
@@ -440,7 +803,7 @@ class _ElseConditionField(fields.Field):
         return instance
 
 
-class IfThenElseCondition(MultiConditionAccessControl):
+class IfThenElseCondition(MultiCondition):
     """
     A condition that represents simple if-then-else logic.
 
@@ -456,7 +819,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
 
     MAX_NUM_CONDITIONS = 3  # only ever max of 3 (if, then, else)
 
-    class Schema(AccessControlCondition.Schema):
+    class Schema(Condition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.IF_THEN_ELSE.value), required=True
         )
@@ -485,7 +848,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
 
         @validates("else_condition")
         def validate_else_condition(self, value):
-            if isinstance(value, AccessControlCondition):
+            if isinstance(value, Condition):
                 self._validate_nested_conditions("else_condition", value)
 
         @post_load
@@ -494,9 +857,9 @@ class IfThenElseCondition(MultiConditionAccessControl):
 
     def __init__(
         self,
-        if_condition: AccessControlCondition,
-        then_condition: AccessControlCondition,
-        else_condition: Union[AccessControlCondition, bool],
+        if_condition: Condition,
+        then_condition: Condition,
+        else_condition: Union[Condition, bool],
         condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
@@ -518,7 +881,7 @@ class IfThenElseCondition(MultiConditionAccessControl):
     @property
     def conditions(self):
         values = [self.if_condition, self.then_condition]
-        if isinstance(self.else_condition, AccessControlCondition):
+        if isinstance(self.else_condition, Condition):
             values.append(self.else_condition)
 
         return values
@@ -536,8 +899,11 @@ class IfThenElseCondition(MultiConditionAccessControl):
             values.append(then_value)
             return then_result, values
 
+        # then condition not executed
+        values.append(None)
+
         # else
-        if isinstance(self.else_condition, AccessControlCondition):
+        if isinstance(self.else_condition, Condition):
             # actual condition
             else_result, else_value = self.else_condition.verify(*args, **kwargs)
         else:
@@ -548,37 +914,64 @@ class IfThenElseCondition(MultiConditionAccessControl):
         return else_result, values
 
 
-class ReturnValueTest:
+class ReturnValueTest(_Serializable):
     class InvalidExpression(ValueError):
         pass
 
     COMPARATORS = tuple(_COMPARATOR_FUNCTIONS)
 
-    class ReturnValueTestSchema(CamelCaseSchema):
-        SKIP_VALUES = (None,)
-        comparator = fields.Str(required=True, validate=OneOf(_COMPARATOR_FUNCTIONS))
+    class Schema(CamelCaseSchema):
+        comparator = fields.Str(
+            required=True,
+            validate=OneOf(_COMPARATOR_FUNCTIONS, error="Not a permitted comparator"),
+        )
         value = AnyField(
             allow_none=False, required=True
         )  # any valid type (excludes None)
         index = fields.Int(
-            strict=True, required=False, validate=Range(min=0), allow_none=True
+            strict=True,
+            required=False,
+            validate=Range(
+                min=0, error="Not a permitted index. Must be a an non-negative integer."
+            ),
+            allow_none=True,
         )
+        operations = fields.List(
+            fields.Nested(VariableOperation.Schema()),
+            validate=[
+                validate.Length(min=1, error="At least one operation required"),
+                validate.Length(
+                    max=MAX_VARIABLE_OPERATIONS,
+                    error=f"Maximum of {MAX_VARIABLE_OPERATIONS} operations allowed",
+                ),
+            ],
+            required=False,
+        )
+
+        @validates_schema
+        def validate_comparator_and_value(self, data, **kwargs):
+            value = data.get("value")
+            if is_context_variable(value):
+                return
+
+            comparator = data.get("comparator")
+            if comparator in ["in", "!in"] and not isinstance(value, list):
+                raise ValidationError(
+                    field_name="value",
+                    message=f'"{type(value)}" is not a valid type for "{comparator}"; only list is allowed.',
+                )
 
         @post_load
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
-    def __init__(self, comparator: str, value: Any, index: int = None):
-        if comparator not in self.COMPARATORS:
-            raise self.InvalidExpression(
-                f'"{comparator}" is not a permitted comparator.'
-            )
-
-        if index is not None and (not isinstance(index, int) or index < 0):
-            raise self.InvalidExpression(
-                f'"{index}" is not a permitted index. Must be a an non-negative integer.'
-            )
-
+    def __init__(
+        self,
+        comparator: str,
+        value: Any,
+        index: Optional[int] = None,
+        operations: Optional[List[VariableOperation]] = None,
+    ):
         if not is_context_variable(value):
             # adjust stored value to be JSON serializable
             if isinstance(value, (tuple, set)):
@@ -601,47 +994,86 @@ class ReturnValueTest:
         self.comparator = comparator
         self.value = value
         self.index = index
+        self.operations = operations
+
+        try:
+            self._validate()
+        except ValueError as e:
+            raise self.InvalidExpression(f"{e}")
 
     @classmethod
-    def _sanitize_value(cls, value):
+    def _sanitize_value(cls, value) -> Any:
         try:
             return ast.literal_eval(str(value))
         except Exception:
             raise cls.InvalidExpression(f'"{value}" is not a permitted value.')
 
     @staticmethod
-    def __handle_potential_bytes(data: Any) -> Any:
-        return HexBytes(data).hex() if isinstance(data, bytes) else data
+    def __process_bytes(data: bytes) -> str:
+        return HexBytes(data).hex()  # convert bytes to hex string
 
-    def _process_data(self, data: Any, index: Optional[int]) -> Any:
+    @staticmethod
+    def __string_already_primitive_type(data: str) -> bool:
+        # check if boolean string
+        if data in ["True", "False"]:
+            return True
+
+        # check if int or float as string
+        try:
+            _ = Decimal(data)
+            return True
+        except InvalidOperation:
+            pass
+
+        return False
+
+    @staticmethod
+    def __process_string(data: str) -> str:
+        # if 0x prefixed hex string, leave as is
+        if data.startswith("0x") and is_hexstr(data):
+            return data
+        # check if string is already primitive type, leave as is
+        elif ReturnValueTest.__string_already_primitive_type(data):
+            return data
+        # check if already quoted; if not, quote it
+        elif len(data) <= 1 or not (
+            (data.startswith("'") and data.endswith("'"))
+            or (data.startswith('"') and data.endswith('"'))
+        ):
+            quote_type_to_use = '"' if "'" in data else "'"
+            return f"{quote_type_to_use}{data}{quote_type_to_use}"
+        else:
+            # leave as is
+            return data
+
+    def _process_data(self, data: Any, top_level_call: bool = True) -> Any:
         """
-        If an index is specified, return the value at that index in the data if data is list-like.
-        Otherwise, return the data.
+        Process data for use with literal eval. Recursively processes data as needed.
+        Steps:
+        1. Convert bytes to hex as needed, including within nested lists/tuples.
+        2. Hex strings remain as is
+        3. Strings that are already primitive types (int, float, bool) remain as is
+        4. Convert non-hex strings to quoted strings at top level only i.e. individual string values
+        (literal eval can only compare quoted strings); strings within data structures are fine
         """
-        processed_data = data
-
-        # try to get indexed entry first
-        if index is not None:
-            if not isinstance(processed_data, (list, tuple)):
-                raise ReturnValueEvaluationError(
-                    f"Index: {index} and Value: {processed_data} are not compatible types."
-                )
-            try:
-                processed_data = data[index]
-            except IndexError:
-                raise ReturnValueEvaluationError(
-                    f"Index '{index}' not found in returned data."
-                )
-
-        if isinstance(processed_data, (list, tuple)):
+        if isinstance(data, (list, tuple)):
             # convert any bytes in list to hex (include nested lists/tuples); no additional indexing
             processed_data = [
-                self._process_data(data=item, index=None) for item in processed_data
+                self._process_data(data=item, top_level_call=False) for item in data
             ]
             return processed_data
+        elif isinstance(data, bytes):
+            # convert bytes to hex if necessary
+            processed_data = self.__process_bytes(data)
+            return processed_data
+        elif isinstance(data, str):
+            # only process strings at the top level call (i.e. don't need to process strings within lists/tuples)
+            if not top_level_call:
+                return data
 
-        # convert bytes to hex if necessary
-        return self.__handle_potential_bytes(processed_data)
+            return self.__process_string(data)
+        else:
+            return data
 
     def eval(self, data) -> bool:
         if is_context_variable(self.value):
@@ -651,17 +1083,61 @@ class ReturnValueTest:
                 f"for condition evaluation."
             )
 
-        processed_data = self._process_data(data, self.index)
+        # check for index
+        if self.index is not None:
+            if not isinstance(data, (list, tuple)):
+                raise ReturnValueEvaluationError(
+                    f"Index: {self.index} and Value: {data} are not compatible types."
+                )
+            try:
+                data = data[self.index]
+            except IndexError:
+                raise ReturnValueEvaluationError(
+                    f"Index '{self.index}' not found in returned data."
+                )
+
+        # perform any additional operations before comparison
+        if self.operations:
+            try:
+                data = VariableOperation.evaluate_operations(self.operations, data)
+            except Exception as e:
+                raise ReturnValueEvaluationError(
+                    f"Error performing operations on returned data: {e}"
+                )
+
+        processed_data = self._process_data(data)
         left_operand = self._sanitize_value(processed_data)
-        right_operand = self._sanitize_value(self.value)
-        result = _COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
+
+        comparator_function = _COMPARATOR_FUNCTIONS.get(self.comparator)
+        if self.comparator in ["in", "!in"]:
+            # sanitize all values in list
+            sanitized_list = [self._sanitize_value(v) for v in self.value]
+            right_operand = sanitized_list
+        else:
+            right_operand = self._sanitize_value(self.value)
+
+        result = comparator_function(left_operand, right_operand)
+
         return result
 
     def with_resolved_context(
         self, providers: Optional[ConditionProviderManager] = None, **context
     ):
-        value = resolve_any_context_variables(self.value, providers, **context)
-        return ReturnValueTest(self.comparator, value=value, index=self.index)
+        resolved_value = resolve_any_context_variables(self.value, providers, **context)
+
+        resolved_operations = None
+        if self.operations:
+            # make sure context variables are resolved for operations too
+            resolved_operations = VariableOperation.with_resolved_context(
+                self.operations, providers=providers, **context
+            )
+
+        return ReturnValueTest(
+            self.comparator,
+            value=resolved_value,
+            index=self.index,
+            operations=resolved_operations,
+        )
 
 
 class ConditionLingo(_Serializable):
@@ -696,11 +1172,12 @@ class ConditionLingo(_Serializable):
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    def __init__(self, condition: AccessControlCondition, version: str = VERSION):
+    def __init__(self, condition: Condition, version: str = VERSION):
         self.condition = condition
         self.check_version_compatibility(version)
         self.version = version
         self.id = md5(bytes(self)).hexdigest()[:6]
+        self.log = Logger(self.__class__.__name__)
 
     @classmethod
     def from_dict(cls, data: Lingo) -> "ConditionLingo":
@@ -710,66 +1187,91 @@ class ConditionLingo(_Serializable):
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
 
     @classmethod
-    def from_json(cls, data: str) -> 'ConditionLingo':
+    def from_json(cls, data: str) -> "ConditionLingo":
         try:
             return super().from_json(data)
         except ValidationError as e:
             raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
 
     def to_base64(self) -> bytes:
-        data = base64.b64encode(self.to_json().encode())
+        data = base64.b64encode(self.to_json().encode("utf-8"))
         return data
 
     @classmethod
-    def from_base64(cls, data: bytes) -> 'ConditionLingo':
-        decoded_json = base64.b64decode(data).decode()
+    def from_base64(cls, data: bytes) -> "ConditionLingo":
+        decoded_json = base64.b64decode(data).decode("utf-8")
         instance = cls.from_json(decoded_json)
         return instance
 
     def __bytes__(self) -> bytes:
-        data = self.to_json().encode()
+        data = self.to_json().encode("utf-8")
         return data
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "ConditionLingo":
+        json_payload = data.decode("utf-8")
+        instance = cls.from_json(json_payload)
+        return instance
 
     def __repr__(self):
         return f"{self.__class__.__name__} (version={self.version} | id={self.id} | size={len(bytes(self))}) | condition=({self.condition})"
 
-    def eval(self, *args, **kwargs) -> bool:
-        result, _ = self.condition.verify(*args, **kwargs)
+    def eval(self, *args, debug_mode: bool = False, **kwargs) -> bool:
+        result, value = self.condition.verify(*args, **kwargs)
+        if not result and debug_mode:
+            failure_details = extract_condition_failure_details(self.condition, value)
+            debug_info = json.dumps(failure_details, indent=2, default=str)
+            self.log.debug(
+                f"Condition evaluation failed; ({self}). Debug info: {debug_info}"
+            )
+
         return result
 
     @classmethod
     def resolve_condition_class(
         cls, condition: ConditionDict, version: int = None
-    ) -> Type[AccessControlCondition]:
+    ) -> Type[Condition]:
         """
         Inspects a given block of JSON and attempts to resolve it's intended datatype within the
         conditions expression framework.
         """
+        from nucypher.policy.conditions.ecdsa import ECDSACondition
         from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
         from nucypher.policy.conditions.json.api import JsonApiCondition
+        from nucypher.policy.conditions.json.json import JsonCondition
         from nucypher.policy.conditions.json.rpc import JsonRpcCondition
         from nucypher.policy.conditions.jwt import JWTCondition
+        from nucypher.policy.conditions.signing.base import (
+            SigningObjectAbiAttributeCondition,
+            SigningObjectAttributeCondition,
+        )
         from nucypher.policy.conditions.time import TimeCondition
+        from nucypher.policy.conditions.var import ContextVariableCondition
 
         # version logical adjustments can be made here as required
 
         condition_type = condition.get("conditionType")
-        for condition in (
+        for condition_class in (
             TimeCondition,
             ContractCondition,
             RPCCondition,
-            CompoundAccessControlCondition,
+            CompoundCondition,
+            ContextVariableCondition,
+            JsonCondition,
             JsonApiCondition,
             JsonRpcCondition,
             JWTCondition,
-            SequentialAccessControlCondition,
+            SequentialCondition,
             IfThenElseCondition,
+            ECDSACondition,
+            SigningObjectAttributeCondition,
+            SigningObjectAbiAttributeCondition,
         ):
-            if condition.CONDITION_TYPE == condition_type:
-                return condition
+            if condition_class.CONDITION_TYPE == condition_type:
+                return condition_class
 
         raise InvalidConditionLingo(
-            f"Cannot resolve condition lingo, {condition}, with condition type {condition_type}"
+            f"Cannot resolve condition lingo, {condition_class}, with condition type {condition_type}"
         )
 
     @classmethod
@@ -780,17 +1282,15 @@ class ConditionLingo(_Serializable):
             )
 
 
-class ExecutionCallAccessControlCondition(AccessControlCondition):
+class ExecutionCallCondition(Condition):
     """
     Conditions that utilize underlying ExecutionCall objects.
     """
 
     EXECUTION_CALL_TYPE = NotImplemented
 
-    class Schema(AccessControlCondition.Schema):
-        return_value_test = fields.Nested(
-            ReturnValueTest.ReturnValueTestSchema(), required=True
-        )
+    class Schema(Condition.Schema):
+        return_value_test = fields.Nested(ReturnValueTest.Schema(), required=True)
 
     def __init__(
         self,

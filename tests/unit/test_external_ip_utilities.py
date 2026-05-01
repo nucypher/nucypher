@@ -140,7 +140,8 @@ def test_get_external_ip_from_known_nodes(mock_client):
         known_nodes=sensor, sample_size=sample_size, eth_endpoint=MOCK_ETH_PROVIDER_URI
     )
     assert mock_client.call_count == 1
-    mock_client.call_count = 0  # reset
+
+    mock_client.reset_mock()  # reset
 
     # All sampled nodes dont respond
     mock_client.return_value = Dummy.BadResponse

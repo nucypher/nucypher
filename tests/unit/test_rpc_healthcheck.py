@@ -9,28 +9,59 @@ from nucypher.blockchain.eth.utils import (
 
 
 def test_rpc_endpoint_health_check(mocker):
+    chain_id = 2
+
     mock_time = mocker.patch("time.time", return_value=1625247600)
     mock_post = mocker.patch("requests.post")
 
-    mock_response = mocker.Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "result": {"timestamp": hex(1625247600)},
-    }
-    mock_post.return_value = mock_response
+    def mock_post_side_effect(endpoint, json, headers, timeout):
+        mock_response = mocker.Mock()
+        mock_response.status_code = 200
+
+        if json["method"] == "eth_chainId":
+            mock_response.json.return_value = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": hex(chain_id),  # Chain ID 2
+            }
+        else:
+            mock_response.json.return_value = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": {"timestamp": hex(1625247600)},
+            }
+        return mock_response
+
+    mock_post.side_effect = mock_post_side_effect
 
     # Test a healthy endpoint
-    assert rpc_endpoint_health_check("http://mockendpoint") is True
+    assert (
+        rpc_endpoint_health_check(chain_id=chain_id, endpoint="http://mockendpoint")
+        is True
+    )
+
+    # Test an unhealthy endpoint (wrong chain ID)
+    wrong_chain_id = 3
+    assert (
+        rpc_endpoint_health_check(
+            chain_id=wrong_chain_id, endpoint="http://mockendpoint"
+        )
+        is False
+    )
 
     # Test an unhealthy endpoint (drift too large)
     mock_time.return_value = 1625247600 + 100  # System time far ahead
-    assert rpc_endpoint_health_check("http://mockendpoint") is False
+    assert (
+        rpc_endpoint_health_check(chain_id=chain_id, endpoint="http://mockendpoint")
+        is False
+    )
 
     # Test request exception
     mock_post.side_effect = requests.exceptions.RequestException
-    assert rpc_endpoint_health_check("http://mockendpoint") is False
+    assert (
+        rpc_endpoint_health_check(chain_id=chain_id, endpoint="http://mockendpoint")
+        is False
+    )
 
 
 def test_get_default_rpc_endpoints(mocker):
@@ -59,6 +90,7 @@ def test_get_default_rpc_endpoints(mocker):
 
     # Mock a failed response
     mock_get.return_value.status_code = 500
+    mock_get.return_value.text = "Internal Server Error"
     assert get_default_rpc_endpoints(test_domain) == {}
 
 
@@ -74,9 +106,8 @@ def test_get_healthy_default_rpc_endpoints(mocker):
     mock_health_check = mocker.patch(
         "nucypher.blockchain.eth.utils.rpc_endpoint_health_check"
     )
-    mock_health_check.side_effect = (
-        lambda endpoint: endpoint == "http://endpoint1"
-        or endpoint == "http://endpoint3"
+    mock_health_check.side_effect = lambda chain_id, endpoint: (
+        endpoint == "http://endpoint1" or endpoint == "http://endpoint3"
     )
 
     test_domain = TACoDomain(

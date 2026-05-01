@@ -1,0 +1,1 @@
+Allow operators to configure custom RPC endpoints for additional chains beyond mandatory ETH and Polygon chains.

@@ -7,6 +7,7 @@ from packaging.version import parse as parse_version
 
 import nucypher
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.policy.conditions.base import Condition
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
@@ -17,6 +18,8 @@ from nucypher.policy.conditions.lingo import (
     ConditionLingo,
     ConditionType,
 )
+from nucypher.policy.conditions.signing.base import SIGNING_CONDITION_OBJECT_CONTEXT_VAR
+from nucypher.policy.conditions.time import TimeCondition
 from tests.constants import INT256_MIN, TESTERCHAIN_CHAIN_ID, UINT256_MAX
 
 
@@ -86,6 +89,16 @@ def lingo_with_all_condition_types(get_random_checksum_address):
         "returnValueTest": {
             "comparator": "==",
             "value": 2,
+            "operations": [
+                {
+                    "operation": "*=",
+                    "value": 1,
+                },
+                {
+                    "operation": "-=",
+                    "value": 5.5,
+                },
+            ],
         },
     }
     json_rpc_condition = {
@@ -112,6 +125,12 @@ def lingo_with_all_condition_types(get_random_checksum_address):
             {
                 "varName": "timeValue",
                 "condition": time_condition,
+                "operations": [
+                    {
+                        "operation": "+=",
+                        "value": 100_000,
+                    }
+                ],
             },
             {
                 "varName": "rpcValue",
@@ -131,11 +150,82 @@ def lingo_with_all_condition_types(get_random_checksum_address):
             },
         ],
     }
+    json_api_condition_w_auth_type = {
+        # JSON API
+        "conditionType": ConditionType.JSONAPI.value,
+        "endpoint": "https://api.example.com/data",
+        "parameters": {
+            "ids": "ethereum",
+            "vs_currencies": "usd",
+        },
+        "authorizationToken": ":authToken",
+        "authorizationType": "Bearer",
+        "query": "$.store.book[0].price",
+        "returnValueTest": {
+            "comparator": "==",
+            "value": 2,
+        },
+    }
+    json_rpc_condition_w_auth_type = {
+        # JSON RPC
+        "conditionType": ConditionType.JSONRPC.value,
+        "endpoint": "https://math.example.com/",
+        "method": "subtract",
+        "params": [42, 23],
+        "query": "$.mathresult",
+        "authorizationToken": ":authToken",
+        "authorizationType": "X-API-Key",
+        "returnValueTest": {
+            "comparator": "==",
+            "value": 19,
+            "operations": [
+                {
+                    "operation": "sum",
+                }
+            ],
+        },
+    }
     if_then_else_condition = {
         "conditionType": ConditionType.IF_THEN_ELSE.value,
-        "ifCondition": rpc_condition,
-        "thenCondition": json_api_condition,
-        "elseCondition": json_rpc_condition,
+        "ifCondition": json_rpc_condition,
+        "thenCondition": json_api_condition_w_auth_type,
+        "elseCondition": json_rpc_condition_w_auth_type,
+    }
+    signing_object_attribute_condition = {
+        "conditionType": ConditionType.SIGNING_ATTRIBUTE.value,
+        "signingObjectContextVar": SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
+        "attributeName": "sender",
+        "returnValueTest": {
+            "comparator": "==",
+            "value": get_random_checksum_address(),
+        },
+    }
+    signing_object_abi_attribute_condition = {
+        "conditionType": ConditionType.SIGNING_ABI_ATTRIBUTE.value,
+        "signingObjectContextVar": SIGNING_CONDITION_OBJECT_CONTEXT_VAR,
+        "attributeName": "call_data",
+        "abiValidation": {
+            "allowedAbiCalls": {
+                "execute((address,uint256,bytes))": [
+                    {
+                        "parameterIndex": 0,
+                        "subIndices": [1],
+                        "returnValueTest": {
+                            "comparator": "<",
+                            "value": 1000000000000000,
+                        },
+                    }
+                ]
+            }
+        },
+    }
+    context_var_condition = {
+        "conditionType": ConditionType.CONTEXT_VARIABLE.value,
+        "contextVariable": ":myContextVar",
+        "returnValueTest": {
+            "comparator": "!=",
+            "value": 23,
+        },
     }
     return {
         "version": ConditionLingo.VERSION,
@@ -149,10 +239,13 @@ def lingo_with_all_condition_types(get_random_checksum_address):
                 rpc_condition,
                 {
                     "conditionType": ConditionType.COMPOUND.value,
-                    "operator": "not",
+                    "operator": "at-least",
                     "operands": [
-                        time_condition,
+                        signing_object_attribute_condition,
+                        signing_object_abi_attribute_condition,
+                        context_var_condition,
                     ],
+                    "threshold": 1,
                 },
             ],
         },
@@ -189,7 +282,6 @@ def test_invalid_condition():
 
 
 def test_invalid_compound_condition():
-
     # invalid operator
     invalid_operator = {
         "version": ConditionLingo.VERSION,
@@ -338,6 +430,20 @@ def test_condition_lingo_to_from_json(lingo_with_all_condition_types):
     assert clingo_from_json.to_dict() == lingo_with_all_condition_types
 
 
+def test_condition_lingo_to_from_bytes(lingo_with_all_condition_types):
+    clingo = ConditionLingo.from_dict(lingo_with_all_condition_types)
+    clingo_bytes = bytes(clingo)
+    clingo_from_bytes = ConditionLingo.from_bytes(clingo_bytes)
+    assert clingo_from_bytes.to_dict() == lingo_with_all_condition_types
+
+
+def test_condition_lingo_to_from_base64(lingo_with_all_condition_types):
+    clingo = ConditionLingo.from_dict(lingo_with_all_condition_types)
+    clingo_base64 = clingo.to_base64()
+    clingo_from_base64 = ConditionLingo.from_base64(clingo_base64)
+    assert clingo_from_base64.to_dict() == lingo_with_all_condition_types
+
+
 def test_compound_condition_lingo_repr(lingo_with_all_condition_types):
     clingo = ConditionLingo.from_dict(lingo_with_all_condition_types)
     clingo_string = f"{clingo}"
@@ -347,7 +453,9 @@ def test_compound_condition_lingo_repr(lingo_with_all_condition_types):
     assert f"size={len(bytes(clingo))}" in clingo_string
 
 
-def test_lingo_parameter_int_type_preservation(custom_abi_with_multiple_parameters, mocker):
+def test_lingo_parameter_int_type_preservation(
+    custom_abi_with_multiple_parameters, mocker
+):
     mocker.patch.dict(
         nucypher.policy.conditions.context._DIRECTIVES,
         {USER_ADDRESS_CONTEXT: lambda: NULL_ADDRESS},
@@ -469,8 +577,8 @@ def test_any_field_nested_integer():
         (-1231231, -1231231),  # safe negative int
         (f"{UINT256_MAX}n", UINT256_MAX),
         (f"{INT256_MIN}n", INT256_MIN),
-        (f"{UINT256_MAX*2}n", UINT256_MAX * 2),  # larger than uint256 max
-        (f"{INT256_MIN*2}n", INT256_MIN * 2),  # smaller than in256 min
+        (f"{UINT256_MAX * 2}n", UINT256_MAX * 2),  # larger than uint256 max
+        (f"{INT256_MIN * 2}n", INT256_MIN * 2),  # smaller than in256 min
         # expected failures
         ("Totally a number", None),
         ("Totally a number that ends with n", None),
@@ -486,3 +594,38 @@ def test_any_large_integer_field(json_value, expected_deserialized_value):
         # expected to fail
         with pytest.raises(ValidationError, match="Not a valid integer."):
             _ = field.deserialize(json_value)
+
+
+def test_single_schema_validation_on_condition_creation(mocker, time_condition):
+    time_condition_lingo = ConditionLingo(time_condition)
+
+    validate_spy = mocker.spy(Condition, "_force_validate_with_schema")
+
+    # from dict
+    condition_dict = time_condition_lingo.to_dict()
+    _ = ConditionLingo.from_dict(condition_dict)
+    assert validate_spy.call_count == 0  # already validated since created from lingo
+
+    # from json
+    condition_json = time_condition_lingo.to_json()
+    _ = ConditionLingo.from_json(condition_json)
+    assert validate_spy.call_count == 0  # already validated since created from lingo
+
+    # from bytes
+    condition_bytes = bytes(time_condition_lingo)
+    _ = ConditionLingo.from_bytes(condition_bytes)
+    assert validate_spy.call_count == 0  # already validated since created from lingo
+
+    # directly from constructor
+    new_time_condition = TimeCondition(
+        return_value_test=time_condition.return_value_test,
+        chain=time_condition.chain,
+        method=time_condition.method,
+    )
+    # actually validated since created directly from constructor, not from lingo
+    assert validate_spy.call_count == 1
+
+    # condition lingo from condition constructor
+    _ = ConditionLingo(new_time_condition)
+    # no change in call count since condition already previously created in previous step
+    assert validate_spy.call_count == 1

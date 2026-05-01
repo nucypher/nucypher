@@ -3,7 +3,6 @@ from collections import defaultdict
 import pytest
 from eth_utils.crypto import keccak
 
-from nucypher.blockchain.eth.actors import Operator
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.utilities.logging import GlobalLoggerSettings
@@ -133,11 +132,3 @@ def mock_get_external_ip_from_url_source(session_mocker):
 def disable_check_grant_requirements(session_mocker):
     target = 'nucypher.characters.lawful.Alice._check_grant_requirements'
     session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)
-
-
-
-@pytest.fixture(scope="module", autouse=True)
-def mock_multichain_configuration(module_mocker, testerchain):
-    module_mocker.patch.object(
-        Operator, "_make_condition_provider", return_value=testerchain.provider
-    )

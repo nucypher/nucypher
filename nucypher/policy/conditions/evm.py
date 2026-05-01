@@ -1,3 +1,4 @@
+from functools import partial
 from typing import (
     Any,
     List,
@@ -29,13 +30,14 @@ from nucypher.policy.conditions.context import (
     resolve_any_context_variables,
 )
 from nucypher.policy.conditions.exceptions import (
+    NoConnectionToChain,
     RequiredContextVariable,
     RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import (
     AnyField,
     ConditionType,
-    ExecutionCallAccessControlCondition,
+    ExecutionCallCondition,
     ReturnValueTest,
 )
 from nucypher.policy.conditions.utils import (
@@ -110,24 +112,18 @@ class RPCCall(ExecutionCall):
                 param=self.parameters, providers=providers, **context
             )
 
-        endpoints = providers.web3_endpoints(self.chain)
-
-        latest_error = ""
-        for w3 in endpoints:
-            try:
-                result = self._execute(w3, resolved_parameters)
-                break
-            except RequiredContextVariable:
-                raise
-            except Exception as e:
-                latest_error = f"RPC call '{self.method}' failed: {e}"
-                self.LOG.warn(f"{latest_error}, attempting to try next endpoint.")
-                # Something went wrong. Try the next endpoint.
-                continue
-        else:
-            # Fuck.
+        try:
+            result = providers.exec_web3_call(
+                chain_id=self.chain,
+                fn=partial(self._execute, resolved_parameters=resolved_parameters),
+            )
+        except RequiredContextVariable:
+            raise
+        except NoConnectionToChain:
+            raise
+        except Exception as e:
             raise RPCExecutionFailed(
-                f"RPC call '{self.method}' failed; latest error - {latest_error}"
+                f"RPC call '{self.method}' failed; latest error - {e}"
             )
 
         return result
@@ -140,11 +136,11 @@ class RPCCall(ExecutionCall):
         return rpc_result
 
 
-class RPCCondition(ExecutionCallAccessControlCondition):
+class RPCCondition(ExecutionCallCondition):
     EXECUTION_CALL_TYPE = RPCCall
     CONDITION_TYPE = ConditionType.RPC.value
 
-    class Schema(ExecutionCallAccessControlCondition.Schema, RPCCall.Schema):
+    class Schema(ExecutionCallCondition.Schema, RPCCall.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.RPC.value), required=True
         )
@@ -153,6 +149,10 @@ class RPCCondition(ExecutionCallAccessControlCondition):
         def validate_expected_return_type(self, data, **kwargs):
             method = data.get("method")
             return_value_test = data.get("return_value_test")
+
+            if return_value_test.operations:
+                # skip validation since operations modify the value to check
+                return
 
             expected_return_type = RPCCall.ALLOWED_METHODS[method]
             comparator_value = return_value_test.value
@@ -362,6 +362,10 @@ class ContractCondition(RPCCondition):
 
             # validate return type based on contract function
             return_value_test = data.get("return_value_test")
+            if return_value_test.operations:
+                # skip validation since operations modify the value to check
+                return
+
             try:
                 validate_contract_function_expected_return_type(
                     contract_function=contract_function,

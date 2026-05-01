@@ -1,0 +1,1 @@
+Dedicated signing key for Action Control multisig messages.

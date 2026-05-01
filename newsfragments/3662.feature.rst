@@ -1,0 +1,1 @@
+Increased the maximum number of conditions within a ``SequentialCondition`` from 5 to 10 to support more complex logic.

@@ -15,7 +15,7 @@ from nucypher.crypto.powers import TransactingPower
 def test_sampling_distribution(
     testerchain,
     taco_application_agent,
-    threshold_staking,
+    taco_application,
     coordinator_agent,
     deployer_account,
     accounts,
@@ -29,10 +29,8 @@ def test_sampling_distribution(
     for provider_address in stake_provider_accounts:
         operator_address = provider_address
 
-        # initialize threshold stake
-        threshold_staking.setRoles(provider_address, sender=deployer_account)
-        threshold_staking.authorizationIncreased(
-            provider_address, 0, amount, sender=deployer_account
+        taco_application.addStakelessProvider(
+            provider_address, provider_address, sender=deployer_account
         )
 
         power = TransactingPower(

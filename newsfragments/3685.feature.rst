@@ -1,0 +1,1 @@
+Add ``sub_indices`` parameter to ABI parameter validation for signing conditions, enabling validation of nested array and tuple elements in batch transactions and multicall operations. This unified approach replaces the need for separate array/tuple index fields and supports arbitrary nesting patterns.

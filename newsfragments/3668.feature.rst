@@ -1,0 +1,1 @@
+Add ``:nullAddress`` protected context variable for conditions that resolves to the Ethereum null address without requiring context data.

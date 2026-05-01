@@ -1,0 +1,1 @@
+Added JSON (``fromJson``, ``toJson``), hex (``fromHex``, ``toHex``), and keccak hashing (``keccak``) operators for variable operations in conditions.

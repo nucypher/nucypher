@@ -1,22 +1,20 @@
-import random
-
 import pytest
 from web3 import Web3
 
 import tests
-from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
+    SigningCoordinatorAgent,
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
 from tests.constants import (
-    BONUS_TOKENS_FOR_TESTS,
     MIN_OPERATOR_SECONDS,
     TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,
@@ -34,19 +32,9 @@ ONE_DAY = 24 * 60 * 60
 
 # ERC-20
 TOTAL_SUPPLY = Web3.to_wei(11_000_000_000, "ether")
-NU_TOTAL_SUPPLY = Web3.to_wei(
-    1_000_000_000, "ether"
-)  # TODO NU(1_000_000_000, 'NU').to_units()
 
 # TACo Application
-MIN_AUTHORIZATION = Web3.to_wei(40_000, "ether")
-
-REWARD_DURATION = 7 * ONE_DAY  # one week in seconds
-DEAUTHORIZATION_DURATION = 60 * ONE_DAY  # 60 days in seconds
-
-PENALTY_DEFAULT = 1000  # 10% penalty
-PENALTY_INCREMENT = 2500  # 25% penalty increment
-PENALTY_DURATION = ONE_DAY  # 1 day in seconds
+MIN_AUTHORIZATION = Web3.to_wei(150_000, "ether")
 
 
 # Coordinator
@@ -54,6 +42,9 @@ DKG_TIMEOUT = 3600
 HANDOVER_TIMEOUT = 1800
 MAX_DKG_SIZE = 8
 FEE_RATE = 1
+
+# SigningCoordinator
+SIGNING_TIMEOUT = DKG_TIMEOUT
 
 
 #
@@ -106,13 +97,13 @@ def initiator(testerchain, alice, ritual_token, deployer_account):
 def nucypher_dependency(project):
     nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
     # simply use first entry - could be from github ('main') or local ('local')
-    _, nucypher_dependency = list(nucypher_contracts_dependency_api.items())[0]
-    return nucypher_dependency
+    _, _nucypher_dependency = list(nucypher_contracts_dependency_api.items())[0]
+    return _nucypher_dependency
 
 
 @pytest.fixture(scope="session", autouse=True)
 def oz_dependency(project):
-    _oz_dependency = project.dependencies["openzeppelin"]["5.0.0"]
+    _oz_dependency = project.dependencies["openzeppelin530"]["5.3.0"]
     return _oz_dependency
 
 
@@ -134,32 +125,17 @@ def t_token(nucypher_dependency, deployer_account):
 
 
 @pytest.fixture(scope="module")
-def threshold_staking(nucypher_dependency, deployer_account):
-    _threshold_staking = deployer_account.deploy(
-        nucypher_dependency.TestnetThresholdStaking
-    )
-    return _threshold_staking
-
-
-@pytest.fixture(scope="module")
 def taco_application(
     oz_dependency,
     nucypher_dependency,
     deployer_account,
     t_token,
-    threshold_staking,
 ):
     taco_application_implementation = deployer_account.deploy(
         nucypher_dependency.TACoApplication,
         t_token.address,
-        threshold_staking.address,
         MIN_AUTHORIZATION,
         MIN_OPERATOR_SECONDS,
-        REWARD_DURATION,
-        DEAUTHORIZATION_DURATION,
-        PENALTY_DEFAULT,
-        PENALTY_DURATION,
-        PENALTY_INCREMENT,
     )
 
     proxy = deployer_account.deploy(
@@ -170,7 +146,6 @@ def taco_application(
     )
     proxy_contract = nucypher_dependency.TACoApplication.at(proxy.address)
 
-    threshold_staking.setApplication(proxy_contract.address, sender=deployer_account)
     proxy_contract.initialize(sender=deployer_account)
 
     return proxy_contract
@@ -244,15 +219,131 @@ def coordinator(
 
 
 @pytest.fixture(scope="module")
+def signing_coordinator(
+    oz_dependency,
+    nucypher_dependency,
+    deployer_account,
+    taco_application,
+):
+    signing_coordinator_impl = nucypher_dependency.SigningCoordinator.deploy(
+        taco_application.address,
+        sender=deployer_account,
+    )
+    signing_coordinator_proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+        signing_coordinator_impl.address,
+        deployer_account,
+        b"",
+        sender=deployer_account,
+    )
+    signing_coordinator = nucypher_dependency.SigningCoordinator.at(
+        signing_coordinator_proxy.address
+    )
+
+    # deploy proxied dispatcher
+    signing_coordinator_dispatcher_impl = (
+        nucypher_dependency.SigningCoordinatorDispatcher.deploy(
+            signing_coordinator.address,
+            sender=deployer_account,
+        )
+    )
+    encoded_initializer_function = (
+        signing_coordinator_dispatcher_impl.initialize.encode_input()
+    )
+    dispatcher_proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+        signing_coordinator_dispatcher_impl.address,
+        deployer_account,
+        encoded_initializer_function,
+        sender=deployer_account,
+    )
+    dispatcher = nucypher_dependency.SigningCoordinatorDispatcher.at(
+        dispatcher_proxy.address
+    )
+
+    # initialize signing coordinator proxy
+    signing_coordinator.initialize(
+        SIGNING_TIMEOUT,
+        MAX_DKG_SIZE,
+        dispatcher.address,
+        deployer_account.address,
+        sender=deployer_account,
+    )
+
+    signing_coordinator.grantRole(
+        signing_coordinator.INITIATOR_ROLE(),
+        deployer_account.address,
+        sender=deployer_account,
+    )
+
+    return signing_coordinator
+
+
+def _signing_coordinator_child_deployment(
+    nucypher_dependency, oz_dependency, deployer, allowed_caller
+):
+    contract = nucypher_dependency.SigningCoordinatorChild.deploy(
+        sender=deployer,
+    )
+    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+        contract.address,
+        deployer,
+        b"",
+        sender=deployer,
+    )
+    proxy_contract = nucypher_dependency.SigningCoordinatorChild.at(proxy.address)
+
+    threshold_signing_multisig = nucypher_dependency.ThresholdSigningMultisig.deploy(
+        sender=deployer,
+    )
+    signing_factory_contract = (
+        nucypher_dependency.ThresholdSigningMultisigCloneFactory.deploy(
+            threshold_signing_multisig.address,
+            proxy_contract.address,
+            sender=deployer,
+        )
+    )
+
+    proxy_contract.initialize(
+        signing_factory_contract.address, allowed_caller, sender=deployer
+    )
+    return proxy_contract
+
+
+@pytest.fixture(scope="module")
+def signing_coordinator_child(
+    chain, nucypher_dependency, oz_dependency, deployer_account, signing_coordinator
+):
+    signing_coordinator_dispatcher = (
+        nucypher_dependency.SigningCoordinatorDispatcher.at(
+            signing_coordinator.signingCoordinatorDispatcher()
+        )
+    )
+
+    _signing_coordinator_child = _signing_coordinator_child_deployment(
+        nucypher_dependency,
+        oz_dependency,
+        deployer_account,
+        signing_coordinator_dispatcher.address,
+    )
+
+    # don't need a L1Sender for the same chain as signing coordinator
+    # current chain
+    signing_coordinator_dispatcher.register(
+        chain.chain_id,
+        NULL_ADDRESS,
+        _signing_coordinator_child.address,
+        sender=deployer_account,
+    )
+
+    return _signing_coordinator_child
+
+
+@pytest.fixture(scope="module")
 def fee_model(nucypher_dependency, deployer_account, coordinator, ritual_token):
     contract = deployer_account.deploy(
         nucypher_dependency.FlatRateFeeModel,
         coordinator.address,
         ritual_token.address,
         FEE_RATE,
-    )
-    coordinator.grantRole(
-        coordinator.TREASURY_ROLE(), deployer_account.address, sender=deployer_account
     )
     coordinator.grantRole(
         coordinator.FEE_MODEL_MANAGER_ROLE(),
@@ -308,10 +399,11 @@ def subscription_manager(nucypher_dependency, deployer_account):
 def deployed_contracts(
     ritual_token,
     t_token,
-    threshold_staking,
     taco_application,
     taco_child_application,
     coordinator,
+    signing_coordinator,
+    signing_coordinator_child,
     fee_model,
     global_allow_list,
     subscription_manager,
@@ -320,10 +412,11 @@ def deployed_contracts(
     deployments = [
         ritual_token,
         t_token,
-        threshold_staking,
         taco_application,
         taco_child_application,
         coordinator,
+        signing_coordinator,
+        signing_coordinator_child,
         fee_model,
         global_allow_list,
         subscription_manager,
@@ -341,7 +434,6 @@ def test_registry(deployed_contracts, module_mocker):
         yield registry
 
 
-@pytest.mark.usefixtures("test_registry")
 @pytest.fixture(scope="module")
 def testerchain(project, clock, accounts) -> TesterBlockchain:
     # Extract the web3 provider containing EthereumTester from the ape project's chain manager
@@ -362,23 +454,14 @@ def staking_providers(
     deployer_account,
     accounts,
     testerchain,
-    threshold_staking,
     taco_application,
 ):
-    minimum_stake = taco_application.minimumAuthorization()
-
     staking_providers = list()
     for provider_address, operator_address in zip(
         accounts.staking_providers_accounts, accounts.ursulas_accounts
     ):
-        # for a random amount
-        amount = minimum_stake + random.randrange(BONUS_TOKENS_FOR_TESTS)
-
-        # initialize threshold stake via threshold staking (permission-less mock)
-        threshold_staking.setRoles(provider_address, sender=deployer_account)
-
-        threshold_staking.authorizationIncreased(
-            provider_address, 0, amount, sender=deployer_account
+        taco_application.addStakelessProvider(
+            provider_address, provider_address, sender=deployer_account
         )
 
         taco_application.bondOperator(
@@ -407,6 +490,17 @@ def coordinator_agent(testerchain, test_registry):
         blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
     return coordinator
+
+
+@pytest.fixture(scope="module", autouse=True)
+def signing_coordinator_agent(testerchain, test_registry):
+    """Creates a coordinator agent"""
+    signing_coordinator = ContractAgency.get_agent(
+        SigningCoordinatorAgent,
+        registry=test_registry,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
+    )
+    return signing_coordinator
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -456,8 +550,11 @@ def mock_condition_blockchains(module_mocker):
     )
 
 
-@pytest.fixture(scope="module", autouse=True)
-def mock_multichain_configuration(module_mocker, testerchain):
-    module_mocker.patch.object(
-        Operator, "_make_condition_provider", return_value=testerchain.provider
-    )
+#
+# AA contract
+#
+@pytest.fixture(scope="module")
+def aa_entry_point(project, deployer_account):
+    """Returns the AA entry point contract."""
+    entry_point = deployer_account.deploy(project.EntryPoint)
+    return entry_point

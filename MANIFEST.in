@@ -1,12 +1,33 @@
-include pyproject.toml
+include CONTRIBUTING.rst
+include CODE_OF_CONDUCT.md
 include LICENSE
 include README.md
-include requirements.txt
+include SECURITY.md
+
+include pyproject.toml
 include dev-requirements.txt
+include requirements.txt
+include releases.rst
 
-recursive-exclude tests/ *
+exclude .bumpversion.cfg
+exclude .coveragerc
+exclude .dockerignore
+exclude .flake8
+exclude .pre-commit-config.yaml
+exclude codecov.yml
+exclude *.lock
+exclude *.png
+exclude Makefile
+exclude mypy.ini
+exclude pytest.ini
 
-recursive-exclude * __pycache__
+prune tests
+prune scripts/dev
+prune newsfragments
+prune deploy
+prune examples
+
+global-exclude __pycache__
 global-exclude *.py[cod]
 
 recursive-include nucypher/blockchain/eth/contract_registry *.json

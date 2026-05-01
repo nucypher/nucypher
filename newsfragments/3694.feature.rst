@@ -1,0 +1,1 @@
+Randomize use of public RPC endpoints to smooth out request load and avoid rate limiting.

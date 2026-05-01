@@ -19,6 +19,7 @@ PYPI_CLASSIFIERS = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Security",
 ]
 
@@ -46,7 +47,7 @@ long_description = (Path(__file__).parent / "README.md").read_text()
 setup(
 
     # Requirements
-    python_requires='>=3',
+    python_requires=">=3.9,<4",
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS,
 

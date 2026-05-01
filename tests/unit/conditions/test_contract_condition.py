@@ -10,7 +10,6 @@ import pytest
 from hexbytes import HexBytes
 from marshmallow import post_load
 from web3 import Web3
-from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.evm import ContractCall, ContractCondition
 from nucypher.policy.conditions.exceptions import (
@@ -138,11 +137,17 @@ def _check_execution_logic(
             json.dumps(condition_dict)
         )
         fake_execution_contract_condition.set_execution_return_value(execution_result)
-        fake_providers = Mock(spec=ConditionProviderManager)
-        fake_providers.web3_endpoints.return_value = [Mock(BaseProvider)]
+
+        fake_condition_provider_manager = Mock(spec=ConditionProviderManager)
+
+        def mock_exec_web3_call(fn, *args, **kwargs):
+            w3 = Mock(spec=Web3)
+            return fn(w3)
+
+        fake_condition_provider_manager.exec_web3_call.side_effect = mock_exec_web3_call
 
         condition_result, call_result = fake_execution_contract_condition.verify(
-            fake_providers, **context
+            fake_condition_provider_manager, **context
         )
 
         if expected_outcome is None:
@@ -685,8 +690,17 @@ def test_abi_bytes_output(bytes_test_scenario, contract_condition_dict):
     with pytest.raises(
         InvalidConditionLingo, match="Invalid return value comparison type"
     ):
-        contract_condition_dict["returnValueTest"]["value"] = 1.25
-        ContractCondition.from_json(json.dumps(contract_condition_dict))
+        invalid_contract_condition_dict = dict(contract_condition_dict)
+        invalid_contract_condition_dict["returnValueTest"]["value"] = 1.25
+        ContractCondition.from_json(json.dumps(invalid_contract_condition_dict))
+
+    # type does not fail if operations are present
+    contract_condition_dict_w_ops = invalid_contract_condition_dict.copy()
+    contract_condition_dict_w_ops["returnValueTest"]["operations"] = [
+        {"operation": "toHex"}
+    ]
+    # no exception should be raised here
+    ContractCondition.from_json(json.dumps(contract_condition_dict_w_ops))
 
     # test execution logic
     _check_execution_logic(
