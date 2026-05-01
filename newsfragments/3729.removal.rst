@@ -1,0 +1,1 @@
+Removes enforcement of the ETH balance check on node startup since not all nodes will participate in signing rituals on Ethereum; a one-time ETH balance check is still performed for logging.
