@@ -51,7 +51,6 @@ TEACHER_NODES = {
         "https://mainnet.nucypher.network:9151",
     ),
     domains.LYNX: ("https://lynx.nucypher.network:9151",),
-    domains.TAPIR: ("https://tapir.nucypher.network:9151",),
 }
 
 

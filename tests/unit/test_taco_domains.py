@@ -60,12 +60,6 @@ def test_polygon_chains(poly_chain_test):
             EthChain.SEPOLIA,
             PolygonChain.AMOY,
         ),
-        (
-            domains.TAPIR,
-            "tapir",
-            EthChain.SEPOLIA,
-            PolygonChain.AMOY,
-        ),
     ),
 )
 def test_taco_domain_info(taco_domain_test):
@@ -87,7 +81,6 @@ def test_taco_domain_info(taco_domain_test):
     (
         ("mainnet", domains.MAINNET),
         ("lynx", domains.LYNX),
-        ("tapir", domains.TAPIR),
     ),
 )
 def test_get_domain(domain_name_test):
