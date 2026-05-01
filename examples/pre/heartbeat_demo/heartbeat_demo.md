@@ -47,7 +47,7 @@ and adding your provider and wallet details.  To set the variables in your curre
 Optionally, you can change the network the demo is running on by changing the value of `TACO_DOMAIN`.
 If you change these values be sure to also change `L1_PROVIDER_URI` and `L2_PROVIDER_URI` accordingly.
 
-Available options for `TACO_DOMAIN` are `lynx`, `tapir` or `mainnet`.
+Available options for `TACO_DOMAIN` are `lynx`, or `mainnet`.
 
 Ensure Alice's account has a bit of MATIC on polygon to pay for the policy.
 

@@ -75,17 +75,11 @@ LYNX = TACoDomain(
     polygon_chain=PolygonChain.AMOY,
 )
 
-TAPIR = TACoDomain(
-    name="tapir",
-    eth_chain=EthChain.SEPOLIA,
-    polygon_chain=PolygonChain.AMOY,
-)
-
 
 DEFAULT_DOMAIN: TACoDomain = MAINNET
 
 SUPPORTED_DOMAINS: Dict[str, TACoDomain] = {
-    str(domain): domain for domain in (MAINNET, LYNX, TAPIR)
+    str(domain): domain for domain in (MAINNET, LYNX)
 }
 
 
