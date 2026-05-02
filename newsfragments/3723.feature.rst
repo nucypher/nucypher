@@ -1,0 +1,1 @@
+Add ``nestedAbiDecode`` for validating selectorless ABI-encoded data in signing conditions, enabling ERC-7579 batch execution support.

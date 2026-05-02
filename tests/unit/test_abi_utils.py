@@ -1,5 +1,6 @@
 import os
 
+import eth_abi
 import pytest
 from eth_utils import keccak
 
@@ -232,3 +233,41 @@ def test_resolve_abi_type_with_indices_errors():
         resolve_abi_type_with_indices(
             "(address,uint256)[]", [0, 0, 0]
         )  # address is not indexable
+
+
+def test_decode_abi_encoded():
+    """Test decoding raw ABI-encoded data (no function selector)."""
+    from nucypher.utilities.abi import decode_abi_encoded
+
+    # Encode a tuple array: (address, uint256, bytes)[]
+    type_str = "(address,uint256,bytes)[]"
+    encoded = eth_abi.encode(
+        [type_str],
+        [
+            [
+                ("0x036CbD53842c5426634e7929541eC2318f3dCF7e", 0, b"\xa9\x05\x9c\xbb"),
+                ("0x036CbD53842c5426634e7929541eC2318f3dCF7e", 0, b"\xa9\x05\x9c\xbb"),
+            ]
+        ],
+    )
+
+    # Should NOT have a function selector (no leading 4 bytes to strip)
+    decoded = decode_abi_encoded(type_str, encoded)
+    assert len(decoded) == 1  # one top-level param: the array
+    assert len(decoded[0]) == 2  # two elements in the array
+    assert (
+        decoded[0][0][0].lower() == "0x036CbD53842c5426634e7929541eC2318f3dCF7e".lower()
+    )
+
+
+def test_decode_abi_encoded_simple_tuple():
+    """Test decoding a simple tuple type."""
+    from nucypher.utilities.abi import decode_abi_encoded
+
+    type_str = "(address,uint256)"
+    addr = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+    encoded = eth_abi.encode([type_str], [(addr, 42)])
+
+    decoded = decode_abi_encoded(type_str, encoded)
+    assert decoded[0][0].lower() == addr.lower()
+    assert decoded[0][1] == 42
