@@ -5,6 +5,7 @@ import pytest
 
 from nucypher.policy.conditions.base import Condition
 from nucypher.policy.conditions.exceptions import (
+    ConditionEvaluationFailed,
     InvalidCondition,
     InvalidConditionLingo,
 )
@@ -611,3 +612,117 @@ def test_not_compound_condition(mock_conditions):
     assert result is True
     assert result is (not and_result)
     assert value == and_value
+
+
+@pytest.mark.usefixtures("mock_skip_schema_validation")
+def test_or_condition_evaluation_failed_does_not_propagate(mock_conditions):
+    """ConditionEvaluationFailed in one OR branch should not kill the whole
+    compound condition — the failing branch should be treated as False so that
+    other branches still have a chance to satisfy the OR."""
+    condition_1, condition_2, condition_3, condition_4 = mock_conditions
+
+    or_condition = OrCompoundCondition(
+        operands=[
+            condition_1,
+            condition_2,
+            condition_3,
+        ]
+    )
+
+    # condition_1 raises, but condition_2 is True — OR should succeed
+    condition_1.verify.side_effect = ConditionEvaluationFailed("no matches found")
+    condition_2.verify.return_value = (True, 2)
+
+    result, value = or_condition.verify(providers={})
+    assert result is True
+    assert len(value) == 2
+
+    # condition_1 raises, condition_2 is False, condition_3 is True — OR should succeed
+    condition_1.verify.side_effect = ConditionEvaluationFailed("no matches found")
+    condition_2.verify.return_value = (False, 2)
+    condition_3.verify.return_value = (True, 3)
+
+    result, value = or_condition.verify(providers={})
+    assert result is True
+    assert len(value) == 3
+
+    # all conditions raise — OR should return False (not raise)
+    condition_1.verify.side_effect = ConditionEvaluationFailed("error 1")
+    condition_2.verify.side_effect = ConditionEvaluationFailed("error 2")
+    condition_3.verify.side_effect = ConditionEvaluationFailed("error 3")
+
+    result, value = or_condition.verify(providers={})
+    assert result is False
+    assert len(value) == 3
+
+
+@pytest.mark.usefixtures("mock_skip_schema_validation")
+def test_and_condition_evaluation_failed_propagates(mock_conditions):
+    """ConditionEvaluationFailed in an AND branch should propagate — if we can't
+    evaluate a condition, we can't confirm the AND is satisfied."""
+    condition_1, condition_2, condition_3, _ = mock_conditions
+
+    and_condition = AndCompoundCondition(
+        operands=[
+            condition_1,
+            condition_2,
+            condition_3,
+        ]
+    )
+
+    # condition_1 is True, condition_2 raises — AND should propagate the error
+    condition_1.verify.return_value = (True, 1)
+    condition_2.verify.side_effect = ConditionEvaluationFailed("no matches found")
+
+    with pytest.raises(ConditionEvaluationFailed):
+        and_condition.verify(providers={})
+
+    # condition_1 raises immediately — AND should propagate
+    condition_1.verify.side_effect = ConditionEvaluationFailed("no matches found")
+
+    with pytest.raises(ConditionEvaluationFailed):
+        and_condition.verify(providers={})
+
+
+@pytest.mark.usefixtures("mock_skip_schema_validation")
+def test_at_least_condition_evaluation_failed_does_not_propagate(mock_conditions):
+    """ConditionEvaluationFailed in an AT_LEAST branch should be treated as
+    False — the failing branch simply doesn't count toward the threshold."""
+    condition_1, condition_2, condition_3, condition_4 = mock_conditions
+
+    at_least_condition = AtLeastCompoundCondition(
+        operands=[condition_1, condition_2, condition_3, condition_4],
+        threshold=2,
+    )
+
+    # condition_1 raises, but conditions 2 and 3 are True — threshold met
+    condition_1.verify.side_effect = ConditionEvaluationFailed("no matches found")
+    condition_2.verify.return_value = (True, 2)
+    condition_3.verify.return_value = (True, 3)
+
+    result, value = at_least_condition.verify(providers={})
+    assert result is True
+
+    # condition_1 and condition_2 raise, only condition_3 is True — threshold not met
+    condition_1.verify.side_effect = ConditionEvaluationFailed("error 1")
+    condition_2.verify.side_effect = ConditionEvaluationFailed("error 2")
+    condition_3.verify.return_value = (True, 3)
+    condition_4.verify.return_value = (False, 4)
+
+    result, value = at_least_condition.verify(providers={})
+    assert result is False
+    assert len(value) == 4
+
+
+@pytest.mark.usefixtures("mock_skip_schema_validation")
+def test_not_condition_evaluation_failed_propagates(mock_conditions):
+    """ConditionEvaluationFailed in a NOT condition should propagate — we can't
+    negate something we couldn't evaluate."""
+    condition_1, _, _, _ = mock_conditions
+
+    not_condition = NotCompoundCondition(operand=condition_1)
+
+    condition_1.verify.side_effect = ConditionEvaluationFailed("no matches found")
+
+    with pytest.raises(ConditionEvaluationFailed):
+        not_condition.verify(providers={})
