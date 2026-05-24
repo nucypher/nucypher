@@ -32,7 +32,7 @@ See more in the [TACo docs](https://docs.taco.build/).
 
 NuCypher is a community-driven project and we're very open to outside contributions.
 
-All our development discussions happen in our [Discord server](https://discord.gg/threshold), where we're happy to answer
+All our development discussions happen in our [Discord server](https://discord.gg/buildwithtaco), where we're happy to answer
 technical questions, discuss feature requests,
 and accept bug reports.
 
